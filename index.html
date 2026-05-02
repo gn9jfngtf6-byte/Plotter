@@ -408,9 +408,9 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     </div>
     <div class="area-row">
       <span data-i18n="lbl_x_from">x von</span>
-      <input type="text" id="area-x1" value="-3" inputmode="decimal" style="width:55px;">
+      <input type="number" id="area-x1" value="-3" step="0.5" style="width:55px;">
       <span data-i18n="lbl_to">bis</span>
-      <input type="text" id="area-x2" value="3" inputmode="decimal" style="width:55px;">
+      <input type="number" id="area-x2" value="3" step="0.5" style="width:55px;">
     </div>
     <div class="toolbar" style="margin-bottom:4px;"><button onclick="setAreaFromIsects()" data-i18n="btn_isect" data-i18n-title="btn_isect" style="font-size:10px;">∩ Schnittpunkte</button></div>
     <div class="toolbar"><button id="area-toggle-btn" onclick="toggleArea()" data-i18n="btn_area">Fläche anzeigen</button></div>
@@ -423,9 +423,9 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     <div id="point-list"></div>
     <div class="add-row">
       <span style="font-size:11px;color:#6b7280;">x:</span>
-      <input type="text" id="new-px" value="0" inputmode="decimal" style="width:52px;">
+      <input type="number" id="new-px" value="0" step="0.5" style="width:52px;">
       <span style="font-size:11px;color:#6b7280;">y:</span>
-      <input type="text" id="new-py" value="0" inputmode="decimal" style="width:52px;">
+      <input type="number" id="new-py" value="0" step="0.5" style="width:52px;">
       <button onclick="addPointManual()">+</button>
     </div>
     <div class="hint">Alt + Klick auf den Graphen · Punkte sind immer ziehbar</div>
@@ -552,10 +552,10 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
 <div class="graph-area">
   <div class="range-bar">
     <button id="sidebar-toggle" onclick="toggleSidebar()" title="Menü" aria-label="Menü öffnen/schließen">☰</button>
-    <label>x:</label><input type="text" id="xmin" value="-10" inputmode="decimal" style="width:52px;">
-    <label>bis</label><input type="text" id="xmax" value="10" inputmode="decimal" style="width:52px;">
-    <label>y:</label><input type="text" id="ymin" value="-6" inputmode="decimal" style="width:52px;">
-    <label>bis</label><input type="text" id="ymax" value="6" inputmode="decimal" style="width:52px;">
+    <label>x:</label><input type="number" id="xmin" value="-10" step="1" style="width:52px;">
+    <label>bis</label><input type="number" id="xmax" value="10" step="1" style="width:52px;">
+    <label>y:</label><input type="number" id="ymin" value="-6" step="1" style="width:52px;">
+    <label>bis</label><input type="number" id="ymax" value="6" step="1" style="width:52px;">
     <button onclick="applyRange()">Anwenden</button>
     <button id="undo-btn" onmousedown="return false" onclick="commitAndUndo()" style="font-size:14px;padding:3px 9px;" disabled>↩</button>
     <button id="redo-btn" onmousedown="return false" onclick="commitAndRedo()" style="font-size:14px;padding:3px 9px;" disabled>↪</button>
