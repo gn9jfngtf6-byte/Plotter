@@ -181,7 +181,8 @@ function updateAllLinkedLines() {
 // Gibt Index zurück oder -1 wenn keiner nahe genug ist.
 // Snap-Radius: 14px — anpassen für grössere/kleinere Trefferfläche
 function findNearPoint(mx, my, excludeIdx = -1) {
-  const HIT = 14; // Trefferflächen-Radius in Canvas-Pixeln
+  // Auf Touch-Geräten größere Trefferfläche (Finger > Mauszeiger)
+  const HIT = ('ontouchstart' in window) ? 22 : 14;
   for (let i = points.length - 1; i >= 0; i--) { // rückwärts = oben liegende zuerst
     if (i === excludeIdx) continue;
     const { cx, cy } = toCanvas(points[i].x, points[i].y);

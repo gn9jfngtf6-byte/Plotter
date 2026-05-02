@@ -142,12 +142,66 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
 
 /* Subpanel-Trennlinie innerhalb eines Panels */
 .subpanel { border-top:1px solid var(--border); margin-top:8px; padding-top:7px; }
+
+/* ═══════════════════════════════════════════════════
+   MOBILE / TOUCHSCREEN LAYOUT
+   ═══════════════════════════════════════════════════ */
+
+/* Sidebar-Overlay (abdunkeln wenn Sidebar offen) */
+.sidebar-overlay {
+  display: none;
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.35); z-index: 99;
+}
+
+/* Hamburger-Button: nur auf kleinen Bildschirmen sichtbar */
+#sidebar-toggle {
+  display: none;
+  font-size: 18px; padding: 3px 9px; line-height: 1;
+  flex-shrink: 0;
+}
+
+@media (max-width: 700px) {
+  /* Sidebar als Drawer von links */
+  .sidebar {
+    position: fixed; left: -292px; top: 0; height: 100%;
+    z-index: 100; width: 280px; min-width: 280px;
+    transition: left 0.22s ease;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.18);
+  }
+  .sidebar.open { left: 0; }
+  .sidebar-overlay.open { display: block; }
+
+  /* Hamburger-Button einblenden */
+  #sidebar-toggle { display: inline-flex; align-items: center; justify-content: center; }
+
+  /* Range-Bar scrollbar machen statt umbrechen */
+  .range-bar { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 5px; }
+  .range-bar::-webkit-scrollbar { height: 3px; }
+  .range-bar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* Buttons in Range-Bar etwas kompakter */
+  .range-bar button { padding: 5px 8px; font-size: 11px; white-space: nowrap; }
+  .range-bar input[type=number] { width: 46px; }
+  .range-bar label { display: none; } /* "x:", "y:", "bis" ausblenden auf kleinen Screens */
+
+  /* Tooltip weiter weg vom Finger */
+  .tooltip { font-size: 12px; padding: 5px 10px; }
+
+  /* Grössere Tap-Fläche für Buttons in der Sidebar */
+  button { min-height: 34px; }
+  .del-btn { min-height: 26px; }
+
+  /* Panel-Titles besser tappbar */
+  .panel-title { padding: 6px 0; font-size: 11px; }
+}
 </style>
 </head>
 <body>
 
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 <div class="app">
-<div class="sidebar">
+<div class="sidebar" id="sidebar">
 
   <!-- PANEL 1: Funktionen eingeben + Mathematik-Tastatur -->
   <div class="panel">
@@ -486,6 +540,7 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
 <!-- Rechte Seite: Toolbar + Canvas -->
 <div class="graph-area">
   <div class="range-bar">
+    <button id="sidebar-toggle" onclick="toggleSidebar()" title="Menü" aria-label="Menü öffnen/schließen">☰</button>
     <label>x:</label><input type="number" id="xmin" value="-10" step="1">
     <label>bis</label><input type="number" id="xmax" value="10" step="1">
     <label>y:</label><input type="number" id="ymin" value="-6" step="1">
@@ -524,6 +579,29 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
   <input type="number" id="lp2y" value="1" step="0.5">
 </div>
 
+<script>
+// ── Mobile Sidebar Toggle ──────────────────────────────────────────
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+// Sidebar automatisch schließen wenn ein Pick-Modus gestartet wird
+// (damit man danach gleich in den Canvas tippen kann)
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll(
+    '#lin-pick-btn, #quad-pick-btn, #exp-pick-btn, #log-pick-btn, #power-pick-btn, #slopetri-pick-btn'
+  ).forEach(btn => {
+    btn.addEventListener('click', () => {
+      // Nur auf mobil schließen
+      if (window.innerWidth <= 700) closeSidebar();
+    });
+  });
+});
+</script>
 <script src="01_i18n.js"></script>
 <script src="02_core.js"></script>
 <script src="03_math.js"></script>

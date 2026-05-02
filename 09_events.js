@@ -246,12 +246,21 @@ canvas.addEventListener('touchstart', e => {
   if (touches.length === 1) {
     const m = touchPos(touches[0]);
 
+    // 0. Lösch-Modus: Objekt löschen
+    if (deleteMode) { tryDeleteAt(m.x, m.y); return; }
+
     // Einheitskreis-Punkt?
     if (document.getElementById('chk-unitcircle').checked) {
       const ci = findNearCirclePt(m.x, m.y);
       if (ci >= 0) { drag = { type:'circlept', idx:ci }; touchState = { type:'drag' }; return; }
       if (unitCircleHandleClick(m.x, m.y)) return;
     }
+
+    // 1b. Fit-Pick-Modus: Koordinaten in das nächste leere Punktfeld eintragen
+    if (fitPickMode) { fitPickClick(m.x, m.y); return; }
+
+    // 1c. Steigungsdreieck-Pick-Modus
+    if (slopeTriPickMode) { slopeTriPickClick(m.x, m.y); return; }
 
     // 2-Punkt-Picking?
     if (line2ptPicking) { line2ptPickClick(m.x, m.y); return; }
@@ -272,8 +281,11 @@ canvas.addEventListener('touchstart', e => {
     if (pointMode) { addPointAt(fromCanvas(m.x, m.y).x, fromCanvas(m.x, m.y).y); return; }
     if (graphPtMode) { addGraphPoint(m.x, m.y); return; }
 
-    // Pan
-    touchState = { type:'pan', lastM: m, startView: {...view} };
+    // Pan — isoView beim Start merken für korrekte Panning-Geschwindigkeit
+    // Ohne das ist vertikales Panning im Hochformat viel zu langsam,
+    // da isoView.yrange >> view.yrange wenn Canvas hochformatig ist.
+    const isoAtStart = isoView ? {...isoView} : {...view};
+    touchState = { type:'pan', startM: m, startView: {...view}, startIso: isoAtStart };
 
   } else if (touches.length === 2) {
     const a = touchPos(touches[0]), b2 = touchPos(touches[1]);
@@ -351,13 +363,15 @@ canvas.addEventListener('touchmove', e => {
 
   } else if (touchState.type === 'pan' && touches.length === 1) {
     const m = touchPos(touches[0]);
-    const w = getW(), h = getH(), sv = touchState.startView;
-    const dx = (m.x - touchState.lastM.x) / w * (sv.xmax - sv.xmin);
-    const dy = (m.y - touchState.lastM.y) / h * (sv.ymax - sv.ymin);
+    const w = getW(), h = getH();
+    const sv = touchState.startView;
+    const si = touchState.startIso || sv; // isoView beim Pan-Start → korrekte Geschwindigkeit
+    // Absolutes Delta vom Pan-Startpunkt (verhindert Akkumulations-Fehler)
+    const dx = (m.x - touchState.startM.x) / w * (si.xmax - si.xmin);
+    const dy = (m.y - touchState.startM.y) / h * (si.ymax - si.ymin);
     view.xmin = sv.xmin - dx; view.xmax = sv.xmax - dx;
     view.ymin = sv.ymin + dy; view.ymax = sv.ymax + dy;
-    touchState.lastM = m; touchState.startView = {...view};
-    syncInputs(); scheduleDraw();
+    syncInputs(); scheduleComputeSpecials(); scheduleDraw();
 
   } else if (touchState.type === 'pinch' && touches.length === 2) {
     const a = touchPos(touches[0]), b2 = touchPos(touches[1]);

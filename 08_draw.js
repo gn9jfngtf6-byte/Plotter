@@ -34,7 +34,9 @@ function findNearGP(mx, my) {
     const gp = graphPoints[i]; const fn = functions[gp.fi]; if (!fn || !fn.expr.trim()) continue;
     const y = safeEval(fn.expr, gp.x); if (!isFinite(y)) continue;
     const { cx, cy } = toCanvas(gp.x, y);
-    if (Math.hypot(cx - mx, cy - my) < 14) return i; // 14px Trefferfläche
+    // Auf Touch-Geräten größere Trefferfläche (22px statt 14px)
+    const HIT_GP = ('ontouchstart' in window) ? 22 : 14;
+    if (Math.hypot(cx - mx, cy - my) < HIT_GP) return i;
   }
   return -1;
 }
