@@ -293,7 +293,8 @@ canvas.addEventListener('touchstart', e => {
     const cx = (a.x + b2.x) / 2, cy2 = (a.y + b2.y) / 2;
     drag = null;
     touchState = { type:'pinch', startDist: dist, startView: {...view},
-                   centerM: {x: cx, y: cy2}, centerPt: fromCanvas(cx, cy2) };
+                   centerM: {x: cx, y: cy2}, centerPt: fromCanvas(cx, cy2),
+                   gesture: null }; // wird auf 'zoom' oder 'pan' gesperrt
   }
 }, { passive: false });
 
@@ -377,23 +378,33 @@ canvas.addEventListener('touchmove', e => {
     const a = touchPos(touches[0]), b2 = touchPos(touches[1]);
     const dist = Math.hypot(a.x - b2.x, a.y - b2.y);
     const cx = (a.x + b2.x) / 2, cy = (a.y + b2.y) / 2;
-    const factor = touchState.startDist / dist;
-    const cp = touchState.centerPt, sv = touchState.startView;
     const w = getW(), h = getH();
+    const sv = touchState.startView;
 
-    // 1. Zoom um den Startmittelpunkt
-    view.xmin = cp.x + (sv.xmin - cp.x) * factor;
-    view.xmax = cp.x + (sv.xmax - cp.x) * factor;
-    view.ymin = cp.y + (sv.ymin - cp.y) * factor;
-    view.ymax = cp.y + (sv.ymax - cp.y) * factor;
+    // Geste bestimmen (einmalig sperren), sobald eine Schwelle überschritten wird
+    if (!touchState.gesture) {
+      const zoomDelta = Math.abs(dist / touchState.startDist - 1);
+      const panDelta  = Math.hypot(cx - touchState.centerM.x, cy - touchState.centerM.y);
+      if      (zoomDelta > 0.04) touchState.gesture = 'zoom';
+      else if (panDelta  > 8)    touchState.gesture = 'pan';
+      else return; // noch unklar — warten
+    }
 
-    // 2. Pan: aktueller Mittelpunkt der zwei Finger soll den Startmittelpunkt zeigen
-    const dxPx = cx - touchState.centerM.x;
-    const dyPx = cy - touchState.centerM.y;
-    const dxMath = dxPx / w * (view.xmax - view.xmin);
-    const dyMath = dyPx / h * (view.ymax - view.ymin);
-    view.xmin -= dxMath; view.xmax -= dxMath;
-    view.ymin += dyMath; view.ymax += dyMath;
+    if (touchState.gesture === 'zoom') {
+      // Zoom um den festen Startmittelpunkt
+      const factor = touchState.startDist / dist;
+      const cp = touchState.centerPt;
+      view.xmin = cp.x + (sv.xmin - cp.x) * factor;
+      view.xmax = cp.x + (sv.xmax - cp.x) * factor;
+      view.ymin = cp.y + (sv.ymin - cp.y) * factor;
+      view.ymax = cp.y + (sv.ymax - cp.y) * factor;
+    } else {
+      // Pan: Versatz des Finger-Mittelpunkts relativ zum Startpunkt (stabil, kein Drift)
+      const dxMath = (cx - touchState.centerM.x) / w * (sv.xmax - sv.xmin);
+      const dyMath = (cy - touchState.centerM.y) / h * (sv.ymax - sv.ymin);
+      view.xmin = sv.xmin - dxMath; view.xmax = sv.xmax - dxMath;
+      view.ymin = sv.ymin + dyMath; view.ymax = sv.ymax + dyMath;
+    }
 
     syncInputs(); scheduleComputeSpecials(); scheduleDraw();
   }
