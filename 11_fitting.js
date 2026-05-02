@@ -157,9 +157,9 @@ function buildPanelInputs(containerId, labels, prefix) {
     row.innerHTML =
       `<span style="min-width:80px;color:var(--text-muted);" id="${prefix}-lbl${i}">${lbl}:</span>` +
       `<span style="color:var(--text-muted);">x=</span>` +
-      `<input type="number" id="${prefix}-x${i}" step="0.0001" inputmode="decimal" style="width:52px;" placeholder="—">` +
+      `<input type="text" id="${prefix}-x${i}" inputmode="decimal" pattern="-?[0-9]*\\.?[0-9]*" style="width:52px;" placeholder="—">` +
       `<span style="color:var(--text-muted);">y=</span>` +
-      `<input type="number" id="${prefix}-y${i}" step="0.0001" inputmode="decimal" style="width:52px;" placeholder="—">`;
+      `<input type="text" id="${prefix}-y${i}" inputmode="decimal" pattern="-?[0-9]*\\.?[0-9]*" style="width:52px;" placeholder="—">`;
     container.appendChild(row);
   });
 }
@@ -886,42 +886,9 @@ function showExpLoesungsweg() {
     );
 
   } else {
-    // ── Allgemeiner Fall ──────────────────────────────────────────
-    const dxH     = fH(dx);
-    const dxAbsH  = fHa(dx);
-    const ratioAbs = Math.abs(y2 / y1);
-    const ratioH  = fH(ratioAbs);
-
-    // b^x1 für Schritt 4
-    const bx1disp = x1 === 1 ? `${bH}` : `${bH}<sup>${x1H}</sup>`;
-    const bx1H    = fH(Math.pow(b, x1));
-
-    // Hinweis bei negativen y-Werten
-    const signNote = (y1 < 0 || y2 < 0)
-      ? `<br><span style="color:#9ca3af;font-size:10px;">Hinweis: Beide y-Werte negativ → Betrag |y₂/y₁| verwenden</span>`
-      : '';
-
-    html.push(
-      sHead('▶ Schritt 1 — Gleichungssystem aufstellen'),
-      lwLine(`${y1H} = a · b<sup>${x1H}</sup>   …(I)`, true),
-      lwLine(`${y2H} = a · b<sup>${x2H}</sup>   …(II)`, true),
-      lwLine(''),
-      sHead('▶ Schritt 2 — Division (II) ÷ (I) &nbsp;→ a kürzt sich heraus'),
-      lwLine(`${mf(y2H, y1H)} = b<sup>x₂ − x₁</sup> = b<sup>${dxH}</sup>${signNote}`, true),
-      lwLine(''),
-      sHead('▶ Schritt 3 — Basis b mit Logarithmus bestimmen'),
-      lwLine('Logarithmus auf beiden Seiten:', false),
-      lwLine(`ln(${ratioH}) = ${dxH} · ln(b)`, true),
-      lwLine(`ln(b) = ${mf(`ln(${ratioH})`, dxH)}`, true),
-      lwLine(`<b>b = e<sup>${mf(`ln(${ratioH})`, dxH)}</sup> = ${ratioH}<sup>${mf('1', dxAbsH)}</sup> = ${bH}</b>`, true),
-      lwLine(''),
-      sHead('▶ Schritt 4 — Faktor a aus Gleichung (I)'),
-      lwLine(`a = ${mf(y1H, `b<sup>${x1H}</sup>`)} = ${mf(y1H, bx1disp)} = ${aH}`, true),
-      lwLine(''),
-      sHead('▶ Ergebnis'),
-      lwLine(`f(x) = ${aH} · ${bH}<sup>x</sup>`, true),
-      lwLine('')
-    );
+    // ── Kein Punkt auf der y-Achse → kein Lösungsweg ─────────────
+    box.innerHTML = '<span style="color:#e24b4a;">Lösungsweg nur verfügbar, wenn einer der beiden Punkte auf der y-Achse liegt (x = 0).</span>';
+    box.style.display = 'block'; return;
   }
 
   box.innerHTML = html.join('');
