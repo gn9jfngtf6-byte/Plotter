@@ -376,12 +376,25 @@ canvas.addEventListener('touchmove', e => {
   } else if (touchState.type === 'pinch' && touches.length === 2) {
     const a = touchPos(touches[0]), b2 = touchPos(touches[1]);
     const dist = Math.hypot(a.x - b2.x, a.y - b2.y);
+    const cx = (a.x + b2.x) / 2, cy = (a.y + b2.y) / 2;
     const factor = touchState.startDist / dist;
     const cp = touchState.centerPt, sv = touchState.startView;
+    const w = getW(), h = getH();
+
+    // 1. Zoom um den Startmittelpunkt
     view.xmin = cp.x + (sv.xmin - cp.x) * factor;
     view.xmax = cp.x + (sv.xmax - cp.x) * factor;
     view.ymin = cp.y + (sv.ymin - cp.y) * factor;
     view.ymax = cp.y + (sv.ymax - cp.y) * factor;
+
+    // 2. Pan: aktueller Mittelpunkt der zwei Finger soll den Startmittelpunkt zeigen
+    const dxPx = cx - touchState.centerM.x;
+    const dyPx = cy - touchState.centerM.y;
+    const dxMath = dxPx / w * (view.xmax - view.xmin);
+    const dyMath = dyPx / h * (view.ymax - view.ymin);
+    view.xmin -= dxMath; view.xmax -= dxMath;
+    view.ymin += dyMath; view.ymax += dyMath;
+
     syncInputs(); scheduleComputeSpecials(); scheduleDraw();
   }
 }, { passive: false });
