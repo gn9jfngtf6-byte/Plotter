@@ -580,6 +580,22 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
 </div>
 
 <script>
+// ── Numerische Tastatur für alle Zahleneingaben auf Touch-Geräten ──
+// inputmode="decimal" zeigt Zahlentastatur (Ziffern + Punkt/Komma + Minus)
+// statt der normalen QWERTY-Tastatur. Gilt auch für dynamisch erzeugte Inputs
+// (Fitting-Panels, Parameter-Schieber), daher MutationObserver.
+(function() {
+  function applyNumericKbd(root) {
+    (root || document).querySelectorAll('input[type=number]').forEach(el => {
+      if (!el.hasAttribute('inputmode')) el.setAttribute('inputmode', 'decimal');
+    });
+  }
+  document.addEventListener('DOMContentLoaded', () => applyNumericKbd());
+  new MutationObserver(() => applyNumericKbd()).observe(document.documentElement, {
+    childList: true, subtree: true
+  });
+})();
+
 // ── Mobile Sidebar Toggle ──────────────────────────────────────────
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
