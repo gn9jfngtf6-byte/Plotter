@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Funktionenplotter</title>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-app: #f0f2f5;
+  --bg-sidebar: #f7f8fa;
+  --bg-canvas: #ffffff;
+  --bg-btn: #ffffff;
+  --bg-input: #ffffff;
+  --bg-range: #f7f8fa;
+  --border: #dde1e7;
+  --border-input: #c8cdd6;
+  --text: #1a1d23;
+  --text-muted: #6b7280;
+  --text-label: #9ca3af;
+  --text-btn: #1a1d23;
+  --btn-hover: #eef0f4;
+  --active-bg: #dbeafe;
+  --active-border: #378ADD;
+  --active-text: #1e40af;
+  --panel-title: #9ca3af;
+}
+body.dark {
+  --bg-app: #111318;
+  --bg-sidebar: #1a1d23;
+  --bg-canvas: #16181d;
+  --bg-btn: #252830;
+  --bg-input: #252830;
+  --bg-range: #1a1d23;
+  --border: #2d3140;
+  --border-input: #3a3f50;
+  --text: #e8eaf0;
+  --text-muted: #9ca3af;
+  --text-label: #6b7280;
+  --text-btn: #e8eaf0;
+  --btn-hover: #2d3140;
+  --active-bg: #1e3a5f;
+  --active-border: #378ADD;
+  --active-text: #93c5fd;
+  --panel-title: #6b7280;
+}
+
+html, body { height: 100%; overflow: hidden; }
+body { background: var(--bg-app); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; color: var(--text); }
+
+.app { display: flex; height: 100%; }
+.sidebar { width: 280px; min-width: 280px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+
+.panel { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.panel-title { font-size: 10px; color: var(--panel-title); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; font-weight: 600; cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center; }
+.panel-title .panel-arrow { font-size: 10px; transition: transform 0.18s; color: var(--text-muted); flex-shrink: 0; }
+.panel.collapsed .panel-title { margin-bottom: 0; }
+.panel.collapsed .panel-title .panel-arrow { transform: rotate(-90deg); }
+.panel-body { }
+.panel.collapsed .panel-body { display: none; }
+
+button { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border-input); background: var(--bg-btn); color: var(--text-btn); cursor: pointer; white-space: nowrap; transition: background 0.12s; }
+button:hover { background: var(--btn-hover); }
+button.active-btn { background: var(--active-bg); border-color: var(--active-border); color: var(--active-text); }
+
+input[type=text] { font-family: 'Cascadia Code','Fira Mono',monospace; font-size: 12px; padding: 4px 8px; border: 1px solid var(--border-input); border-radius: 6px; background: var(--bg-input); color: var(--text); outline: none; width: 100%; }
+input[type=text]:focus { border-color: #378ADD; }
+input[type=number] { font-family: 'Segoe UI',system-ui,sans-serif; font-size: 12px; padding: 3px 6px; border: 1px solid var(--border-input); border-radius: 6px; background: var(--bg-input); color: var(--text); outline: none; }
+input[type=range] { accent-color: #378ADD; width: 100%; }
+select { font-family: 'Segoe UI',system-ui,sans-serif; font-size: 12px; padding: 3px 6px; border: 1px solid var(--border-input); border-radius: 6px; background: var(--bg-input); color: var(--text); outline: none; }
+
+.func-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.15); }
+.sp-row { display: flex; align-items: flex-start; gap: 5px; margin-bottom: 5px; font-size: 11px; line-height: 1.5; }
+.add-row { display: flex; gap: 5px; margin-top: 4px; align-items: center; }
+.toolbar { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+
+.hint { font-size: 10px; color: var(--text-label); margin-top: 5px; line-height: 1.4; }
+.hint code { background: var(--btn-hover); padding: 1px 4px; border-radius: 3px; font-size: 10px; }
+
+.del-btn { font-size: 10px; padding: 1px 6px; color: var(--text-muted); flex-shrink: 0; }
+.settings-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 11px; color: var(--text-muted); }
+.area-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; flex-wrap: wrap; font-size: 11px; color: var(--text-muted); }
+#area-result { font-size: 12px; color: var(--text); margin-top: 5px; font-weight: 500; }
+
+.badge { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 600; margin-right: 3px; flex-shrink: 0; margin-top: 2px; }
+.badge-max{background:#fee2e2;color:#991b1b;}
+.badge-min{background:#dcfce7;color:#166534;}
+.badge-inf{background:#ede9fe;color:#5b21b6;}
+.badge-zero{background:#fef3c7;color:#92400e;}
+.badge-isect{background:#dbeafe;color:#1e40af;}
+.badge-yax{background:#fce7f3;color:#9d174d;}
+
+.graph-area { flex: 1; display: flex; flex-direction: column; background: var(--bg-canvas); min-width: 0; overflow: hidden; }
+.range-bar { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--border); flex-wrap: wrap; background: var(--bg-range); flex-shrink: 0; }
+.range-bar label { color: var(--text-muted); font-size: 11px; }
+.range-bar input[type=number] { width: 52px; }
+
+#canvas { display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; background: var(--bg-canvas); touch-action: none; }
+
+.kbd { display:flex; flex-wrap:wrap; gap:3px; margin-top:6px; }
+.kbd button { font-size:11px; padding:3px 6px; border-radius:5px; min-width:34px; text-align:center; font-family:'Cascadia Code','Fira Mono',monospace; }
+.kbd button:hover { background: var(--active-bg); border-color:#378ADD; }
+
+.param-wrap { margin-bottom: 8px; }
+.param-row { display: flex; align-items: center; gap: 5px; flex-wrap: nowrap; }
+.param-name { font-weight: 600; min-width: 16px; font-family: monospace; font-size: 12px; }
+.param-ctrl-row { display: flex; align-items: center; gap: 5px; margin-top: 3px; font-size: 11px; }
+.param-val-inp { font-family: monospace; font-size: 11px; width: 68px; padding: 2px 5px; border: 1px solid var(--border-input); border-radius: 4px; background: var(--bg-input); color: var(--text); }
+
+.tooltip { position:absolute; background:rgba(20,20,20,0.88); color:#fff; font-size:11px; padding:3px 9px; border-radius:5px; pointer-events:none; display:none; white-space:nowrap; z-index:10; }
+
+.color-popup { position:fixed; background:var(--bg-sidebar); border:1px solid var(--border); border-radius:8px; padding:6px; display:none; z-index:9999; box-shadow:0 4px 16px rgba(0,0,0,0.18); }
+.color-popup.active { display:grid; grid-template-columns:repeat(5,20px); gap:4px; width:auto; }
+.color-swatch { width:20px; height:20px; border-radius:4px; border:1.5px solid rgba(0,0,0,0.12); cursor:pointer; flex-shrink:0; transition:transform 0.1s; }
+.color-swatch:hover { transform:scale(1.2); }
+.color-swatch.selected { border-color:#1a1d23; box-shadow:0 0 0 2px #378ADD; }
+
+.expr-preview { font-size: 11px; color: var(--text); padding: 1px 4px 3px; line-height: 1.7; min-height: 0; }
+.preview-frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 2px; line-height: 1.2; }
+.preview-frac .pf-num { border-bottom: 1.5px solid currentColor; padding: 0 3px; font-size: 11px; text-align: center; line-height: 1.3; }
+.preview-frac .pf-den { padding: 0 3px; font-size: 11px; text-align: center; line-height: 1.3; }
+.preview-sup { font-size: 8px; vertical-align: super; line-height: 0; }
+
+body.delete-mode #canvas { cursor:crosshair !important; }
+button.delete-mode-btn { color:#e24b4a; }
+button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; color:#e24b4a; }
+
+/* Lösungsweg-Boxen */
+.lw-box {
+  display:none; margin-top:6px; padding:8px;
+  background:var(--bg-range); border:1px solid var(--border);
+  border-radius:6px; font-size:11px; line-height:1.7;
+  white-space:normal!important; font-family:monospace;
+  max-height:240px; overflow-y:auto;
+}
+.lw-box .lw-line { display:block; line-height:2.4; padding-left:0; }
+.lw-box .lw-indent { padding-left:1.5em; }
+.lw-box .lw-heading { font-weight:600; margin-top:4px; letter-spacing:.02em; }
+
+/* Subpanel-Trennlinie innerhalb eines Panels */
+.subpanel { border-top:1px solid var(--border); margin-top:8px; padding-top:7px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+<div class="sidebar">
+
+  <!-- PANEL 1: Funktionen eingeben + Mathematik-Tastatur -->
+  <div class="panel">
+    <div class="panel-title" data-i18n="panel_functions">ƒ Funktionen</div>
+    <div id="func-list"></div>
+    <div class="toolbar">
+      <button onclick="addFunction()" data-i18n="btn_add_fn">+ Funktion</button>
+      <button onclick="clearAll()" data-i18n="btn_clear">Leeren</button>
+      <button onclick="resetView()" data-i18n="btn_reset">Reset</button>
+    </div>
+    <div class="kbd">
+      <button onmousedown="return false" onclick="kbdInsert('sin(',')')">sin</button>
+      <button onmousedown="return false" onclick="kbdInsert('cos(',')')">cos</button>
+      <button onmousedown="return false" onclick="kbdInsert('tan(',')')">tan</button>
+      <button onmousedown="return false" onclick="kbdInsert('sqrt(',')')">√x</button>
+      <button onmousedown="return false" onclick="kbdInsert('nthroot(','',3)">ⁿ√x</button>
+      <button onmousedown="return false" onclick="kbdInsert('log(',')')">ln</button>
+      <button onmousedown="return false" onclick="kbdInsert('log10(',')')">log₁₀</button>
+      <button onmousedown="return false" onclick="kbdInsert('logn(','',2)">logₙ</button>
+      <button onmousedown="return false" onclick="kbdInsert('abs(',')')">|x|</button>
+      <button onmousedown="return false" onclick="kbdInsert('pi')">π</button>
+      <button onmousedown="return false" onclick="kbdInsert('EC')">e</button>
+      <button onmousedown="return false" onclick="kbdInsert('^2')">x²</button>
+      <button onmousedown="return false" onclick="kbdInsert('^')">xⁿ</button>
+      <button onmousedown="return false" onclick="kbdInsert('exp(',')')">eˣ</button>
+      <button onmousedown="return false" onclick="kbdFrac()" data-i18n-title="title_frac" style="font-size:13px;">ˣ⁄ᵧ</button>
+    </div>
+    <div class="hint" style="margin-top:4px;" data-i18n="lbl_kbd_hint">Klicke ins Funktionsfeld, dann auf eine Taste.<br><code>nthroot(x,n)</code>=ⁿ√x &nbsp;<code>logn(x,b)</code>=log<sub>b</sub>x &nbsp;<code>EC</code>=e</div>
+  </div>
+
+  <!-- PANEL 2: Parameter-Schieber — direkt unter Funktionen -->
+  <div class="panel" id="param-section" style="display:none;">
+    <div class="panel-title" data-i18n="panel_params">Parameter (Schieber)</div>
+    <div id="param-list"></div>
+  </div>
+
+  <!-- PANEL 3: Lineare Funktionen -->
+  <div class="panel" id="linear-panel">
+    <div class="panel-title">📏 Lineare Funktionen</div>
+
+    <div id="lin-inputs" style="margin-top:4px;"></div>
+
+    <div class="toolbar" style="margin-top:5px;">
+      <button id="lin-pick-btn" onclick="linTogglePick()">✏ Im Plot klicken</button>
+      <button onclick="linCompute()">Berechnen</button>
+    </div>
+    <div id="lin-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
+    <div id="lin-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
+
+    <!-- Steigungsdreieck + Lösungsweg -->
+    <div class="subpanel">
+      <div class="settings-row">
+        <label><input type="checkbox" id="chk-slopetri" onchange="scheduleDraw()"> Steigungsdreieck</label>
+      </div>
+      <div class="toolbar" style="margin-top:4px;gap:4px;flex-wrap:wrap;">
+        <button id="slopetri-pick-btn" onclick="slopeTriTogglePick()" data-i18n="btn_pick_tri" data-i18n-title="btn_pick_tri">✏ 2 Pkt. wählen</button>
+        <button onclick="showLoesungsweg()" id="loesungsweg-btn" data-i18n="btn_solution">📋 Lösungsweg</button>
+      </div>
+      <div id="slopetri-pick-status" style="font-size:10px;color:#378ADD;min-height:12px;margin-top:3px;"></div>
+      <div id="loesungsweg-box" class="lw-box"></div>
+    </div>
+  </div>
+
+  <!-- PANEL 4: Quadratische Funktionen -->
+  <div class="panel" id="quad-panel">
+    <div class="panel-title">📈 Quadratische Funktionen</div>
+
+    <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
+      <label style="font-size:11px;">Typ:</label>
+      <select id="quad-subtype" onchange="quadUpdateInputs()" style="flex:1;">
+        <option value="quadratic">Normalform  (ax²+bx+c)</option>
+        <option value="vertex">Scheitelpunktsform a·(x−v)²+h</option>
+        <option value="roots">Nullstellenform  a·(x−x₁)·(x−x₂)</option>
+      </select>
+    </div>
+
+    <div id="quad-inputs" style="margin-top:6px;"></div>
+
+    <div class="toolbar" style="margin-top:5px;">
+      <button id="quad-pick-btn" onclick="quadTogglePick()">✏ Im Plot klicken</button>
+      <button onclick="quadCompute()">Berechnen</button>
+    </div>
+    <div id="quad-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
+    <div id="quad-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
+
+    <!-- Lösungsweg: Scheitelpunkt + Nullstellen -->
+    <div class="subpanel">
+      <div class="toolbar" style="margin-top:0;gap:4px;">
+        <button onclick="showQuadScheitelpunkt()" id="quad-sp-btn">📐 Scheitelpunkt</button>
+        <button onclick="showQuadNullstellen()" id="quad-ns-btn">📋 Nullstellen</button>
+      </div>
+      <div id="quad-sp-box" class="lw-box"></div>
+      <div id="quad-ns-box" class="lw-box"></div>
+    </div>
+  </div>
+
+  <!-- PANEL 5: Exponentialfunktionen -->
+  <div class="panel" id="exp-panel">
+    <div class="panel-title">📊 Exponentialfunktionen</div>
+
+    <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
+      <label style="font-size:11px;">Typ:</label>
+      <select id="exp-subtype" onchange="expUpdateInputs()" style="flex:1;">
+        <option value="exponential">a·bˣ &nbsp;(2 Punkte)</option>
+        <option value="exponential_h">a·bˣ + h &nbsp;(3 Punkte)</option>
+      </select>
+    </div>
+
+    <div id="exp-hint" class="hint" style="margin-top:4px;margin-bottom:6px;">a·bˣ durch 2 Punkte &nbsp;(y &gt; 0)</div>
+    <div id="exp-inputs"></div>
+
+    <div class="toolbar" style="margin-top:5px;">
+      <button id="exp-pick-btn" onclick="expTogglePick()">✏ Im Plot klicken</button>
+      <button onclick="expCompute()">Berechnen</button>
+    </div>
+    <div id="exp-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
+    <div id="exp-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
+
+    <!-- Asymptote + Lösungsweg -->
+    <div class="subpanel">
+      <div class="toolbar" style="margin-top:0;gap:4px;">
+        <button id="exp-asym-btn" onclick="toggleExpAsymptote()">〜 Asymptote</button>
+        <button onclick="showExpLoesungsweg()">📋 Lösungsweg</button>
+      </div>
+      <div id="exp-lw-box" class="lw-box"></div>
+    </div>
+  </div>
+
+  <!-- PANEL 6: Logarithmusfunktionen -->
+  <div class="panel" id="log-panel">
+    <div class="panel-title">📉 Logarithmusfunktionen</div>
+
+    <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
+      <label style="font-size:11px;">Typ:</label>
+      <select id="log-subtype" onchange="logUpdateInputs()" style="flex:1;">
+        <option value="logarithm">a·ln(x) + c &nbsp;(2 Punkte)</option>
+        <option value="logarithm_vh">a·ln(x−v) + h &nbsp;(3 Punkte)</option>
+      </select>
+    </div>
+
+    <div id="log-hint" class="hint" style="margin-top:4px;margin-bottom:6px;">a·ln(x) + c durch 2 Punkte &nbsp;(x &gt; 0)</div>
+    <div id="log-inputs"></div>
+
+    <div class="toolbar" style="margin-top:5px;">
+      <button id="log-pick-btn" onclick="logTogglePick()">✏ Im Plot klicken</button>
+      <button onclick="logCompute()">Berechnen</button>
+    </div>
+    <div id="log-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
+    <div id="log-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
+
+    <!-- Asymptote + Lösungsweg -->
+    <div class="subpanel">
+      <div class="toolbar" style="margin-top:0;gap:4px;">
+        <button id="log-asym-btn" onclick="toggleLogAsymptote()">| Asymptote</button>
+        <button onclick="showLogLoesungsweg()">📋 Lösungsweg</button>
+      </div>
+      <div id="log-lw-box" class="lw-box"></div>
+    </div>
+  </div>
+
+  <!-- PANEL 7: Potenz- und Wurzelfunktionen -->
+  <div class="panel" id="power-panel">
+    <div class="panel-title">🔢 Potenz- und Wurzelfunktionen</div>
+
+    <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
+      <label style="font-size:11px;">Typ:</label>
+      <select id="power-subtype" onchange="powerUpdateInputs()" style="flex:1;">
+        <option value="positive power">Positive Potenz: a·xⁿ</option>
+        <option value="negative power">Negative Potenz: a/(x−v)ⁿ+h</option>
+        <option value="square root">Wurzel: a·√(x−v)+h</option>
+      </select>
+    </div>
+
+    <div id="power-hint" class="hint" style="margin-bottom:4px;">a·xⁿ — 2 Punkte (x &gt; 0, y &gt; 0)</div>
+    <div id="power-inputs" style="margin-top:4px;"></div>
+
+    <div class="toolbar" style="margin-top:5px;">
+      <button id="power-pick-btn" onclick="powerTogglePick()">✏ Im Plot klicken</button>
+      <button onclick="powerCompute()">Berechnen</button>
+    </div>
+    <div id="power-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
+    <div id="power-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
+  </div>
+
+  <!-- PANEL 7: Fläche zwischen zwei Funktionen -->
+  <div class="panel">
+    <div class="panel-title" data-i18n="panel_area">Fläche zwischen Funktionen</div>
+    <div class="area-row">
+      <span data-i18n="lbl_between">Zwischen:</span>
+      <select id="area-f1" style="width:60px;"></select>
+      <span data-i18n="lbl_and">und</span>
+      <select id="area-f2" style="width:70px;"></select>
+    </div>
+    <div class="area-row">
+      <span data-i18n="lbl_x_from">x von</span>
+      <input type="number" id="area-x1" value="-3" step="0.5" style="width:55px;">
+      <span data-i18n="lbl_to">bis</span>
+      <input type="number" id="area-x2" value="3" step="0.5" style="width:55px;">
+    </div>
+    <div class="toolbar" style="margin-bottom:4px;"><button onclick="setAreaFromIsects()" data-i18n="btn_isect" data-i18n-title="btn_isect" style="font-size:10px;">∩ Schnittpunkte</button></div>
+    <div class="toolbar"><button id="area-toggle-btn" onclick="toggleArea()" data-i18n="btn_area">Fläche anzeigen</button></div>
+    <div id="area-result"></div>
+  </div>
+
+  <!-- Manuelle Punkte (ausgeblendet) -->
+  <div class="panel" style="display:none">
+    <div class="panel-title" data-i18n="panel_points">· Punkte</div>
+    <div id="point-list"></div>
+    <div class="add-row">
+      <span style="font-size:11px;color:#6b7280;">x:</span>
+      <input type="number" id="new-px" value="0" step="0.5" style="width:52px;">
+      <span style="font-size:11px;color:#6b7280;">y:</span>
+      <input type="number" id="new-py" value="0" step="0.5" style="width:52px;">
+      <button onclick="addPointManual()">+</button>
+    </div>
+    <div class="hint">Alt + Klick auf den Graphen · Punkte sind immer ziehbar</div>
+  </div>
+
+  <!-- Extras -->
+  <div class="panel">
+    <div class="panel-title" data-i18n="panel_extras">⚙ Extras</div>
+    <div class="settings-row"><label><input type="checkbox" id="chk-funclabels" checked onchange="scheduleDraw()"> Funktionsbeschriftung im Plot</label></div>
+    <div class="settings-row"><label><input type="checkbox" id="chk-asymptotes" onchange="scheduleDraw()"> Asymptoten anzeigen</label></div>
+    <div class="settings-row"><label><input type="checkbox" id="chk-unitcircle" onchange="scheduleDraw()"> Einheitskreis</label></div>
+    <div class="settings-row"><label><input type="checkbox" id="chk-gridsnap" checked onchange="scheduleDraw()"> Gitterpunkt-Snapping</label></div>
+  </div>
+
+  <!-- Spezielle Punkte -->
+  <div class="panel">
+    <div class="panel-title" data-i18n="panel_specials">∩ Spezielle Punkte</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px 10px;margin-bottom:8px;">
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-max" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#e24b4a;flex-shrink:0;"></span>Max</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-min" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#1D9E75;flex-shrink:0;"></span>Min</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-inf" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:8px;height:8px;background:#7F77DD;flex-shrink:0;clip-path:polygon(50% 0%,100% 100%,0% 100%);"></span>Wende</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-zero" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #92400e;flex-shrink:0;"></span>Nullst.</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-yaxis" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #BD10E0;flex-shrink:0;"></span>y-Achse</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-isect" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #378ADD;flex-shrink:0;"></span>∩ Schnitt</label>
+    </div>
+    <div id="special-list"><span style="font-size:11px;color:#9ca3af;">—</span></div>
+  </div>
+
+  <!-- Anzeigeeinstellungen -->
+  <div class="panel">
+    <div class="panel-title" data-i18n="panel_settings">Einstellungen</div>
+    <div class="settings-row">
+      <label data-i18n="lbl_grid">Gitternetz-Feinheit:</label>
+      <select id="grid-density" onchange="scheduleDraw()">
+        <option value="3">Grob (3)</option>
+        <option value="6" selected>Normal (6)</option>
+        <option value="10">Fein (10)</option>
+        <option value="20">Sehr fein (20)</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <label data-i18n="lbl_prec">Nachkommastellen:</label>
+      <select id="precision-sel" onchange="setPrecision()">
+        <option value="0">0</option><option value="1" selected>1</option><option value="2">2</option>
+        <option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <label>π-Notation:</label>
+      <select id="pi-mode" onchange="rerender()">
+        <option value="pi">π anzeigen</option>
+        <option value="decimal">Dezimal</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <label>Zahlendarstellung:</label>
+      <select id="frac-mode" onchange="rerender()">
+        <option value="fraction">Bruch (1/2)</option>
+        <option value="decimal">Dezimal (0.5)</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <label>Beschriftungen:</label>
+      <select id="label-mode" onchange="scheduleDraw()">
+        <option value="all">Alle sichtbar</option>
+        <option value="none">Ausgeblendet</option>
+        <option value="hover">Nur bei Hover</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Export -->
+  <div class="panel">
+    <div class="panel-title" data-i18n="panel_export">Export</div>
+    <div class="toolbar" style="margin-bottom:6px;">
+      <button onclick="exportJPEG()">📷 JPEG</button>
+      <button onclick="generateLatex()">LaTeX</button>
+      <button onclick="copyLatex()">Kopieren</button>
+    </div>
+    <div style="font-size:10px;color:#6b7280;margin-bottom:4px;">Sonderpunkte im LaTeX:</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px 10px;font-size:10px;margin-bottom:6px;">
+      <label><input type="checkbox" id="ltx-zeros" checked> Nullstellen</label>
+      <label><input type="checkbox" id="ltx-max" checked> Maxima</label>
+      <label><input type="checkbox" id="ltx-min" checked> Minima</label>
+      <label><input type="checkbox" id="ltx-inf"> Wendepunkte</label>
+      <label><input type="checkbox" id="ltx-isect" checked> Schnittpunkte</label>
+      <label><input type="checkbox" id="ltx-yaxis"> y-Achse</label>
+      <label><input type="checkbox" id="ltx-graphpts" checked> Graph-Punkte</label>
+      <label><input type="checkbox" id="ltx-freepts" checked> Freie Punkte</label>
+    </div>
+    <textarea id="latex-out" readonly style="width:100%;height:90px;font-family:'Cascadia Code','Fira Mono',monospace;font-size:10px;padding:6px;border:1px solid #c8cdd6;border-radius:6px;background:#f7f8fa;color:#374151;resize:vertical;outline:none;line-height:1.5;" placeholder="LaTeX-Code erscheint hier…"></textarea>
+    <div id="latex-msg" style="font-size:10px;color:#1D9E75;margin-top:3px;"></div>
+  </div>
+
+  <!-- Speichern / Laden -->
+  <div class="panel">
+    <div class="panel-title" data-i18n="panel_save">💾 Speichern / Laden</div>
+    <div class="func-row" style="margin-bottom:6px;">
+      <input type="text" id="save-name" placeholder="Dateiname…" style="flex:1;">
+      <button onclick="savePlotFile()" style="flex-shrink:0;">💾 Speichern</button>
+    </div>
+    <label id="load-label" style="display:block;text-align:center;padding:8px;border:2px dashed #c8cdd6;border-radius:6px;cursor:pointer;font-size:11px;color:#6b7280;margin-bottom:4px;"
+      ondragover="event.preventDefault();this.style.borderColor='#378ADD';this.style.background='#eff6ff';"
+      ondragleave="this.style.borderColor='#c8cdd6';this.style.background='';"
+      ondrop="this.style.borderColor='#c8cdd6';this.style.background='';handleFileDrop(event);">
+      📂 Datei öffnen / hierher ziehen
+      <input type="file" id="load-file" accept=".plotter,.json" onchange="loadPlotFile(this)" style="display:none;">
+    </label>
+    <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;">Auch: .plotter-Datei auf den Plot ziehen</div>
+    <div style="border-top:1px solid #dde1e7;margin-top:2px;padding-top:6px;">
+      <div class="panel-title" style="margin-bottom:4px;">Browser-Slots</div>
+      <div class="func-row" style="margin-bottom:4px;">
+        <input type="text" id="save-name-local" placeholder="Name…" style="flex:1;">
+        <button onclick="savePlotLocal()" style="flex-shrink:0;">+ Slot</button>
+      </div>
+      <div id="saved-list" style="font-size:11px;"></div>
+    </div>
+    <div id="save-msg" style="font-size:10px;color:#1D9E75;margin-top:3px;"></div>
+  </div>
+
+</div><!-- Ende Sidebar -->
+
+<!-- Rechte Seite: Toolbar + Canvas -->
+<div class="graph-area">
+  <div class="range-bar">
+    <label>x:</label><input type="number" id="xmin" value="-10" step="1">
+    <label>bis</label><input type="number" id="xmax" value="10" step="1">
+    <label>y:</label><input type="number" id="ymin" value="-6" step="1">
+    <label>bis</label><input type="number" id="ymax" value="6" step="1">
+    <button onclick="applyRange()">Anwenden</button>
+    <button id="undo-btn" onmousedown="return false" onclick="commitAndUndo()" style="font-size:14px;padding:3px 9px;" disabled>↩</button>
+    <button id="redo-btn" onmousedown="return false" onclick="commitAndRedo()" style="font-size:14px;padding:3px 9px;" disabled>↪</button>
+    <button id="point-mode-btn" onclick="togglePointMode()">· Punkt setzen</button>
+    <button id="graph-pt-btn" onclick="toggleGraphPtMode()">📍 Auf Graph</button>
+    <button id="delete-mode-btn" onclick="toggleDeleteMode()" class="delete-mode-btn">🗑 Löschen</button>
+    <button onclick="toggleDarkMode()" id="dark-btn" title="Dark Mode" style="font-size:14px;padding:3px 9px;">🌙</button>
+    <div style="position:relative;display:inline-block;">
+      <button onclick="toggleLangMenu()" id="lang-btn" title="Sprache / Language" style="font-size:12px;padding:3px 8px;">🌐 DE</button>
+      <div id="lang-menu" style="display:none;position:fixed;background:var(--bg-sidebar);border:1px solid var(--border);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.18);z-index:9999;min-width:140px;">
+        <div id="lang-menu-inner"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="canvas-wrap" style="flex:1; position:relative; min-height:0;">
+    <canvas id="canvas"></canvas>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+  <div class="color-popup" id="color-popup"></div>
+</div>
+</div>
+
+<!-- Versteckte Hilfs-Elemente für line2pt-Mechanismus -->
+<div style="display:none;">
+  <button id="line2pt-btn"></button>
+  <div id="line2pt-status"></div>
+  <div id="line-msg"></div>
+  <input type="number" id="lp1x" value="0" step="0.5">
+  <input type="number" id="lp1y" value="0" step="0.5">
+  <input type="number" id="lp2x" value="1" step="0.5">
+  <input type="number" id="lp2y" value="1" step="0.5">
+</div>
+
+<script src="01_i18n.js"></script>
+<script src="02_core.js"></script>
+<script src="03_math.js"></script>
+<script src="04_analysis.js"></script>
+<script src="05_points.js"></script>
+<script src="06_ui_functions.js"></script>
+<script src="07_export.js"></script>
+<script src="08_draw.js"></script>
+<script src="09_events.js"></script>
+<script src="10_io.js"></script>
+<script src="11_fitting.js"></script>
+
+</body>
+</html>
