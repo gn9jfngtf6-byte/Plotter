@@ -205,8 +205,8 @@ function genericUpdatePickStatus() {
   const statusEl = document.getElementById(pd.statusId);
   if (!statusEl) return;
   statusEl.textContent = pd.pickNext >= pd.nPts
-    ? '✓ Alle Punkte gesetzt'
-    : `Punkt ${pd.pickNext + 1}/${pd.nPts} klicken: ${pd.labels[pd.pickNext]}`;
+    ? t('lw_pts_done')
+    : tf('lw_pick_pt', {n: pd.pickNext + 1, total: pd.nPts, label: pd.labels[pd.pickNext]});
 }
 
 // Wird von 09_events.js aufgerufen wenn fitPickMode aktiv ist
@@ -640,7 +640,7 @@ function quadUpdateInputs() {
   // Pick-Status-Hinweis (wenn nicht gerade im Pick-Modus)
   if (!fitPickMode || fitPickPanel !== quadPanelDef) {
     const statusEl = document.getElementById('quad-pick-status');
-    if (statusEl) statusEl.textContent = `${cfg.pts} Punkte wählen`;
+    if (statusEl) statusEl.textContent = tf('lw_pick_n_pts', {n: cfg.pts});
   }
   const res = document.getElementById('quad-result');
   if (res) res.textContent = '';
@@ -923,9 +923,9 @@ function powerUpdateInputs() {
   }
   const hint = document.getElementById('power-hint');
   if (hint) {
-    if      (subtype === 'positive power') hint.textContent = 'a·xⁿ — 2 Punkte (x > 0, y > 0)';
-    else if (subtype === 'negative power') hint.textContent = 'a/(x−v)ⁿ+h — 3 Punkte';
-    else                                   hint.textContent = 'a·√(x−v)+h — P₁ = Startpunkt';
+    if      (subtype === 'positive power') hint.textContent = t('hint_power_pos');
+    else if (subtype === 'negative power') hint.textContent = t('hint_power_neg');
+    else                                   hint.textContent = t('hint_power_sqrt');
   }
   const res = document.getElementById('power-result');
   if (res) res.textContent = '';

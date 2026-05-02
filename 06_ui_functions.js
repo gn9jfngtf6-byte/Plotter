@@ -48,7 +48,7 @@ function renderFuncList() {
     inp.setAttribute('inputmode', 'decimal');
     inp.setAttribute('data-raw', fn.expr);
     inp.style.cssText = `font-family:'Cascadia Code','Fira Mono',monospace;font-size:12px;padding:4px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);outline:none;flex:1;min-width:0;cursor:text;overflow-x:hidden;overflow-y:visible;white-space:nowrap;line-height:1.6;min-height:28px;${fn.visible ? '' : 'opacity:0.45;'}`;
-    if (isLinked) { inp.style.background = '#f0f9ff'; inp.title = 'Live-Gerade (durch Punkte definiert)'; }
+    if (isLinked) { inp.style.background = '#f0f9ff'; inp.title = t('title_live_line'); }
 
     // Guard: verhindert dass oninput feuert wenn ceRender() das HTML programmatisch setzt
     let ceRendering = false;
@@ -59,7 +59,7 @@ function renderFuncList() {
       const disp = raw ? exprToDisplayStr(raw) : '';
       ceRendering = true;
       if (exprNeedsPreview(raw)) { inp.innerHTML = exprToHtml(disp || raw); }
-      else { inp.textContent = disp || ''; if (!disp) { inp.innerHTML = '<span style="color:var(--text-muted);font-style:italic;">z.B. sin(x)</span>'; } }
+      else { inp.textContent = disp || ''; if (!disp) { inp.innerHTML = `<span style="color:var(--text-muted);font-style:italic;">${t('eg_fn')}</span>`; } }
       ceRendering = false;
     }
     ceRender();
@@ -101,7 +101,7 @@ function renderFuncList() {
 
     // Auge-Button
     const eye = document.createElement('button'); eye.className = 'del-btn';
-    eye.innerHTML = fn.visible ? '&#128065;' : '&#x1F648;'; eye.title = fn.visible ? 'Ausblenden' : 'Einblenden';
+    eye.innerHTML = fn.visible ? '&#128065;' : '&#x1F648;'; eye.title = fn.visible ? t('btn_hide_fn') : t('btn_show_fn');
     eye.onclick = () => { fn.visible = !fn.visible; renderFuncList(); scheduleComputeSpecials(); if (showArea) updateAreaResult(); scheduleDraw(); };
 
     // Löschen-Button — bereinigt auch zugehörige Graph-Punkte

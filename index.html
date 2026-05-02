@@ -258,13 +258,13 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
 
   <!-- PANEL 3: Lineare Funktionen -->
   <div class="panel" id="linear-panel">
-    <div class="panel-title">📏 Lineare Funktionen</div>
+    <div class="panel-title" data-i18n="panel_linear">📏 Lineare Funktionen</div>
 
     <div id="lin-inputs" style="margin-top:4px;"></div>
 
     <div class="toolbar" style="margin-top:5px;">
-      <button id="lin-pick-btn" onclick="linTogglePick()">✏ Im Plot klicken</button>
-      <button onclick="linCompute()">Berechnen</button>
+      <button id="lin-pick-btn" onclick="linTogglePick()" data-i18n="btn_click">✏ Im Plot klicken</button>
+      <button onclick="linCompute()" data-i18n="btn_calc">Berechnen</button>
     </div>
     <div id="lin-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
     <div id="lin-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
@@ -272,7 +272,7 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     <!-- Steigungsdreieck + Lösungsweg -->
     <div class="subpanel">
       <div class="settings-row">
-        <label><input type="checkbox" id="chk-slopetri" onchange="scheduleDraw()"> Steigungsdreieck</label>
+        <label><input type="checkbox" id="chk-slopetri" onchange="scheduleDraw()"> <span data-i18n="chk_slopetri">Steigungsdreieck</span></label>
       </div>
       <div class="toolbar" style="margin-top:4px;gap:4px;flex-wrap:wrap;">
         <button id="slopetri-pick-btn" onclick="slopeTriTogglePick()" data-i18n="btn_pick_tri" data-i18n-title="btn_pick_tri">✏ 2 Pkt. wählen</button>
@@ -285,22 +285,22 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
 
   <!-- PANEL 4: Quadratische Funktionen -->
   <div class="panel" id="quad-panel">
-    <div class="panel-title">📈 Quadratische Funktionen</div>
+    <div class="panel-title" data-i18n="panel_quadratic">📈 Quadratische Funktionen</div>
 
     <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
-      <label style="font-size:11px;">Typ:</label>
+      <label style="font-size:11px;" data-i18n="lbl_type">Typ:</label>
       <select id="quad-subtype" onchange="quadUpdateInputs()" style="flex:1;">
-        <option value="quadratic">Normalform  (ax²+bx+c)</option>
-        <option value="vertex">Scheitelpunktsform a·(x−v)²+h</option>
-        <option value="roots">Nullstellenform  a·(x−x₁)·(x−x₂)</option>
+        <option value="quadratic" data-i18n="opt_quad_normal">Normalform  (ax²+bx+c)</option>
+        <option value="vertex" data-i18n="opt_quad_vertex_f">Scheitelpunktsform a·(x−v)²+h</option>
+        <option value="roots" data-i18n="opt_quad_roots_f">Nullstellenform  a·(x−x₁)·(x−x₂)</option>
       </select>
     </div>
 
     <div id="quad-inputs" style="margin-top:6px;"></div>
 
     <div class="toolbar" style="margin-top:5px;">
-      <button id="quad-pick-btn" onclick="quadTogglePick()">✏ Im Plot klicken</button>
-      <button onclick="quadCompute()">Berechnen</button>
+      <button id="quad-pick-btn" onclick="quadTogglePick()" data-i18n="btn_click">✏ Im Plot klicken</button>
+      <button onclick="quadCompute()" data-i18n="btn_calc">Berechnen</button>
     </div>
     <div id="quad-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
     <div id="quad-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
@@ -308,8 +308,8 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     <!-- Lösungsweg: Scheitelpunkt + Nullstellen -->
     <div class="subpanel">
       <div class="toolbar" style="margin-top:0;gap:4px;">
-        <button onclick="showQuadScheitelpunkt()" id="quad-sp-btn">📐 Scheitelpunkt</button>
-        <button onclick="showQuadNullstellen()" id="quad-ns-btn">📋 Nullstellen</button>
+        <button onclick="showQuadScheitelpunkt()" id="quad-sp-btn" data-i18n="btn_vertex_form">📐 Scheitelpunkt</button>
+        <button onclick="showQuadNullstellen()" id="quad-ns-btn" data-i18n="btn_zeros_form">📋 Nullstellen</button>
       </div>
       <div id="quad-sp-box" class="lw-box"></div>
       <div id="quad-ns-box" class="lw-box"></div>
@@ -318,13 +318,13 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
 
   <!-- PANEL 5: Exponentialfunktionen -->
   <div class="panel" id="exp-panel">
-    <div class="panel-title">📊 Exponentialfunktionen</div>
+    <div class="panel-title" data-i18n="panel_exp_fn">📊 Exponentialfunktionen</div>
 
     <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
-      <label style="font-size:11px;">Typ:</label>
+      <label style="font-size:11px;" data-i18n="lbl_type">Typ:</label>
       <select id="exp-subtype" onchange="expUpdateInputs()" style="flex:1;">
-        <option value="exponential">a·bˣ &nbsp;(2 Punkte)</option>
-        <option value="exponential_h">a·bˣ + h &nbsp;(3 Punkte)</option>
+        <option value="exponential" data-i18n="opt_exp_basic_sel">a·bˣ &nbsp;(2 Punkte)</option>
+        <option value="exponential_h" data-i18n="opt_exp_horiz_sel">a·bˣ + h &nbsp;(3 Punkte)</option>
       </select>
     </div>
 
@@ -332,8 +332,8 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     <div id="exp-inputs"></div>
 
     <div class="toolbar" style="margin-top:5px;">
-      <button id="exp-pick-btn" onclick="expTogglePick()">✏ Im Plot klicken</button>
-      <button onclick="expCompute()">Berechnen</button>
+      <button id="exp-pick-btn" onclick="expTogglePick()" data-i18n="btn_click">✏ Im Plot klicken</button>
+      <button onclick="expCompute()" data-i18n="btn_calc">Berechnen</button>
     </div>
     <div id="exp-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
     <div id="exp-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
@@ -341,8 +341,8 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     <!-- Asymptote + Lösungsweg -->
     <div class="subpanel">
       <div class="toolbar" style="margin-top:0;gap:4px;">
-        <button id="exp-asym-btn" onclick="toggleExpAsymptote()">〜 Asymptote</button>
-        <button onclick="showExpLoesungsweg()">📋 Lösungsweg</button>
+        <button id="exp-asym-btn" onclick="toggleExpAsymptote()" data-i18n="btn_exp_asym">〜 Asymptote</button>
+        <button onclick="showExpLoesungsweg()" data-i18n="btn_solution">📋 Lösungsweg</button>
       </div>
       <div id="exp-lw-box" class="lw-box"></div>
     </div>
@@ -350,13 +350,13 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
 
   <!-- PANEL 6: Logarithmusfunktionen -->
   <div class="panel" id="log-panel">
-    <div class="panel-title">📉 Logarithmusfunktionen</div>
+    <div class="panel-title" data-i18n="panel_log_fn">📉 Logarithmusfunktionen</div>
 
     <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
-      <label style="font-size:11px;">Typ:</label>
+      <label style="font-size:11px;" data-i18n="lbl_type">Typ:</label>
       <select id="log-subtype" onchange="logUpdateInputs()" style="flex:1;">
-        <option value="logarithm">a·ln(x) + c &nbsp;(2 Punkte)</option>
-        <option value="logarithm_vh">a·ln(x−v) + h &nbsp;(3 Punkte)</option>
+        <option value="logarithm" data-i18n="opt_log_basic_sel">a·ln(x) + c &nbsp;(2 Punkte)</option>
+        <option value="logarithm_vh" data-i18n="opt_log_horiz_sel">a·ln(x−v) + h &nbsp;(3 Punkte)</option>
       </select>
     </div>
 
@@ -364,8 +364,8 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     <div id="log-inputs"></div>
 
     <div class="toolbar" style="margin-top:5px;">
-      <button id="log-pick-btn" onclick="logTogglePick()">✏ Im Plot klicken</button>
-      <button onclick="logCompute()">Berechnen</button>
+      <button id="log-pick-btn" onclick="logTogglePick()" data-i18n="btn_click">✏ Im Plot klicken</button>
+      <button onclick="logCompute()" data-i18n="btn_calc">Berechnen</button>
     </div>
     <div id="log-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
     <div id="log-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
@@ -373,8 +373,8 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     <!-- Asymptote + Lösungsweg -->
     <div class="subpanel">
       <div class="toolbar" style="margin-top:0;gap:4px;">
-        <button id="log-asym-btn" onclick="toggleLogAsymptote()">| Asymptote</button>
-        <button onclick="showLogLoesungsweg()">📋 Lösungsweg</button>
+        <button id="log-asym-btn" onclick="toggleLogAsymptote()" data-i18n="btn_log_asym">| Asymptote</button>
+        <button onclick="showLogLoesungsweg()" data-i18n="btn_solution">📋 Lösungsweg</button>
       </div>
       <div id="log-lw-box" class="lw-box"></div>
     </div>
@@ -382,14 +382,14 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
 
   <!-- PANEL 7: Potenz- und Wurzelfunktionen -->
   <div class="panel" id="power-panel">
-    <div class="panel-title">🔢 Potenz- und Wurzelfunktionen</div>
+    <div class="panel-title" data-i18n="panel_power_fn">🔢 Potenz- und Wurzelfunktionen</div>
 
     <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
-      <label style="font-size:11px;">Typ:</label>
+      <label style="font-size:11px;" data-i18n="lbl_type">Typ:</label>
       <select id="power-subtype" onchange="powerUpdateInputs()" style="flex:1;">
-        <option value="positive power">Positive Potenz: a·xⁿ</option>
-        <option value="negative power">Negative Potenz: a/(x−v)ⁿ+h</option>
-        <option value="square root">Wurzel: a·√(x−v)+h</option>
+        <option value="positive power" data-i18n="opt_power_pos">Positive Potenz: a·xⁿ</option>
+        <option value="negative power" data-i18n="opt_power_neg">Negative Potenz: a/(x−v)ⁿ+h</option>
+        <option value="square root" data-i18n="opt_power_sqrt">Wurzel: a·√(x−v)+h</option>
       </select>
     </div>
 
@@ -397,8 +397,8 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     <div id="power-inputs" style="margin-top:4px;"></div>
 
     <div class="toolbar" style="margin-top:5px;">
-      <button id="power-pick-btn" onclick="powerTogglePick()">✏ Im Plot klicken</button>
-      <button onclick="powerCompute()">Berechnen</button>
+      <button id="power-pick-btn" onclick="powerTogglePick()" data-i18n="btn_click">✏ Im Plot klicken</button>
+      <button onclick="powerCompute()" data-i18n="btn_calc">Berechnen</button>
     </div>
     <div id="power-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
     <div id="power-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
@@ -435,28 +435,28 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
       <input type="number" id="new-py" value="0" step="0.5" style="width:52px;">
       <button onclick="addPointManual()">+</button>
     </div>
-    <div class="hint">Alt + Klick auf den Graphen · Punkte sind immer ziehbar</div>
+    <div class="hint" data-i18n="hint_alt">Alt + Klick auf den Graphen · Punkte sind immer ziehbar</div>
   </div>
 
   <!-- Extras -->
   <div class="panel">
     <div class="panel-title" data-i18n="panel_extras">⚙ Extras</div>
-    <div class="settings-row"><label><input type="checkbox" id="chk-funclabels" checked onchange="scheduleDraw()"> Funktionsbeschriftung im Plot</label></div>
-    <div class="settings-row"><label><input type="checkbox" id="chk-asymptotes" onchange="scheduleDraw()"> Asymptoten anzeigen</label></div>
-    <div class="settings-row"><label><input type="checkbox" id="chk-unitcircle" onchange="scheduleDraw()"> Einheitskreis</label></div>
-    <div class="settings-row"><label><input type="checkbox" id="chk-gridsnap" checked onchange="scheduleDraw()"> Gitterpunkt-Snapping</label></div>
+    <div class="settings-row"><label><input type="checkbox" id="chk-funclabels" checked onchange="scheduleDraw()"> <span data-i18n="chk_labels">Funktionsbeschriftung im Plot</span></label></div>
+    <div class="settings-row"><label><input type="checkbox" id="chk-asymptotes" onchange="scheduleDraw()"> <span data-i18n="chk_asymptotes">Asymptoten anzeigen</span></label></div>
+    <div class="settings-row"><label><input type="checkbox" id="chk-unitcircle" onchange="scheduleDraw()"> <span data-i18n="chk_unitcircle">Einheitskreis</span></label></div>
+    <div class="settings-row"><label><input type="checkbox" id="chk-gridsnap" checked onchange="scheduleDraw()"> <span data-i18n="chk_gridsnap">Gitterpunkt-Snapping</span></label></div>
   </div>
 
   <!-- Spezielle Punkte -->
   <div class="panel">
     <div class="panel-title" data-i18n="panel_specials">∩ Spezielle Punkte</div>
     <div style="display:flex;flex-wrap:wrap;gap:4px 10px;margin-bottom:8px;">
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-max" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#e24b4a;flex-shrink:0;"></span>Max</label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-min" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#1D9E75;flex-shrink:0;"></span>Min</label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-inf" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:8px;height:8px;background:#7F77DD;flex-shrink:0;clip-path:polygon(50% 0%,100% 100%,0% 100%);"></span>Wende</label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-zero" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #92400e;flex-shrink:0;"></span>Nullst.</label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-yaxis" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #BD10E0;flex-shrink:0;"></span>y-Achse</label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-isect" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #378ADD;flex-shrink:0;"></span>∩ Schnitt</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-max" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#e24b4a;flex-shrink:0;"></span><span data-i18n="sp_max">Max</span></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-min" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#1D9E75;flex-shrink:0;"></span><span data-i18n="sp_min">Min</span></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-inf" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:8px;height:8px;background:#7F77DD;flex-shrink:0;clip-path:polygon(50% 0%,100% 100%,0% 100%);"></span><span data-i18n="sp_inflect">Wende</span></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-zero" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #92400e;flex-shrink:0;"></span><span data-i18n="sp_zero">Nullst.</span></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-yaxis" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #BD10E0;flex-shrink:0;"></span><span data-i18n="chk_yaxis">y-Achse</span></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-isect" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #378ADD;flex-shrink:0;"></span><span data-i18n="sp_isect">∩ Schnitt</span></label>
     </div>
     <div id="special-list"><span style="font-size:11px;color:#9ca3af;">—</span></div>
   </div>
@@ -481,25 +481,25 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
       </select>
     </div>
     <div class="settings-row">
-      <label>π-Notation:</label>
+      <label data-i18n="lbl_pi">π-Notation:</label>
       <select id="pi-mode" onchange="rerender()">
-        <option value="pi">π anzeigen</option>
-        <option value="decimal">Dezimal</option>
+        <option value="pi" data-i18n="opt_pi">π anzeigen</option>
+        <option value="decimal" data-i18n="opt_decimal">Dezimal</option>
       </select>
     </div>
     <div class="settings-row">
-      <label>Zahlendarstellung:</label>
+      <label data-i18n="lbl_frac">Zahlendarstellung:</label>
       <select id="frac-mode" onchange="rerender()">
-        <option value="fraction">Bruch (1/2)</option>
-        <option value="decimal">Dezimal (0.5)</option>
+        <option value="fraction" data-i18n="opt_fraction">Bruch (1/2)</option>
+        <option value="decimal" data-i18n="opt_decimal2">Dezimal (0.5)</option>
       </select>
     </div>
     <div class="settings-row">
-      <label>Beschriftungen:</label>
+      <label data-i18n="lbl_labels">Beschriftungen:</label>
       <select id="label-mode" onchange="scheduleDraw()">
-        <option value="all">Alle sichtbar</option>
-        <option value="none">Ausgeblendet</option>
-        <option value="hover">Nur bei Hover</option>
+        <option value="all" data-i18n="opt_labels_all">Alle sichtbar</option>
+        <option value="none" data-i18n="opt_labels_none">Ausgeblendet</option>
+        <option value="hover" data-i18n="opt_labels_hover">Nur bei Hover</option>
       </select>
     </div>
   </div>
@@ -508,22 +508,22 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
   <div class="panel">
     <div class="panel-title" data-i18n="panel_export">Export</div>
     <div class="toolbar" style="margin-bottom:6px;">
-      <button onclick="exportJPEG()">📷 JPEG</button>
+      <button onclick="exportJPEG()" data-i18n="btn_jpeg">📷 JPEG</button>
       <button onclick="generateLatex()">LaTeX</button>
-      <button onclick="copyLatex()">Kopieren</button>
+      <button onclick="copyLatex()" data-i18n="btn_copy">Kopieren</button>
     </div>
-    <div style="font-size:10px;color:#6b7280;margin-bottom:4px;">Sonderpunkte im LaTeX:</div>
+    <div style="font-size:10px;color:#6b7280;margin-bottom:4px;" data-i18n="lbl_ltx_pts">Sonderpunkte im LaTeX:</div>
     <div style="display:flex;flex-wrap:wrap;gap:4px 10px;font-size:10px;margin-bottom:6px;">
-      <label><input type="checkbox" id="ltx-zeros" checked> Nullstellen</label>
-      <label><input type="checkbox" id="ltx-max" checked> Maxima</label>
-      <label><input type="checkbox" id="ltx-min" checked> Minima</label>
-      <label><input type="checkbox" id="ltx-inf"> Wendepunkte</label>
-      <label><input type="checkbox" id="ltx-isect" checked> Schnittpunkte</label>
-      <label><input type="checkbox" id="ltx-yaxis"> y-Achse</label>
-      <label><input type="checkbox" id="ltx-graphpts" checked> Graph-Punkte</label>
-      <label><input type="checkbox" id="ltx-freepts" checked> Freie Punkte</label>
+      <label><input type="checkbox" id="ltx-zeros" checked> <span data-i18n="chk_zeros">Nullstellen</span></label>
+      <label><input type="checkbox" id="ltx-max" checked> <span data-i18n="chk_maxima">Maxima</span></label>
+      <label><input type="checkbox" id="ltx-min" checked> <span data-i18n="chk_minima">Minima</span></label>
+      <label><input type="checkbox" id="ltx-inf"> <span data-i18n="chk_inflect">Wendepunkte</span></label>
+      <label><input type="checkbox" id="ltx-isect" checked> <span data-i18n="chk_isect_pts">Schnittpunkte</span></label>
+      <label><input type="checkbox" id="ltx-yaxis"> <span data-i18n="chk_yaxis">y-Achse</span></label>
+      <label><input type="checkbox" id="ltx-graphpts" checked> <span data-i18n="chk_graphpts">Graph-Punkte</span></label>
+      <label><input type="checkbox" id="ltx-freepts" checked> <span data-i18n="chk_freepts">Freie Punkte</span></label>
     </div>
-    <textarea id="latex-out" readonly style="width:100%;height:90px;font-family:'Cascadia Code','Fira Mono',monospace;font-size:10px;padding:6px;border:1px solid #c8cdd6;border-radius:6px;background:#f7f8fa;color:#374151;resize:vertical;outline:none;line-height:1.5;" placeholder="LaTeX-Code erscheint hier…"></textarea>
+    <textarea id="latex-out" readonly style="width:100%;height:90px;font-family:'Cascadia Code','Fira Mono',monospace;font-size:10px;padding:6px;border:1px solid #c8cdd6;border-radius:6px;background:#f7f8fa;color:#374151;resize:vertical;outline:none;line-height:1.5;" data-i18n-placeholder="ph_latex" placeholder="LaTeX-Code erscheint hier…"></textarea>
     <div id="latex-msg" style="font-size:10px;color:#1D9E75;margin-top:3px;"></div>
   </div>
 
@@ -531,22 +531,22 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
   <div class="panel">
     <div class="panel-title" data-i18n="panel_save">💾 Speichern / Laden</div>
     <div class="func-row" style="margin-bottom:6px;">
-      <input type="text" id="save-name" placeholder="Dateiname…" style="flex:1;">
-      <button onclick="savePlotFile()" style="flex-shrink:0;">💾 Speichern</button>
+      <input type="text" id="save-name" data-i18n-placeholder="ph_filename" placeholder="Dateiname…" style="flex:1;">
+      <button onclick="savePlotFile()" style="flex-shrink:0;" data-i18n="btn_save_file">💾 Speichern</button>
     </div>
     <label id="load-label" style="display:block;text-align:center;padding:8px;border:2px dashed #c8cdd6;border-radius:6px;cursor:pointer;font-size:11px;color:#6b7280;margin-bottom:4px;"
       ondragover="event.preventDefault();this.style.borderColor='#378ADD';this.style.background='#eff6ff';"
       ondragleave="this.style.borderColor='#c8cdd6';this.style.background='';"
       ondrop="this.style.borderColor='#c8cdd6';this.style.background='';handleFileDrop(event);">
-      📂 Datei öffnen / hierher ziehen
+      <span data-i18n="btn_open_file">📂 Datei öffnen / hierher ziehen</span>
       <input type="file" id="load-file" accept=".plotter,.json" onchange="loadPlotFile(this)" style="display:none;">
     </label>
-    <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;">Auch: .plotter-Datei auf den Plot ziehen</div>
+    <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;" data-i18n="lbl_hint_save">Auch: .plotter-Datei auf den Plot ziehen</div>
     <div style="border-top:1px solid #dde1e7;margin-top:2px;padding-top:6px;">
-      <div class="panel-title" style="margin-bottom:4px;">Browser-Slots</div>
+      <div class="panel-title" style="margin-bottom:4px;" data-i18n="lbl_slots">Browser-Slots</div>
       <div class="func-row" style="margin-bottom:4px;">
-        <input type="text" id="save-name-local" placeholder="Name…" style="flex:1;">
-        <button onclick="savePlotLocal()" style="flex-shrink:0;">+ Slot</button>
+        <input type="text" id="save-name-local" data-i18n-placeholder="ph_name" placeholder="Name…" style="flex:1;">
+        <button onclick="savePlotLocal()" style="flex-shrink:0;" data-i18n="btn_slot">+ Slot</button>
       </div>
       <div id="saved-list" style="font-size:11px;"></div>
     </div>
@@ -558,17 +558,17 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
 <!-- Rechte Seite: Toolbar + Canvas -->
 <div class="graph-area">
   <div class="range-bar">
-    <button id="sidebar-toggle" onclick="toggleSidebar()" title="Menü" aria-label="Menü öffnen/schließen">☰</button>
+    <button id="sidebar-toggle" onclick="toggleSidebar()" data-i18n-title="title_menu" title="Menü" aria-label="Menü öffnen/schließen">☰</button>
     <label>x:</label><input type="number" id="xmin" value="-10" step="1" style="width:52px;">
     <label>bis</label><input type="number" id="xmax" value="10" step="1" style="width:52px;">
     <label>y:</label><input type="number" id="ymin" value="-6" step="1" style="width:52px;">
     <label>bis</label><input type="number" id="ymax" value="6" step="1" style="width:52px;">
-    <button onclick="applyRange()">Anwenden</button>
+    <button onclick="applyRange()" data-i18n="btn_apply">Anwenden</button>
     <button id="undo-btn" onmousedown="return false" onclick="commitAndUndo()" style="font-size:14px;padding:3px 9px;" disabled>↩</button>
     <button id="redo-btn" onmousedown="return false" onclick="commitAndRedo()" style="font-size:14px;padding:3px 9px;" disabled>↪</button>
-    <button id="point-mode-btn" onclick="togglePointMode()">· Punkt setzen</button>
-    <button id="graph-pt-btn" onclick="toggleGraphPtMode()">📍 Auf Graph</button>
-    <button id="delete-mode-btn" onclick="toggleDeleteMode()" class="delete-mode-btn">🗑 Löschen</button>
+    <button id="point-mode-btn" onclick="togglePointMode()" data-i18n="btn_point">· Punkt setzen</button>
+    <button id="graph-pt-btn" onclick="toggleGraphPtMode()" data-i18n="btn_ongraph">📍 Auf Graph</button>
+    <button id="delete-mode-btn" onclick="toggleDeleteMode()" class="delete-mode-btn" data-i18n="btn_delete">🗑 Löschen</button>
     <button onclick="toggleDarkMode()" id="dark-btn" title="Dark Mode" style="font-size:14px;padding:3px 9px;">🌙</button>
     <div style="position:relative;display:inline-block;">
       <button onclick="toggleLangMenu()" id="lang-btn" title="Sprache / Language" style="font-size:12px;padding:3px 8px;">🌐 DE</button>

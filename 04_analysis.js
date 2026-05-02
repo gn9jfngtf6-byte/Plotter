@@ -361,7 +361,7 @@ function generateSolveSteps(pt) {
       steps += `  D = (${rr(b)})² − 4·(${rr(a)})·(${rr(c)})\n`;
       steps += `  D = ${rr(b*b)} − (${rr(4*a*c)}) = <b>${rr(D)}</b>\n\n`;
       if (D < -1e-8) {
-        steps += 'D &lt; 0 → Keine reellen Nullstellen.';
+        steps += t('solve_no_real_zeros');
       } else if (Math.abs(D) < 1e-8) {
         const x0 = -b / (2*a);
         steps += `D = 0 → Doppelte Nullstelle:\n`;
@@ -463,7 +463,7 @@ function generateSolveSteps(pt) {
       const D = B*B - 4*A*C;
       steps += `Diskriminante: D = (${rr(B)})² − 4·${rr(A)}·${rr(C)} = <b>${rr(D)}</b>\n\n`;
       if (D < -1e-8) {
-        steps += 'D &lt; 0 → Kein Schnittpunkt.';
+        steps += t('solve_no_isect_d');
       } else if (Math.abs(D) < 1e-8) {
         const xs = -B/(2*A), ys = a1*xs + b1;
         steps += `D = 0 → Berührpunkt (Tangente):\n  S = (<b>${rr(xs)}</b> | <b>${rr(ys)}</b>)`;
@@ -481,12 +481,12 @@ function generateSolveSteps(pt) {
       steps += `Gleichsetzen:\n`;
       steps += `  ${rr(a1)}x² ${rrSign(b1)}x ${rrSign(c1)} = ${rr(a2)}x² ${rrSign(b2)}x ${rrSign(c2)}\n`;
       if (Math.abs(A) < 1e-8) {
-        if (Math.abs(B) < 1e-8) { steps += Math.abs(C)<1e-8?'→ Gleiche Parabel':'→ Kein Schnittpunkt'; }
+        if (Math.abs(B) < 1e-8) { steps += Math.abs(C)<1e-8?t('solve_same_parabola'):t('solve_no_isect'); }
         else { steps += `  0 = ${rr(B)}x ${rrSign(C)}\n  x = <b>${rr(-C/B)}</b>`; }
       } else {
         steps += `  0 = ${rr(A)}x² ${rrSign(B)}x ${rrSign(C)}\n`;
         const D = B*B-4*A*C; steps += `  D = ${rr(D)}\n`;
-        if (D < -1e-8) { steps += '→ Kein Schnittpunkt'; }
+        if (D < -1e-8) { steps += t('solve_no_isect'); }
         else { const sq=Math.sqrt(D); steps += `  x₁ = <b>${rr((-B+sq)/(2*A))}</b>,  x₂ = <b>${rr((-B-sq)/(2*A))}</b>`; }
       }
     } else {
