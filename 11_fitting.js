@@ -861,23 +861,39 @@ function showExpLoesungsweg() {
     // Normalisieren: yAxis-Punkt = (xA, yA), anderer Punkt = (xB, yB)
     const [xA, yA, xB, yB] = p1OnY ? [x1, y1, x2, y2] : [x2, y2, x1, y1];
     const xAH = fH(xA), yAH = fH(yA), xBH = fH(xB), yBH = fH(yB);
-    const ratioAbs = Math.abs(yB / yA);
-    const ratioH   = fH(ratioAbs);
-    const xBAbsH   = fHa(xB);
+    const ratioAbs      = Math.abs(yB / yA);
+    const ratioH        = fH(ratioAbs);
+    const xBAbsH        = fHa(xB);
+    const negExp        = xB < -1e-12;
+    const reciprocalH   = fH(1 / ratioAbs);   // 1/ratio für negativen Exponenten
+    const rootRadicandH = negExp ? reciprocalH : ratioH;
+
+    const schritt2Lines = [
+      sHead('▶ Schritt 2 — Basis b durch Wurzelziehen'),
+      lwLine(`Einsetzen von a = ${yAH} in f(${xBH}) = ${yBH}:`, false),
+      lwLine(`${yBH} = ${yAH} · b<sup>${xBH}</sup>`, true),
+      lwLine(`b<sup>${xBH}</sup> = ${mf(yBH, yAH)} = ${ratioH}`, true),
+      lwLine(''),
+    ];
+    if (negExp) {
+      schritt2Lines.push(
+        lwLine('Negativer Exponent — Kehrwert bilden:', false),
+        lwLine(`b<sup>${xBAbsH}</sup> = ${mf('1', ratioH)} = ${reciprocalH}`, true),
+        lwLine(''),
+      );
+    }
+    schritt2Lines.push(
+      lwLine(`${xBAbsH}-te Wurzel auf beiden Seiten:`, false),
+      lwLine(`<b>b = <sup>${xBAbsH}</sup>√<span style="text-decoration:overline;padding:0 2px">${rootRadicandH}</span> = ${bH}</b>`, true),
+      lwLine(''),
+    );
 
     html.push(
       sHead('▶ Sonderfall: Punkt auf der y-Achse'),
       lwLine(`Da x = ${xAH} gilt: &nbsp; f(${xAH}) = a · b<sup>${xAH}</sup> = a · 1 = a`, true),
       lwLine(`<b>→  a = ${yAH}</b>`, true),
       lwLine(''),
-      sHead('▶ Schritt 2 — Basis b durch Wurzelziehen'),
-      lwLine(`Einsetzen von a = ${yAH} in f(${xBH}) = ${yBH}:`, false),
-      lwLine(`${yBH} = ${yAH} · b<sup>${xBH}</sup>`, true),
-      lwLine(`b<sup>${xBH}</sup> = ${mf(yBH, yAH)} = ${ratioH}`, true),
-      lwLine(''),
-      lwLine(`${xBAbsH}-te Wurzel auf beiden Seiten:`, false),
-      lwLine(`<b>b = <sup>${xBAbsH}</sup>√<span style="text-decoration:overline;padding:0 2px">${ratioH}</span> = ${bH}</b>`, true),
-      lwLine(''),
+      ...schritt2Lines,
       sHead('▶ Ergebnis'),
       lwLine(`f(x) = ${aH} · ${bH}<sup>x</sup>`, true),
       lwLine('')
