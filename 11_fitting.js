@@ -661,8 +661,8 @@ function expUpdateInputs() {
   const hint = document.getElementById('exp-hint');
   if (hint) {
     hint.textContent = subtype === 'exponential'
-      ? 'a·bˣ durch 2 Punkte  (y > 0)'
-      : 'a·bˣ + h durch 3 Punkte';
+      ? t('hint_exp_basic')
+      : t('hint_exp_horiz');
   }
   const res = document.getElementById('exp-result');
   if (res) res.textContent = '';
@@ -691,8 +691,8 @@ function logUpdateInputs() {
   const hint = document.getElementById('log-hint');
   if (hint) {
     hint.textContent = subtype === 'logarithm'
-      ? 'a·ln(x) + c durch 2 Punkte  (x > 0)'
-      : 'a·ln(x − v) + h durch 3 Punkte';
+      ? t('hint_log_basic')
+      : t('hint_log_horiz');
   }
   const res = document.getElementById('log-result');
   if (res) res.textContent = '';
@@ -717,7 +717,7 @@ function showLogLoesungsweg() {
 
   const subtype = document.getElementById('log-subtype')?.value;
   if (subtype !== 'logarithm') {
-    box.innerHTML = '<span style="color:#e24b4a;">Lösungsweg nur für Typ a·ln(x) + c (2 Punkte).</span>';
+    box.innerHTML = '<span style="color:#e24b4a;">' + t('lw_log_only_simple') + '</span>';
     box.style.display = 'block'; return;
   }
 
@@ -726,7 +726,7 @@ function showLogLoesungsweg() {
   const x2 = parseFloat(document.getElementById('log-x1')?.value);
   const y2 = parseFloat(document.getElementById('log-y1')?.value);
   if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
-    box.innerHTML = '<span style="color:#e24b4a;">Bitte zuerst 2 Punkte wählen.</span>';
+    box.innerHTML = '<span style="color:#e24b4a;">' + t('lw_select_2pts') + '</span>';
     box.style.display = 'block'; return;
   }
 
@@ -760,17 +760,17 @@ function showLogLoesungsweg() {
     const lnXB = fH(Math.log(xB));
 
     html.push(
-      sHead('▶ Sonderfall: Punkt auf x = 1'),
-      lwLine(`Da x = ${xAH} gilt: &nbsp; f(${xAH}) = a·ln(${xAH}) + c = a·0 + c = c`, true),
+      sHead(t('lw_log_special_head')),
+      lwLine(`${tf('lw_since_x', {x: xAH})} &nbsp; f(${xAH}) = a·ln(${xAH}) + c = a·0 + c = c`, true),
       lwLine(`<b>→  c = ${yAH}</b>`, true),
       lwLine(''),
-      sHead('▶ Schritt 2 — Faktor a bestimmen'),
-      lwLine(`Einsetzen von c = ${yAH} in f(${xBH}) = ${yBH}:`, false),
+      sHead(t('lw_log_step2_fa')),
+      lwLine(tf('lw_log_insert_c', {c: yAH, x: xBH, y: yBH}), false),
       lwLine(`${yBH} = a · ln(${xBH}) + ${yAH}`, true),
       lwLine(`a · ln(${xBH}) = ${yBH} − ${yAH} = ${fH(yB - yA)}`, true),
       lwLine(`<b>a = ${mf(fH(yB - yA), `ln(${xBH})`)} = ${mf(fH(yB - yA), lnXB)} = ${aH}</b>`, true),
       lwLine(''),
-      sHead('▶ Ergebnis'),
+      sHead(t('lw_result_head')),
       lwLine(`f(x) = ${aH} · ln(x) + ${cH}`, true),
       lwLine('')
     );
@@ -783,23 +783,23 @@ function showLogLoesungsweg() {
     const ln1H = fH(Math.log(x1));
 
     html.push(
-      sHead('▶ Schritt 1 — Gleichungssystem aufstellen'),
+      sHead(t('lw_step1_system')),
       lwLine(`${y1H} = a · ln(${x1H}) + c   …(I)`, true),
       lwLine(`${y2H} = a · ln(${x2H}) + c   …(II)`, true),
       lwLine(''),
-      sHead('▶ Schritt 2 — Subtraktion (II) − (I) &nbsp;→ c fällt weg'),
+      sHead(t('lw_log_step2_subtr')),
       lwLine(`${y2H} − ${y1H} = a · ln(${x2H}) − a · ln(${x1H})`, true),
       lwLine(`${dyH} = a · (ln(${x2H}) − ln(${x1H}))`, true),
       lwLine(''),
-      lwLine('Logarithmusgesetz: &nbsp; ln(x₂) − ln(x₁) = ln(x₂ / x₁)', false),
+      lwLine(t('lw_log_law'), false),
       lwLine(`${dyH} = a · ln(${ratioH})`, true),
       lwLine(`<b>a = ${mf(dyH, `ln(${ratioH})`)} = ${mf(dyH, lnRatioH)} = ${aH}</b>`, true),
       lwLine(''),
-      sHead('▶ Schritt 3 — c aus Gleichung (I)'),
+      sHead(t('lw_log_step3_c')),
       lwLine(`c = ${y1H} − ${aH} · ln(${x1H})`, true),
       lwLine(`c = ${y1H} − ${aH} · ${ln1H} = <b>${cH}</b>`, true),
       lwLine(''),
-      sHead('▶ Ergebnis'),
+      sHead(t('lw_result_head')),
       lwLine(`f(x) = ${aH} · ln(x) + ${cH}`, true),
       lwLine('')
     );
@@ -817,7 +817,7 @@ function showExpLoesungsweg() {
 
   const subtype = document.getElementById('exp-subtype')?.value;
   if (subtype !== 'exponential') {
-    box.innerHTML = '<span style="color:#e24b4a;">Lösungsweg nur für Typ a·b<sup>x</sup> (2 Punkte).</span>';
+    box.innerHTML = '<span style="color:#e24b4a;">' + t('lw_exp_only_simple') + '</span>';
     box.style.display = 'block'; return;
   }
 
@@ -826,7 +826,7 @@ function showExpLoesungsweg() {
   const x2 = parseFloat(document.getElementById('exp-x1')?.value);
   const y2 = parseFloat(document.getElementById('exp-y1')?.value);
   if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
-    box.innerHTML = '<span style="color:#e24b4a;">Bitte zuerst 2 Punkte wählen.</span>';
+    box.innerHTML = '<span style="color:#e24b4a;">' + t('lw_select_2pts') + '</span>';
     box.style.display = 'block'; return;
   }
 
@@ -872,39 +872,39 @@ function showExpLoesungsweg() {
     const rootRadicandH = negExp ? reciprocalH : ratioH;
 
     const schritt2Lines = [
-      sHead('▶ Schritt 2 — Basis b durch Wurzelziehen'),
-      lwLine(`Einsetzen von a = ${yAH} in f(${xBH}) = ${yBH}:`, false),
+      sHead(t('lw_exp_step2_head')),
+      lwLine(tf('lw_exp_insert_a', {a: yAH, x: xBH, y: yBH}), false),
       lwLine(`${yBH} = ${yAH} · b<sup>${xBH}</sup>`, true),
       lwLine(`b<sup>${xBH}</sup> = ${mf(yBH, yAH)} = ${ratioH}`, true),
       lwLine(''),
     ];
     if (negExp) {
       schritt2Lines.push(
-        lwLine('Negativer Exponent — Kehrwert bilden:', false),
+        lwLine(t('lw_exp_neg_exp'), false),
         lwLine(`b<sup>${xBAbsH}</sup> = ${mf('1', ratioH)} = ${reciprocalH}`, true),
         lwLine(''),
       );
     }
     schritt2Lines.push(
-      lwLine(`${xBAbsH}-te Wurzel auf beiden Seiten:`, false),
+      lwLine(tf('lw_exp_root_sides', {n: xBAbsH}), false),
       lwLine(`<b>b = <sup>${xBAbsH}</sup>√<span style="text-decoration:overline;padding:0 2px">${rootRadicandH}</span> = ${bH}</b>`, true),
       lwLine(''),
     );
 
     html.push(
-      sHead('▶ Sonderfall: Punkt auf der y-Achse'),
-      lwLine(`Da x = ${xAH} gilt: &nbsp; f(${xAH}) = a · b<sup>${xAH}</sup> = a · 1 = a`, true),
+      sHead(t('lw_exp_special_head')),
+      lwLine(`${tf('lw_since_x', {x: xAH})} &nbsp; f(${xAH}) = a · b<sup>${xAH}</sup> = a · 1 = a`, true),
       lwLine(`<b>→  a = ${yAH}</b>`, true),
       lwLine(''),
       ...schritt2Lines,
-      sHead('▶ Ergebnis'),
+      sHead(t('lw_result_head')),
       lwLine(`f(x) = ${aH} · ${bH}<sup>x</sup>`, true),
       lwLine('')
     );
 
   } else {
     // ── Kein Punkt auf der y-Achse → kein Lösungsweg ─────────────
-    box.innerHTML = '<span style="color:#e24b4a;">Lösungsweg nur verfügbar, wenn einer der beiden Punkte auf der y-Achse liegt (x = 0).</span>';
+    box.innerHTML = '<span style="color:#e24b4a;">' + t('lw_exp_need_yaxis') + '</span>';
     box.style.display = 'block'; return;
   }
 
@@ -1579,9 +1579,9 @@ function showLoesungsweg() {
         lwLine(''),
         lwLine(`f<sub>${fi+1}</sub>(x) = ${mH}·x ${signH(b)}`),
         lwLine(''),
-        lwLine(`Steigung:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;m = ${mH}`),
-        lwLine(`y-Achsenabschnitt:&nbsp;q = ${bH}`),
-        lwLine(`Nullstelle:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;x₀ = ${ns}`),
+        lwLine(`${t('lw_lin_slope_lbl')} m = ${mH}`),
+        lwLine(`${t('lw_lin_intercept_lbl')} q = ${bH}`),
+        lwLine(`${t('lw_lin_zero_lbl')} x₀ = ${ns}`),
         lwLine('')
       );
     }
