@@ -849,7 +849,10 @@ function showExpLoesungsweg() {
   const a   = y1 / Math.pow(b, x1);
 
   const x1H = fH(x1), y1H = fH(y1), x2H = fH(x2), y2H = fH(y2);
-  const bH  = fH(b),  aH  = fH(a);
+  const bH  = (Math.abs(b - Math.round(b)) < 1e-6)
+              ? String(Math.round(b))
+              : parseFloat(b.toFixed(Math.max(precision, 3))).toString();
+  const aH  = fH(a);
 
   // Sonderfall: ein Punkt liegt auf der y-Achse (x = 0)
   const p1OnY = Math.abs(x1) < 1e-12;
