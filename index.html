@@ -162,10 +162,13 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
 }
 
 @media (max-width: 700px) {
+  /* Kleinere Basis-Schriftgröße damit alles kompakter wirkt */
+  body { font-size: 12px; }
+
   /* Sidebar als Drawer von links */
   .sidebar {
     position: fixed; left: -292px; top: 0; height: 100%;
-    z-index: 100; width: 280px; min-width: 280px;
+    z-index: 100; width: 280px; min-width: 0;
     transition: left 0.22s ease;
     box-shadow: 4px 0 20px rgba(0,0,0,0.18);
   }
@@ -175,25 +178,28 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
   /* Hamburger-Button einblenden */
   #sidebar-toggle { display: inline-flex; align-items: center; justify-content: center; }
 
-  /* Range-Bar scrollbar machen statt umbrechen */
-  .range-bar { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 5px; }
+  /* Range-Bar: horizontal scrollbar statt umbrechen, kompakter */
+  .range-bar {
+    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    gap: 4px; padding: 4px 6px;
+  }
   .range-bar::-webkit-scrollbar { height: 3px; }
   .range-bar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .range-bar button { padding: 4px 7px; font-size: 11px; white-space: nowrap; min-height: 0; }
+  .range-bar input[type=number] { width: 44px; font-size: 11px; padding: 2px 4px; }
+  .range-bar label { display: none; } /* "x:", "bis", "y:" ausblenden */
 
-  /* Buttons in Range-Bar etwas kompakter */
-  .range-bar button { padding: 5px 8px; font-size: 11px; white-space: nowrap; }
-  .range-bar input[type=number] { width: 46px; }
-  .range-bar label { display: none; } /* "x:", "y:", "bis" ausblenden auf kleinen Screens */
+  /* Sidebar-Panels kompakter */
+  .panel { padding: 8px 10px; }
+  button { font-size: 11px; padding: 4px 8px; }
+  input[type=text] { font-size: 11px; padding: 3px 6px; }
+  input[type=number] { font-size: 11px; }
 
-  /* Tooltip weiter weg vom Finger */
+  /* Tooltip weiter vom Finger weg */
   .tooltip { font-size: 12px; padding: 5px 10px; }
 
-  /* Grössere Tap-Fläche für Buttons in der Sidebar */
-  button { min-height: 34px; }
-  .del-btn { min-height: 26px; }
-
-  /* Panel-Titles besser tappbar */
-  .panel-title { padding: 6px 0; font-size: 11px; }
+  /* Panel-Titles tappbarer machen */
+  .panel-title { padding: 5px 0; min-height: 32px; display: flex; align-items: center; }
 }
 </style>
 </head>
@@ -397,9 +403,9 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     </div>
     <div class="area-row">
       <span data-i18n="lbl_x_from">x von</span>
-      <input type="number" id="area-x1" value="-3" step="0.5" style="width:55px;">
+      <input type="number" id="area-x1" value="-3" step="0.5" style="width:55px;" inputmode="decimal">
       <span data-i18n="lbl_to">bis</span>
-      <input type="number" id="area-x2" value="3" step="0.5" style="width:55px;">
+      <input type="number" id="area-x2" value="3" step="0.5" style="width:55px;" inputmode="decimal">
     </div>
     <div class="toolbar" style="margin-bottom:4px;"><button onclick="setAreaFromIsects()" data-i18n="btn_isect" data-i18n-title="btn_isect" style="font-size:10px;">∩ Schnittpunkte</button></div>
     <div class="toolbar"><button id="area-toggle-btn" onclick="toggleArea()" data-i18n="btn_area">Fläche anzeigen</button></div>
@@ -412,9 +418,9 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     <div id="point-list"></div>
     <div class="add-row">
       <span style="font-size:11px;color:#6b7280;">x:</span>
-      <input type="number" id="new-px" value="0" step="0.5" style="width:52px;">
+      <input type="number" id="new-px" value="0" step="0.5" style="width:52px;" inputmode="decimal">
       <span style="font-size:11px;color:#6b7280;">y:</span>
-      <input type="number" id="new-py" value="0" step="0.5" style="width:52px;">
+      <input type="number" id="new-py" value="0" step="0.5" style="width:52px;" inputmode="decimal">
       <button onclick="addPointManual()">+</button>
     </div>
     <div class="hint">Alt + Klick auf den Graphen · Punkte sind immer ziehbar</div>
@@ -541,10 +547,10 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
 <div class="graph-area">
   <div class="range-bar">
     <button id="sidebar-toggle" onclick="toggleSidebar()" title="Menü" aria-label="Menü öffnen/schließen">☰</button>
-    <label>x:</label><input type="number" id="xmin" value="-10" step="1">
-    <label>bis</label><input type="number" id="xmax" value="10" step="1">
-    <label>y:</label><input type="number" id="ymin" value="-6" step="1">
-    <label>bis</label><input type="number" id="ymax" value="6" step="1">
+    <label>x:</label><input type="number" id="xmin" value="-10" step="1" inputmode="decimal">
+    <label>bis</label><input type="number" id="xmax" value="10" step="1" inputmode="decimal">
+    <label>y:</label><input type="number" id="ymin" value="-6" step="1" inputmode="decimal">
+    <label>bis</label><input type="number" id="ymax" value="6" step="1" inputmode="decimal">
     <button onclick="applyRange()">Anwenden</button>
     <button id="undo-btn" onmousedown="return false" onclick="commitAndUndo()" style="font-size:14px;padding:3px 9px;" disabled>↩</button>
     <button id="redo-btn" onmousedown="return false" onclick="commitAndRedo()" style="font-size:14px;padding:3px 9px;" disabled>↪</button>
@@ -580,21 +586,7 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
 </div>
 
 <script>
-// ── Numerische Tastatur für alle Zahleneingaben auf Touch-Geräten ──
-// inputmode="decimal" zeigt Zahlentastatur (Ziffern + Punkt/Komma + Minus)
-// statt der normalen QWERTY-Tastatur. Gilt auch für dynamisch erzeugte Inputs
-// (Fitting-Panels, Parameter-Schieber), daher MutationObserver.
-(function() {
-  function applyNumericKbd(root) {
-    (root || document).querySelectorAll('input[type=number]').forEach(el => {
-      if (!el.hasAttribute('inputmode')) el.setAttribute('inputmode', 'decimal');
-    });
-  }
-  document.addEventListener('DOMContentLoaded', () => applyNumericKbd());
-  new MutationObserver(() => applyNumericKbd()).observe(document.documentElement, {
-    childList: true, subtree: true
-  });
-})();
+// (Numerische Tastatur wird direkt per inputmode-Attribut gesetzt, siehe HTML + JS)
 
 // ── Mobile Sidebar Toggle ──────────────────────────────────────────
 function toggleSidebar() {
