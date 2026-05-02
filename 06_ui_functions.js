@@ -45,6 +45,7 @@ function renderFuncList() {
     inp.contentEditable = 'true';
     inp.spellcheck = false;
     inp.className = 'func-inp-ce';
+    inp.setAttribute('inputmode', 'decimal');
     inp.setAttribute('data-raw', fn.expr);
     inp.style.cssText = `font-family:'Cascadia Code','Fira Mono',monospace;font-size:12px;padding:4px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);outline:none;flex:1;min-width:0;cursor:text;overflow-x:hidden;overflow-y:visible;white-space:nowrap;line-height:1.6;min-height:28px;${fn.visible ? '' : 'opacity:0.45;'}`;
     if (isLinked) { inp.style.background = '#f0f9ff'; inp.title = 'Live-Gerade (durch Punkte definiert)'; }
