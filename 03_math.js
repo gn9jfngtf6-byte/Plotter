@@ -435,16 +435,16 @@ function syncParams() {
     // Zeile 1: Parametername | Min-Eingabe | Schieber | Max-Eingabe
     const row1 = document.createElement('div'); row1.className = 'param-row';
     const nm = document.createElement('span'); nm.className = 'param-name'; nm.textContent = p + ' =';
-    const mi = document.createElement('input'); mi.type = 'number'; mi.value = pr.min; mi.step = '1'; mi.style.width = '42px';
+    const mi = document.createElement('input'); mi.type = 'text'; mi.inputMode = 'decimal'; mi.value = pr.min; mi.style.width = '42px';
     mi.onchange = () => { pr.min = parseParamExpr(mi.value) ?? pr.min; sl.min = pr.min; };
     const sl = document.createElement('input'); sl.type = 'range'; sl.min = pr.min; sl.max = pr.max; sl.step = pr.step; sl.value = pr.val; sl.style.flex = '1';
-    const ma = document.createElement('input'); ma.type = 'number'; ma.value = pr.max; ma.step = '1'; ma.style.width = '42px';
+    const ma = document.createElement('input'); ma.type = 'text'; ma.inputMode = 'decimal'; ma.value = pr.max; ma.style.width = '42px';
     ma.onchange = () => { pr.max = parseParamExpr(ma.value) ?? pr.max; sl.max = pr.max; };
     row1.append(nm, mi, sl, ma);
 
     // Zeile 2: Direkt-Wert-Eingabe (akzeptiert "pi", "e", "pi/2") + Schrittweite
     const row2 = document.createElement('div'); row2.className = 'param-ctrl-row';
-    const vInp = document.createElement('input'); vInp.type = 'text'; vInp.className = 'param-val-inp';
+    const vInp = document.createElement('input'); vInp.type = 'text'; vInp.inputMode = 'decimal'; vInp.className = 'param-val-inp';
     vInp.value = pr.val.toFixed(Math.max(precision, 3)); vInp.placeholder = 'z.B. pi, 1.5';
     vInp.onchange = () => {
       const v = parseParamExpr(vInp.value);

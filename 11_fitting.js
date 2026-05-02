@@ -157,9 +157,9 @@ function buildPanelInputs(containerId, labels, prefix) {
     row.innerHTML =
       `<span style="min-width:80px;color:var(--text-muted);" id="${prefix}-lbl${i}">${lbl}:</span>` +
       `<span style="color:var(--text-muted);">x=</span>` +
-      `<input type="number" id="${prefix}-x${i}" step="any" style="width:52px;" placeholder="—" inputmode="decimal">` +
+      `<input type="text" id="${prefix}-x${i}" inputmode="decimal" style="width:52px;" placeholder="—">` +
       `<span style="color:var(--text-muted);">y=</span>` +
-      `<input type="number" id="${prefix}-y${i}" step="any" style="width:52px;" placeholder="—" inputmode="decimal">`;
+      `<input type="text" id="${prefix}-y${i}" inputmode="decimal" style="width:52px;" placeholder="—">`;
     container.appendChild(row);
   });
 }
