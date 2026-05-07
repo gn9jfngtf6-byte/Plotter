@@ -120,9 +120,30 @@ select { font-family: 'Segoe UI',system-ui,sans-serif; font-size: 12px; padding:
 
 .expr-preview { font-size: 11px; color: var(--text); padding: 1px 4px 3px; line-height: 1.7; min-height: 0; }
 .preview-frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 2px; line-height: 1.2; }
-.preview-frac .pf-num { border-bottom: 1.5px solid currentColor; padding: 0 3px; font-size: 11px; text-align: center; line-height: 1.3; }
-.preview-frac .pf-den { padding: 0 3px; font-size: 11px; text-align: center; line-height: 1.3; }
+.preview-frac .pf-num { border-bottom: 1.5px solid currentColor; padding: 0 3px; font-size: 11px; text-align: center; line-height: 1.3; min-width: 12px; align-self: stretch; box-sizing: border-box; }
+.preview-frac .pf-den { padding: 0 3px; font-size: 11px; text-align: center; line-height: 1.3; min-width: 12px; }
+/* Cursor-Anker: feste Schreibmarken-Höhe neben Brüchen */
+.pf-cursor-anchor { display: inline; line-height: 1; vertical-align: middle; }
 .preview-sup { font-size: 8px; vertical-align: super; line-height: 0; }
+
+/* Brüche im Funktions-Eingabefeld: Zähler/Nenner als editierbare Bereiche */
+.func-inp-ce .preview-frac { cursor: default; margin: 0 1px; }
+.func-inp-ce .preview-frac .pf-num,
+.func-inp-ce .preview-frac .pf-den {
+  cursor: text;
+  min-width: 18px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  transition: background 0.1s, outline 0.1s;
+}
+/* Leere Felder: kleiner Platzhalter-Hinweis */
+.func-inp-ce .preview-frac .pf-num:empty::before,
+.func-inp-ce .preview-frac .pf-den:empty::before {
+  content: '▫';
+  color: var(--text-muted);
+  pointer-events: none;
+  font-size: 9px;
+}
 
 body.delete-mode #canvas { cursor:crosshair !important; }
 button.delete-mode-btn { color:#e24b4a; }
@@ -220,17 +241,23 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     <div id="func-list"></div>
     <div class="toolbar">
       <button onclick="addFunction()" data-i18n="btn_add_fn">+ Funktion</button>
-      <button onclick="clearAll()" data-i18n="btn_clear">Leeren</button>
-      <button onclick="resetView()" data-i18n="btn_reset">Reset</button>
     </div>
     <div class="kbd">
       <button onmousedown="return false" onclick="kbdInsert('x')">x</button>
-      <button onmousedown="return false" onclick="kbdInsert('+')">+</button>
-      <button onmousedown="return false" onclick="kbdInsert('-')">−</button>
-      <button onmousedown="return false" onclick="kbdInsert('*')">×</button>
-      <button onmousedown="return false" onclick="kbdInsert('/')">/</button>
-      <button onmousedown="return false" onclick="kbdInsert('(')"> ( </button>
-      <button onmousedown="return false" onclick="kbdInsert(')')"> ) </button>
+      <button onmousedown="return false" onclick="kbdInsert('pi')">π</button>
+      <button onmousedown="return false" onclick="kbdInsert('EC')">e</button>
+      <button onmousedown="return false" onclick="kbdInsert('(')">(</button>
+      <button onmousedown="return false" onclick="kbdInsert(')')">)</button>
+      <div style="display:inline-grid;grid-template-columns:1fr 1fr;gap:3px;align-self:flex-start;">
+        <button onmousedown="return false" onclick="kbdInsert('+')" style="margin:0;">+</button>
+        <button onmousedown="return false" onclick="kbdInsert('-')" style="margin:0;">−</button>
+        <button onmousedown="return false" onclick="kbdInsert('*')" style="margin:0;">⋅</button>
+        <button onmousedown="return false" onclick="kbdInsert('/')" style="margin:0;">÷</button>
+      </div>
+      <button onmousedown="return false" onclick="kbdInsert('^2')">x²</button>
+      <button onmousedown="return false" onclick="kbdInsert('^')">xⁿ</button>
+      <button onmousedown="return false" onclick="kbdFrac()" data-i18n-title="title_frac" style="padding:3px 8px;line-height:1;"><span class="preview-frac" style="pointer-events:none;font-size:10px;"><span class="pf-num">□</span><span class="pf-den">□</span></span></button>
+      <button onmousedown="return false" onclick="kbdInsert('exp(',')')">eˣ</button>
       <button onmousedown="return false" onclick="kbdInsert('sin(',')')">sin</button>
       <button onmousedown="return false" onclick="kbdInsert('cos(',')')">cos</button>
       <button onmousedown="return false" onclick="kbdInsert('tan(',')')">tan</button>
@@ -240,12 +267,6 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
       <button onmousedown="return false" onclick="kbdInsert('log10(',')')">log₁₀</button>
       <button onmousedown="return false" onclick="kbdInsert('logn(','',2)">logₙ</button>
       <button onmousedown="return false" onclick="kbdInsert('abs(',')')">|x|</button>
-      <button onmousedown="return false" onclick="kbdInsert('pi')">π</button>
-      <button onmousedown="return false" onclick="kbdInsert('EC')">e</button>
-      <button onmousedown="return false" onclick="kbdInsert('^2')">x²</button>
-      <button onmousedown="return false" onclick="kbdInsert('^')">xⁿ</button>
-      <button onmousedown="return false" onclick="kbdInsert('exp(',')')">eˣ</button>
-      <button onmousedown="return false" onclick="kbdFrac()" data-i18n-title="title_frac" style="font-size:13px;">ˣ⁄ᵧ</button>
     </div>
     <div class="hint" style="margin-top:4px;" data-i18n="lbl_kbd_hint">Klicke ins Funktionsfeld, dann auf eine Taste.<br><code>nthroot(x,n)</code>=ⁿ√x &nbsp;<code>logn(x,b)</code>=log<sub>b</sub>x &nbsp;<code>EC</code>=e</div>
   </div>

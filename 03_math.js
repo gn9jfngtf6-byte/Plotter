@@ -14,7 +14,7 @@
   const s = document.createElement('style');
   s.textContent = `
     .mfrac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 2px;line-height:1.2;}
-    .mfrac .mfrac-num{border-bottom:1px solid currentColor;padding:0 3px 1px;text-align:center;min-width:8px;}
+    .mfrac .mfrac-num{border-bottom:1px solid currentColor;padding:0 3px 1px;text-align:center;min-width:8px;align-self:stretch;box-sizing:border-box;}
     .mfrac .mfrac-den{padding:1px 3px 0;text-align:center;min-width:8px;}
     #loesungsweg-box{white-space:normal!important;font-family:monospace;}
     #loesungsweg-box .lw-line{display:block;line-height:2.4;padding-left:0;}
@@ -159,9 +159,6 @@ function kbdInsert(before, after, extraArg) {
   // Contenteditable-Funktionsfeld (div[contenteditable])
   const isCE = el.contentEditable === 'true';
   if (isCE) {
-    // Beim Fokussieren ist der Inhalt immer reiner Text
-    const raw = el.getAttribute('data-raw') || el.textContent;
-    // Selektion auslesen
     const selObj = window.getSelection();
     let selTxt = selObj.toString();
 
@@ -173,9 +170,10 @@ function kbdInsert(before, after, extraArg) {
     else if (after !== undefined) insert = before + (selTxt || 'x') + after;
     else insert = before;
 
-    // In contenteditable einfügen
+    // In contenteditable einfügen (immer als Text — kein Re-Render nötig)
     document.execCommand('insertText', false, insert);
-    const newRaw = el.textContent;
+    // Rohausdruck aus DOM rekonstruieren (berücksichtigt evt. vorhandene Bruchspans)
+    const newRaw = typeof ceRawFromDom === 'function' ? ceRawFromDom(el) : el.textContent;
     el.setAttribute('data-raw', newRaw);
     if (fi >= 0 && functions[fi]) {
       functions[fi].expr = newRaw;
@@ -222,7 +220,7 @@ function kbdInsert(before, after, extraArg) {
   }
 }
 
-// Fügt einen Bruch (Zähler)/(Nenner) ein.
+// Fügt einen Bruch als visuelles HTML-Element ein.
 // Markierter Text wird zum Zähler; Cursor landet im Nenner.
 function kbdFrac() {
   if (!activeInput) return;
@@ -231,13 +229,31 @@ function kbdFrac() {
 
   const isCE = el.contentEditable === 'true';
   if (isCE) {
-    const selTxt = window.getSelection().toString();
-    const insert = `(${selTxt})/()`;
-    document.execCommand('insertText', false, insert);
-    const newRaw = el.textContent;
-    el.setAttribute('data-raw', newRaw);
+    const sel = window.getSelection();
+    const selTxt = sel.toString();
+    // Bruch-DOM direkt einfügen — kein blur nötig, Feld bleibt immer gerendert
+    const frac = document.createElement('span'); frac.className = 'preview-frac';
+    const numEl = document.createElement('span'); numEl.className = 'pf-num'; numEl.textContent = selTxt;
+    const denEl = document.createElement('span'); denEl.className = 'pf-den';
+    frac.append(numEl, denEl);
+    // Cursor-Anker-Span nach dem Bruch — begrenzt Schreibmarken-Höhe auf Schriftgrösse
+    const zws = document.createElement('span'); zws.className = 'pf-cursor-anchor'; zws.textContent = '​';
+    if (sel.rangeCount) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents(); // markierten Text (künftiger Zähler) entfernen
+      range.insertNode(zws);
+      range.insertNode(frac); // frac vor zws → korrekte DOM-Reihenfolge
+    } else {
+      el.appendChild(frac); el.appendChild(zws);
+    }
+    // Cursor sofort in den Nenner setzen
+    const r = document.createRange(); r.selectNodeContents(denEl); r.collapse(false);
+    sel.removeAllRanges(); sel.addRange(r);
+    // Daten aktualisieren
+    const raw = ceRawFromDom(el);
+    el.setAttribute('data-raw', raw);
     if (fi >= 0 && functions[fi]) {
-      functions[fi].expr = newRaw;
+      functions[fi].expr = raw;
       syncParams(); syncAreaSelects(); scheduleComputeSpecials();
       if (showArea) updateAreaResult(); scheduleDraw();
     }

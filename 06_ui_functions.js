@@ -16,6 +16,76 @@ function exprToDisplayStr(expr) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// DOM → RAW-AUSDRUCK REKONSTRUKTION
+// ═══════════════════════════════════════════════════════════════════
+
+// Setzt den Cursor in einem contenteditable-Div auf Zeichen-Offset offset (im textContent).
+function ceSetCursorAt(el, offset) {
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let rem = offset;
+  while (walker.nextNode()) {
+    const len = walker.currentNode.length;
+    if (rem <= len) {
+      const r = document.createRange();
+      r.setStart(walker.currentNode, rem);
+      r.collapse(true);
+      const s = window.getSelection();
+      s.removeAllRanges();
+      s.addRange(r);
+      return;
+    }
+    rem -= len;
+  }
+  // Fallback: ans Ende
+  const r = document.createRange(); r.selectNodeContents(el); r.collapse(false);
+  window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
+}
+
+// Rekonstruiert den Rohausdruck (für safeEval) aus dem gerenderten HTML des Eingabefeldes.
+// Kehrt die Transformationen von exprToHtml um:
+//   .preview-frac → (Zähler)/(Nenner)
+//   .preview-sup  → ^Inhalt
+//   ⋅ / ·         → *
+//   π             → pi
+//   alleinsteh. e → EC
+// Wird aufgerufen wenn das Feld in "always-rendered"-Modus ist (oninput, onblur).
+function ceRawFromDom(el) {
+  function walk(node) {
+    if (node.nodeType === 3 /* TEXT_NODE */) {
+      return node.textContent
+        .replace(/​/g, '')        // Zero-Width-Space (Cursor-Anker) entfernen
+        .replace(/[⋅·]/g, '*')        // Mittelpunkt → Multiplikation
+        .replace(/π/g, 'pi')           // π → pi
+        .replace(/\be\b/g, 'EC');      // alleinsteh. e → EC (Eulersche Zahl)
+    }
+    if (node.nodeType === 1 /* ELEMENT_NODE */) {
+      const cls = node.className || '';
+      // Bruch: (Zähler)/(Nenner)
+      if (cls.includes('preview-frac')) {
+        const numEl = Array.from(node.children).find(c => c.classList.contains('pf-num'));
+        const denEl = Array.from(node.children).find(c => c.classList.contains('pf-den'));
+        const num = numEl ? Array.from(numEl.childNodes).map(walk).join('') : '';
+        const den = denEl ? Array.from(denEl.childNodes).map(walk).join('') : '';
+        return `(${num})/(${den})`;
+      }
+      // Hochgestellter Exponent: ^Inhalt
+      if (cls.includes('preview-sup')) {
+        const inner = Array.from(node.childNodes).map(walk).join('');
+        return `^${inner}`;
+      }
+      // Platzhalter-Span ignorieren
+      if (node.style && node.style.fontStyle === 'italic') return '';
+      // Cursor-Anker: Inhalt zurückgeben (ZWS wird im Text-Knoten-Handler gestrippt)
+      if (cls.includes('pf-cursor-anchor')) return Array.from(node.childNodes).map(walk).join('');
+      // Sonstige Elemente: rekursiv
+      return Array.from(node.childNodes).map(walk).join('');
+    }
+    return '';
+  }
+  return Array.from(el.childNodes).map(walk).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // FUNKTIONSLISTE (Sidebar)
 // ═══════════════════════════════════════════════════════════════════
 
@@ -47,7 +117,9 @@ function renderFuncList() {
     inp.className = 'func-inp-ce';
     inp.setAttribute('inputmode', 'decimal');
     inp.setAttribute('data-raw', fn.expr);
-    inp.style.cssText = `font-family:'Cascadia Code','Fira Mono',monospace;font-size:12px;padding:4px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);outline:none;flex:1;min-width:0;cursor:text;overflow-x:hidden;overflow-y:visible;white-space:nowrap;line-height:1.6;min-height:28px;${fn.visible ? '' : 'opacity:0.45;'}`;
+    // overflow-x:clip statt overflow-x:hidden — clip erzwingt kein overflow-y:auto (CSS-Spezifikation),
+    // sodass overflow-y:visible wirksam bleibt und das Feld bei Brüchen vertikal wächst.
+    inp.style.cssText = `font-family:'Cascadia Code','Fira Mono',monospace;font-size:12px;padding:4px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);outline:none;flex:1;min-width:0;cursor:text;overflow-x:clip;overflow-y:visible;white-space:nowrap;line-height:normal;min-height:28px;${fn.visible ? '' : 'opacity:0.45;'}`;
     if (isLinked) { inp.style.background = '#f0f9ff'; inp.title = t('title_live_line'); }
 
     // Guard: verhindert dass oninput feuert wenn ceRender() das HTML programmatisch setzt
@@ -58,42 +130,105 @@ function renderFuncList() {
       const raw = inp.getAttribute('data-raw') || '';
       const disp = raw ? exprToDisplayStr(raw) : '';
       ceRendering = true;
-      if (exprNeedsPreview(raw)) { inp.innerHTML = exprToHtml(disp || raw); }
+      if (exprNeedsPreview(raw)) {
+        inp.innerHTML = exprToHtml(disp || raw);
+        // Cursor-Anker: Span am Ende sicherstellen — begrenzt Schreibmarken-Höhe auf Schriftgrösse
+        if (!inp.lastChild || !inp.lastChild.classList?.contains('pf-cursor-anchor')) {
+          const anchor = document.createElement('span');
+          anchor.className = 'pf-cursor-anchor';
+          anchor.textContent = '​';
+          inp.appendChild(anchor);
+        }
+      }
       else { inp.textContent = disp || ''; if (!disp) { inp.innerHTML = `<span style="color:var(--text-muted);font-style:italic;">${t('eg_fn')}</span>`; } }
       ceRendering = false;
     }
     ceRender();
 
     inp.onfocus = () => {
-      // Umschalten auf Rohtext zum Bearbeiten
-      const raw = inp.getAttribute('data-raw') || '';
-      ceRendering = true;
-      inp.textContent = raw;
-      ceRendering = false;
+      // Feld bleibt immer gerendert — kein Wechsel auf Rohtext beim Fokussieren.
       inp.style.borderColor = '#378ADD';
       setActiveInput(inp, i);
-      // Cursor ans Ende
-      const range = document.createRange(); range.selectNodeContents(inp); range.collapse(false);
-      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      // Leeres Feld: Platzhalter entfernen damit sofort getippt werden kann
+      if (!(inp.getAttribute('data-raw') || '')) {
+        ceRendering = true; inp.innerHTML = ''; ceRendering = false;
+      }
+      // Nach kbdFrac: Cursor in den Zähler des letzten Bruchs
+      const nextCursor = inp.getAttribute('data-next-cursor');
+      if (nextCursor) {
+        inp.removeAttribute('data-next-cursor');
+        const fracs = inp.querySelectorAll('.preview-frac');
+        if (fracs.length > 0) {
+          const numEl = fracs[fracs.length-1].querySelector('.pf-num');
+          if (numEl) {
+            const r = document.createRange(); r.selectNodeContents(numEl); r.collapse(false);
+            window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
+            return;
+          }
+        }
+      }
+      // Standardfall: Cursor ans Ende
+      const r = document.createRange(); r.selectNodeContents(inp); r.collapse(false);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
     };
     inp.onblur = () => {
-      const raw = inp.textContent;
+      // Rohausdruck aus dem gerenderten DOM rekonstruieren und neu rendern
+      const raw = ceRawFromDom(inp);
       inp.setAttribute('data-raw', raw);
       inp.style.borderColor = '';
       ceRender();
       if (!historyPaused) { clearTimeout(_histDebounce); _histDebounce = setTimeout(pushHistory, 100); }
     };
     inp.oninput = () => {
-      if (ceRendering) return; // Programmatische Änderung (ceRender) ignorieren
-      const raw = inp.textContent;
+      if (ceRendering) return;
+      let raw = ceRawFromDom(inp);
+      // Einfache a/b-Muster automatisch als Bruch rendern (z.B. x/2 → (x)/(2))
+      const converted = raw.replace(/([a-zA-Z0-9_.]+)\/([a-zA-Z0-9_.]+)/g, '($1)/($2)');
+      if (converted !== raw) {
+        inp.setAttribute('data-raw', converted);
+        ceRender();
+        // Cursor ans Ende des Nenners des letzten Bruchs
+        const fracs = inp.querySelectorAll('.preview-frac');
+        if (fracs.length > 0) {
+          const denEl = fracs[fracs.length-1].querySelector('.pf-den');
+          if (denEl) {
+            const r = document.createRange(); r.selectNodeContents(denEl); r.collapse(false);
+            window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
+          }
+        }
+        raw = converted;
+      }
       inp.setAttribute('data-raw', raw);
       fn.expr = raw;
       clearEvalCache(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
       if (showArea) updateAreaResult(); syncLinearExtra(); scheduleDraw();
     };
-    // Keine Newlines erlauben
+    // Keine Newlines; Brüche als Einheit löschen
     inp.onkeydown = e => {
       if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+      // Backspace direkt nach einem Bruch: Bruch als Ganzes entfernen
+      if (e.key === 'Backspace') {
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return;
+        const range = sel.getRangeAt(0);
+        if (!range.collapsed) return; // Selektion → Browser löscht normal
+        const node = range.startContainer, offset = range.startOffset;
+        let fracToDelete = null;
+        if (node.nodeType === 3 && offset === 0 &&
+            node.previousSibling?.classList?.contains('preview-frac'))
+          fracToDelete = node.previousSibling;
+        else if (node === inp && offset > 0 &&
+                 inp.childNodes[offset-1]?.classList?.contains('preview-frac'))
+          fracToDelete = inp.childNodes[offset-1];
+        if (fracToDelete) {
+          e.preventDefault();
+          fracToDelete.remove();
+          const raw = ceRawFromDom(inp);
+          inp.setAttribute('data-raw', raw); fn.expr = raw;
+          clearEvalCache(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
+          if (showArea) updateAreaResult(); scheduleDraw();
+        }
+      }
     };
 
     const preview = document.createElement('div'); // Dummy, nicht mehr verwendet
