@@ -296,6 +296,32 @@ const evalCache = new Map();
 // expr: z.B. "sin(x) + a*x"
 // pNames: Array von Parameternamen, z.B. ['a']
 // Gibt die kompilierte Function zurück oder null bei Syntaxfehler.
+// Wandelt -(...)** um in (-(...))** für beliebige Klammertiefe.
+// Nötig weil JS strict mode -(...)** als SyntaxError behandelt.
+function fixNegParenPow(s) {
+  const r = []; let i = 0;
+  while (i < s.length) {
+    if (s[i] === '-' && i + 1 < s.length && s[i+1] === '(') {
+      const prev = i === 0 ? null : s[i-1];
+      if (prev === null || '(+-*/, \t'.includes(prev)) {
+        let depth = 0, j = i + 1;
+        while (j < s.length) {
+          if (s[j] === '(') depth++;
+          else if (s[j] === ')') { depth--; if (depth === 0) break; }
+          j++;
+        }
+        let k = j + 1;
+        while (k < s.length && s[k] === ' ') k++;
+        if (k + 1 < s.length && s[k] === '*' && s[k+1] === '*') {
+          r.push('(-'); r.push(s.slice(i+1, j+1)); r.push(')'); i = j + 1; continue;
+        }
+      }
+    }
+    r.push(s[i]); i++;
+  }
+  return r.join('');
+}
+
 function getEvalFn(expr, pNames) {
   const key = expr + '|' + pNames.join(',');
   if (evalCache.has(key)) return evalCache.get(key);
@@ -304,10 +330,10 @@ function getEvalFn(expr, pNames) {
     // JS strict mode verbietet unäres Minus direkt vor **: -x**2 → SyntaxError
     // Lösung: Alle -TERM** Muster klammern: -x**2 → (-x)**2
     let e = expr.replace(/\^/g, '**').replace(/\bEC\b/g, '__EULER__');
-    // Klammere: (Anfang oder nach Operator/Klammer auf) gefolgt von - und Term vor **
     // Schritt 1: Einfache Variable: -x** → (-x)**
     e = e.replace(/(^|[\(\+\-\*\/,\s])-([a-zA-Z_][a-zA-Z0-9_]*)\s*\*\*/g, '$1(-$2)**');
-    // Schritt 2: Geklammerte Ausdrücke: -(...)** → (-(...))**  — bereits geklammert, kein Problem
+    // Schritt 2: Geklammerte Ausdrücke: -(...)** → (-(...))**
+    e = fixNegParenPow(e);
     // Schritt 3: Zahl: -3** → (-3)**
     e = e.replace(/(^|[\(\+\-\*\/,\s])-(\d+\.?\d*)\s*\*\*/g, '$1(-$2)**');
     // Kompiliert zu: function(x, sin, cos, ..., a, b) { return (sin(x) + a*x); }
@@ -464,7 +490,11 @@ function syncParams() {
     vInp.value = pr.val.toFixed(Math.max(precision, 3)); vInp.placeholder = 'z.B. pi, 1.5';
     vInp.onchange = () => {
       const v = parseParamExpr(vInp.value);
-      if (v !== null) { pr.val = Math.min(pr.max, Math.max(pr.min, v)); sl.value = pr.val; vInp.value = pr.val.toFixed(Math.max(precision, 3)); }
+      if (v !== null) {
+        if (v > pr.max) { pr.max = Math.ceil(v); sl.max = pr.max; ma.value = pr.max; }
+        if (v < pr.min) { pr.min = Math.floor(v); sl.min = pr.min; mi.value = pr.min; }
+        pr.val = v; sl.value = pr.val; vInp.value = pr.val.toFixed(Math.max(precision, 3));
+      }
       clearEvalCache(); scheduleComputeSpecials(); scheduleDraw();
     };
     sl.oninput = () => { pr.val = parseFloat(sl.value); vInp.value = pr.val.toFixed(Math.max(precision, 3)); clearEvalCache(); scheduleComputeSpecials(); scheduleDraw(); };

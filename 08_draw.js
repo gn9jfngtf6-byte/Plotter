@@ -789,8 +789,8 @@ function draw() {
 
   // ── 2. Gitternetz ─────────────────────────────────────────────
   ctx.strokeStyle = C.grid; ctx.lineWidth = 1; ctx.setLineDash([]);
-  const xStep = gridStep(v.xmax - v.xmin);
-  const yStep = gridStep(v.ymax - v.ymin);
+  const xyStep = gridStep(Math.min(v.xmax - v.xmin, v.ymax - v.ymin));
+  const xStep = xyStep, yStep = xyStep;
   // Vertikale Gitterlinien
   for (let gx = Math.ceil(v.xmin/xStep)*xStep; gx <= v.xmax + xStep*0.01; gx += xStep) {
     const { cx } = toCanvas(gx, 0); ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
@@ -866,6 +866,7 @@ function draw() {
   // Abtastanzahl = Canvas-Breite × 2 (ein Punkt pro halben Pixel = sehr glatt)
   const steps = Math.round(w * 2);
   const yRange = v.ymax - v.ymin;
+  const yClamp = yRange * 200; // verhindert Canvas int32-Overflow bei grossen Potenzen
   functions.forEach(fn => {
     if (!fn.expr.trim() || fn.visible === false) return;
     ctx.strokeStyle = fn.color; ctx.lineWidth = 2.5; ctx.setLineDash([]);
@@ -876,7 +877,9 @@ function draw() {
       if (!isFinite(y)) { started = false; prevY = null; continue; } // Lücke (z.B. log(<0))
       // Grosser Sprung → Linie unterbrechen (verhindert senkrechte "Linien" bei Asymptoten)
       if (prevY !== null && Math.abs(y - prevY) > yRange * 5) { started = false; }
-      const { cx, cy } = toCanvas(x, y);
+      // y-Clamping: sehr grosse Werte auf sicheren Bereich begrenzen (int32-Overflow vermeiden)
+      const yDraw = y < v.ymin - yClamp ? v.ymin - yClamp : y > v.ymax + yClamp ? v.ymax + yClamp : y;
+      const { cx, cy } = toCanvas(x, yDraw);
       if (!started) { ctx.moveTo(cx, cy); started = true; } else { ctx.lineTo(cx, cy); }
       prevY = y;
     }

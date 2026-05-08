@@ -1,3 +1,13 @@
+// CSS für Exponenten-Kursor-Hervorhebung und Anker-Darstellung injizieren
+(function() {
+  if (document.getElementById('sup-cursor-style')) return;
+  const s = document.createElement('style'); s.id = 'sup-cursor-style';
+  s.textContent =
+    '.preview-sup.sup-cursor-active{outline:1.5px solid rgba(55,138,221,0.75);background:rgba(55,138,221,0.11);border-radius:2px;}' +
+    '.func-inp-ce .pf-cursor-anchor{vertical-align:baseline!important;font-size:1em!important;}';
+  document.head.appendChild(s);
+})();
+
 // ═══════════════════════════════════════════════════════════════════
 // MODUL: ui_functions — Funktionsliste in der Sidebar
 // Enthält:  renderFuncList(), addFunction(), removeFunction()
@@ -69,9 +79,11 @@ function ceRawFromDom(el) {
         return `(${num})/(${den})`;
       }
       // Hochgestellter Exponent: ^Inhalt
+      // Bei komplexem Inhalt (mit Operatoren) in Klammern einschliessen → ^(n+1)
       if (cls.includes('preview-sup')) {
         const inner = Array.from(node.childNodes).map(walk).join('');
-        return `^${inner}`;
+        const needsParens = /[+\-*\/]/.test(inner) && !inner.startsWith('(');
+        return needsParens ? `^(${inner})` : `^${inner}`;
       }
       // Platzhalter-Span ignorieren
       if (node.style && node.style.fontStyle === 'italic') return '';
@@ -149,6 +161,18 @@ function renderFuncList() {
       // Feld bleibt immer gerendert — kein Wechsel auf Rohtext beim Fokussieren.
       inp.style.borderColor = '#378ADD';
       setActiveInput(inp, i);
+      // Exponenten-Hervorhebung: aktuell aktiven sup blau umranden
+      const onSelChange = () => {
+        inp.querySelectorAll('.preview-sup').forEach(s => s.classList.remove('sup-cursor-active'));
+        const sel = window.getSelection(); if (!sel.rangeCount) return;
+        let nd = sel.getRangeAt(0).startContainer;
+        while (nd && nd !== inp) {
+          if (nd.nodeType === 1 && nd.classList?.contains('preview-sup')) { nd.classList.add('sup-cursor-active'); break; }
+          nd = nd.parentNode;
+        }
+      };
+      document.addEventListener('selectionchange', onSelChange);
+      inp._onSelChange = onSelChange;
       // Leeres Feld: Platzhalter entfernen damit sofort getippt werden kann
       if (!(inp.getAttribute('data-raw') || '')) {
         ceRendering = true; inp.innerHTML = ''; ceRendering = false;
@@ -172,6 +196,9 @@ function renderFuncList() {
       const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
     };
     inp.onblur = () => {
+      // selectionchange-Listener entfernen und Hervorhebung zurücksetzen
+      if (inp._onSelChange) { document.removeEventListener('selectionchange', inp._onSelChange); inp._onSelChange = null; }
+      inp.querySelectorAll('.preview-sup').forEach(s => s.classList.remove('sup-cursor-active'));
       // Rohausdruck aus dem gerenderten DOM rekonstruieren und neu rendern
       const raw = ceRawFromDom(inp);
       inp.setAttribute('data-raw', raw);
@@ -203,9 +230,55 @@ function renderFuncList() {
       clearEvalCache(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
       if (showArea) updateAreaResult(); syncLinearExtra(); scheduleDraw();
     };
-    // Keine Newlines; Brüche als Einheit löschen
+    // Keine Newlines; Brüche als Einheit löschen; Exponent-Escape mit ArrowRight
     inp.onkeydown = e => {
       if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+      // ArrowRight / Tab / ArrowDown / End: Aus dem Exponenten heraus navigieren (zwei Zustände)
+      if (e.key === 'ArrowRight' || e.key === 'Tab' || e.key === 'ArrowDown' || e.key === 'End') {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount) {
+          const range = sel.getRangeAt(0);
+          let nd = range.startContainer;
+          // Suche nach umgebenden sup- / anchor-Element
+          let supEl = null, anchEl = null, tempNd = nd;
+          while (tempNd && tempNd !== inp) {
+            if (tempNd.nodeType === 1 && tempNd.classList?.contains('preview-sup')) { supEl = tempNd; break; }
+            tempNd = tempNd.parentNode;
+          }
+          tempNd = nd;
+          while (tempNd && tempNd !== inp) {
+            if (tempNd.nodeType === 1 && tempNd.classList?.contains('pf-cursor-anchor')) { anchEl = tempNd; break; }
+            tempNd = tempNd.parentNode;
+          }
+          const anchAfterSup = anchEl && anchEl.previousSibling?.classList?.contains('preview-sup');
+
+          if (supEl) {
+            // Zustand 1: Kursor im sup → in den Anker danach bewegen
+            e.preventDefault();
+            let anch = supEl.nextSibling;
+            if (!anch || !anch.classList?.contains('pf-cursor-anchor')) {
+              anch = document.createElement('span'); anch.className = 'pf-cursor-anchor'; anch.textContent = '​';
+              supEl.parentNode.insertBefore(anch, supEl.nextSibling);
+            }
+            const nr = document.createRange();
+            const tx = anch.firstChild;
+            if (tx && tx.nodeType === 3) { nr.setStart(tx, tx.length); } else { nr.selectNodeContents(anch); nr.collapse(false); }
+            nr.collapse(true); sel.removeAllRanges(); sel.addRange(nr);
+            return;
+          }
+          if (anchAfterSup) {
+            // Zustand 2: Kursor im Anker → hinter den Anker bewegen
+            e.preventDefault();
+            const nr = document.createRange();
+            const after = anchEl.nextSibling;
+            if (after && after.nodeType === 3) { nr.setStart(after, 0); }
+            else if (after) { nr.setStartBefore(after); }
+            else { nr.selectNodeContents(inp); nr.collapse(false); }
+            nr.collapse(true); sel.removeAllRanges(); sel.addRange(nr);
+            return;
+          }
+        }
+      }
       // Backspace direkt nach einem Bruch: Bruch als Ganzes entfernen
       if (e.key === 'Backspace') {
         const sel = window.getSelection();

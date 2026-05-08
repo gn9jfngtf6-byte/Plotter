@@ -181,9 +181,9 @@ function exprToHtml(expr) {
     s = s.replace(/\(([^()]*)\)\/\(([^()]*)\)/g,
       '<span class="preview-frac"><span class="pf-num">$1</span><span class="pf-den">$2</span></span>');
   } while (s !== prev);
-  // Hochgestellte Exponenten: ^{n} oder ^n
-  s = s.replace(/\^(\{[^}]*\}|[^\s+\-*·()^<]+)/g, (_, m) => {
-    const inner = m.startsWith('{') ? m.slice(1,-1) : m;
+  // Hochgestellte Exponenten: ^{n}, ^(n+1) oder ^n
+  s = s.replace(/\^(\{[^}]*\}|\([^)]*\)|[^\s+\-*·()^<]+)/g, (_, m) => {
+    const inner = m.startsWith('{') ? m.slice(1,-1) : m.startsWith('(') ? m.slice(1,-1) : m;
     return `<sup class="preview-sup">${inner}</sup>`;
   });
   // Symbole verschönern: * → ·, pi → π, EC → e
