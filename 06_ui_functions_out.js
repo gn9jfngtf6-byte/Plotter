@@ -4,10 +4,7 @@
   const s = document.createElement('style'); s.id = 'sup-cursor-style';
   s.textContent =
     '.preview-sup.sup-cursor-active{outline:1.5px solid rgba(55,138,221,0.75);background:rgba(55,138,221,0.11);border-radius:2px;}' +
-    '.func-inp-ce .pf-cursor-anchor{vertical-align:baseline!important;font-size:1em!important;}' +
-    '.func-inp-ce .pf-inline{vertical-align:middle;display:inline;font-size:1em;}' +
-    '.func-inp-ce::-webkit-scrollbar{height:3px;}' +
-    '.func-inp-ce::-webkit-scrollbar-thumb{background:var(--border-input);border-radius:3px;}';
+    '.func-inp-ce .pf-cursor-anchor{vertical-align:baseline!important;font-size:1em!important;}';
   document.head.appendChild(s);
 })();
 
@@ -101,8 +98,15 @@ function ceRawFromDom(el) {
 }
 
 // Öffentliche Funktion: CE-Feld von außen neu rendern (z.B. nach kbdInsert).
+// Ruft ceRender() der zugehörigen Closure auf.
 function ceRenderEl(el) {
-  if (el._ceRender) { el._ceRender(); }
+  // ceRender ist eine closure-lokale Funktion — wir triggern sie via data-raw-Änderung
+  // indem wir ein synthetisches input-Event schicken das keinen oninput-Loop auslöst.
+  // Einfachste Methode: blur+focus simulieren über gespeicherten Handler.
+  if (el._ceRender) { el._ceRender(); return; }
+  // Fallback: data-raw setzen und blur/focus
+  const raw = el.getAttribute('data-raw') || '';
+  el.setAttribute('data-raw', raw);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -139,7 +143,7 @@ function renderFuncList() {
     inp.setAttribute('data-raw', fn.expr);
     // overflow-x:clip statt overflow-x:hidden — clip erzwingt kein overflow-y:auto (CSS-Spezifikation),
     // sodass overflow-y:visible wirksam bleibt und das Feld bei Brüchen vertikal wächst.
-    inp.style.cssText = `font-family:'Cascadia Code','Fira Mono',monospace;font-size:12px;padding:4px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);outline:none;flex:1;min-width:0;cursor:text;overflow-x:auto;overflow-y:visible;white-space:nowrap;line-height:normal;min-height:28px;${fn.visible ? '' : 'opacity:0.45;'}`;
+    inp.style.cssText = `font-family:'Cascadia Code','Fira Mono',monospace;font-size:12px;padding:4px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);outline:none;flex:1;min-width:0;cursor:text;overflow-x:clip;overflow-y:visible;white-space:nowrap;line-height:normal;min-height:28px;${fn.visible ? '' : 'opacity:0.45;'}`;
     if (isLinked) { inp.style.background = '#f0f9ff'; inp.title = t('title_live_line'); }
 
     // Guard: verhindert dass oninput feuert wenn ceRender() das HTML programmatisch setzt
@@ -152,13 +156,6 @@ function renderFuncList() {
       ceRendering = true;
       if (exprNeedsPreview(raw)) {
         inp.innerHTML = exprToHtml(disp || raw);
-        // Wrap top-level text nodes in pf-inline for vertical alignment next to fractions
-        Array.from(inp.childNodes).forEach(nd => {
-          if (nd.nodeType === 3 && nd.textContent.replace(/​/g, '').length > 0) {
-            const pli = document.createElement('span'); pli.className = 'pf-inline';
-            inp.insertBefore(pli, nd); pli.appendChild(nd);
-          }
-        });
         // Cursor-Anker: Span am Ende sicherstellen — begrenzt Schreibmarken-Höhe auf Schriftgrösse
         if (!inp.lastChild || !inp.lastChild.classList?.contains('pf-cursor-anchor')) {
           const anchor = document.createElement('span');
@@ -171,7 +168,7 @@ function renderFuncList() {
       ceRendering = false;
     }
     ceRender();
-    inp._ceRender = ceRender;
+    inp._ceRender = ceRender; // Öffentlich zugänglich für ceRenderEl()
 
     inp.onfocus = () => {
       // Feld bleibt immer gerendert — kein Wechsel auf Rohtext beim Fokussieren.
@@ -299,7 +296,7 @@ function renderFuncList() {
         const sel = window.getSelection();
         if (!sel.rangeCount) return;
         const range = sel.getRangeAt(0);
-        if (!range.collapsed) return;
+        if (!range.collapsed) return; // Selektion → Browser löscht normal
         const node = range.startContainer, offset = range.startOffset;
         let fracToDelete = null;
         if (node.nodeType === 3 && offset === 0 &&
@@ -317,7 +314,7 @@ function renderFuncList() {
           if (showArea) updateAreaResult(); scheduleDraw();
         }
       }
-      // Slash innerhalb eines Exponenten: aus preview-sup heraus + / einfügen
+      // Slash innerhalb eines Exponenten: aus preview-sup heraus und / einfügen
       if (e.key === '/') {
         const sel = window.getSelection();
         if (sel && sel.rangeCount) {
@@ -327,14 +324,12 @@ function renderFuncList() {
               e.preventDefault();
               let anch = nd.nextSibling;
               if (!anch || !anch.classList?.contains('pf-cursor-anchor')) {
-                anch = document.createElement('span');
-                anch.className = 'pf-cursor-anchor'; anch.textContent = '​';
+                anch = document.createElement('span'); anch.className = 'pf-cursor-anchor'; anch.textContent = '​';
                 nd.parentNode.insertBefore(anch, nd.nextSibling);
               }
               const nr = document.createRange();
               const tx = anch.firstChild;
-              if (tx && tx.nodeType === 3) { nr.setStart(tx, tx.length); }
-              else { nr.selectNodeContents(anch); nr.collapse(false); }
+              if (tx && tx.nodeType === 3) { nr.setStart(tx, tx.length); } else { nr.selectNodeContents(anch); nr.collapse(false); }
               nr.collapse(true); sel.removeAllRanges(); sel.addRange(nr);
               document.execCommand('insertText', false, '/');
               const newRaw = ceRawFromDom(inp);

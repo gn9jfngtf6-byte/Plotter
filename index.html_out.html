@@ -129,7 +129,6 @@ select { font-family: 'Segoe UI',system-ui,sans-serif; font-size: 12px; padding:
 /* Brüche im Funktions-Eingabefeld: Zähler/Nenner als editierbare Bereiche */
 .func-inp-ce .preview-frac { cursor: default; margin: 0 1px; }
 .paren-frac { display: inline-block; transform: scaleY(2.2); line-height: 1; vertical-align: middle; }
-.func-inp-ce .pf-inline { vertical-align: middle; display: inline; font-size: 1em; }
 .func-inp-ce .preview-frac .pf-num,
 .func-inp-ce .preview-frac .pf-den {
   cursor: text;
@@ -547,25 +546,6 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
       <label><input type="checkbox" id="ltx-yaxis"> <span data-i18n="chk_yaxis">y-Achse</span></label>
       <label><input type="checkbox" id="ltx-graphpts" checked> <span data-i18n="chk_graphpts">Graph-Punkte</span></label>
       <label><input type="checkbox" id="ltx-freepts" checked> <span data-i18n="chk_freepts">Freie Punkte</span></label>
-    </div>
-    <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--border);">
-      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">LaTeX-Achseneinstellungen:</div>
-      <div class="settings-row">
-        <label style="font-size:10px;white-space:nowrap;">Tick-Label-Schrift:</label>
-        <select id="ltx-tickfont" style="font-size:11px;">
-          <option value="\tiny">\tiny</option>
-          <option value="\scriptsize">\scriptsize</option>
-          <option value="\footnotesize">\footnotesize</option>
-          <option value="\small">\small</option>
-          <option value="\normalsize">\normalsize</option>
-        </select>
-      </div>
-      <div class="settings-row" style="gap:5px;flex-wrap:wrap;">
-        <label style="font-size:10px;white-space:nowrap;">Tick-Abstand&nbsp;x:</label>
-        <input type="number" id="ltx-xtickstep" placeholder="Auto" style="width:50px;" step="0.5" min="0.1">
-        <label style="font-size:10px;">y:</label>
-        <input type="number" id="ltx-ytickstep" placeholder="Auto" style="width:50px;" step="0.5" min="0.1">
-      </div>
     </div>
     <textarea id="latex-out" readonly style="width:100%;height:90px;font-family:'Cascadia Code','Fira Mono',monospace;font-size:10px;padding:6px;border:1px solid #c8cdd6;border-radius:6px;background:#f7f8fa;color:#374151;resize:vertical;outline:none;line-height:1.5;" data-i18n-placeholder="ph_latex" placeholder="LaTeX-Code erscheint hier…"></textarea>
     <div id="latex-msg" style="font-size:10px;color:#1D9E75;margin-top:3px;"></div>

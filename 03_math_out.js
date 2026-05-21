@@ -194,7 +194,7 @@ document.addEventListener('focusin', e => {
   // Alle anderen contenteditable-Elemente ignorieren
 });
 
-// Selektion beim Mousedown merken (vor Focus-Reset durch Tastenklick).
+// Selektion beim Mousedown merken (vor potenziellem Focus-Reset durch Tastenklick).
 document.addEventListener('mousedown', e => {
   if (!activeInput || activeInput.el.contentEditable !== 'true') return;
   const el = activeInput.el;
@@ -217,13 +217,15 @@ function kbdInsert(before, after, extraArg) {
   // Contenteditable-Funktionsfeld (div[contenteditable])
   const isCE = el.contentEditable === 'true';
   if (isCE) {
-    // Selektion VOR el.focus() sichern (focus() setzt Selektion zurück).
+    // Selektion VOR el.focus() sichern (focus() würde Selektion zurücksetzen)
     const selObj = window.getSelection();
-    let selTxt = '';
+    let selRange = null, selTxt = '';
     if (selObj && selObj.rangeCount > 0) {
       const r = selObj.getRangeAt(0);
-      if (el.contains(r.commonAncestorContainer) && !r.collapsed)
+      if (el.contains(r.commonAncestorContainer) && !r.collapsed) {
+        selRange = r;
         selTxt = ceSelRawFromRange(r, el);
+      }
     }
     if (!selTxt && _ceKbdSel && _ceKbdSel.selRaw) selTxt = _ceKbdSel.selRaw;
     el.focus();
@@ -234,15 +236,27 @@ function kbdInsert(before, after, extraArg) {
     else if (before === 'pi') insert = fi >= 0 ? 'pi' : String(Math.PI.toFixed(10));
     else if (extraArg !== undefined) insert = before + (selTxt || 'x') + ',' + extraArg + ')';
     else if (after !== undefined) insert = before + (selTxt || 'x') + after;
-    else if (selTxt) insert = '(' + selTxt + ')' + before;
+    else if (selTxt) insert = '(' + selTxt + ')' + before; // wrap: (sel)^2
     else insert = before;
 
-    if (selTxt) {
-      // SELEKTION: Rohausdruck-String ersetzen (kein DOM-deleteContents).
-      const fullRaw = el.getAttribute('data-raw') || (_ceKbdSel && _ceKbdSel.fullRaw) || '';
-      const idx = fullRaw.indexOf(selTxt);
+    if (selRange && selTxt) {
+      // Pfad 1: Live-DOM-Range — deleteContents + insertNode
+      selRange.deleteContents();
+      selRange.insertNode(document.createTextNode(insert));
+      const newRaw = typeof ceRawFromDom === 'function' ? ceRawFromDom(el) : el.textContent;
+      el.setAttribute('data-raw', newRaw);
+      if (fi >= 0 && functions[fi]) {
+        functions[fi].expr = newRaw;
+        if (typeof ceRenderEl === 'function') ceRenderEl(el);
+        syncParams(); syncAreaSelects(); scheduleComputeSpecials();
+        if (showArea) updateAreaResult(); scheduleDraw();
+      }
+    } else if (selTxt && _ceKbdSel && _ceKbdSel.selRaw && _ceKbdSel.fullRaw) {
+      // Pfad 2: Gespeicherte Selektion — String-Ersatz im Rohausdruck
+      const fullRaw = _ceKbdSel.fullRaw, sel = _ceKbdSel.selRaw;
+      const idx = fullRaw.indexOf(sel);
       const newRaw = idx >= 0
-        ? fullRaw.slice(0, idx) + insert + fullRaw.slice(idx + selTxt.length)
+        ? fullRaw.slice(0, idx) + insert + fullRaw.slice(idx + sel.length)
         : fullRaw + insert;
       el.setAttribute('data-raw', newRaw);
       if (fi >= 0 && functions[fi]) {
@@ -252,7 +266,7 @@ function kbdInsert(before, after, extraArg) {
         if (showArea) updateAreaResult(); scheduleDraw();
       }
     } else {
-      // KEIN SELECTION: execCommand an Cursor-Position
+      // Pfad 3: Kein Selection — execCommand an Cursor-Position
       document.execCommand('insertText', false, insert);
       const newRaw = typeof ceRawFromDom === 'function' ? ceRawFromDom(el) : el.textContent;
       el.setAttribute('data-raw', newRaw);
@@ -374,10 +388,11 @@ const H = 1e-5;
 // Cache wird geleert wenn Ausdruck oder Parameter sich ändern (clearEvalCache()).
 const evalCache = new Map();
 
-// Gespeicherte Selektion beim Mousedown (vor el.focus()-Reset).
+// Speichert die letzte Selektion beim Mousedown (vor el.focus() zurücksetzen).
 let _ceKbdSel = null;
 
-// Extrahiert den Rohausdruck der Selektion aus einem CE-Element.
+// Extrahiert den Rohausdruck der aktuellen Selektion aus einem CE-Element.
+// Nutzt intersectsNode() auf direkten Kindknoten → robuster als cloneContents().
 function ceSelRawFromRange(range, el) {
   const children = Array.from(el.childNodes);
   const sel = children.filter(ch => {

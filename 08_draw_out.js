@@ -170,6 +170,7 @@ function drawAsymptotes(w, h) {
         poles.push(ax);
         const { cx } = toCanvas(ax, 0);
         ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
+        // Label
         const lbl = 'x = ' + parseFloat(ax.toFixed(4));
         ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
         ctx.textAlign = 'left'; ctx.textBaseline = 'top';
@@ -182,17 +183,23 @@ function drawAsymptotes(w, h) {
     for (let s = 0; s <= steps; s++) {
       const x = v.xmin + s * dx, y = safeEval(fn.expr, x);
       if (prevY !== null && prevX !== null) {
+        // Übergang endlich → unendlich
         if (isFinite(prevY) && !isFinite(y)) {
           addPole(prevX, x);
-        } else if (isFinite(prevY) && isFinite(y) &&
+        }
+        // Grosser Sprung mit Vorzeichenwechsel → Pol
+        else if (isFinite(prevY) && isFinite(y) &&
                  Math.abs(y - prevY) > (v.ymax - v.ymin) * 6 &&
                  Math.sign(y) !== Math.sign(prevY)) {
           addPole(prevX, x);
-        } else if (prevY === null && prevX !== null && isFinite(y)) {
+        }
+        // Übergang unendlich → endlich (z.B. x + 1/sqrt(x) von links)
+        else if (prevY === null && prevX !== null && isFinite(y)) {
           const nextY = safeEval(fn.expr, x + dx);
           if (Math.abs(y) > (v.ymax - v.ymin) * 0.1 ||
-              (isFinite(nextY) && Math.abs(y) > Math.abs(nextY) * 1.2 && Math.abs(y) > 0.5))
+              (isFinite(nextY) && Math.abs(y) > Math.abs(nextY) * 1.2 && Math.abs(y) > 0.5)) {
             addPole(x, prevX);
+          }
         }
       }
       prevY = isFinite(y) ? y : null; prevX = x;
@@ -225,6 +232,7 @@ function drawAsymptotes(w, h) {
     hAsyms.forEach(haVal => {
       const { cy: hy } = toCanvas(0, haVal);
       ctx.beginPath(); ctx.moveTo(0, hy); ctx.lineTo(w, hy); ctx.stroke();
+      // Label
       const haLbl = 'y = ' + parseFloat(haVal.toFixed(4));
       ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
       ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
@@ -233,7 +241,7 @@ function drawAsymptotes(w, h) {
         window._asymLines.push({ type: 'horizontal', expr: String(parseFloat(haVal.toFixed(6))), label: haLbl, color: fn.color });
     });
 
-    // ── Schräge (oblique) Asymptoten ─────────────────────────────────
+    // ── Schräge (oblique) Asymptoten: y = mx + b ──────────────────────
     const BIG2 = 1e6, BIG1 = 1e5, Xt = 5e5;
     for (const dir of [1, -1]) {
       const X1 = dir * BIG1, X2 = dir * BIG2;
@@ -243,23 +251,27 @@ function drawAsymptotes(w, h) {
       if (!isFinite(slope) || Math.abs(slope) < 1e-9) continue;
       const intercept = fX2 - slope * X2;
       if (!isFinite(intercept)) continue;
+      // Konvergenz prüfen: Fehler bei Xt muss < 1e-3 * |Xt|
       const fXt = safeEval(fn.expr, dir * Xt);
       const predicted = slope * (dir * Xt) + intercept;
       if (!isFinite(fXt) || Math.abs(fXt - predicted) > 1e-3 * Math.abs(dir * Xt)) continue;
+      // Duplikate vermeiden
       const slopeR = parseFloat(slope.toFixed(6)), intR = parseFloat(intercept.toFixed(4));
       if (window._asymLines && window._asymLines.some(a =>
           a.type === 'oblique' && Math.abs(a._slope - slopeR) < 1e-4 && Math.abs(a._int - intR) < 1e-4)) continue;
+      // Zeichnen
       const x0 = v.xmin, x1v = v.xmax;
       const y0 = slope * x0 + intercept, y1v = slope * x1v + intercept;
       const { cx: cxA, cy: cyA } = toCanvas(x0, y0);
       const { cx: cxB, cy: cyB } = toCanvas(x1v, y1v);
       ctx.beginPath(); ctx.moveTo(cxA, cyA); ctx.lineTo(cxB, cyB); ctx.stroke();
+      // Label
       const slopeStr = parseFloat(slope.toFixed(4)) === 1 ? '' :
                        parseFloat(slope.toFixed(4)) === -1 ? '-' :
                        String(parseFloat(slope.toFixed(4)));
       const intStr = Math.abs(intR) < 1e-4 ? '' :
                      intR > 0 ? ' + ' + parseFloat(intR.toFixed(4)) :
-                     ' - ' + Math.abs(parseFloat(intR.toFixed(4)));
+                     ' - ' + parseFloat(Math.abs(intR).toFixed(4));
       const oaLbl = 'y = ' + slopeStr + 'x' + intStr;
       const oaExpr = String(parseFloat(slope.toFixed(6))) + '*x' +
                      (Math.abs(intR) < 1e-4 ? '' : (intR >= 0 ? '+' : '') + parseFloat(intR.toFixed(6)));

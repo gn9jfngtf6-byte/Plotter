@@ -256,16 +256,51 @@ function generateSolveSteps(pt) {
 
   function getLinCoeffs() {
     const a = deriv1(expr, 0), b = safeEval(expr, 0);
+    if (!isFinite(a) || !isFinite(b)) return null;
     if (Math.abs(deriv2(expr, 0)) > 0.01) return null;
     return { a: parseFloat(a.toFixed(6)), b: parseFloat(b.toFixed(6)) };
   }
   function getQuadCoeffs() {
     const a2 = deriv2(expr, 0);
-    if (Math.abs(a2) < 1e-6) return null;
+    if (!isFinite(a2) || Math.abs(a2) < 1e-6) return null;
     const a = a2 / 2, b = deriv1(expr, 0), c = safeEval(expr, 0);
+    if (!isFinite(a) || !isFinite(b) || !isFinite(c)) return null;
     const check = safeEval(expr, 1);
-    if (Math.abs(a + b + c - check) > 0.05) return null;
+    if (!isFinite(check) || Math.abs(a + b + c - check) > 0.05) return null;
     return { a: parseFloat(a.toFixed(6)), b: parseFloat(b.toFixed(6)), c: parseFloat(c.toFixed(6)) };
+  }
+  // Erkennt f(x) = a·x^n + c für beliebiges ganzzahliges n ≠ 0,1,2
+  // (n negativ = Bruchform a/x^|n|; n positiv = reine Potenz)
+  function getPureMonomialCoeffs() {
+    // Asymptotischer Wert c: für n<0 von großem x, für n>0 von f(0)
+    const f0 = safeEval(expr, 0);
+    let c;
+    if (isFinite(f0)) {
+      c = f0; // n > 0: f(0) = a·0^n + c = c
+    } else {
+      c = safeEval(expr, 1e6); // n < 0: Pol bei 0, Asymptote bei ∞
+      if (!isFinite(c)) return null;
+    }
+    const f1 = safeEval(expr, 1);
+    if (!isFinite(f1)) return null;
+    const a = f1 - c;
+    if (Math.abs(a) < 1e-9) return null;
+    const f2 = safeEval(expr, 2);
+    if (!isFinite(f2)) return null;
+    const ratio = (f2 - c) / a; // = 2^n
+    if (!isFinite(ratio) || ratio <= 0) return null;
+    const nFloat = Math.log(ratio) / Math.log(2);
+    const n = Math.round(nFloat);
+    if (Math.abs(nFloat - n) > 0.02) return null; // n muss ganzzahlig sein
+    if (n === 0 || n === 1 || n === 2) return null; // durch andere Detektoren abgedeckt
+    // Verifikation an mehreren Punkten
+    for (const x of [3, 4, 0.5, -1, -2]) {
+      const fx = safeEval(expr, x);
+      if (!isFinite(fx)) continue;
+      const expected = a * Math.pow(x, n) + c;
+      if (Math.abs(fx - expected) > Math.abs(expected) * 0.01 + 1e-6) return null;
+    }
+    return { a: parseFloat(a.toFixed(8)), n, c: parseFloat(c.toFixed(8)) };
   }
   function getExpCoeffs() {
     const a = safeEval(expr, 0);
@@ -387,7 +422,63 @@ function generateSolveSteps(pt) {
         }
       }
     } else {
-      steps += `f(x) = 0\nNumerisch: x ≈ <b>${r(pt.x, 3)}</b>`;
+      // Hochgestellte Ziffern für Exponent-Anzeige
+      const nSup = (k) => (['','','²','³','⁴','⁵','⁶','⁷','⁸','⁹'][k] || `^${k}`);
+      const pm = getPureMonomialCoeffs();
+      if (pm) {
+        const { a, n, c } = pm;
+        const m = Math.abs(n); // Betrag des Exponenten
+        // Formatierung des Koeffizienten a als Bruch/Ganzzahl
+        const aNum = niceNum(a);
+        if (n < 0) {
+          // ─── Bruchform: f(x) = a/x^m + c = 0 ───────────────────
+          const aDisp = aNum.includes('/') ? `(${aNum})` : aNum;
+          steps += `f(x) = ${aDisp}/x${nSup(m)} ${rrSign(c)} = 0\n\n`;
+          steps += `<u>Schritt 1: Konstante auf die andere Seite</u>\n`;
+          steps += `  ${aDisp}/x${nSup(m)} = ${rr(-c)}\n\n`;
+          steps += `<u>Schritt 2: x${nSup(m)} berechnen</u>\n`;
+          steps += `  Beide Seiten · x${nSup(m)} (x ≠ 0):\n`;
+          steps += `  ${aNum} = ${rr(-c)}·x${nSup(m)}\n`;
+          const val = a / (-c);
+          steps += `  x${nSup(m)} = ${aNum} / ${rr(-c)} = <b>${niceNum(val)}</b>\n\n`;
+          steps += `<u>Schritt 3: ${m === 2 ? 'Quadrat' : m + '. Potenz'}wurzel ziehen</u>\n`;
+          if (val < 0 && m % 2 === 0) {
+            steps += `  x${nSup(m)} = ${niceNum(val)} < 0\n`;
+            steps += `  → <b>Keine reelle Nullstelle</b> (gerade Potenz)`;
+          } else if (m % 2 === 0) {
+            const xVal = Math.pow(val, 1 / m);
+            steps += `  x = ±√(${niceNum(val)})\n\n`;
+            steps += `  x₁ = +<b>${niceNum(xVal)}</b>\n`;
+            steps += `  x₂ = −<b>${niceNum(xVal)}</b>`;
+          } else {
+            const xVal = Math.pow(Math.abs(val), 1 / m) * Math.sign(val);
+            steps += `  x = ${m === 3 ? '∛' : `${nSup(m)}√`}(${niceNum(val)}) = <b>${niceNum(xVal)}</b>`;
+          }
+        } else {
+          // ─── Potenzform: f(x) = a·x^n + c = 0 ──────────────────
+          const aPrefix = Math.abs(a) === 1 ? (a < 0 ? '−' : '') : `${aNum}·`;
+          steps += `f(x) = ${aPrefix}x${nSup(n)} ${rrSign(c)} = 0\n\n`;
+          steps += `<u>Schritt 1: x${nSup(n)} isolieren</u>\n`;
+          steps += `  ${aPrefix}x${nSup(n)} = ${rr(-c)}\n`;
+          const val = -c / a;
+          steps += `  x${nSup(n)} = ${rr(-c)} / ${rr(a)} = <b>${niceNum(val)}</b>\n\n`;
+          steps += `<u>Schritt 2: ${n === 2 ? 'Quadrat' : n + '. Potenz'}wurzel ziehen</u>\n`;
+          if (val < 0 && n % 2 === 0) {
+            steps += `  x${nSup(n)} = ${niceNum(val)} < 0\n`;
+            steps += `  → <b>Keine reelle Nullstelle</b> (gerade Potenz)`;
+          } else if (n % 2 === 0) {
+            const xVal = Math.pow(val, 1 / n);
+            steps += `  x = ±√(${niceNum(val)})\n\n`;
+            steps += `  x₁ = +<b>${niceNum(xVal)}</b>\n`;
+            steps += `  x₂ = −<b>${niceNum(xVal)}</b>`;
+          } else {
+            const xVal = Math.pow(Math.abs(val), 1 / n) * Math.sign(val);
+            steps += `  x = ${n === 3 ? '∛' : `${nSup(n)}√`}(${niceNum(val)}) = <b>${niceNum(xVal)}</b>`;
+          }
+        }
+      } else {
+        steps += `f(x) = 0\nNumerisch: x ≈ <b>${r(pt.x, 3)}</b>`;
+      }
     }
   } else if (pt.kind === 'max' || pt.kind === 'min') {
     const kindStr = pt.kind === 'max' ? t('solve_max') : t('solve_min');

@@ -99,7 +99,7 @@ function exprToPgf(expr) {
   // exp(x) → exp(x) — pgfplots kennt exp
   // abs(x) → abs(x) — pgfplots kennt abs
 
-  // Implizite Multiplikation (2x → 2*x) bevor x → \x
+  // Implizite Multiplikation (2x → 2*x) bevor x → \x ersetzt wird
   s = s.replace(/(\d)([a-zA-Z])/g, '$1*$2');
   s = s.replace(/(\d)\(/g, '$1*(');
   s = s.replace(/\)\(/g, ')*(');
@@ -718,15 +718,14 @@ function generateLatex() {
       const xAf = coord(xA), yAf = coord(yA), xBf = coord(xB), yBf = coord(yB);
       body += `  % Steigungsdreieck f${fi+1}\n`;
       body += `  \\addplot[${col}, dashed, thick] coordinates {(${xAf},${yAf}) (${xBf},${yAf}) (${xBf},${yBf})};\n`;
-      // Label Δx + Steigung m (unter der horizontalen Kathete)
+      // Label Δx
       const dxMid = coord((xA + xB) / 2);
       const dxStr = latexNum(dx);
-      const slopeLatex = latexNum(slope);
-      body += `  \\node[anchor=north, font=\\tiny, ${col}] at (axis cs:${dxMid},${yAf}) {$\\Delta x=${dxStr},\\;m=${slopeLatex}$};\n`;
-      // Label Δy = tatsächliche y-Änderung (rechts neben der vertikalen Kathete)
+      body += `  \\node[anchor=north, font=\\tiny, ${col}] at (axis cs:${dxMid},${yAf}) {$\\Delta x=${dxStr}$};\n`;
+      // Label Δy (= Steigung)
       const dyMid = coord((yA + yB) / 2);
-      const dyLatex = latexNum(dy);
-      body += `  \\node[anchor=west, font=\\tiny, ${col}] at (axis cs:${xBf},${dyMid}) {$\\Delta y=${dyLatex}$};\n`;
+      const slopeLatex = latexNum(slope);
+      body += `  \\node[anchor=west, font=\\tiny, ${col}] at (axis cs:${xBf},${dyMid}) {$\\Delta y = m = ${slopeLatex}$};\n`;
     });
   }
 
@@ -738,25 +737,15 @@ function generateLatex() {
   axisLines.push('  every axis x label/.style={at={(axis description cs:0.975,0.55)},anchor=north},');
   axisLines.push('  every axis y label/.style={at={(axis description cs:0.55,0.95)},anchor=east},');
   axisLines.push('  grid=both,');
-  const ltxTickFont = document.getElementById('ltx-tickfont')?.value || '\\tiny';
-  axisLines.push(`  xticklabel style={font=${ltxTickFont}},`);
-  axisLines.push(`  yticklabel style={font=${ltxTickFont}},`);
+  axisLines.push('  xticklabel style={font=\\tiny},');
+  axisLines.push('  yticklabel style={font=\\tiny},');
   axisLines.push(`  x=${xCm}cm, y=${yCm}cm,`);
   if (xtickStr) {
     axisLines.push(xtickStr);
     axisLines.push(xticklabelStr);
   } else {
-    // Schrittweite: aus UI-Feldern oder automatisch via gridStep()
-    const xStepIn = parseFloat(document.getElementById('ltx-xtickstep')?.value);
-    const yStepIn = parseFloat(document.getElementById('ltx-ytickstep')?.value);
-    const xGS_eff = isFinite(xStepIn) && xStepIn > 0 ? xStepIn : xGS;
-    const yGS_eff = isFinite(yStepIn) && yStepIn > 0 ? yStepIn : yGS;
-    const xTickMin_eff = Math.ceil(xminF / xGS_eff) * xGS_eff;
-    const xTickMax_eff = Math.floor(xmaxF / xGS_eff) * xGS_eff;
-    const yTickMin_eff = Math.ceil(yminF / yGS_eff) * yGS_eff;
-    const yTickMax_eff = Math.floor(ymaxF / yGS_eff) * yGS_eff;
-    axisLines.push(`  xtick=${niceTickStr(xTickMin_eff, xTickMax_eff, xGS_eff)},`);
-    axisLines.push(`  ytick=${niceTickStr(yTickMin_eff, yTickMax_eff, yGS_eff)},`);
+    axisLines.push(`  xtick=${niceTickStr(xTickMin, xTickMax, xGS)},`);
+    axisLines.push(`  ytick=${niceTickStr(yTickMin, yTickMax, yGS)},`);
   }
   axisLines.push('  scaled y ticks=false,');
   if (hasTrig()) axisLines.push('  trig format plots=rad,');
