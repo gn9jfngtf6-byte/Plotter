@@ -16,6 +16,9 @@ let slopeTriFi = -1;  // Funktionsindex des ersten gewählten Punktes
 
 function slopeTriTogglePick() {
   if (slopeTriPickMode) { slopeTriStopPick(); return; }
+  // Andere Pick-Modi deaktivieren bevor slopeTriPickMode gesetzt wird
+  if (fitPickMode) genericStopPick();
+  if (line2ptPicking) toggleLine2PtMode();
   slopeTriPickMode = true;
   slopeTriPts = []; slopeTriFi = -1;
   document.getElementById('slopetri-pick-btn').classList.add('active-btn');
@@ -181,6 +184,7 @@ function genericTogglePick(panelDef) {
   if (fitPickMode && fitPickPanel === panelDef) { genericStopPick(); return; }
   if (fitPickMode) genericStopPick();
   if (line2ptPicking) toggleLine2PtMode(); // laufendes line2pt stoppen
+  if (slopeTriPickMode) slopeTriStopPick(); // slopeTriPickMode deaktivieren
   fitPickMode = true;
   fitPickPanel = panelDef;
   panelDef.pickNext = 0;

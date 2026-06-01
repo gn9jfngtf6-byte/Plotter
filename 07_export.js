@@ -188,7 +188,7 @@ function exprToHtml(expr) {
       '<span class="preview-frac"><span class="pf-num">$1</span><span class="pf-den">$2</span></span>');
   } while (s !== prev);
   // Hochgestellte Exponenten: ^{n}, ^(n+1) oder ^n
-  s = s.replace(/\^(\{[^}]*\}|\([^)]*\)|[^\s+\-*·()^<]+)/g, (_, m) => {
+  s = s.replace(/\^(\{[^}]*\}|\([^)]*\)|[^\s+\-*/·()^<]+)/g, (_, m) => {
     const inner = m.startsWith('{') ? m.slice(1,-1) : m.startsWith('(') ? m.slice(1,-1) : m;
     return `<sup class="preview-sup">${inner}</sup>`;
   });
@@ -300,9 +300,12 @@ function exprToLatex(expr) {
 
 function generateLatex() {
   const v = isoView || view;
-  // Grenzen auf ganze Zahlen runden
-  const xminF = roundViewBound(v.xmin), xmaxF = roundViewBound(v.xmax);
-  const yminF = roundViewBound(v.ymin), ymaxF = roundViewBound(v.ymax);
+  const _ltxV = id => { const el=document.getElementById(id); return el&&el.value.trim()!==''?parseFloat(el.value):null; };
+  const _ltxS = id => { const el=document.getElementById(id); return el?el.value:null; };
+  const xminF = _ltxV('ltx-xmin') ?? roundViewBound(v.xmin);
+  const xmaxF = _ltxV('ltx-xmax') ?? roundViewBound(v.xmax);
+  const yminF = _ltxV('ltx-ymin') ?? roundViewBound(v.ymin);
+  const ymaxF = _ltxV('ltx-ymax') ?? roundViewBound(v.ymax);
   const xRange = xmaxF - xminF, yRange = ymaxF - yminF;
   const pgfColors = ['blue','red','green!60!black','violet','orange!80!black','brown!70!black'];
 
@@ -320,7 +323,9 @@ function generateLatex() {
   const yCm = cmPerUnit(yRange).toFixed(1);
 
   // ── Tick-Berechnung ───────────────────────────────────────────────
-  const xGS = gridStep(xRange), yGS = gridStep(yRange);
+  const _xts = _ltxV('ltx-xtickstep'), _yts = _ltxV('ltx-ytickstep');
+  const xGS = (_xts && _xts > 0) ? _xts : gridStep(xRange);
+  const yGS = (_yts && _yts > 0) ? _yts : gridStep(yRange);
   const xTickMin = Math.ceil(xminF / xGS) * xGS;
   const xTickMax = Math.floor(xmaxF / xGS) * xGS;
   const yTickMin = Math.ceil(yminF / yGS) * yGS;
@@ -488,8 +493,9 @@ function generateLatex() {
     }
   }
 
-  // 2b. Asymptoten (wenn "Asymptoten anzeigen" aktiv)
-  if (document.getElementById('chk-asymptotes').checked) {
+  // 2b. Asymptoten (wenn Smart-Button aktiv)
+  const _expSmartAsymp = functions.some((_, i) => activeSpecials.has(`${i}:asymp`));
+  if (_expSmartAsymp) {
     functions.forEach((fn, i) => {
       if (!fn.expr.trim() || fn.visible === false) return;
       const testVals = [0, 1, -1, 2, -2].map(xv => safeEval(fn.expr, xv));
@@ -519,6 +525,18 @@ function generateLatex() {
       hAsymsLtx.forEach(hv => {
         body += `  \\draw[${col}!60, dashed, thin] (axis cs:${coord(xminF)},${coord(hv)}) -- (axis cs:${coord(xmaxF)},${coord(hv)});\n`;
       });
+      // Schräge Asymptoten aus specials-Cache
+      if (typeof specials !== 'undefined') {
+        const seenObl = [];
+        specials.filter(sp => sp.kind === 'asymp' && sp.fi === i && sp.oblique).forEach(sp => {
+          const key = `${sp.slope.toFixed(5)}_${sp.intercept.toFixed(4)}`;
+          if (seenObl.includes(key)) return;
+          seenObl.push(key);
+          const y0 = sp.slope * xminF + sp.intercept;
+          const y1 = sp.slope * xmaxF + sp.intercept;
+          body += `  \\draw[${col}!60, dashed, thin] (axis cs:${coord(xminF)},${coord(y0)}) -- (axis cs:${coord(xmaxF)},${coord(y1)});\n`;
+        });
+      }
     });
   }
 
@@ -718,15 +736,14 @@ function generateLatex() {
       const xAf = coord(xA), yAf = coord(yA), xBf = coord(xB), yBf = coord(yB);
       body += `  % Steigungsdreieck f${fi+1}\n`;
       body += `  \\addplot[${col}, dashed, thick] coordinates {(${xAf},${yAf}) (${xBf},${yAf}) (${xBf},${yBf})};\n`;
-      // Label Δx + Steigung m (unter der horizontalen Kathete)
+      // Label Δx
       const dxMid = coord((xA + xB) / 2);
       const dxStr = latexNum(dx);
-      const slopeLatex = latexNum(slope);
-      body += `  \\node[anchor=north, font=\\tiny, ${col}] at (axis cs:${dxMid},${yAf}) {$\\Delta x=${dxStr},\\;m=${slopeLatex}$};\n`;
-      // Label Δy = tatsächliche y-Änderung (rechts neben der vertikalen Kathete)
+      body += `  \\node[anchor=north, font=\\tiny, ${col}] at (axis cs:${dxMid},${yAf}) {$\\Delta x=${dxStr}$};\n`;
+      // Label Δy (= Steigung)
       const dyMid = coord((yA + yB) / 2);
-      const dyLatex = latexNum(dy);
-      body += `  \\node[anchor=west, font=\\tiny, ${col}] at (axis cs:${xBf},${dyMid}) {$\\Delta y=${dyLatex}$};\n`;
+      const slopeLatex = latexNum(slope);
+      body += `  \\node[anchor=west, font=\\tiny, ${col}] at (axis cs:${xBf},${dyMid}) {$\\Delta y = m = ${slopeLatex}$};\n`;
     });
   }
 
@@ -735,28 +752,26 @@ function generateLatex() {
   axisLines.push(`  xmin=${xminF}, xmax=${xmaxF}, ymin=${yminF}, ymax=${ymaxF},`);
   axisLines.push('  axis lines=middle,');
   axisLines.push('  xlabel=$x$, ylabel=$y$,');
-  axisLines.push('  every axis x label/.style={at={(axis description cs:0.975,0.55)},anchor=north},');
-  axisLines.push('  every axis y label/.style={at={(axis description cs:0.55,0.95)},anchor=east},');
+  // Achsenbeschriftung: Position von y=0 und x=0 im Bildbereich [0,1] berechnen
+  // (nicht hardcodiert auf 0.55, da bei asymmetrischem View die Achse nicht in der Mitte liegt)
+  const _xAxisFrac = Math.max(0.03, Math.min(0.97, (0 - yminF) / (ymaxF - yminF)));
+  const _yAxisFrac = Math.max(0.03, Math.min(0.97, (0 - xminF) / (xmaxF - xminF)));
+  axisLines.push(`  every axis x label/.style={at={(axis description cs:0.975,${_xAxisFrac.toFixed(3)})},anchor=north},`);
+  axisLines.push(`  every axis y label/.style={at={(axis description cs:${_yAxisFrac.toFixed(3)},0.975)},anchor=east},`);
   axisLines.push('  grid=both,');
-  const ltxTickFont = document.getElementById('ltx-tickfont')?.value || '\\tiny';
-  axisLines.push(`  xticklabel style={font=${ltxTickFont}},`);
-  axisLines.push(`  yticklabel style={font=${ltxTickFont}},`);
-  axisLines.push(`  x=${xCm}cm, y=${yCm}cm,`);
+  const _ltxFont = _ltxS('ltx-tickfont') || '\\footnotesize';
+  const _ltxScale = (_ltxV('ltx-scale') ?? 1.0);
+  const _xCmS = (parseFloat(xCm)*_ltxScale).toFixed(2);
+  const _yCmS = (parseFloat(yCm)*_ltxScale).toFixed(2);
+  axisLines.push(`  xticklabel style={font=${_ltxFont}},`);
+  axisLines.push(`  yticklabel style={font=${_ltxFont}},`);
+  axisLines.push(`  x=${_xCmS}cm, y=${_yCmS}cm,`);
   if (xtickStr) {
     axisLines.push(xtickStr);
     axisLines.push(xticklabelStr);
   } else {
-    // Schrittweite: aus UI-Feldern oder automatisch via gridStep()
-    const xStepIn = parseFloat(document.getElementById('ltx-xtickstep')?.value);
-    const yStepIn = parseFloat(document.getElementById('ltx-ytickstep')?.value);
-    const xGS_eff = isFinite(xStepIn) && xStepIn > 0 ? xStepIn : xGS;
-    const yGS_eff = isFinite(yStepIn) && yStepIn > 0 ? yStepIn : yGS;
-    const xTickMin_eff = Math.ceil(xminF / xGS_eff) * xGS_eff;
-    const xTickMax_eff = Math.floor(xmaxF / xGS_eff) * xGS_eff;
-    const yTickMin_eff = Math.ceil(yminF / yGS_eff) * yGS_eff;
-    const yTickMax_eff = Math.floor(ymaxF / yGS_eff) * yGS_eff;
-    axisLines.push(`  xtick=${niceTickStr(xTickMin_eff, xTickMax_eff, xGS_eff)},`);
-    axisLines.push(`  ytick=${niceTickStr(yTickMin_eff, yTickMax_eff, yGS_eff)},`);
+    axisLines.push(`  xtick=${niceTickStr(xTickMin, xTickMax, xGS)},`);
+    axisLines.push(`  ytick=${niceTickStr(yTickMin, yTickMax, yGS)},`);
   }
   axisLines.push('  scaled y ticks=false,');
   if (hasTrig()) axisLines.push('  trig format plots=rad,');
@@ -765,7 +780,7 @@ function generateLatex() {
 
   const out = [
     '% Preamble: \\usepgfplotslibrary{fillbetween}  (für Fläche zwischen Funktionen)',
-    '\\begin{tikzpicture}[scale=1.1]',
+    '\\begin{tikzpicture}',
     '\\begin{axis}[',
     axisLines.map(l => l).join('\n'),
     ']',

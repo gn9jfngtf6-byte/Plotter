@@ -81,6 +81,11 @@ let points = [];
 // Wird von computeSpecials() befüllt.
 let specials = [];
 
+// activeSpecials: Set mit Schlüsseln "fi:kind" (z.B. "0:zero", "1:max")
+// Steuert welche speziellen Punkte pro Funktion auf dem Canvas sichtbar sind.
+// Default leer → nichts sichtbar. Wird durch Smart-Buttons gesteuert.
+let activeSpecials = new Set();
+
 // linkedLines[]: Geraden die durch zwei Punkte aus points[] definiert sind.
 // Format: {fi: Funktionsindex, pi1: Punktindex1, pi2: Punktindex2}
 // Wenn ein Punkt gezogen wird, wird die verknüpfte Geraden-Funktion sofort neu berechnet.
@@ -125,6 +130,10 @@ let altDown = false;
 // graphPtMode: true wenn "Auf Graph"-Button aktiv
 // deleteMode: true wenn "Löschen"-Button aktiv (Klick löscht Objekt)
 let pointMode = false, graphPtMode = false, deleteMode = false;
+
+// pointerMode: true wenn Laserpointer aktiv (Maus/Stift/Touch zeigt großen Leuchtpunkt)
+// pointerPos: aktuelle Pointer-Position in Canvas-Pixeln {x, y} oder null
+let pointerMode = false, pointerPos = null;
 
 // precision: Anzahl Nachkommastellen für Koordinaten-Anzeige
 // Geändert durch setPrecision() via Dropdown

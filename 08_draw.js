@@ -142,98 +142,66 @@ function unitCircleHandleClick(mx, my) {
 // Algorithmus: Abtasten, grosse Sprünge oder NaN-Übergänge markieren.
 // Anpassen: schwellwert (v.ymax-v.ymin)*8 für aggressivere Erkennung erhöhen.
 function drawAsymptotes(w, h) {
+  // Asymptoten werden aus dem specials-Cache gezeichnet (Scan in computeSpecials, nicht hier).
+  // Pro Frame: nur noch zeichnen, kein safeEval-Scan mehr.
   window._asymLines = [];
   const v = isoView || view;
-  const steps = 1200, dx = (v.xmax - v.xmin) / steps;
-  ctx.save(); ctx.setLineDash([6,4]); ctx.lineWidth = 1.2;
-  functions.forEach(fn => {
+  ctx.save(); ctx.setLineDash([6, 4]); ctx.lineWidth = 1.2;
+
+  functions.forEach((fn, fi_idx) => {
     if (!fn.expr.trim() || fn.visible === false) return;
+    const _sShow = activeSpecials.has(`${fi_idx}:asymp`);
+    if (!_sShow) return;
     ctx.strokeStyle = fn.color + '99';
-    let prevY = null, prevX = null;
-    // Erkannte Pol-Positionen (exakt per Bisektion verfeinert)
-    const poles = [];
-    const MERGE_DIST = (v.xmax - v.xmin) / 50; // zwei Kandidaten innerhalb dieses Abstands = selber Pol
 
-    const addPole = (lo, hi) => {
-      // Kandidaten-x = Mitte; verfeinern per Bisektion auf den Pol
-      let ax = (lo + hi) / 2;
-      // Prüfe ob lo/hi wirklich ein Pol ist (Vorzeichenwechsel ins Unendliche)
-      // Verfeinere auf 20 Iterationen
-      for (let it = 0; it < 20; it++) {
-        const m = (lo + hi) / 2;
-        const ym = safeEval(fn.expr, m);
-        if (!isFinite(ym)) { hi = m; } else { lo = m; }
-        ax = (lo + hi) / 2;
-      }
-      // Mergen: Pol nur hinzufügen wenn kein bereits gefundener Pol zu nahe
-      if (!poles.some(p => Math.abs(p - ax) < MERGE_DIST)) {
-        poles.push(ax);
-        const { cx } = toCanvas(ax, 0);
-        ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
-        const lbl = 'x = ' + parseFloat(ax.toFixed(4));
-        ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
-        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-        ctx.fillText(lbl, cx + 3, 4); ctx.restore();
-        if (typeof window._asymLines !== 'undefined')
-          window._asymLines.push({ type: 'vertical', expr: null, label: lbl, color: fn.color });
-      }
-    };
+    // ── Vertikale Asymptoten (Pole) aus specials-Cache ────────────
+    specials.filter(sp => sp.kind === 'pole' && sp.fi === fi_idx).forEach(sp => {
+      const { cx } = toCanvas(sp.x, 0);
+      ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
+      const lbl = 'x = ' + sp.x;
+      ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(lbl, cx + 3, 4); ctx.restore();
+      window._asymLines.push({ type: 'vertical', expr: null, label: lbl, color: fn.color });
+    });
 
-    for (let s = 0; s <= steps; s++) {
-      const x = v.xmin + s * dx, y = safeEval(fn.expr, x);
-      if (prevY !== null && prevX !== null) {
-        if (isFinite(prevY) && !isFinite(y)) {
-          addPole(prevX, x);
-        } else if (isFinite(prevY) && isFinite(y) &&
-                 Math.abs(y - prevY) > (v.ymax - v.ymin) * 6 &&
-                 Math.sign(y) !== Math.sign(prevY)) {
-          addPole(prevX, x);
-        } else if (prevY === null && prevX !== null && isFinite(y)) {
-          const nextY = safeEval(fn.expr, x + dx);
-          if (Math.abs(y) > (v.ymax - v.ymin) * 0.1 ||
-              (isFinite(nextY) && Math.abs(y) > Math.abs(nextY) * 1.2 && Math.abs(y) > 0.5))
-            addPole(x, prevX);
-        }
-      }
-      prevY = isFinite(y) ? y : null; prevX = x;
-    }
-
-    // ── Horizontale Asymptoten: Grenzwert für x→+∞ und x→-∞ ──────────
-    // Werte an sehr grossen x (weit ausserhalb des sichtbaren Bereichs)
-    const BIG = 1e6;
-    const yPlusInf  = [safeEval(fn.expr, BIG),   safeEval(fn.expr, BIG*0.9),   safeEval(fn.expr, BIG*0.8)];
-    const yMinusInf = [safeEval(fn.expr, -BIG),  safeEval(fn.expr, -BIG*0.9),  safeEval(fn.expr, -BIG*0.8)];
-    const allFinP = yPlusInf.every(isFinite), allFinM = yMinusInf.every(isFinite);
-    const hAsyms = [];
-    // Konvergenz prüfen: alle drei Werte müssen nahe beieinander sein
-    if (allFinP && Math.max(...yPlusInf) - Math.min(...yPlusInf) < 1e-3) {
-      const haVal = yPlusInf[0];
-      // Nur zeichnen wenn innerhalb des sichtbaren y-Bereichs
-      if (haVal > v.ymin - 0.1 && haVal < v.ymax + 0.1) {
-        // Vermeiden: Asymptote bei y=0 wenn es einfach die x-Achse ist
-        const notXAxis = !isLinearFunc(fn.expr) || Math.abs(haVal) > 1e-4;
-        if (notXAxis && !hAsyms.some(a => Math.abs(a - haVal) < 0.01)) hAsyms.push(haVal);
-      }
-    }
-    if (allFinM && Math.max(...yMinusInf) - Math.min(...yMinusInf) < 1e-3) {
-      const haVal = yMinusInf[0];
-      if (haVal > v.ymin - 0.1 && haVal < v.ymax + 0.1) {
-        const notXAxis = !isLinearFunc(fn.expr) || Math.abs(haVal) > 1e-4;
-        if (notXAxis && !hAsyms.some(a => Math.abs(a - haVal) < 0.01)) hAsyms.push(haVal);
-      }
-    }
-    hAsyms.forEach(haVal => {
+    // ── Horizontale Asymptoten aus specials-Cache ─────────────────
+    specials.filter(sp => sp.kind === 'asymp' && sp.fi === fi_idx && !sp.oblique).forEach(sp => {
+      const haVal = sp.y;
+      if (haVal < v.ymin - 0.1 || haVal > v.ymax + 0.1) return;
       const { cy: hy } = toCanvas(0, haVal);
       ctx.beginPath(); ctx.moveTo(0, hy); ctx.lineTo(w, hy); ctx.stroke();
       const haLbl = 'y = ' + parseFloat(haVal.toFixed(4));
       ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
       ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
       ctx.fillText(haLbl, w - 4, hy - 2); ctx.restore();
-      if (typeof window._asymLines !== 'undefined')
-        window._asymLines.push({ type: 'horizontal', expr: String(parseFloat(haVal.toFixed(6))), label: haLbl, color: fn.color });
+      function _fmtHa(val) {
+        if (Math.abs(val) < 1e-9) return '0';
+        if (Number.isInteger(val)) return String(val);
+        for (let d = 1; d <= 24; d++) { const n = Math.round(val * d); if (n !== 0 && Math.abs(n/d - val) < 1e-5) return d === 1 ? String(n) : n+'/'+d; }
+        return String(parseFloat(val.toFixed(4)));
+      }
+      window._asymLines.push({ type: 'horizontal', expr: _fmtHa(haVal), label: haLbl, color: fn.color, _val: haVal });
     });
 
-    // ── Schräge (oblique) Asymptoten ─────────────────────────────────
+    // ── Schräge Asymptoten aus specials-Cache ─────────────────────
+    specials.filter(sp => sp.kind === 'asymp' && sp.fi === fi_idx && sp.oblique).forEach(sp => {
+      const slopeR = sp.slope, intR = sp.intercept;
+      if (window._asymLines.some(a => a.type==='oblique' && Math.abs(a._slope-slopeR)<1e-4 && Math.abs(a._int-intR)<1e-4)) return;
+      const { cx: cxA, cy: cyA } = toCanvas(v.xmin, slopeR*v.xmin + intR);
+      const { cx: cxB, cy: cyB } = toCanvas(v.xmax, slopeR*v.xmax + intR);
+      ctx.beginPath(); ctx.moveTo(cxA, cyA); ctx.lineTo(cxB, cyB); ctx.stroke();
+      const sStr = Math.abs(slopeR-1)<1e-4?'':(Math.abs(slopeR+1)<1e-4?'-':String(parseFloat(slopeR.toFixed(4))));
+      const iStr = Math.abs(intR)<1e-4?'':(intR>0?' + '+parseFloat(intR.toFixed(4)):' − '+Math.abs(parseFloat(intR.toFixed(4))));
+      const oaLbl = 'y = ' + sStr + 'x' + iStr;
+      const midCx = (cxA+cxB)/2, midCy = (cyA+cyB)/2;
+      ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText(oaLbl, midCx, midCy - 4); ctx.restore();
+      window._asymLines.push({ type:'oblique', label:oaLbl, color:fn.color, _slope:slopeR, _int:intR });
+    });
+
+    // ── Schräge Asymptoten (Fallback: direkte Auswertung für nicht-erkannte Fälle) ───
     const BIG2 = 1e6, BIG1 = 1e5, Xt = 5e5;
     for (const dir of [1, -1]) {
       const X1 = dir * BIG1, X2 = dir * BIG2;
@@ -246,31 +214,26 @@ function drawAsymptotes(w, h) {
       const fXt = safeEval(fn.expr, dir * Xt);
       const predicted = slope * (dir * Xt) + intercept;
       if (!isFinite(fXt) || Math.abs(fXt - predicted) > 1e-3 * Math.abs(dir * Xt)) continue;
+      const _fLin1 = safeEval(fn.expr, 1), _fLin2 = safeEval(fn.expr, 2);
+      if (isFinite(_fLin1) && isFinite(_fLin2) &&
+          Math.abs(_fLin1 - (slope*1 + intercept)) < 1e-4*(Math.abs(_fLin1)+1) &&
+          Math.abs(_fLin2 - (slope*2 + intercept)) < 1e-4*(Math.abs(_fLin2)+1)) continue;
       const slopeR = parseFloat(slope.toFixed(6)), intR = parseFloat(intercept.toFixed(4));
-      if (window._asymLines && window._asymLines.some(a =>
-          a.type === 'oblique' && Math.abs(a._slope - slopeR) < 1e-4 && Math.abs(a._int - intR) < 1e-4)) continue;
-      const x0 = v.xmin, x1v = v.xmax;
-      const y0 = slope * x0 + intercept, y1v = slope * x1v + intercept;
-      const { cx: cxA, cy: cyA } = toCanvas(x0, y0);
-      const { cx: cxB, cy: cyB } = toCanvas(x1v, y1v);
+      if (window._asymLines.some(a => a.type==='oblique' && Math.abs(a._slope-slopeR)<1e-4 && Math.abs(a._int-intR)<1e-4)) continue;
+      const { cx: cxA, cy: cyA } = toCanvas(v.xmin, slope*v.xmin + intercept);
+      const { cx: cxB, cy: cyB } = toCanvas(v.xmax, slope*v.xmax + intercept);
       ctx.beginPath(); ctx.moveTo(cxA, cyA); ctx.lineTo(cxB, cyB); ctx.stroke();
-      const slopeStr = parseFloat(slope.toFixed(4)) === 1 ? '' :
-                       parseFloat(slope.toFixed(4)) === -1 ? '-' :
-                       String(parseFloat(slope.toFixed(4)));
-      const intStr = Math.abs(intR) < 1e-4 ? '' :
-                     intR > 0 ? ' + ' + parseFloat(intR.toFixed(4)) :
-                     ' - ' + Math.abs(parseFloat(intR.toFixed(4)));
+      const slopeStr = Math.abs(slopeR-1)<1e-4?'': Math.abs(slopeR+1)<1e-4?'-':String(parseFloat(slope.toFixed(4)));
+      const intStr = Math.abs(intR)<1e-4?'': intR>0?' + '+parseFloat(intR.toFixed(4)):' - '+Math.abs(parseFloat(intR.toFixed(4)));
       const oaLbl = 'y = ' + slopeStr + 'x' + intStr;
-      const oaExpr = String(parseFloat(slope.toFixed(6))) + '*x' +
-                     (Math.abs(intR) < 1e-4 ? '' : (intR >= 0 ? '+' : '') + parseFloat(intR.toFixed(6)));
-      const midCx = (cxA + cxB) / 2, midCy = (cyA + cyB) / 2;
+      const midCx = (cxA+cxB)/2, midCy = (cyA+cyB)/2;
       ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
       ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
       ctx.fillText(oaLbl, midCx, midCy - 4); ctx.restore();
-      if (typeof window._asymLines !== 'undefined')
-        window._asymLines.push({ type: 'oblique', expr: oaExpr, label: oaLbl, color: fn.color, _slope: slopeR, _int: intR });
+      window._asymLines.push({ type:'oblique', label:oaLbl, color:fn.color, _slope:slopeR, _int:intR });
     }
   });
+
   ctx.restore();
   if (typeof updateAsymPills === 'function') updateAsymPills();
 }
@@ -714,6 +677,7 @@ function drawFuncLabels(w, h) {
   ctx.font = 'bold 12px system-ui,sans-serif';
   functions.forEach((fn, i) => {
     if (!fn.expr.trim() || fn.visible === false) return;
+    if (/^x\s*=/.test(fn.expr.trim())) return;
 
     // Beste Position finden: 15 Kandidaten im rechten Bereich des Views
     let bestX = null, bestY = null, bestScore = -Infinity;
@@ -835,7 +799,8 @@ function drawSpecialDot(cx, cy, kind, col) {
 function draw() {
   const { w, h } = setupCanvas();
   const v = isoView || view; // isometrischer View für diesen Frame
-  const fnt = '12px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif';
+  const axisFontSize = parseInt(document.getElementById('axis-font-size')?.value || 12);
+  const fnt = `${axisFontSize}px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif`;
 
   // ── 1. Hintergrund ────────────────────────────────────────────
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, w, h);
@@ -885,7 +850,8 @@ function draw() {
   if (document.getElementById('chk-unitcircle').checked) drawUnitCircle(w, h);
 
   // ── 5. Asymptoten ─────────────────────────────────────────────
-  if (document.getElementById('chk-asymptotes').checked) drawAsymptotes(w, h);
+  const _smartAsymp = functions.some((_, i) => activeSpecials.has(`${i}:asymp`));
+  if (_smartAsymp) drawAsymptotes(w, h);
 
   // ── 6. Fläche ─────────────────────────────────────────────────
   if (showArea) {
@@ -923,7 +889,26 @@ function draw() {
   const yClamp = yRange * 200; // verhindert Canvas int32-Overflow bei grossen Potenzen
   functions.forEach(fn => {
     if (!fn.expr.trim() || fn.visible === false) return;
-    ctx.strokeStyle = fn.color; ctx.lineWidth = 2.5; ctx.setLineDash([]);
+    // x=N: vertikale gestrichelte Linie
+    const _vm = fn.expr.trim().match(/^x\s*=\s*(-?[\d.]+(?:\/[\d.]+)?)$/);
+    if (_vm) {
+      const _p = _vm[1].split('/');
+      const _xv = _p.length===2 ? parseFloat(_p[0])/parseFloat(_p[1]) : parseFloat(_p[0]);
+      if (isFinite(_xv)) {
+        const {cx:_vcx} = toCanvas(_xv, 0);
+        ctx.save();
+        ctx.strokeStyle=fn.color; ctx.lineWidth=1.8; ctx.setLineDash([6,4]);
+        ctx.beginPath(); ctx.moveTo(_vcx,0); ctx.lineTo(_vcx,h); ctx.stroke();
+        ctx.font='11px system-ui'; ctx.fillStyle=fn.color+'dd';
+        ctx.textAlign='left'; ctx.textBaseline='top';
+        ctx.fillText('x = '+_vm[1], _vcx+4, 6);
+        ctx.restore();
+      }
+      return;
+    }
+    ctx.strokeStyle = fn.color;
+    ctx.lineWidth = fn.dashed ? 1.8 : 2.5;
+    ctx.setLineDash(fn.dashed ? [6,4] : []);
     ctx.beginPath();
     let started = false, prevY = null;
     for (let i = 0; i <= steps; i++) {
@@ -938,6 +923,7 @@ function draw() {
       prevY = y;
     }
     ctx.stroke();
+    if (fn.dashed) ctx.setLineDash([]);
   });
 
   // ── 8. Steigungsdreieck ───────────────────────────────────────
@@ -951,7 +937,8 @@ function draw() {
   const lmode = getLabelMode();
   resetLabels(); // Kollisionsrechtecke zurücksetzen
   const drawnPos = []; // bereits gezeichnete Positionen (für Duplikat-Vermeidung)
-  specials.filter(pt => isKindVisible(pt.kind)).forEach(pt => {
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  specials.filter(pt => isKindVisible(pt.kind) && isPointActive(pt) && pt.kind !== 'asymp' && pt.kind !== 'pole').forEach(pt => {
     if (pt.x < v.xmin || pt.x > v.xmax || pt.y < v.ymin || pt.y > v.ymax) return;
     const { cx, cy } = toCanvas(pt.x, pt.y);
     const dup = drawnPos.find(d => Math.hypot(d.cx-cx, d.cy-cy) < 8);
@@ -960,7 +947,7 @@ function draw() {
     const nearHover = hoverPt !== null && Math.abs(toCanvas(pt.x, 0).cx - toCanvas(hoverPt, 0).cx) < 30;
     if (!dup) {
       if (lmode === 'all' || (lmode === 'hover' && nearHover)) {
-        drawLabel(ctx, niceCoord(pt.x, pt.y), cx, cy, C.anno, 'r');
+        drawLabel(ctx, pt.exactLabel || niceCoord(pt.x, pt.y), cx, cy, C.anno, 'r');
       }
       drawnPos.push({ cx, cy });
     }
@@ -1096,8 +1083,8 @@ function draw() {
   drawGraphPoints();
 
   // ── 13. Hover-Linie ───────────────────────────────────────────
-  // Nur wenn Maus über Canvas und kein Drag aktiv
-  if (hoverPt !== null && !drag) {
+  // Nur wenn Maus über Canvas, kein Drag aktiv und kein Pointer-Modus
+  if (hoverPt !== null && !drag && !pointerMode) {
     const { cx: hcx } = toCanvas(hoverPt, 0);
     // Vertikale gestrichelte Linie an Mausposition
     ctx.setLineDash([4,4]); ctx.strokeStyle = C.axis; ctx.lineWidth = 1;
@@ -1122,6 +1109,32 @@ function draw() {
       const { cx, cy } = toCanvas(hoverPt, y);
       ctx.beginPath(); ctx.arc(cx, cy, 4, 0, 2*PI); ctx.fillStyle = fn.color; ctx.fill();
     });
+  }
+
+  // ── 14. Laserpointer ────────────────────────────────────────────
+  if (pointerMode && pointerPos) {
+    const px = pointerPos.x, py = pointerPos.y;
+    ctx.save();
+    // Mittlerer Ring
+    ctx.beginPath();
+    ctx.arc(px, py, 13, 0, 2 * PI);
+    ctx.strokeStyle = 'rgba(255, 30, 30, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Innerer Leuchtpunkt
+    ctx.beginPath();
+    ctx.arc(px, py, 7, 0, 2 * PI);
+    ctx.fillStyle = 'rgba(255, 30, 30, 0.95)';
+    ctx.shadowColor = '#ff2020';
+    ctx.shadowBlur = 18;
+    ctx.fill();
+    // Kleiner heller Kern (Highlight)
+    ctx.beginPath();
+    ctx.arc(px - 2, py - 2, 2.5, 0, 2 * PI);
+    ctx.fillStyle = 'rgba(255, 200, 200, 0.9)';
+    ctx.shadowBlur = 0;
+    ctx.fill();
+    ctx.restore();
   }
 }
 

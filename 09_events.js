@@ -11,8 +11,23 @@
 
 // mousedown: Prüft in fester Prioritätsreihenfolge was gedrückt wurde.
 // Reihenfolge: Einheitskreis > Line-2pt-Picking > Graph-Punkt > Freier Punkt > Alt/Modus > View-Pan
+// pointermove/pointerleave: Laserpointer-Position tracken (Maus, Stift, Touch)
+canvas.addEventListener('pointermove', e => {
+  if (!pointerMode || !e.isPrimary) return;
+  const r = canvas.getBoundingClientRect();
+  pointerPos = { x: e.clientX - r.left, y: e.clientY - r.top };
+  scheduleDraw();
+});
+canvas.addEventListener('pointerleave', e => {
+  if (!pointerMode) return;
+  pointerPos = null;
+  scheduleDraw();
+});
+
 canvas.addEventListener('mousedown', e => {
   e.preventDefault();
+  // Pointer-Modus: alle anderen Interaktionen blockieren
+  if (pointerMode) return;
   const m = mousePos(e);
 
   // 0. Lösch-Modus: Objekt löschen
@@ -78,6 +93,7 @@ canvas.addEventListener('mousedown', e => {
   if (altDown || pointMode) { addPointAt(fromCanvas(m.x, m.y).x, fromCanvas(m.x, m.y).y); return; }
 
   // 6. View draggen (Standard: Klick auf leere Fläche)
+  cancelComputeSpecials(); // laufende Berechnung abbrechen während Pan
   drag = { type:'view', startM:m, startView:{...view} }; canvas.style.cursor = 'grabbing';
 });
 
@@ -92,7 +108,7 @@ canvas.addEventListener('mousemove', e => {
       const dy = (m.y - drag.startM.y) / h * (drag.startView.ymax - drag.startView.ymin);
       view.xmin = drag.startView.xmin - dx; view.xmax = drag.startView.xmax - dx;
       view.ymin = drag.startView.ymin + dy; view.ymax = drag.startView.ymax + dy; // y invertiert!
-      syncInputs(); hoverPt = null; scheduleComputeSpecials(); scheduleDraw();
+      syncInputs(); hoverPt = null; scheduleDraw(); // kein scheduleComputeSpecials während Pan
 
     } else if (drag.type === 'point') {
       // Freien Punkt verschieben: direkte Koordinaten-Übertragung
@@ -197,19 +213,22 @@ canvas.addEventListener('mousemove', e => {
 });
 
 // mouseup: Drag beenden, Tooltip verstecken, Cursor zurücksetzen
-canvas.addEventListener('mouseup', () => {
+canvas.addEventListener('mouseup', e => {
   // Undo-Eintrag nach Drag (Punkt verschieben) — muss VOR drag=null sein
   if (drag && (drag.type === 'point' || drag.type === 'graphpt' || drag.type === 'fitpt')) pushHistory();
+  // Nach Pan/Zoom: Sonderpunkte jetzt (einmalig) neu berechnen
+  const wasPan = drag && drag.type === 'view';
   drag = null;
   document.getElementById('tooltip').style.display = 'none';
   // Cursor je nach aktivem Modus
   canvas.style.cursor = pointMode || graphPtMode || line2ptPicking ? 'crosshair' : 'grab';
+  if (wasPan) scheduleComputeSpecials();
   scheduleDraw();
 });
 
 // mouseleave: Hover-Linie ausblenden wenn Maus den Canvas verlässt
 canvas.addEventListener('mouseleave', () => {
-  hoverPt = null; drag = null;
+  hoverPt = null; drag = null; pointerPos = null;
   document.getElementById('tooltip').style.display = 'none';
   scheduleDraw();
 });
@@ -225,7 +244,7 @@ canvas.addEventListener('wheel', e => {
   view.xmax = pt.x + (view.xmax - pt.x) * factor;
   view.ymin = pt.y + (view.ymin - pt.y) * factor;
   view.ymax = pt.y + (view.ymax - pt.y) * factor;
-  syncInputs(); scheduleComputeSpecials(); if (showArea) updateAreaResult(); scheduleDraw();
+  syncInputs(); cancelComputeSpecials(); scheduleComputeSpecials(); if (showArea) updateAreaResult(); scheduleDraw();
 }, { passive: false });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -241,6 +260,8 @@ function touchPos(t) {
 
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
+  // Pointer-Modus: Touch-Interaktion blockieren (pointermove übernimmt Position)
+  if (pointerMode) return;
   const touches = e.touches;
 
   if (touches.length === 1) {
@@ -372,7 +393,7 @@ canvas.addEventListener('touchmove', e => {
     const dy = (m.y - touchState.startM.y) / h * (si.ymax - si.ymin);
     view.xmin = sv.xmin - dx; view.xmax = sv.xmax - dx;
     view.ymin = sv.ymin + dy; view.ymax = sv.ymax + dy;
-    syncInputs(); scheduleComputeSpecials(); scheduleDraw();
+    syncInputs(); scheduleDraw(); // kein scheduleComputeSpecials während Touch-Pan
 
   } else if (touchState.type === 'pinch' && touches.length === 2) {
     const a = touchPos(touches[0]), b2 = touchPos(touches[1]);
@@ -406,15 +427,18 @@ canvas.addEventListener('touchmove', e => {
       view.ymin = sv.ymin + dyMath; view.ymax = sv.ymax + dyMath;
     }
 
-    syncInputs(); scheduleComputeSpecials(); scheduleDraw();
+    syncInputs(); scheduleDraw(); // kein scheduleComputeSpecials während Pinch
   }
 }, { passive: false });
 
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
   if (drag && (drag.type === 'point' || drag.type === 'graphpt' || drag.type === 'fitpt')) pushHistory();
+  const wasPanOrPinch = touchState && (touchState.type === 'pan' || touchState.type === 'pinch');
   drag = null; touchState = null;
   document.getElementById('tooltip').style.display = 'none';
+  // Nach Pan/Pinch: Sonderpunkte einmalig neu berechnen
+  if (wasPanOrPinch) scheduleComputeSpecials();
   scheduleDraw();
 }, { passive: false });
 

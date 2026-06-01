@@ -271,7 +271,6 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
       <button onmousedown="return false" onclick="kbdInsert('abs(',')')">|x|</button>
     </div>
     <div class="hint" style="margin-top:4px;" data-i18n="lbl_kbd_hint">Klicke ins Funktionsfeld, dann auf eine Taste.<br><code>nthroot(x,n)</code>=ⁿ√x &nbsp;<code>logn(x,b)</code>=log<sub>b</sub>x &nbsp;<code>EC</code>=e</div>
-    <div style="margin-top:6px;"><label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="kbd-asym-chk" onchange="document.getElementById('chk-asymptotes').checked=this.checked;scheduleDraw();"> <span data-i18n="chk_asymptotes">Asymptoten anzeigen</span></label></div>
   </div>
 
   <!-- PANEL 2: Parameter-Schieber — direkt unter Funktionen -->
@@ -466,9 +465,8 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
   <div class="panel">
     <div class="panel-title" data-i18n="panel_extras">⚙ Extras</div>
     <div class="settings-row"><label><input type="checkbox" id="chk-funclabels" checked onchange="scheduleDraw()"> <span data-i18n="chk_labels">Funktionsbeschriftung im Plot</span></label></div>
-    <div class="settings-row"><label><input type="checkbox" id="chk-asymptotes" onchange="var k=document.getElementById('kbd-asym-chk');if(k)k.checked=this.checked;scheduleDraw()"> <span data-i18n="chk_asymptotes">Asymptoten anzeigen</span></label></div>
     <div id="asym-pills" style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 2px 0;"></div>
-    <div class="settings-row"><label><input type="checkbox" id="chk-unitcircle" onchange="scheduleDraw()"> <span data-i18n="chk_unitcircle">Einheitskreis</span></label></div>
+    <div class="settings-row"><label><input type="checkbox" id="chk-unitcircle" autocomplete="off" onchange="scheduleDraw()"> <span data-i18n="chk_unitcircle">Einheitskreis</span></label></div>
     <div class="settings-row"><label><input type="checkbox" id="chk-gridsnap" checked onchange="scheduleDraw()"> <span data-i18n="chk_gridsnap">Gitterpunkt-Snapping</span></label></div>
   </div>
 
@@ -482,6 +480,7 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
       <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-zero" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #92400e;flex-shrink:0;"></span><span data-i18n="sp_zero">Nullst.</span></label>
       <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-yaxis" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #BD10E0;flex-shrink:0;"></span><span data-i18n="chk_yaxis">y-Achse</span></label>
       <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-isect" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #378ADD;flex-shrink:0;"></span><span data-i18n="sp_isect">∩ Schnitt</span></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-asymp" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #f59e0b;flex-shrink:0;"></span><span>Asym.</span></label>
     </div>
     <div id="special-list"><span style="font-size:11px;color:#9ca3af;">—</span></div>
   </div>
@@ -489,6 +488,19 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
   <!-- Anzeigeeinstellungen -->
   <div class="panel">
     <div class="panel-title" data-i18n="panel_settings">Einstellungen</div>
+    <div class="settings-row">
+      <label>Achsen-Schriftgrösse:</label>
+      <select id="axis-font-size" onchange="scheduleDraw()">
+        <option value="9">9 px</option>
+        <option value="10">10 px</option>
+        <option value="11">11 px</option>
+        <option value="12" selected>12 px</option>
+        <option value="14">14 px</option>
+        <option value="16">16 px</option>
+        <option value="18">18 px</option>
+        <option value="20">20 px</option>
+      </select>
+    </div>
     <div class="settings-row">
       <label data-i18n="lbl_grid">Gitternetz-Feinheit:</label>
       <select id="grid-density" onchange="scheduleDraw()">
@@ -529,6 +541,15 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     </div>
   </div>
 
+  <!-- PANEL: Begriffe (mathematisches Glossar) -->
+  <div class="panel" id="begriffe-panel">
+    <div class="panel-title">📖 Begriffe</div>
+    <input id="begriffe-search" type="text"
+      placeholder="Begriff suchen …"
+      style="width:100%;margin-bottom:8px;font-family:system-ui,sans-serif;font-size:12px;">
+    <div id="begriffe-list"></div>
+  </div>
+
   <!-- Export -->
   <div class="panel">
     <div class="panel-title" data-i18n="panel_export">Export</div>
@@ -548,26 +569,25 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
       <label><input type="checkbox" id="ltx-graphpts" checked> <span data-i18n="chk_graphpts">Graph-Punkte</span></label>
       <label><input type="checkbox" id="ltx-freepts" checked> <span data-i18n="chk_freepts">Freie Punkte</span></label>
     </div>
-    <div style="margin-top:6px;padding-top:5px;border-top:1px solid var(--border);">
-      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">LaTeX-Achseneinstellungen:</div>
-      <div class="settings-row">
-        <label style="font-size:10px;white-space:nowrap;">Tick-Label-Schrift:</label>
-        <select id="ltx-tickfont" style="font-size:11px;">
-          <option value="\tiny">\tiny</option>
-          <option value="\scriptsize">\scriptsize</option>
-          <option value="\footnotesize">\footnotesize</option>
-          <option value="\small">\small</option>
-          <option value="\normalsize">\normalsize</option>
-        </select>
-      </div>
-      <div class="settings-row" style="gap:5px;flex-wrap:wrap;">
-        <label style="font-size:10px;white-space:nowrap;">Tick-Abstand&nbsp;x:</label>
-        <input type="number" id="ltx-xtickstep" placeholder="Auto" style="width:50px;" step="0.5" min="0.1">
-        <label style="font-size:10px;">y:</label>
-        <input type="number" id="ltx-ytickstep" placeholder="Auto" style="width:50px;" step="0.5" min="0.1">
-      </div>
+        <div style="font-size:10px;color:#6b7280;margin:4px 0 2px 0;">LaTeX-Achseneinstellungen:</div>
+    <div style="display:grid;grid-template-columns:auto 1fr auto 1fr;gap:3px 5px;align-items:center;font-size:10px;margin-bottom:3px;">
+      <label style="white-space:nowrap">Schrift:</label>
+      <select id="ltx-tickfont" style="font-size:10px;padding:1px 2px;grid-column:2/5;">
+        <option value="\tiny">\tiny</option>
+        <option value="\scriptsize">\scriptsize</option>
+        <option value="\footnotesize" selected>\footnotesize</option>
+        <option value="\small">\small</option>
+        <option value="\normalsize">\normalsize</option>
+      </select>
+      <label style="white-space:nowrap">Tick x:</label><input type="number" id="ltx-xtickstep" value="1" min="0.1" step="0.5" autocomplete="off" style="width:100%;font-size:10px;padding:1px 3px;">
+      <label style="white-space:nowrap">Tick y:</label><input type="number" id="ltx-ytickstep" value="1" min="0.1" step="0.5" autocomplete="off" style="width:100%;font-size:10px;padding:1px 3px;">
+      <label style="white-space:nowrap">Scale:</label><input type="number" id="ltx-scale" value="1" min="0.1" step="0.1" autocomplete="off" style="width:100%;font-size:10px;padding:1px 3px;grid-column:2/5;">
+      <label style="white-space:nowrap">x_min:</label><input type="number" id="ltx-xmin" placeholder="auto" autocomplete="off" style="width:100%;font-size:10px;padding:1px 3px;">
+      <label style="white-space:nowrap">x_max:</label><input type="number" id="ltx-xmax" placeholder="auto" autocomplete="off" style="width:100%;font-size:10px;padding:1px 3px;">
+      <label style="white-space:nowrap">y_min:</label><input type="number" id="ltx-ymin" placeholder="auto" autocomplete="off" style="width:100%;font-size:10px;padding:1px 3px;">
+      <label style="white-space:nowrap">y_max:</label><input type="number" id="ltx-ymax" placeholder="auto" autocomplete="off" style="width:100%;font-size:10px;padding:1px 3px;">
     </div>
-    <textarea id="latex-out" readonly style="width:100%;height:90px;font-family:'Cascadia Code','Fira Mono',monospace;font-size:10px;padding:6px;border:1px solid #c8cdd6;border-radius:6px;background:#f7f8fa;color:#374151;resize:vertical;outline:none;line-height:1.5;" data-i18n-placeholder="ph_latex" placeholder="LaTeX-Code erscheint hier…"></textarea>
+<textarea id="latex-out" readonly style="width:100%;height:90px;font-family:'Cascadia Code','Fira Mono',monospace;font-size:10px;padding:6px;border:1px solid #c8cdd6;border-radius:6px;background:#f7f8fa;color:#374151;resize:vertical;outline:none;line-height:1.5;" data-i18n-placeholder="ph_latex" placeholder="LaTeX-Code erscheint hier…"></textarea>
     <div id="latex-msg" style="font-size:10px;color:#1D9E75;margin-top:3px;"></div>
   </div>
 
@@ -610,6 +630,7 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     <button onclick="applyRange()" data-i18n="btn_apply">Anwenden</button>
     <button id="undo-btn" onmousedown="return false" onclick="commitAndUndo()" style="font-size:14px;padding:3px 9px;" disabled>↩</button>
     <button id="redo-btn" onmousedown="return false" onclick="commitAndRedo()" style="font-size:14px;padding:3px 9px;" disabled>↪</button>
+    <button id="pointer-mode-btn" onclick="togglePointerMode()" title="Laserpointer (Maus / Stift / Touch)" style="font-size:13px;">🔴 Pointer</button>
     <button id="point-mode-btn" onclick="togglePointMode()" data-i18n="btn_point">· Punkt setzen</button>
     <button id="graph-pt-btn" onclick="toggleGraphPtMode()" data-i18n="btn_ongraph">📍 Auf Graph</button>
     <button id="delete-mode-btn" onclick="toggleDeleteMode()" class="delete-mode-btn" data-i18n="btn_delete">🗑 Löschen</button>
@@ -625,6 +646,13 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
   <div id="canvas-wrap" style="flex:1; position:relative; min-height:0;">
     <canvas id="canvas"></canvas>
     <div class="tooltip" id="tooltip"></div>
+    <div id="solve-tooltip" style="display:none;position:absolute;top:8px;left:8px;z-index:50;width:270px;background:var(--bg-panel);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.16);padding:4px 10px 6px;font-size:10.5px;line-height:1.65;font-family:monospace;white-space:pre-wrap;color:var(--text);">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;line-height:1.2;margin-bottom:2px;">
+        <span id="solve-tooltip-title" style="font-weight:700;font-size:11px;font-family:system-ui;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>
+        <span onclick="hideSolveTooltip()" style="cursor:pointer;font-size:14px;opacity:0.4;flex-shrink:0;font-family:system-ui;line-height:1;" title="Schließen">✕</span>
+      </div>
+      <div id="solve-tooltip-content" style="max-height:200px;overflow-y:auto;"></div>
+    </div>
   </div>
   <div class="color-popup" id="color-popup"></div>
 </div>
@@ -677,6 +705,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="09_events.js"></script>
 <script src="10_io.js"></script>
 <script src="11_fitting.js"></script>
+<script src="12_begriffe.js"></script>
 
 <script>
 function updateAsymPills() {
@@ -685,10 +714,17 @@ function updateAsymPills() {
   container.innerHTML = '';
   const lines = window._asymLines || [];
   const seen = new Set();
+  const chkOn = document.getElementById('chk-asymptotes')?.checked;
   lines.forEach(a => {
-    if (!a.expr || a.type === 'vertical') return;
+    if (!a.expr) return;
     if (seen.has(a.expr)) return;
     seen.add(a.expr);
+    if (chkOn) {
+      const _n = e => e.replace(/[\s*]/g,'');
+      const _already = typeof functions !== 'undefined' &&
+        functions.some(f => _n(f.expr) === _n(a.expr));
+      if (!_already) setTimeout(() => addFunctionExpr(a.expr, {dashed:true}), 0);
+    }
     const pill = document.createElement('span');
     pill.title = 'Als Funktion hinzufügen';
     pill.style.cssText = 'cursor:pointer;background:' + a.color + '22;border:1px solid ' + a.color + '88;border-radius:10px;padding:1px 8px;font-size:11px;color:' + a.color + ';white-space:nowrap;';
@@ -697,19 +733,22 @@ function updateAsymPills() {
     container.appendChild(pill);
   });
 }
-function addFunctionExpr(expr) {
+function addFunctionExpr(expr, opts) {
   if (typeof functions === 'undefined' || typeof renderFuncList === 'undefined') return;
   const colors = ['#e24b4a','#378ADD','#1D9E75','#D85A30','#8B5CF6','#EC4899'];
   const col = colors[functions.length % colors.length];
-  functions.push({ expr: expr, color: col, visible: true });
+  functions.push(Object.assign({expr:expr, color:col, visible:true}, opts||{}));
   renderFuncList();
   if (typeof scheduleComputeSpecials === 'function') scheduleComputeSpecials();
   if (typeof scheduleDraw === 'function') scheduleDraw();
 }
 document.addEventListener('DOMContentLoaded', () => {
-  const main = document.getElementById('chk-asymptotes');
-  const kbd  = document.getElementById('kbd-asym-chk');
-  if (main && kbd) kbd.checked = main.checked;
+  // Einheitskreis immer unkontrolliert starten (Browser-Formstate-Reset verhindert)
+  const uc = document.getElementById('chk-unitcircle');
+  if (uc) uc.checked = false;
+  ['ltx-xmin','ltx-xmax','ltx-ymin','ltx-ymax'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
 });
 </script>
 </body>

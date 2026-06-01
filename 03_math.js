@@ -431,20 +431,39 @@ function insertImplicitMult(expr) {
   return r;
 }
 
+function insertImplicitMult(expr) {
+  let r = expr;
+  r = r.replace(/(\d)([a-zA-Z])/g, '$1*$2');
+  r = r.replace(/(?<![a-zA-Z0-9_])(\d)\(/g, '$1*(');
+  r = r.replace(/\)\(/g, ')*(');
+  r = r.replace(/\)([a-zA-Z])/g, ')*$1');
+  return r;
+}
+
+// Eingebaute Hilfsfunktionen auf Modulebene — werden NICHT bei jedem safeEval neu alloziert.
+const _nthroot  = (v, n) => { if (n === 0) return NaN; const r = Math.pow(Math.abs(v), 1/n); return v < 0 ? (n%2===1 ? -r : NaN) : r; };
+const _logn     = (v, base) => Math.log(v) / Math.log(base);
+const _log10    = (v) => Math.log(v) / Math.LN10;
+const _logbase  = (v, base) => Math.log(v) / Math.log(base);
+
 function getEvalFn(expr, pNames) {
-  expr = insertImplicitMult(expr);
+  // Cache-Check VOR insertImplicitMult — Regex läuft nur beim ersten Aufruf pro Ausdruck.
   const key = expr + '|' + pNames.join(',');
   if (evalCache.has(key)) return evalCache.get(key);
+  // Cache-Miss: Ausdruck verarbeiten und kompilieren
+  let e = insertImplicitMult(expr);
   try {
     // ^ → ** (Potenz), EC → __EULER__ (intern)
     // JS strict mode verbietet unäres Minus direkt vor **: -x**2 → SyntaxError
-    let e = expr.replace(/\^/g, '**').replace(/\bEC\b/g, '__EULER__');
-    // Schritt 1: Einfache Variable: -x** → (-x)**
-    e = e.replace(/(^|[\(\+\-\*\/,\s])-([a-zA-Z_][a-zA-Z0-9_]*)\s*\*\*/g, '$1(-$2)**');
-    // Schritt 2: Geklammerte Ausdrücke: -(...)** → (-(...))**
+    e = e.replace(/\^/g, '**').replace(/\bEC\b/g, '__EULER__');
+    // Schritt 1: Einfache Variable: -x**n → 0-x**n
+    // WICHTIG: 0- statt (-x)** — damit bleibt -(x^n) korrekt (JS: ** vor binärem -)
+    // (-x)**2 = x², aber -(x**2) = -x² — mathematisch ist letzteres gemeint.
+    e = e.replace(/(^|[\(\+\-\*\/,\s])-([a-zA-Z_][a-zA-Z0-9_]*)\s*\*\*/g, '$10-$2**');
+    // Schritt 2: Geklammerte Ausdrücke: -(...)** → (0-(...))**
     e = fixNegParenPow(e);
-    // Schritt 3: Zahl: -3** → (-3)**
-    e = e.replace(/(^|[\(\+\-\*\/,\s])-(\d+\.?\d*)\s*\*\*/g, '$1(-$2)**');
+    // Schritt 3: Zahl: -3**n → 0-3**n (gleiche Logik)
+    e = e.replace(/(^|[\(\+\-\*\/,\s])-(\d+\.?\d*)\s*\*\*/g, '$10-$2**');
     // Kompiliert zu: function(x, sin, cos, ..., a, b) { return (sin(x) + a*x); }
     // So werden Math-Funktionen und Parameter als lokale Variablen übergeben.
     const fn = new Function(
@@ -472,18 +491,12 @@ function getEvalFn(expr, pNames) {
 function safeEval(expr, xVal) {
   if (!expr || !expr.trim()) return NaN;
   try {
-    const pN = Object.keys(params), pV = pN.map(p => params[p].val);
+    const pN = Object.keys(params);
     const fn = getEvalFn(expr, pN);
     if (!fn) return NaN;
-
-    // Eingebaute Funktionen übergeben
-    const nthroot = (v, n) => { if (n === 0) return NaN; const r = Math.pow(Math.abs(v), 1/n); return v < 0 ? (n%2===1 ? -r : NaN) : r; };
-    const logn = (v, base) => Math.log(v) / Math.log(base);
-    const log10 = (v) => Math.log(v) / Math.LN10;
-    const logbase = (v, base) => Math.log(v) / Math.log(base); // Alias für logn
-
+    const pV = pN.map(p => params[p].val);
     return fn(xVal, Math.sin, Math.cos, Math.tan, Math.sqrt, Math.abs, Math.log, Math.exp,
-              PI, Math.E, nthroot, logn, log10, logbase, ...pV);
+              PI, Math.E, _nthroot, _logn, _log10, _logbase, ...pV);
   } catch (ex) { return NaN; }
 }
 

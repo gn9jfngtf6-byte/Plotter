@@ -7,7 +7,11 @@
     '.func-inp-ce .pf-cursor-anchor{vertical-align:baseline!important;font-size:1em!important;}' +
     '.func-inp-ce .pf-inline{vertical-align:middle;display:inline;font-size:1em;}' +
     '.func-inp-ce::-webkit-scrollbar{height:3px;}' +
-    '.func-inp-ce::-webkit-scrollbar-thumb{background:var(--border-input);border-radius:3px;}';
+    '.func-inp-ce::-webkit-scrollbar-thumb{background:var(--border-input);border-radius:3px;}' +
+    '.smart-btn-row{display:flex;flex-wrap:wrap;gap:3px;margin:2px 0 5px 28px;min-height:0;}' +
+    '.smart-btn{font-size:10px;padding:2px 8px;border-radius:10px;border:1.5px solid;cursor:pointer;background:transparent;transition:background 0.15s,color 0.15s;white-space:nowrap;line-height:1.5;font-family:system-ui,sans-serif;}' +
+    '.smart-btn:hover{filter:brightness(1.15);}' +
+    '.smart-btn.sb-active{color:#fff!important;}';
   document.head.appendChild(s);
 })();
 
@@ -372,8 +376,13 @@ function renderFuncList() {
       pushHistory(); scheduleDraw();
     };
     row.append(dot, lbl, inp, eye, del);
+    const smartBtns = document.createElement('div');
+    smartBtns.className = 'smart-btn-row';
+    smartBtns.id = `smart-btns-${i}`;
+    const solvePanel = document.createElement('div');
+    solvePanel.id = `solve-panel-${i}`;
     const funcItem = document.createElement('div');
-    funcItem.append(row, preview);
+    funcItem.append(row, preview, smartBtns, solvePanel);
     el.appendChild(funcItem);
   });
   // Steigungsdreieck-Sektion anzeigen wenn lineare Funktion vorhanden
@@ -387,6 +396,8 @@ function renderFuncList() {
       if (fitType !== 'linear_live' && fitType !== 'linear') le.style.display = 'none';
     }
   }
+  // Smart-Buttons nach Neuaufbau der Liste aktualisieren
+  if (typeof updateSmartButtons === 'function') updateSmartButtons();
 }
 
 // Synchronisiert die Sichtbarkeit der Steigungsdreieck-Sektion
@@ -503,6 +514,23 @@ function toggleGraphPtMode() {
   canvas.style.cursor = graphPtMode ? 'crosshair' : 'grab';
 }
 
+// Laserpointer-Modus: Maus/Stift/Touch zeigt großen roten Leuchtpunkt, kein Pan/Drag
+function togglePointerMode() {
+  pointerMode = !pointerMode;
+  if (pointerMode) {
+    pointMode = false; graphPtMode = false; deleteMode = false; line2ptPicking = false;
+    document.getElementById('point-mode-btn').classList.remove('active-btn');
+    document.getElementById('graph-pt-btn').classList.remove('active-btn');
+    document.getElementById('delete-mode-btn').classList.remove('active-btn');
+    document.body.classList.remove('delete-mode');
+  } else {
+    pointerPos = null;
+  }
+  document.getElementById('pointer-mode-btn').classList.toggle('active-btn', pointerMode);
+  canvas.style.cursor = pointerMode ? 'none' : 'grab';
+  scheduleDraw();
+}
+
 // Lösch-Modus: Klick auf beliebiges Objekt im Plot löscht es
 function toggleDeleteMode() {
   deleteMode = !deleteMode;
@@ -556,10 +584,187 @@ function rerender() { scheduleComputeSpecials(); if (showArea) updateAreaResult(
 // Gibt zurück welcher Label-Modus aktiv ist: 'all', 'none', 'hover'
 function getLabelMode() { return document.getElementById('label-mode').value; }
 
-// Prüft ob ein Punkt-Typ durch die Checkboxen sichtbar ist
+// Prüft ob ein Punkt-Typ durch die globalen Checkboxen sichtbar ist (für Sidebar-Liste)
 function isKindVisible(kind) {
-  const map = { max:'show-max', min:'show-min', inf:'show-inf', zero:'show-zero', yaxis:'show-yaxis', isect:'show-isect' };
+  const map = { max:'show-max', min:'show-min', inf:'show-inf', zero:'show-zero', yaxis:'show-yaxis', isect:'show-isect', asymp:'show-asymp' };
   const id = map[kind]; if (!id) return true;
   const el = document.getElementById(id); return el ? el.checked : true;
+}
+
+// Prüft ob ein spezieller Punkt angezeigt werden soll.
+// Smart-Buttons steuern NUR den Lösungsweg-Panel und die Asymptoten-Linien —
+// sie blenden KEINE anderen Punkte (z.B. Hochpunkt) aus.
+// Die Sichtbarkeit der Punkte wird ausschliesslich durch isKindVisible() (globale Checkboxen) gesteuert.
+function isPointActive(pt) {
+  return true; // Punkte immer anzeigen; isKindVisible() filtert nach Typ
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SMART-BUTTONS — Relevante Sonderpunkte direkt unter der Funktion
+// ═══════════════════════════════════════════════════════════════════
+
+// Konfiguration für jeden Punkt-Typ: Beschriftung, Farbe, Checkbox-ID
+const SMART_BTN_CONFIG = {
+  zero:  { label: 'Nullstellen',  color: '#92400e', checkId: 'show-zero'  },
+  yaxis: { label: 'y-Achse',      color: '#BD10E0', checkId: 'show-yaxis' },
+  max:   { label: 'Hochpunkt',    color: '#e24b4a', checkId: 'show-max'   },
+  min:   { label: 'Tiefpunkt',    color: '#1D9E75', checkId: 'show-min'   },
+  inf:   { label: 'Wendepunkt',   color: '#7F77DD', checkId: 'show-inf'   },
+  asymp: { label: 'Asymptoten',   color: '#f59e0b', checkId: 'show-asymp' },
+  isect: { label: 'Schnittpunkt', color: '#378ADD', checkId: 'show-isect' },
+};
+const SMART_BTN_ORDER = ['zero', 'yaxis', 'max', 'min', 'inf', 'asymp', 'isect'];
+
+// Aktualisiert die Smart-Buttons für alle Funktionen basierend auf dem specials-Array.
+// Wird nach computeSpecials() / renderSpecialList() und nach renderFuncList() aufgerufen.
+function updateSmartButtons() {
+  functions.forEach((fn, i) => {
+    const container = document.getElementById(`smart-btns-${i}`);
+    if (!container) return;
+    container.innerHTML = '';
+    if (!fn.expr || !fn.expr.trim() || fn.visible === false) return;
+
+    // Welche Typen kommen für diese Funktion vor?
+    const foundKinds = new Set();
+    specials.forEach(sp => {
+      if (sp.fi === i) {
+        foundKinds.add(sp.kind);
+        // Polstellen zählen als "Asymptoten"-Kategorie im Smart-Button
+        if (sp.kind === 'pole') foundKinds.add('asymp');
+      }
+      if (sp.fj === i) foundKinds.add(sp.kind); // Schnittpunkte: für beide Funktionen
+    });
+    if (foundKinds.size === 0) return;
+
+    SMART_BTN_ORDER.forEach(kind => {
+      if (!foundKinds.has(kind)) return;
+      const cfg = SMART_BTN_CONFIG[kind];
+      if (!cfg) return;
+
+      const key = `${i}:${kind}`;
+      const isActive = activeSpecials.has(key);
+
+      const btn = document.createElement('button');
+      btn.className = 'smart-btn' + (isActive ? ' sb-active' : '');
+      btn.textContent = cfg.label;
+      btn.style.borderColor = cfg.color;
+      btn.title = `${cfg.label} für f${i+1} ${isActive ? 'ausblenden' : 'einblenden'}`;
+      if (isActive) {
+        btn.style.background = cfg.color;
+        btn.style.color = '#fff';
+      } else {
+        btn.style.color = cfg.color;
+        btn.style.background = 'transparent';
+      }
+
+      btn.onclick = () => {
+        if (kind === 'asymp') {
+          // Asymptoten: Linien ein-/ausblenden (toggle) + Lösungsweg-Tooltip
+          const wasActive = activeSpecials.has(key);
+          if (wasActive) activeSpecials.delete(key); else activeSpecials.add(key);
+          updateSmartButtons();
+          scheduleDraw();
+          // Tooltip: beim Aktivieren ersten Lösungsweg zeigen, beim Deaktivieren schliessen
+          const tooltip = document.getElementById('solve-tooltip');
+          const activePt = window._activeTooltipPt;
+          const tooltipIsThisAsymp = tooltip && tooltip.style.display !== 'none' &&
+                                     activePt && activePt.fi === i &&
+                                     (activePt.kind === 'asymp' || activePt.kind === 'pole');
+          if (wasActive) {
+            if (tooltipIsThisAsymp && typeof hideSolveTooltip === 'function') hideSolveTooltip();
+          } else {
+            const pts = specials.filter(sp => sp.fi === i && (sp.kind === 'asymp' || sp.kind === 'pole'));
+            if (pts.length > 0 && typeof showSolveTooltip === 'function') showSolveTooltip(pts);
+          }
+        } else {
+          // Alle anderen Typen: Lösungsweg-Tooltip für ersten sichtbaren Punkt öffnen
+          // – zweiter Klick auf denselben Knopf: Tooltip wieder schliessen (Toggle)
+          const tooltip = document.getElementById('solve-tooltip');
+          const already = tooltip && tooltip.style.display !== 'none' &&
+                          window._activeTooltipPt && window._activeTooltipPt.fi === i &&
+                          window._activeTooltipPt.kind === kind;
+          if (already) { if (typeof hideSolveTooltip === 'function') hideSolveTooltip(); return; }
+
+          // activeSpecials toggeln für Canvas-Markierung
+          if (activeSpecials.has(key)) activeSpecials.delete(key); else activeSpecials.add(key);
+          updateSmartButtons();
+          scheduleDraw();
+
+          const pts = specials.filter(sp => sp.fi === i && sp.kind === kind);
+          if (pts.length === 0) return;
+          // Bevorzuge sichtbaren Punkt; Fallback: erster
+          const pt = pts.find(p =>
+            p.x >= view.xmin && p.x <= view.xmax &&
+            p.y >= view.ymin && p.y <= view.ymax
+          ) || pts[0];
+          if (typeof showSolveTooltip === 'function') showSolveTooltip(pt);
+        }
+      };
+      container.appendChild(btn);
+    });
+
+    // Solve-Panel leeren — Lösungswege erscheinen als Tooltip (Canvas-Overlay)
+    const solvePanel = document.getElementById(`solve-panel-${i}`);
+    if (solvePanel) solvePanel.innerHTML = '';
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LÖSUNGSWEG-TOOLTIP — erscheint oben rechts im Canvas
+// ═══════════════════════════════════════════════════════════════════
+
+// pts: einzelner Punkt ODER Array von Punkten (z.B. alle Asymptoten einer Funktion)
+function showSolveTooltip(pts) {
+  const tooltip = document.getElementById('solve-tooltip');
+  const titleEl = document.getElementById('solve-tooltip-title');
+  const content = document.getElementById('solve-tooltip-content');
+  if (!tooltip || !titleEl || !content) return;
+
+  const ptsArr = Array.isArray(pts) ? pts : [pts];
+  if (ptsArr.length === 0) return;
+  const pt = ptsArr[0];
+  const fn = functions[pt.fi];
+
+  const kindNames = { max:'Hochpunkt', min:'Tiefpunkt', inf:'Wendepunkt', zero:'Nullstelle',
+                      yaxis:'y-Achse', isect:'Schnittpunkt', asymp:'Asymptote', pole:'Polstelle' };
+
+  // Titel: bei mehreren Punkten nur Art + Funktionsnummer, ohne Koordinate
+  if (ptsArr.length > 1) {
+    titleEl.innerHTML = `f<sub>${pt.fi+1}</sub>&thinsp;Asymptoten`;
+  } else {
+    let coordStr = '';
+    if (pt.kind === 'asymp') {
+      if (pt.oblique) {
+        const sS = Math.abs(pt.slope-1)<1e-5?'':Math.abs(pt.slope+1)<1e-5?'−':niceNum(pt.slope)+'·';
+        const bS = Math.abs(pt.intercept)<1e-5?'':(pt.intercept>0?` + ${niceNum(pt.intercept)}`:` − ${niceNum(Math.abs(pt.intercept))}`);
+        coordStr = `y = ${sS}x${bS}`;
+      } else { coordStr = `y = ${niceNum(pt.y)}`; }
+    } else if (pt.kind === 'pole') {
+      coordStr = `x = ${niceNum(pt.x)}`;
+    } else {
+      coordStr = pt.exactLabel || niceCoord(pt.x, pt.y);
+    }
+    titleEl.innerHTML = `f<sub>${pt.fi+1}</sub>&thinsp;${kindNames[pt.kind] || pt.kind}&ensp;<span style="font-weight:400;opacity:0.75">${coordStr}</span>`;
+  }
+  titleEl.style.color = fn ? fn.color : '';
+
+  // Inhalt: alle Punkte mit Trennlinie
+  if (ptsArr.length === 1) {
+    content.innerHTML = generateSolveSteps(pt);
+  } else {
+    content.innerHTML = ptsArr.map((p, idx) => {
+      const divider = idx > 0 ? `<div style="border-top:1px solid var(--border);margin:6px 0 4px;"></div>` : '';
+      return divider + generateSolveSteps(p);
+    }).join('');
+  }
+
+  window._activeTooltipPt = pt;
+  tooltip.style.display = 'block';
+}
+
+function hideSolveTooltip() {
+  const tooltip = document.getElementById('solve-tooltip');
+  if (tooltip) tooltip.style.display = 'none';
+  window._activeTooltipPt = null;
 }
 

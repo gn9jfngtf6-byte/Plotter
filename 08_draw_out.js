@@ -241,7 +241,33 @@ function drawAsymptotes(w, h) {
         window._asymLines.push({ type: 'horizontal', expr: String(parseFloat(haVal.toFixed(6))), label: haLbl, color: fn.color });
     });
 
-    // ── Schräge (oblique) Asymptoten: y = mx + b ──────────────────────
+    // ── Schräge Asymptoten aus specials-Cache ─────────────────────────
+    const _fi_idx_out = functions.indexOf(fn);
+    if (_fi_idx_out >= 0 && typeof specials !== 'undefined') {
+      specials.filter(sp => sp.kind === 'asymp' && sp.fi === _fi_idx_out && sp.oblique).forEach(sp => {
+        const slopeR = sp.slope, intR = sp.intercept;
+        if (window._asymLines && window._asymLines.some(a =>
+            a.type === 'oblique' && Math.abs(a._slope - slopeR) < 1e-4 && Math.abs(a._int - intR) < 1e-4)) return;
+        const x0 = v.xmin, x1v = v.xmax;
+        const y0 = slopeR * x0 + intR, y1v = slopeR * x1v + intR;
+        const { cx: cxA, cy: cyA } = toCanvas(x0, y0);
+        const { cx: cxB, cy: cyB } = toCanvas(x1v, y1v);
+        ctx.beginPath(); ctx.moveTo(cxA, cyA); ctx.lineTo(cxB, cyB); ctx.stroke();
+        const sS = Math.abs(slopeR - 1) < 1e-5 ? '' : Math.abs(slopeR + 1) < 1e-5 ? '-' : String(parseFloat(slopeR.toFixed(4)));
+        const iS = Math.abs(intR) < 1e-4 ? '' : intR > 0 ? ' + ' + parseFloat(intR.toFixed(4)) : ' - ' + parseFloat(Math.abs(intR).toFixed(4));
+        const oaLbl = 'y = ' + sS + 'x' + iS;
+        const midCx = (cxA + cxB) / 2, midCy = (cyA + cyB) / 2;
+        ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillText(oaLbl, midCx, midCy - 4); ctx.restore();
+        const oaExpr = String(parseFloat(slopeR.toFixed(6))) + '*x' +
+                       (Math.abs(intR) < 1e-4 ? '' : (intR >= 0 ? '+' : '') + parseFloat(intR.toFixed(6)));
+        if (typeof window._asymLines !== 'undefined')
+          window._asymLines.push({ type: 'oblique', expr: oaExpr, label: oaLbl, color: fn.color, _slope: slopeR, _int: intR });
+      });
+    }
+
+    // ── Schräge (oblique) Asymptoten: y = mx + b (BIG-eval Fallback) ──
     const BIG2 = 1e6, BIG1 = 1e5, Xt = 5e5;
     for (const dir of [1, -1]) {
       const X1 = dir * BIG1, X2 = dir * BIG2;
@@ -897,7 +923,8 @@ function draw() {
   if (document.getElementById('chk-unitcircle').checked) drawUnitCircle(w, h);
 
   // ── 5. Asymptoten ─────────────────────────────────────────────
-  if (document.getElementById('chk-asymptotes').checked) drawAsymptotes(w, h);
+  const _smartAsympOut = functions.some((_, i) => activeSpecials.has(`${i}:asymp`));
+  if (_smartAsympOut) drawAsymptotes(w, h);
 
   // ── 6. Fläche ─────────────────────────────────────────────────
   if (showArea) {
@@ -963,7 +990,8 @@ function draw() {
   const lmode = getLabelMode();
   resetLabels(); // Kollisionsrechtecke zurücksetzen
   const drawnPos = []; // bereits gezeichnete Positionen (für Duplikat-Vermeidung)
-  specials.filter(pt => isKindVisible(pt.kind)).forEach(pt => {
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  specials.filter(pt => isKindVisible(pt.kind) && pt.kind !== 'asymp' && pt.kind !== 'pole').forEach(pt => {
     if (pt.x < v.xmin || pt.x > v.xmax || pt.y < v.ymin || pt.y > v.ymax) return;
     const { cx, cy } = toCanvas(pt.x, pt.y);
     const dup = drawnPos.find(d => Math.hypot(d.cx-cx, d.cy-cy) < 8);
@@ -972,7 +1000,7 @@ function draw() {
     const nearHover = hoverPt !== null && Math.abs(toCanvas(pt.x, 0).cx - toCanvas(hoverPt, 0).cx) < 30;
     if (!dup) {
       if (lmode === 'all' || (lmode === 'hover' && nearHover)) {
-        drawLabel(ctx, niceCoord(pt.x, pt.y), cx, cy, C.anno, 'r');
+        drawLabel(ctx, pt.exactLabel || niceCoord(pt.x, pt.y), cx, cy, C.anno, 'r');
       }
       drawnPos.push({ cx, cy });
     }
