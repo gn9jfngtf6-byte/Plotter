@@ -124,8 +124,7 @@ function niceNum(v, forAxis) {
     const sr = asSurd(v); if (sr) return sr;     // Wurzel-Formen: √2/2, √3/2 …
     const fr = asSimpleFrac(v); if (fr) return fr; // rationale Brüche: 1/3, 2/5 …
   }
-  if (forAxis) return parseFloat(v.toFixed(precision)).toString();
-  return v.toFixed(precision);
+  return parseFloat(v.toFixed(precision)).toString();
 }
 
 // Gibt eine Zahl als HTML-Bruch zurück: <span class="mfrac">…</span> oder plain string.
@@ -145,6 +144,16 @@ function fracHTML(v) {
 
 // Koordinaten-String, z.B. "(1/3 | 2)"
 function niceCoord(x, y) { return `(${niceNum(x)} | ${niceNum(y)})`; }
+
+// Dezimal-Darstellung ohne Brüche/Wurzeln — für dynamische Werte (Schieber, Hover).
+// Gerundet auf die eingestellte Präzision, keine springenden Brüche.
+function niceNumDec(v) {
+  if (!isFinite(v)) return '–';
+  if (Math.abs(v) < 1e-9) return '0';
+  // Pi-Modus: exakte π-Vielfache bleiben (z.B. π/2 im Trig-Kontext)
+  if (usePiMode()) { const pf = asPiFraction(v); if (pf) return formatPi(pf.p, pf.q); }
+  return parseFloat(v.toFixed(precision)).toString();
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // PERIODIZITÄTSERKENNUNG (für Spezielle-Punkte-Liste)
@@ -421,22 +430,34 @@ function fixNegParenPow(s) {
   return r.join('');
 }
 
-// Fügt implizite Multiplikation ein: 2x → 2*x, 7(x-2) → 7*(x-2) usw.
+/// Fügt implizite Multiplikation ein:
+//   2x → 2*x,  7(x-2) → 7*(x-2),  a(x-v)^2 → a*(x-v)^2
+//   Funktionsnamen (sin, cos, …) werden NICHT mit * versehen.
 function insertImplicitMult(expr) {
-  let r = expr;
-  r = r.replace(/(\d)([a-zA-Z])/g, '$1*$2');
-  r = r.replace(/(?<![a-zA-Z0-9_])(\d)\(/g, '$1*(');
-  r = r.replace(/\)\(/g, ')*(');
-  r = r.replace(/\)([a-zA-Z])/g, ')*$1');
-  return r;
-}
+  // Bekannte Funktionsnamen — vor diesen darf kein * eingefügt werden
+  const FNAMES = /^(sin|cos|tan|sqrt|abs|log|exp|nthroot|logn|log10|logbase|pi|EC)$/;
 
-function insertImplicitMult(expr) {
   let r = expr;
-  r = r.replace(/(\d)([a-zA-Z])/g, '$1*$2');
-  r = r.replace(/(?<![a-zA-Z0-9_])(\d)\(/g, '$1*(');
+
+  // 1) Ziffer direkt vor Buchstabe: 2x → 2*x, 2sin → 2*sin
+  r = r.replace(/(\d)([a-zA-Z_])/g, '$1*$2');
+
+  // 2) Ziffer direkt vor (: 2(x+1) → 2*(x+1)
+  r = r.replace(/(\d)\(/g, '$1*(');
+
+  // 3) ) vor (: )(x-1) → )*(x-1)
   r = r.replace(/\)\(/g, ')*(');
-  r = r.replace(/\)([a-zA-Z])/g, ')*$1');
+
+  // 4) ) direkt vor Buchstabe oder Ziffer: )x → )*x,  )2 → )*2
+  r = r.replace(/\)([a-zA-Z0-9_])/g, ')*$1');
+
+  // 5) Bezeichner direkt vor (: a(x-v) → a*(x-v)
+  //    Ausnahme: bekannte Funktionsnamen bleiben unverändert (sin(, cos(, …)
+  r = r.replace(/([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g, (match, name) => {
+    if (FNAMES.test(name)) return match;
+    return name + '*(';
+  });
+
   return r;
 }
 
@@ -505,6 +526,59 @@ function safeEval(expr, xVal) {
 // - Parameter-Werte geändert wurden
 // - Eine Funktion gelöscht wurde
 function clearEvalCache() { evalCache.clear(); }
+
+// Setzt Parameterwerte in einen Ausdruck ein und vereinfacht das Ergebnis.
+// Beispiel: "a(x-v)^2 + h"  mit a=1, v=3, h=0  →  "(x-3)^2"
+function exprWithValues(expr) {
+  if (!expr || !expr.trim()) return expr;
+  const pNames = Object.keys(params);
+  if (!pNames.length) return expr; // keine Parameter → unverändert
+
+  let e = expr;
+
+  // Längste Namen zuerst (verhindert Teilersetzung: "ab" vor "a")
+  pNames.slice().sort((a, b) => b.length - a.length).forEach(name => {
+    const raw = params[name].val;
+    const num = parseFloat(raw.toFixed(8));
+    // Ganzzahl wenn möglich, sonst Dezimal (keine springenden Brüche bei Schiebern)
+    const str = Math.abs(num - Math.round(num)) < 1e-7
+      ? String(Math.round(num))
+      : niceNumDec(num);
+    e = e.replace(new RegExp('(?<![a-zA-Z0-9_])' + name + '(?![a-zA-Z0-9_])', 'g'), str);
+  });
+
+  // Implizite Multiplikation einfügen (damit 2(x-3) → 2*(x-3))
+  e = insertImplicitMult(e);
+
+  // Doppeltes Minus: x + --3 → x + 3, x - -3 → x + 3
+  e = e.replace(/([+\-])\s*-\s*(-?\d)/g, (_, op, d) => (op === '+' ? '-' : '+') + d);
+  e = e.replace(/--/g, '+');
+  e = e.replace(/\+\+/g, '+');
+
+  // Koeffizient 1 entfernen: 1*( → (,  1*x → x,  -1*( → -(,  -1*x → -x
+  e = e.replace(/(?<![0-9.])-1\*\(/g, '-(');
+  e = e.replace(/(?<![0-9.])1\*\(/g,  '(');
+  e = e.replace(/(?<![0-9.])-1\*([a-zA-Z(])/g, '-$1');
+  e = e.replace(/(?<![0-9.])1\*([a-zA-Z(])/g,  '$1');
+
+  // Zahl*(  →  Zahl( : kein Mal-Punkt nötig bei Koeffizient vor Klammer
+  e = e.replace(/(\d)\*\(/g, '$1(');
+
+  // + 0 / - 0 entfernen (am Ende, vor ), innerhalb von Klammern, oder am Anfang)
+  e = e.replace(/\s*[+\-]\s*0(\.0+)?\s*$/g, '');        // am Ende
+  e = e.replace(/\s*[+\-]\s*0(\.0+)?\s*(\))/g, '$2');   // vor )
+  e = e.replace(/^\s*0(\.0+)?\s*\+\s*/g, '');            // am Anfang
+
+  // x ± 0 innerhalb Klammern: (x-0) → (x),  (x+0) → (x)
+  e = e.replace(/\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*[+\-]\s*0(\.0+)?\s*\)/g, '($1)');
+
+  // Überflüssige Klammern um einzelne Variable: (x) → x,  -(x)^n → -x^n
+  e = e.replace(/\(([a-zA-Z_][a-zA-Z0-9_]*)\)/g, '$1');
+
+  // Leerzeichen bereinigen
+  e = e.replace(/\s+/g, ' ').trim();
+  return e || '0';
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // NUMERISCHE ABLEITUNGEN (5-Punkt-Formeln)
@@ -584,7 +658,7 @@ function parseParamExpr(str) {
 function syncParams() {
   const needed = getAllParams();
   // Neue Parameter mit Standardwerten initialisieren
-  needed.forEach(p => { if (!params[p]) params[p] = { val:1, min:-5, max:5, step:0.01 }; });
+  needed.forEach(p => { if (!params[p]) params[p] = { val:1, min:-5, max:5, step:0.1 }; });
   // Nicht mehr benötigte Parameter entfernen
   Object.keys(params).forEach(p => { if (!needed.includes(p)) delete params[p]; });
 

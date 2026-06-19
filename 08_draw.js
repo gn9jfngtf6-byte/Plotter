@@ -674,7 +674,7 @@ function measureMathLabel(ctx, text) {
 function drawFuncLabels(w, h) {
   if (!document.getElementById('chk-funclabels').checked) return;
   const v = isoView || view;
-  ctx.font = 'bold 12px system-ui,sans-serif';
+  ctx.font = `bold ${bf(12)}px system-ui,sans-serif`;
   functions.forEach((fn, i) => {
     if (!fn.expr.trim() || fn.visible === false) return;
     if (/^x\s*=/.test(fn.expr.trim())) return;
@@ -765,15 +765,17 @@ function drawLabel(ctx, text, cx, cy, col, dir = 'r') {
 // Zeichnet einen speziellen Punkt (Extremum, Nullstelle, Wendepunkt, Schnittpunkt)
 // in der entsprechenden Farbe und Form.
 function drawSpecialDot(cx, cy, kind, col) {
+  const R = br(5);
   if (kind === 'max') { // Hochpunkt: gefüllter roter Kreis
-    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, 2*PI); ctx.fillStyle = '#e24b4a'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, 2*PI); ctx.fillStyle = '#e24b4a'; ctx.fill();
   } else if (kind === 'min') { // Tiefpunkt: gefüllter grüner Kreis
-    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, 2*PI); ctx.fillStyle = '#1D9E75'; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, 2*PI); ctx.fillStyle = '#1D9E75'; ctx.fill();
   } else if (kind === 'inf') { // Wendepunkt: lila Dreieck
-    ctx.beginPath(); ctx.moveTo(cx, cy-6); ctx.lineTo(cx+5, cy+4); ctx.lineTo(cx-5, cy+4); ctx.closePath(); ctx.fillStyle = '#7F77DD'; ctx.fill();
+    const s = R * 1.2;
+    ctx.beginPath(); ctx.moveTo(cx, cy-s); ctx.lineTo(cx+s, cy+s*0.8); ctx.lineTo(cx-s, cy+s*0.8); ctx.closePath(); ctx.fillStyle = '#7F77DD'; ctx.fill();
   } else { // Nullstelle / y-Achse / Schnittpunkt: offener Kreis in Funktionsfarbe
-    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, 2*PI); ctx.fillStyle = '#fff'; ctx.fill();
-    ctx.strokeStyle = kind === 'yaxis' ? '#BD10E0' : col; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, 2*PI); ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.strokeStyle = kind === 'yaxis' ? '#BD10E0' : col; ctx.lineWidth = bw(2); ctx.stroke();
   }
 }
 
@@ -799,7 +801,7 @@ function drawSpecialDot(cx, cy, kind, col) {
 function draw() {
   const { w, h } = setupCanvas();
   const v = isoView || view; // isometrischer View für diesen Frame
-  const axisFontSize = parseInt(document.getElementById('axis-font-size')?.value || 12);
+  const axisFontSize = bf(parseInt(document.getElementById('axis-font-size')?.value || 12));
   const fnt = `${axisFontSize}px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif`;
 
   // ── 1. Hintergrund ────────────────────────────────────────────
@@ -807,7 +809,7 @@ function draw() {
   ctx.font = fnt;
 
   // ── 2. Gitternetz ─────────────────────────────────────────────
-  ctx.strokeStyle = C.grid; ctx.lineWidth = 1; ctx.setLineDash([]);
+  ctx.strokeStyle = C.grid; ctx.lineWidth = bw(1); ctx.setLineDash([]);
   const xyStep = gridStep(Math.min(v.xmax - v.xmin, v.ymax - v.ymin));
   const xStep = xyStep, yStep = xyStep;
   // Vertikale Gitterlinien
@@ -820,7 +822,7 @@ function draw() {
   }
 
   // ── 3. Achsen ─────────────────────────────────────────────────
-  ctx.strokeStyle = C.axis; ctx.lineWidth = 2; ctx.setLineDash([]);
+  ctx.strokeStyle = C.axis; ctx.lineWidth = bw(2); ctx.setLineDash([]);
   const o = toCanvas(0, 0);
   // x-Achse: bei y=0, aber immer im sichtbaren Bereich (oben/unten eingeklemmt)
   const xAxisY = Math.min(Math.max(o.cy, 0), h);
@@ -831,18 +833,40 @@ function draw() {
 
   // Achsenbeschriftung (Zahlenwerte an den Gitterlinien)
   ctx.fillStyle = C.label; ctx.font = fnt;
+  const lblPad = bf(6); // Abstand vom Rand / von der Achse
+
+  // X-Achsen-Zahlen: center-ausgerichtet über/unter der x-Achse
+  // Position: wenn Achse sichtbar → direkt daneben; wenn ausserhalb → am Rand bleiben
+  const xLblY_raw = xAxisY + bf(15);
+  const xLblY = Math.min(Math.max(xLblY_raw, axisFontSize + 4), h - 4);
   ctx.textAlign = 'center';
   for (let gx = Math.ceil(v.xmin/xStep)*xStep; gx <= v.xmax + xStep*0.01; gx += xStep) {
-    if (Math.abs(gx) > xStep * 0.01) { // Ursprung überspringen (dort steht "0" auf y-Achse)
+    if (Math.abs(gx) > xStep * 0.01) {
       const { cx } = toCanvas(gx, 0);
-      ctx.fillText(niceNum(gx, true), cx, Math.min(Math.max(xAxisY + 15, 15), h - 3));
+      ctx.fillText(niceNum(gx, true), cx, xLblY);
     }
   }
-  ctx.textAlign = 'right';
+
+  // Y-Achsen-Zahlen: rechts der y-Achse wenn Achse links/off-screen-links, sonst links
+  const yAxisVisible = yAxisX > 0 && yAxisX < w;
+  const yAxisOffLeft  = yAxisX <= 0;   // weit nach rechts bewegt
+  const yAxisOffRight = yAxisX >= w;   // weit nach links bewegt
   for (let gy = Math.ceil(v.ymin/yStep)*yStep; gy <= v.ymax + yStep*0.01; gy += yStep) {
     if (Math.abs(gy) > yStep * 0.01) {
       const { cy } = toCanvas(0, gy);
-      ctx.fillText(niceNum(gy, true), Math.min(Math.max(yAxisX - 6, 6), w - 6), cy + 4);
+      if (yAxisOffLeft) {
+        // Achse links ausserhalb → Labels links im Bild, links-ausgerichtet
+        ctx.textAlign = 'left';
+        ctx.fillText(niceNum(gy, true), lblPad, cy + 4);
+      } else if (yAxisOffRight) {
+        // Achse rechts ausserhalb → Labels rechts im Bild, rechts-ausgerichtet
+        ctx.textAlign = 'right';
+        ctx.fillText(niceNum(gy, true), w - lblPad - 30, cy + 4);
+      } else {
+        // Achse sichtbar → links der y-Achse, rechts-ausgerichtet
+        ctx.textAlign = 'right';
+        ctx.fillText(niceNum(gy, true), Math.max(yAxisX - lblPad, lblPad + 20), cy + 4);
+      }
     }
   }
 
@@ -907,7 +931,7 @@ function draw() {
       return;
     }
     ctx.strokeStyle = fn.color;
-    ctx.lineWidth = fn.dashed ? 1.8 : 2.5;
+    ctx.lineWidth = bw(fn.dashed ? 1.8 : 2.5);
     ctx.setLineDash(fn.dashed ? [6,4] : []);
     ctx.beginPath();
     let started = false, prevY = null;
@@ -930,9 +954,12 @@ function draw() {
   if (document.getElementById('chk-slopetri').checked) drawSlopeTri(w, h);
 
   // ── 9. Funktionsbeschriftungen ────────────────────────────────
-  drawFuncLabels(w, h);
+  // Wird als HTML-Overlay gerendert (updateFuncLabelsOverlay) — kein Canvas-Text mehr
 
-  // ── 10. Spezielle Punkte ──────────────────────────────────────
+  // ── 10. Folgen (diskrete Punkte) ─────────────────────────────
+  if (typeof drawSequences === 'function') drawSequences(w, h);
+
+  // ── 11. Spezielle Punkte ──────────────────────────────────────
   ctx.font = fnt;
   const lmode = getLabelMode();
   resetLabels(); // Kollisionsrechtecke zurücksetzen
@@ -947,7 +974,7 @@ function draw() {
     const nearHover = hoverPt !== null && Math.abs(toCanvas(pt.x, 0).cx - toCanvas(hoverPt, 0).cx) < 30;
     if (!dup) {
       if (lmode === 'all' || (lmode === 'hover' && nearHover)) {
-        drawLabel(ctx, pt.exactLabel || niceCoord(pt.x, pt.y), cx, cy, C.anno, 'r');
+        drawLabel(ctx, pt.textLabel || niceCoord(pt.x, pt.y), cx, cy, C.anno, 'r');
       }
       drawnPos.push({ cx, cy });
     }
@@ -1091,11 +1118,11 @@ function draw() {
     ctx.beginPath(); ctx.moveTo(hcx, 0); ctx.lineTo(hcx, h); ctx.stroke(); ctx.setLineDash([]);
 
     // Textanzeige: x-Wert + alle f(x)-Werte
-    const lines = [`x = ${niceNum(hoverPt)}`];
+    const lines = [`x = ${niceNumDec(hoverPt)}`];
     functions.forEach((fn, i) => {
       if (!fn.expr.trim() || fn.visible === false) return;
       const y = safeEval(fn.expr, hoverPt);
-      if (isFinite(y)) lines.push(`f${functions.length > 1 ? i+1 : ''}(x) = ${niceNum(y)}`);
+      if (isFinite(y)) lines.push(`f${functions.length > 1 ? i+1 : ''}(x) = ${niceNumDec(y)}`);
     });
     // Links oder rechts positionieren je nach Mausposition
     const lx = hcx + 10 > w - 160 ? hcx - 10 : hcx + 10;

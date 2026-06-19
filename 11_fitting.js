@@ -231,9 +231,12 @@ function fitPickClick(mx, my) {
       let raw = fromCanvas(mx, my);
       if (document.getElementById('chk-gridsnap')?.checked) {
         const v2 = isoView || view;
-        const gs = gridStep(v2.xmax - v2.xmin);
-        const gsy = gridStep(v2.ymax - v2.ymin);
-        raw = { x: Math.round(raw.x / gs) * gs, y: Math.round(raw.y / gsy) * gsy };
+        // Gleicher Schritt für x und y wie im Draw-Loop → Snap trifft sichtbare Gitterpunkte
+        const gs = gridStep(Math.min(v2.xmax - v2.xmin, v2.ymax - v2.ymin));
+        raw = {
+          x: parseFloat((Math.round(raw.x / gs) * gs).toFixed(10)),
+          y: parseFloat((Math.round(raw.y / gs) * gs).toFixed(10))
+        };
       }
       pt = raw;
     }

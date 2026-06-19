@@ -8,12 +8,16 @@
 // PUNKTE (freie Punkte, immer ziehbar)
 // ═══════════════════════════════════════════════════════════════════
 
-// Snap zu nächstem Gitterpunkt wenn Snapping aktiv
+// Snap zu nächstem Gitterpunkt wenn Snapping aktiv.
+// Verwendet denselben Schritt für x und y wie der Draw-Loop (Math.min der beiden Bereiche),
+// damit der Snap exakt auf die sichtbaren Gitterpunkte trifft.
 function snapToGrid(x, y) {
   if (!document.getElementById('chk-gridsnap').checked) return { x, y };
   const v = isoView || view;
-  const xs = gridStep(v.xmax - v.xmin), ys = gridStep(v.ymax - v.ymin);
-  return { x: Math.round(x / xs) * xs, y: Math.round(y / ys) * ys };
+  const gs = gridStep(Math.min(v.xmax - v.xmin, v.ymax - v.ymin));
+  const sx = parseFloat((Math.round(x / gs) * gs).toFixed(10));
+  const sy = parseFloat((Math.round(y / gs) * gs).toFixed(10));
+  return { x: sx, y: sy };
 }
 
 // Hilfsfunktion: Subscript-Zahl als Unicode-Zeichen

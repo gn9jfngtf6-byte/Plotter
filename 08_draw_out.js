@@ -1000,7 +1000,7 @@ function draw() {
     const nearHover = hoverPt !== null && Math.abs(toCanvas(pt.x, 0).cx - toCanvas(hoverPt, 0).cx) < 30;
     if (!dup) {
       if (lmode === 'all' || (lmode === 'hover' && nearHover)) {
-        drawLabel(ctx, pt.exactLabel || niceCoord(pt.x, pt.y), cx, cy, C.anno, 'r');
+        drawLabel(ctx, pt.textLabel || pt.exactLabel || niceCoord(pt.x, pt.y), cx, cy, C.anno, 'r');
       }
       drawnPos.push({ cx, cy });
     }

@@ -398,6 +398,7 @@ function renderFuncList() {
   }
   // Smart-Buttons nach Neuaufbau der Liste aktualisieren
   if (typeof updateSmartButtons === 'function') updateSmartButtons();
+  updateFuncLabelsOverlay();
 }
 
 // Synchronisiert die Sichtbarkeit der Steigungsdreieck-Sektion
@@ -725,8 +726,11 @@ function showSolveTooltip(pts) {
   const pt = ptsArr[0];
   const fn = functions[pt.fi];
 
-  const kindNames = { max:'Hochpunkt', min:'Tiefpunkt', inf:'Wendepunkt', zero:'Nullstelle',
-                      yaxis:'y-Achse', isect:'Schnittpunkt', asymp:'Asymptote', pole:'Polstelle' };
+  const kindNames = {
+    max: t('solve_max'), min: t('solve_min'), inf: t('solve_inf'),
+    zero: t('solve_zero'), yaxis: t('solve_yaxis_sect'),
+    isect: t('solve_isect'), asymp: t('solve_asymp'), pole: t('solve_pole')
+  };
 
   // Titel: bei mehreren Punkten nur Art + Funktionsnummer, ohne Koordinate
   if (ptsArr.length > 1) {
@@ -766,5 +770,35 @@ function hideSolveTooltip() {
   const tooltip = document.getElementById('solve-tooltip');
   if (tooltip) tooltip.style.display = 'none';
   window._activeTooltipPt = null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FUNKTIONS-LABEL-OVERLAY — HTML-Box oben rechts im Canvas
+// Zeigt formatierte Ausdrücke (Brüche, Exponenten) statt Canvas-Text
+// ═══════════════════════════════════════════════════════════════════
+function updateFuncLabelsOverlay() {
+  const el = document.getElementById('func-labels-overlay');
+  if (!el) return;
+  const show = document.getElementById('chk-funclabels')?.checked !== false;
+  if (!show) { el.style.display = 'none'; return; }
+
+  const rows = functions
+    .map((fn, i) => ({ fn, i }))
+    .filter(({ fn }) => fn.expr && fn.expr.trim() && fn.visible !== false);
+
+  if (rows.length === 0) { el.style.display = 'none'; return; }
+
+  el.innerHTML = rows.map(({ fn, i }) => {
+    // Parameterwerte einsetzen + vereinfachen, dann als HTML formatieren
+    const substituted = typeof exprWithValues === 'function'
+      ? exprWithValues(fn.expr)
+      : (typeof exprToDisplayStr === 'function' ? exprToDisplayStr(fn.expr) : fn.expr);
+    const html = typeof exprToHtml === 'function' ? exprToHtml(substituted) : substituted;
+    return `<div class="flo-row">
+      <span class="flo-dot" style="background:${fn.color};"></span>
+      <span class="flo-expr">f<sub>${i+1}</sub>(x) = ${html}</span>
+    </div>`;
+  }).join('');
+  el.style.display = 'block';
 }
 

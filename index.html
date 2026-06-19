@@ -151,6 +151,134 @@ body.delete-mode #canvas { cursor:crosshair !important; }
 button.delete-mode-btn { color:#e24b4a; }
 button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; color:#e24b4a; }
 
+/* ── Funktions-Label-Overlay (oben rechts im Canvas) ──────── */
+#func-labels-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 40;
+  background: var(--bg-sidebar);
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  padding: 5px 10px 6px;
+  font-size: 13px;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  pointer-events: none;
+  line-height: 2;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+  max-width: 320px;
+}
+.flo-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.flo-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.1);
+}
+.flo-expr {
+  color: var(--text);
+  font-size: 13px;
+}
+/* Im Beamer-Modus: Overlay grösser */
+body.beam #func-labels-overlay {
+  font-size: 20px;
+  padding: 7px 14px 8px;
+  border-radius: 10px;
+  border-width: 2px;
+  line-height: 2.2;
+}
+body.beam .flo-dot {
+  width: 14px;
+  height: 14px;
+}
+body.beam .flo-expr { font-size: 20px; }
+
+/* ── Beamer-Modus ──────────────────────────────────────────── */
+button#beam-btn { font-size:13px; padding:3px 9px; }
+button#beam-btn.active-btn { background:#fef08a; border-color:#ca8a04; color:#713f12; }
+
+body.beam {
+  /* Alle Grau-Töne auf Schwarz — maximaler Kontrast fürs Beamen */
+  --text:        #000000;
+  --text-muted:  #000000;
+  --text-label:  #000000;
+  --text-btn:    #000000;
+  --panel-title: #000000;
+  font-size: 16px;
+}
+
+/* Funktions-Eingabefeld: deutlich grösser */
+body.beam div.func-inp-ce {
+  font-size: 22px !important;
+  min-height: 40px;
+  line-height: 1.5;
+  padding: 5px 8px;
+}
+
+/* Brüche im Eingabefeld: mitskalieren */
+body.beam .preview-frac .pf-num,
+body.beam .preview-frac .pf-den {
+  font-size: 20px !important;
+}
+
+/* Exponenten/Hochgestellte im Eingabefeld: mitskalieren */
+body.beam .preview-sup {
+  font-size: 16px !important;
+}
+
+/* Math-Tastatur: deutlich grösser */
+body.beam .kbd button {
+  font-size: 17px !important;
+  padding: 7px 11px !important;
+  min-width: 46px;
+  font-weight: 600;
+}
+
+/* Sidebar breiter */
+body.beam .sidebar {
+  width: 420px;
+  min-width: 420px;
+}
+
+/* Allgemeine Buttons */
+body.beam button {
+  font-size: 15px;
+  padding: 6px 12px;
+  font-weight: 600;
+}
+
+/* Panel-Titel */
+body.beam .panel-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+/* Smart-Buttons (Nullst., Max., …) */
+body.beam .smart-btn {
+  font-size: 14px !important;
+  padding: 5px 10px !important;
+  font-weight: 700 !important;
+  border-width: 2px !important;
+}
+
+/* Spezielle-Punkte-Liste */
+body.beam .sp-row { font-size: 15px; }
+
+/* Labels */
+body.beam label, body.beam span { font-size: 15px; }
+
+/* Eingaben + Selects */
+body.beam input[type="text"],
+body.beam input[type="number"],
+body.beam select { font-size: 16px; }
+
 /* Lösungsweg-Boxen */
 .lw-box {
   display:none; margin-top:6px; padding:8px;
@@ -244,33 +372,40 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     <div class="toolbar">
       <button onclick="addFunction()" data-i18n="btn_add_fn">+ Funktion</button>
     </div>
-    <div class="kbd">
-      <button onmousedown="return false" onclick="kbdInsert('x')">x</button>
-      <button onmousedown="return false" onclick="kbdInsert('pi')">π</button>
-      <button onmousedown="return false" onclick="kbdInsert('EC')">e</button>
-      <button onmousedown="return false" onclick="kbdInsert('(')">(</button>
-      <button onmousedown="return false" onclick="kbdInsert(')')">)</button>
-      <div style="display:inline-grid;grid-template-columns:1fr 1fr;gap:3px;align-self:flex-start;">
-        <button onmousedown="return false" onclick="kbdInsert('+')" style="margin:0;">+</button>
-        <button onmousedown="return false" onclick="kbdInsert('-')" style="margin:0;">−</button>
-        <button onmousedown="return false" onclick="kbdInsert('*')" style="margin:0;">⋅</button>
-        <button onmousedown="return false" onclick="kbdInsert('/')" style="margin:0;">÷</button>
+    <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:4px;">
+      <div class="panel-title" style="margin-bottom:0;cursor:pointer;" onclick="toggleKbd()">
+        ⌨ Tastatur <span id="kbd-arrow" class="panel-arrow" style="transform:rotate(-90deg);">▾</span>
       </div>
-      <button onmousedown="return false" onclick="kbdInsert('^2')">x²</button>
-      <button onmousedown="return false" onclick="kbdInsert('^')">xⁿ</button>
-      <button onmousedown="return false" onclick="kbdFrac()" data-i18n-title="title_frac" style="padding:3px 8px;line-height:1;"><span class="preview-frac" style="pointer-events:none;font-size:10px;"><span class="pf-num">□</span><span class="pf-den">□</span></span></button>
-      <button onmousedown="return false" onclick="kbdInsert('exp(',')')">eˣ</button>
-      <button onmousedown="return false" onclick="kbdInsert('sin(',')')">sin</button>
-      <button onmousedown="return false" onclick="kbdInsert('cos(',')')">cos</button>
-      <button onmousedown="return false" onclick="kbdInsert('tan(',')')">tan</button>
-      <button onmousedown="return false" onclick="kbdInsert('sqrt(',')')">√x</button>
-      <button onmousedown="return false" onclick="kbdInsert('nthroot(','',3)">ⁿ√x</button>
-      <button onmousedown="return false" onclick="kbdInsert('log(',')')">ln</button>
-      <button onmousedown="return false" onclick="kbdInsert('log10(',')')">log₁₀</button>
-      <button onmousedown="return false" onclick="kbdInsert('logn(','',2)">logₙ</button>
-      <button onmousedown="return false" onclick="kbdInsert('abs(',')')">|x|</button>
+      <div id="kbd-body" style="display:none;">
+        <div class="kbd">
+          <button onmousedown="return false" onclick="kbdInsert('x')">x</button>
+          <button onmousedown="return false" onclick="kbdInsert('pi')">π</button>
+          <button onmousedown="return false" onclick="kbdInsert('EC')">e</button>
+          <button onmousedown="return false" onclick="kbdInsert('(')">(</button>
+          <button onmousedown="return false" onclick="kbdInsert(')')">)</button>
+          <div style="display:inline-grid;grid-template-columns:1fr 1fr;gap:3px;align-self:flex-start;">
+            <button onmousedown="return false" onclick="kbdInsert('+')" style="margin:0;">+</button>
+            <button onmousedown="return false" onclick="kbdInsert('-')" style="margin:0;">−</button>
+            <button onmousedown="return false" onclick="kbdInsert('*')" style="margin:0;">⋅</button>
+            <button onmousedown="return false" onclick="kbdInsert('/')" style="margin:0;">÷</button>
+          </div>
+          <button onmousedown="return false" onclick="kbdInsert('^2')">x²</button>
+          <button onmousedown="return false" onclick="kbdInsert('^')">xⁿ</button>
+          <button onmousedown="return false" onclick="kbdFrac()" data-i18n-title="title_frac" style="padding:3px 8px;line-height:1;"><span class="preview-frac" style="pointer-events:none;font-size:10px;"><span class="pf-num">□</span><span class="pf-den">□</span></span></button>
+          <button onmousedown="return false" onclick="kbdInsert('exp(',')')">eˣ</button>
+          <button onmousedown="return false" onclick="kbdInsert('sin(',')')">sin</button>
+          <button onmousedown="return false" onclick="kbdInsert('cos(',')')">cos</button>
+          <button onmousedown="return false" onclick="kbdInsert('tan(',')')">tan</button>
+          <button onmousedown="return false" onclick="kbdInsert('sqrt(',')')">√x</button>
+          <button onmousedown="return false" onclick="kbdInsert('nthroot(','',3)">ⁿ√x</button>
+          <button onmousedown="return false" onclick="kbdInsert('log(',')')">ln</button>
+          <button onmousedown="return false" onclick="kbdInsert('log10(',')')">log₁₀</button>
+          <button onmousedown="return false" onclick="kbdInsert('logn(','',2)">logₙ</button>
+          <button onmousedown="return false" onclick="kbdInsert('abs(',')')">|x|</button>
+        </div>
+        <div class="hint" style="margin-top:4px;" data-i18n="lbl_kbd_hint">Klicke ins Funktionsfeld, dann auf eine Taste.<br><code>nthroot(x,n)</code>=ⁿ√x &nbsp;<code>logn(x,b)</code>=log<sub>b</sub>x &nbsp;<code>EC</code>=e</div>
+      </div>
     </div>
-    <div class="hint" style="margin-top:4px;" data-i18n="lbl_kbd_hint">Klicke ins Funktionsfeld, dann auf eine Taste.<br><code>nthroot(x,n)</code>=ⁿ√x &nbsp;<code>logn(x,b)</code>=log<sub>b</sub>x &nbsp;<code>EC</code>=e</div>
   </div>
 
   <!-- PANEL 2: Parameter-Schieber — direkt unter Funktionen -->
@@ -464,10 +599,20 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
   <!-- Extras -->
   <div class="panel">
     <div class="panel-title" data-i18n="panel_extras">⚙ Extras</div>
-    <div class="settings-row"><label><input type="checkbox" id="chk-funclabels" checked onchange="scheduleDraw()"> <span data-i18n="chk_labels">Funktionsbeschriftung im Plot</span></label></div>
+    <div class="settings-row"><label><input type="checkbox" id="chk-funclabels" checked onchange="updateFuncLabelsOverlay();scheduleDraw()"> <span data-i18n="chk_labels">Funktionsbeschriftung im Plot</span></label></div>
     <div id="asym-pills" style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 2px 0;"></div>
     <div class="settings-row"><label><input type="checkbox" id="chk-unitcircle" autocomplete="off" onchange="scheduleDraw()"> <span data-i18n="chk_unitcircle">Einheitskreis</span></label></div>
     <div class="settings-row"><label><input type="checkbox" id="chk-gridsnap" checked onchange="scheduleDraw()"> <span data-i18n="chk_gridsnap">Gitterpunkt-Snapping</span></label></div>
+  </div>
+
+  <!-- Folgen -->
+  <div class="panel">
+    <div class="panel-title" data-i18n="panel_sequences">∑ Folgen</div>
+    <div id="seq-list"></div>
+    <div class="toolbar">
+      <button onclick="addSeq()" data-i18n="btn_add_seq">+ Folge</button>
+    </div>
+    <div class="hint" style="margin-top:4px;" data-i18n="seq_hint">n = natürliche Zahl &nbsp;|&nbsp; Beispiele: 1/n &nbsp; n^2 &nbsp; (-1)^n/n &nbsp; (1+1/n)^n</div>
   </div>
 
   <!-- Spezielle Punkte -->
@@ -635,6 +780,7 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
     <button id="graph-pt-btn" onclick="toggleGraphPtMode()" data-i18n="btn_ongraph">📍 Auf Graph</button>
     <button id="delete-mode-btn" onclick="toggleDeleteMode()" class="delete-mode-btn" data-i18n="btn_delete">🗑 Löschen</button>
     <button onclick="toggleDarkMode()" id="dark-btn" title="Dark Mode" style="font-size:14px;padding:3px 9px;">🌙</button>
+    <button onclick="toggleBeamMode()" id="beam-btn" title="Beamer-Modus EIN">📺</button>
     <div style="position:relative;display:inline-block;">
       <button onclick="toggleLangMenu()" id="lang-btn" title="Sprache / Language" style="font-size:12px;padding:3px 8px;">🌐 DE</button>
       <div id="lang-menu" style="display:none;position:fixed;background:var(--bg-sidebar);border:1px solid var(--border);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.18);z-index:9999;min-width:140px;">
@@ -646,9 +792,10 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
   <div id="canvas-wrap" style="flex:1; position:relative; min-height:0;">
     <canvas id="canvas"></canvas>
     <div class="tooltip" id="tooltip"></div>
+    <div id="func-labels-overlay" style="display:none;"></div>
     <div id="solve-tooltip" style="display:none;position:absolute;top:8px;left:8px;z-index:50;width:270px;background:var(--bg-panel);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.16);padding:4px 10px 6px;font-size:10.5px;line-height:1.65;font-family:monospace;white-space:pre-wrap;color:var(--text);">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;line-height:1.2;margin-bottom:2px;">
-        <span id="solve-tooltip-title" style="font-weight:700;font-size:11px;font-family:system-ui;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>
+        <span id="solve-tooltip-title" style="font-weight:700;font-size:11px;font-family:system-ui;white-space:nowrap;overflow:visible;"></span>
         <span onclick="hideSolveTooltip()" style="cursor:pointer;font-size:14px;opacity:0.4;flex-shrink:0;font-family:system-ui;line-height:1;" title="Schließen">✕</span>
       </div>
       <div id="solve-tooltip-content" style="max-height:200px;overflow-y:auto;"></div>
@@ -706,6 +853,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="10_io.js"></script>
 <script src="11_fitting.js"></script>
 <script src="12_begriffe.js"></script>
+<script src="13_sequences.js"></script>
 
 <script>
 function updateAsymPills() {

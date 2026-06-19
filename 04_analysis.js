@@ -59,83 +59,93 @@ function fmtExact(num, den) {
   return `${n}/${d}`;
 }
 
-// Versucht analytische Nullstellen für Polynom-Ausdrücke (Scheitelpunkt + Standard)
+// Versucht analytische Nullstellen für quadratische Ausdrücke (auch mit Dezimal-Koeffizienten).
+// Skaliert Koeffizienten auf ganze Zahlen → verhindert Dezimalzahlen im Nenner (z.B. 4.2→42/10).
 function tryAnalyticalZerosEx(fi_idx, expr) {
   const a2 = deriv2(expr, 0);
   if (!isFinite(a2) || Math.abs(a2) < 1e-6) return [];
-
   const a = a2 / 2, b = deriv1(expr, 0), c = safeEval(expr, 0);
   if (!isFinite(a) || !isFinite(b) || !isFinite(c)) return [];
   const check = safeEval(expr, 1);
   if (!isFinite(check) || Math.abs(a + b + c - check) > 0.05) return [];
-
   const D = b*b - 4*a*c;
   if (D < -1e-8) return [];
-
   const col = functions[fi_idx] ? functions[fi_idx].color : '#000';
 
-  // Scheitelpunktform erkennen: a*(x+h)^2 + k
-  const vPm = expr.match(/^(-?[\d.]+)?\*?\(x([+-][\d.]+)?\)\^2([+-][\d.]+)?$/);
-  if (vPm) {
-    const aV = parseFloat(vPm[1] || '1');
-    const hV = vPm[2] ? -parseFloat(vPm[2]) : 0;
-    const kV = vPm[3] ? parseFloat(vPm[3]) : 0;
-    if (Math.abs(aV) < 1e-9) return [];
-    const innerD = -kV / aV;
-    if (innerD < -1e-9) return [];
-    if (Math.abs(innerD) < 1e-9) {
-      const z = { kind:'zero', fi:fi_idx, x:hV, y:0, col };
-      z.exactLabel = `(${fmtExact(Math.round(hV*1000),1000)} | 0)`;
-      return [z];
-    }
-    const sr = simplifyRadical(innerD);
-    const sqStr = sr && sr.radicand > 1
-      ? (sr.coef > 1 ? `${sr.coef}√${sr.radicand}` : `√${sr.radicand}`)
-      : `√${parseFloat(innerD.toFixed(6))}`;
-    const numStr = (v) => {
-      const g = gcdInt(Math.abs(Math.round(hV*1000)), 1000);
-      const n = Math.round(hV*1000/g), d = Math.round(1000/g);
-      return d === 1 ? String(n) : `${n}/${d}`;
-    };
-    const x1 = hV - Math.sqrt(innerD), x2 = hV + Math.sqrt(innerD);
-    const hStr = Math.abs(hV) < 1e-9 ? '' : (hV < 0 ? `${fmtExact(Math.round(hV*1000),1000)} - ` : `${fmtExact(Math.round(hV*1000),1000)} + `);
-    const hStrMinus = Math.abs(hV) < 1e-9 ? `-` : `${fmtExact(Math.round(hV*1000),1000)} - `;
-    const z1 = { kind:'zero', fi:fi_idx, x:x1, y:0, col };
-    const z2 = { kind:'zero', fi:fi_idx, x:x2, y:0, col };
-    z1.exactLabel = `(${hStrMinus}${sqStr} | 0)`;
-    z2.exactLabel = `(${hStr}${sqStr} | 0)`;
-    return [z1, z2];
-  }
+  // Hilfsfunktion: √radicand mit Vinculum (Strich über der Zahl)
+  const fmtSqrt = (radicand) =>
+    `√<span style="display:inline-block;border-top:1.5px solid currentColor;line-height:1;padding:0 1px;">${radicand}</span>`;
 
-  // Mitternachtsformel mit vereinfachter Wurzel
-  if (Math.abs(D) < 1e-9) {
-    const x0 = -b/(2*a);
+  // Hilfsfunktion: coef·√radicand / den als HTML-Bruch mit Bruchstrich
+  // Verwendet display:inline-block + display:block — funktioniert in allen Browsern zuverlässig
+  const fmtRadFrac = (coef, radicand, den) => {
+    const sqrtPart = radicand === 1 ? '' : fmtSqrt(radicand);
+    const coefStr  = (coef === 1 && radicand !== 1) ? '' : String(coef);
+    const top = radicand === 1 ? coefStr : `${coefStr}${sqrtPart}`;
+    if (den === 1) return top;
+    return `<span style="display:inline-block;vertical-align:middle;text-align:center;margin:0 2px;font-size:0.92em;">`
+         + `<span style="display:block;border-bottom:1.5px solid currentColor;padding:1px 4px;">${top}</span>`
+         + `<span style="display:block;padding:1px 4px;">${den}</span>`
+         + `</span>`;
+  };
+
+  // Kleinsten Skalierungsfaktor finden, sodass a, b, c ganzzahlig werden
+  let scale = 1;
+  for (const s of [1, 2, 4, 5, 10, 20, 25, 50, 100, 200, 500]) {
+    if ([a, b, c].every(v => Math.abs(v * s - Math.round(v * s)) < 1e-3)) {
+      scale = s; break;
+    }
+  }
+  const aI = Math.round(a * scale), bI = Math.round(b * scale), cI = Math.round(c * scale);
+  const DInt = bI * bI - 4 * aI * cI;
+  if (DInt < 0) return [];
+
+  // Doppelte Nullstelle
+  if (DInt === 0) {
+    const x0 = -bI / (2 * aI);
     const z = { kind:'zero', fi:fi_idx, x:x0, y:0, col };
-    z.exactLabel = `(${fmtExact(Math.round(-b*1000), Math.round(2*a*1000))} | 0)`;
+    z.exactLabel = `(${fmtExact(-bI, 2 * aI)} | 0)`;
     return [z];
   }
-  const DI = Math.round(D * 1e6) / 1e6;
-  const sr = simplifyRadical(Math.round(DI));
+
+  const sr = simplifyRadical(DInt);
   if (!sr) return [];
-  const aI = Math.round(a * 1e6) / 1e6;
-  const bI = Math.round(b * 1e6) / 1e6;
+
+  // x = (−bI ± sr.coef·√sr.radicand) / (2·aI) — gemeinsam kürzen
   const den = 2 * aI;
-  const sqStr = sr.radicand > 1
-    ? (sr.coef > 1 ? `${sr.coef}√${sr.radicand}` : `√${sr.radicand}`)
-    : String(sr.coef);
-  const x1 = (-bI + Math.sqrt(DI)) / den, x2 = (-bI - Math.sqrt(DI)) / den;
-  const z1 = { kind:'zero', fi:fi_idx, x:x1, y:0, col };
-  const z2 = { kind:'zero', fi:fi_idx, x:x2, y:0, col };
-  const nbStr = fmtExact(Math.round(-bI*100), Math.round(den*100));
-  const sqFrac = (() => {
-    const g = gcdInt(sr.coef, Math.abs(Math.round(den*100/100)));
-    const dAbs = Math.abs(den); const sign = den < 0 ? '-' : '';
-    if (Math.abs(dAbs - 1) < 1e-6) return `${sign}${sqStr}`;
-    return `${sign}${sr.coef > 1 ? sr.coef+'√'+sr.radicand : '√'+sr.radicand}/${Math.round(dAbs*100)/100}`;
-  })();
-  const nbFmt = fmtExact(Math.round(-bI * 1e4), Math.round(den * 1e4));
-  z1.exactLabel = `(${nbFmt} + ${sqFrac} | 0)`;
-  z2.exactLabel = `(${nbFmt} - ${sqFrac} | 0)`;
+  const numC = -bI, numR = sr.coef;
+  const g = gcdInt(gcdInt(Math.abs(numC), numR), Math.abs(den));
+  let nc = numC / g, nr = numR / g, d = den / g;
+
+  // Nenner immer positiv (damit Bruchdarstellung eindeutig ist)
+  if (d < 0) { nc = -nc; nr = -nr; d = -d; }
+
+  const constStr = fmtExact(nc, d);           // konstanter Anteil als Bruch-Text
+  const radHtml  = fmtRadFrac(nr, sr.radicand, d);  // Wurzel-Anteil als HTML (Sidebar)
+  // Reintext-Version für Canvas (kein HTML):
+  const radText  = d === 1
+    ? (nr === 1 ? `√${sr.radicand}` : `${nr}√${sr.radicand}`)
+    : (nr === 1 ? `√${sr.radicand}/${d}` : `${nr}√${sr.radicand}/${d}`);
+
+  const xPlus  = (-bI + Math.sqrt(DInt)) / den;
+  const xMinus = (-bI - Math.sqrt(DInt)) / den;
+  const z1 = { kind:'zero', fi:fi_idx, x:xPlus,  y:0, col };
+  const z2 = { kind:'zero', fi:fi_idx, x:xMinus, y:0, col };
+
+  // HTML-Label (Sidebar/Tooltip) — mit Bruchstrich
+  const mkLbl = (pm) => {
+    if (constStr === '0') return `(${pm > 0 ? '' : '−'}${radHtml} | 0)`;
+    return `(${constStr} ${pm > 0 ? '+' : '−'} ${radHtml} | 0)`;
+  };
+  // Reintext-Label (Canvas fillText) — kein HTML
+  const mkTxt = (pm) => {
+    if (constStr === '0') return `(${pm > 0 ? '' : '-'}${radText} | 0)`;
+    return `(${constStr} ${pm > 0 ? '+' : '-'} ${radText} | 0)`;
+  };
+
+  const pm1 = den > 0 ? +1 : -1;
+  z1.exactLabel = mkLbl(pm1);   z1.textLabel = mkTxt(pm1);
+  z2.exactLabel = mkLbl(-pm1);  z2.textLabel = mkTxt(-pm1);
   return [z1, z2];
 }
 
@@ -398,8 +408,22 @@ async function computeSpecials(myToken) {
         const px = view.xmin + s * pDx;
         const py = safeEval(fi_obj.expr, px);
         if (prevPx !== null && isFinite(prevPy)) {
-          if (!isFinite(py)) bisectPole(prevPx, px);
-          else if (Math.abs(py - prevPy) > yR * 6 && Math.sign(py) !== Math.sign(prevPy)) bisectPole(prevPx, px);
+          if (!isFinite(py)) {
+            // py ist unendlich → Pol direkt erkannt (1/x, 1/x² usw.)
+            bisectPole(prevPx, px);
+          } else if (Math.abs(py - prevPy) > yR * 6) {
+            // Grosser Sprung — auch ohne Vorzeichenwechsel (deckt 1/x² ab)
+            bisectPole(prevPx, px);
+          } else if (Math.abs(prevPy) > yR * 20 && Math.abs(py) > yR * 20
+                     && Math.sign(prevPy) === Math.sign(py)) {
+            // Beide Werte sehr gross und gleiches Vorzeichen: Pol könnte dazwischen liegen
+            // (Scan hat Polstelle übersprungen) → Mittelpunkt prüfen
+            const midX = (prevPx + px) / 2;
+            const midY = safeEval(fi_obj.expr, midX);
+            if (!isFinite(midY) || Math.abs(midY) > Math.max(Math.abs(prevPy), Math.abs(py)) * 2) {
+              bisectPole(prevPx, px);
+            }
+          }
         }
         prevPy = py; prevPx = px;
       }
@@ -431,15 +455,18 @@ function renderSpecialList() {
     if (!groups[key]) groups[key] = [];
     groups[key].push(pt);
   });
+  // Koordinaten ohne exactLabel → Dezimal (keine falschen Brüche für numerisch gefundene Punkte)
+  const ptLabel = pt => pt.exactLabel || `(${niceNumDec(pt.x)} | ${niceNumDec(pt.y)})`;
+
   Object.values(groups).forEach(grp => {
-    if (grp.length < 2) { grp.forEach(pt => addSPRow(el, pt, pt.exactLabel || niceCoord(pt.x, pt.y))); return; }
-    if (grp.some(pt => pt.exactLabel)) { grp.forEach(pt => addSPRow(el, pt, pt.exactLabel || niceCoord(pt.x, pt.y))); return; }
+    if (grp.length < 2) { grp.forEach(pt => addSPRow(el, pt, ptLabel(pt))); return; }
+    if (grp.some(pt => pt.exactLabel)) { grp.forEach(pt => addSPRow(el, pt, ptLabel(pt))); return; }
     const per = detectPeriod(grp.map(p => p.x));
-    if (!per) { grp.forEach(pt => addSPRow(el, pt, pt.exactLabel || niceCoord(pt.x, pt.y))); return; }
+    if (!per) { grp.forEach(pt => addSPRow(el, pt, ptLabel(pt))); return; }
     // Periodisch: nur einen zusammenfassenden Eintrag
     const pf = usePiMode() ? asPiFraction(per.period) : null;
-    const pStr = pf ? formatPi(pf.p, pf.q) : per.period.toFixed(precision);
-    addSPRow(el, grp[0], `(${niceNum(per.base)} + ${pStr}·k | ${niceNum(grp[0].y)})`);
+    const pStr = pf ? formatPi(pf.p, pf.q) : parseFloat(per.period.toFixed(precision)).toString();
+    addSPRow(el, grp[0], `(${niceNumDec(per.base)} + ${pStr}·k | ${niceNumDec(grp[0].y)})`);
   });
 
   // Smart-Buttons in der Funktionsliste aktualisieren
@@ -456,14 +483,14 @@ function addSPRow(el, pt, label) {
   const lbl = document.createElement('span');
   if (pt.kind === 'asymp') {
     if (pt.oblique) {
-      const sS = Math.abs(pt.slope-1)<1e-5?'':(Math.abs(pt.slope+1)<1e-5?'−':niceNum(pt.slope)+'·');
-      const bS = Math.abs(pt.intercept)<1e-5?'':(pt.intercept>0?` + ${niceNum(pt.intercept)}`:` − ${niceNum(Math.abs(pt.intercept))}`);
-      lbl.textContent = `f${pt.fi+1} y = ${sS}x${bS}  (schräg, x→${pt.dir})`;
+      const sS = Math.abs(pt.slope-1)<1e-5?'':(Math.abs(pt.slope+1)<1e-5?'−':niceNumDec(pt.slope)+'·');
+      const bS = Math.abs(pt.intercept)<1e-5?'':(pt.intercept>0?` + ${niceNumDec(pt.intercept)}`:` − ${niceNumDec(Math.abs(pt.intercept))}`);
+      lbl.textContent = `f${pt.fi+1} y = ${sS}x${bS}  (${t('sp_oblique')}, x→${pt.dir})`;
     } else {
-      lbl.textContent = `f${pt.fi+1} y = ${niceNum(pt.y)}  (x→${pt.dir})`;
+      lbl.textContent = `f${pt.fi+1} y = ${niceNumDec(pt.y)}  (x→${pt.dir})`;
     }
   } else if (pt.kind === 'pole') {
-    lbl.textContent = `f${pt.fi+1} x = ${niceNum(pt.x)}  (vertikale Asymptote)`;
+    lbl.textContent = `f${pt.fi+1} x = ${niceNumDec(pt.x)}  (${t('sp_vert_asymp_lbl')})`;
   } else {
     lbl.innerHTML  = (pt.kind === 'isect' ? `f${pt.fi+1}∩f${pt.fj+1} ` : `f${pt.fi+1} `) + label;
   }
@@ -714,9 +741,9 @@ function generateSolveSteps(pt) {
   let steps = '';
 
   if (pt.kind === 'pole') {
-    steps += `<b>Vertikale Asymptote von ${fLabel}</b>\n\n`;
-    steps += `Gesucht: x-Wert, bei dem f(x) → ±∞\n\n`;
-    steps += `Ansatz: Nenner des Bruchs = 0\n\n`;
+    steps += `<b>${t('solve_vert_asymp')} von ${fLabel}</b>\n\n`;
+    steps += `${t('solve_find_where_inf')}\n\n`;
+    steps += `${t('solve_approach')}: ${t('solve_denom_zero')}\n\n`;
     const rat = getRationalSimple();
     if (rat) {
       const { a, h, k } = rat;
@@ -727,12 +754,12 @@ function generateSolveSteps(pt) {
       steps += `  x ${hSign} = 0\n`;
       steps += `  x = <b>${rr(h)}</b>\n\n`;
     } else {
-      steps += `Numerisch bestimmt: x ≈ <b>${rr(pt.x)}</b>\n\n`;
+      steps += `${t('solve_num_approx')}: x ≈ <b>${rr(pt.x)}</b>\n\n`;
     }
     const yL = safeEval(expr, pt.x - 0.001);
     const yR = safeEval(expr, pt.x + 0.001);
-    steps += `→ x = <b>${rr(pt.x)}</b> ist vertikale Asymptote\n\n`;
-    steps += `Grenzwertverhalten:\n`;
+    steps += `→ x = <b>${rr(pt.x)}</b> ${t('solve_is_vert_asymp')}\n\n`;
+    steps += `${t('solve_limit_beh')}:\n`;
     steps += `  lim f(x) für x → ${rr(pt.x)}⁻:  ${!isFinite(yL) ? '±∞' : yL < 0 ? '−∞' : '+∞'}\n`;
     steps += `  lim f(x) für x → ${rr(pt.x)}⁺:  ${!isFinite(yR) ? '±∞' : yR < 0 ? '−∞' : '+∞'}`;
 
@@ -746,7 +773,7 @@ function generateSolveSteps(pt) {
       const { slope: m, intercept: b } = pt;
       const sS = Math.abs(m-1)<1e-5?'x':(Math.abs(m+1)<1e-5?'−x':`${rr(m)}x`);
       const bS = Math.abs(b)<1e-6?'':(b>0?` + ${rr(b)}`:` − ${rr(-b)}`);
-      steps += `<b>Schräge Asymptote von ${fLabel}</b>\n\n`;
+      steps += `<b>${t('solve_oblique_asymp')} von ${fLabel}</b>\n\n`;
       if (dec) {
         const { h, R } = dec;
         const hSign = Math.abs(h)<1e-5?'x':(h<0?`x + ${rr(-h)}`:`x − ${rr(h)}`);
@@ -759,7 +786,7 @@ function generateSolveSteps(pt) {
         steps += `  Rest R = (f(x) − (${sS}${bS})) · (${hSign})\n`;
         steps += `  R = ${rr(R)} = konst. ✓\n\n`;
         const yFar = safeEval(expr, 10000), yAFar = m*10000 + b;
-        steps += `<u>Kontrolle:</u>  f(10000) − y_A(10000) = ${rr(yFar)} − ${rr(yAFar)} = ${rr(yFar-yAFar)} ≈ 0 ✓`;
+        steps += `<u>${t('solve_control')}:</u>  f(10000) − y_A(10000) = ${rr(yFar)} − ${rr(yAFar)} = ${rr(yFar-yAFar)} ≈ 0 ✓`;
       } else {
         steps += `<u>Methode: Grenzwert der Steigung und des Abstands</u>\n\n`;
         steps += `Steigung:  m = lim(x→±∞) f(x)/x\n`;
@@ -797,18 +824,18 @@ function generateSolveSteps(pt) {
         steps += `  lim(x → ±∞) f(x) = 0 + ${rr(rK)} = <b>${rr(rK)}</b>\n\n`;
         steps += `→ <b>Horizontale Asymptote: y = ${rr(rK)}</b>\n\n`;
         const yFar = safeEval(expr, 10000);
-        steps += `Kontrolle: f(10000) = ${rr(yFar)} ≈ ${rr(rK)} ✓`;
+        steps += `${t('solve_control')}: f(10000) = ${rr(yFar)} ≈ ${rr(rK)} ✓`;
       } else {
         steps += `<u>Grenzwert für x → ${pt.dir}:</u>\n\n`;
         steps += `  lim f(x) ≈ <b>${rr(pt.y)}</b>\n\n`;
         const xFar = pt.dir === '+∞' ? 10000 : -10000;
-        steps += `Kontrolle: f(${xFar}) = ${rr(safeEval(expr, xFar))}`;
+        steps += `${t('solve_control')}: f(${xFar}) = ${rr(safeEval(expr, xFar))}`;
       }
     }
 
   } else if (pt.kind === 'yaxis') {
-    steps += `<b>y-Achsenabschnitt von ${fLabel}</b>\n\n`;
-    steps += `Gesucht: f(0)\n\n`;
+    steps += `<b>${t('solve_yaxis_sect')} von ${fLabel}</b>\n\n`;
+    steps += `${t('solve_given')}: f(0)\n\n`;
     const lin = getLinCoeffs();
     const quad = getQuadCoeffs();
     const exp = getExpCoeffs();
@@ -817,18 +844,18 @@ function generateSolveSteps(pt) {
       steps += `f(x) = ${rr(a)}x ${rrSign(b)}\n\n`;
       steps += `f(0) = ${rr(a)}·0 ${rrSign(b)}\n`;
       steps += `f(0) = <b>${rr(b)}</b>\n\n`;
-      steps += `Schnittpunkt mit y-Achse: S = (0 | <b>${rr(b)}</b>)`;
+      steps += `${t('solve_yaxis_intersect')}: S = (0 | <b>${rr(b)}</b>)`;
     } else if (quad) {
       const { a, b, c } = quad;
       steps += `f(x) = ${rr(a)}x² ${rrSign(b)}x ${rrSign(c)}\n\n`;
       steps += `f(0) = ${rr(a)}·0² ${rrSign(b)}·0 ${rrSign(c)}\n`;
       steps += `f(0) = <b>${rr(c)}</b>\n\n`;
-      steps += `Schnittpunkt mit y-Achse: S = (0 | <b>${rr(c)}</b>)`;
+      steps += `${t('solve_yaxis_intersect')}: S = (0 | <b>${rr(c)}</b>)`;
     } else if (exp) {
       const { a, b } = exp;
       steps += `f(x) = ${rr(a)}·${rr(b)}ˣ\n\n`;
       steps += `f(0) = ${rr(a)}·${rr(b)}⁰ = ${rr(a)}·1 = <b>${rr(a)}</b>\n\n`;
-      steps += `Schnittpunkt mit y-Achse: S = (0 | <b>${rr(a)}</b>)`;
+      steps += `${t('solve_yaxis_intersect')}: S = (0 | <b>${rr(a)}</b>)`;
     } else {
       steps += `f(0) = <b>${r(pt.y, 3)}</b>`;
     }
@@ -845,7 +872,7 @@ function generateSolveSteps(pt) {
       const { a, b } = lin;
       steps += `f(x) = ${rr(a)}x ${rrSign(b)} = 0\n`;
       if (Math.abs(a) < 1e-8) {
-        steps += Math.abs(b) < 1e-8 ? 'Jedes x ist eine Nullstelle.' : 'Keine Nullstelle (konstante Funktion).';
+        steps += Math.abs(b) < 1e-8 ? t('solve_all_x_zero') : t('solve_no_zero_const');
       } else {
         steps += `${rr(a)}x = ${rr(-b)}\n`;
         steps += `x = ${rr(-b)} ÷ ${rr(a)} = <b>${rr(pt.x)}</b>`;
@@ -855,7 +882,7 @@ function generateSolveSteps(pt) {
       steps += `f(x) = ${rr(a)}·${rr(b)}ˣ = 0\n\n`;
       steps += `Da ${rr(b)} > 0 ist ${rr(b)}ˣ > 0 für alle x.\n`;
       steps += `Da a = ${rr(a)} ≠ 0, gilt f(x) ≠ 0 für alle x.\n`;
-      steps += `→ <b>Keine Nullstelle</b>`;
+      steps += `→ <b>${t('solve_no_zero_exp')}</b>`;
     } else if (quad) {
       const { a, b, c } = quad;
       steps += `f(x) = ${rr(a)}x² ${rrSign(b)}x ${rrSign(c)} = 0\n\n`;
@@ -1271,12 +1298,33 @@ function generateSolveSteps(pt) {
       steps += `  ${rr(a1)}x² ${rrSign(b1)}x ${rrSign(c1)} = ${rr(a2)}x² ${rrSign(b2)}x ${rrSign(c2)}\n`;
       if (Math.abs(A) < 1e-8) {
         if (Math.abs(B) < 1e-8) { steps += Math.abs(C)<1e-8?t('solve_same_parabola'):t('solve_no_isect'); }
-        else { steps += `  0 = ${rr(B)}x ${rrSign(C)}\n  x = <b>${rr(-C/B)}</b>`; }
+        else {
+          const xs = -C/B, ys = safeEval(expr, xs);
+          steps += `  0 = ${rr(B)}x ${rrSign(C)}\n`;
+          steps += `  x = <b>${rr(xs)}</b>\n\n`;
+          steps += `  y = f${fi+1}(${rr(xs)}) = <b>${rr(ys)}</b>\n\n`;
+          steps += `Schnittpunkt: S = (<b>${rr(xs)}</b> | <b>${rr(ys)}</b>)`;
+        }
       } else {
         steps += `  0 = ${rr(A)}x² ${rrSign(B)}x ${rrSign(C)}\n`;
-        const D = B*B-4*A*C; steps += `  D = ${rr(D)}\n`;
+        const D = B*B-4*A*C;
+        steps += `  D = (${rr(B)})² − 4·${rr(A)}·${rr(C)} = <b>${rr(D)}</b>\n\n`;
         if (D < -1e-8) { steps += t('solve_no_isect'); }
-        else { const sq=Math.sqrt(D); steps += `  x₁ = <b>${rr((-B+sq)/(2*A))}</b>,  x₂ = <b>${rr((-B-sq)/(2*A))}</b>`; }
+        else if (Math.abs(D) < 1e-8) {
+          const xs = -B/(2*A), ys = safeEval(expr, xs);
+          steps += `  D = 0 → Berührpunkt:\n`;
+          steps += `  x = <b>${rr(xs)}</b>,  y = <b>${rr(ys)}</b>\n\n`;
+          steps += `Schnittpunkt: S = (<b>${rr(xs)}</b> | <b>${rr(ys)}</b>)`;
+        } else {
+          const sq=Math.sqrt(D);
+          const x1=(-B+sq)/(2*A), x2=(-B-sq)/(2*A);
+          const y1=safeEval(expr,x1), y2=safeEval(expr,x2);
+          steps += `  x₁ = (${rr(-B)} + √${rr(D)}) / ${rr(2*A)} = <b>${rr(x1)}</b>\n`;
+          steps += `  x₂ = (${rr(-B)} − √${rr(D)}) / ${rr(2*A)} = <b>${rr(x2)}</b>\n\n`;
+          steps += `  y₁ = f${fi+1}(${rr(x1)}) = <b>${rr(y1)}</b>\n`;
+          steps += `  y₂ = f${fi+1}(${rr(x2)}) = <b>${rr(y2)}</b>\n\n`;
+          steps += `S₁ = (<b>${rr(x1)}</b> | <b>${rr(y1)}</b>),  S₂ = (<b>${rr(x2)}</b> | <b>${rr(y2)}</b>)`;
+        }
       }
     } else {
       steps += `f${fi+1}(x) = f${fj+1}(x)\n(Analytisch nicht allgemein lösbar)\n\n`;

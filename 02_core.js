@@ -37,9 +37,18 @@ const AREA_ALPHAS = ['rgba(55,138,221,0.15)','rgba(216,90,48,0.15)','rgba(29,158
 // Farben für Gitternetz, Achsen, Labels, Hintergrund — dynamisch je nach Dark Mode
 const C = { get grid(){ return darkMode?'#2d3140':'#e5e7eb'; },
              get axis(){ return darkMode?'#6b7280':'#6b7280'; },
-             get label(){ return darkMode?'#6b7280':'#9ca3af'; },
-             get anno(){ return darkMode?'#c4c9d6':'#4b5563'; },
+             get label(){ return beamMode?'#000000':(darkMode?'#6b7280':'#9ca3af'); },
+             get anno(){ return beamMode?'#000000':(darkMode?'#c4c9d6':'#4b5563'); },
              get bg(){ return darkMode?'#16181d':'#ffffff'; } };
+
+let _kbdOpen = false;
+function toggleKbd() {
+  _kbdOpen = !_kbdOpen;
+  const body = document.getElementById('kbd-body');
+  const arrow = document.getElementById('kbd-arrow');
+  if (body) body.style.display = _kbdOpen ? '' : 'none';
+  if (arrow) arrow.style.transform = _kbdOpen ? '' : 'rotate(-90deg)';
+}
 
 let darkMode = false;
 function toggleDarkMode() {
@@ -48,6 +57,40 @@ function toggleDarkMode() {
   document.getElementById('dark-btn').textContent = darkMode ? '☀' : '🌙';
   scheduleDraw();
 }
+
+// ── Beamer-Modus ─────────────────────────────────────────────────────
+let beamMode = false;
+let _wakeLock = null;
+
+// Hilfsfunktionen: skalieren LineWidth und FontSize im Beam-Modus
+function bw(w) { return beamMode ? w * 1.9 : w; }
+function bf(px) { return beamMode ? Math.round(px * 2.2) : px; }
+function br(r) { return beamMode ? r * 2.2 : r; }  // Kreis-Radius
+
+async function toggleBeamMode() {
+  beamMode = !beamMode;
+  const btn = document.getElementById('beam-btn');
+  document.body.classList.toggle('beam', beamMode);
+  if (btn) {
+    btn.classList.toggle('active-btn', beamMode);
+    btn.title = beamMode ? 'Beamer-Modus AUS' : 'Beamer-Modus EIN';
+  }
+  if (beamMode) {
+    if ('wakeLock' in navigator) {
+      try { _wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+    }
+  } else {
+    if (_wakeLock) { try { _wakeLock.release(); } catch(e) {} _wakeLock = null; }
+  }
+  scheduleDraw();
+}
+
+// Wake Lock nach Tab-Wechsel wieder aktivieren (iOS gibt ihn automatisch frei)
+document.addEventListener('visibilitychange', async () => {
+  if (beamMode && document.visibilityState === 'visible' && 'wakeLock' in navigator) {
+    try { _wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+  }
+});
 
 // Reservierte Namen die NICHT als Parameter erkannt werden sollen.
 // Neue eingebaute Funktionen hier eintragen wenn man sie in safeEval ergänzt.
@@ -157,7 +200,11 @@ let drawPending = false;
 function scheduleDraw() {
   if (drawPending) return;
   drawPending = true;
-  requestAnimationFrame(() => { drawPending = false; draw(); });
+  requestAnimationFrame(() => {
+    drawPending = false;
+    if (typeof updateFuncLabelsOverlay === 'function') updateFuncLabelsOverlay();
+    draw();
+  });
 }
 
 // Canvas-Element und 2D-Zeichenkontext
