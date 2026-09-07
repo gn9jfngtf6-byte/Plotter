@@ -331,6 +331,17 @@ async function computeSpecials(myToken) {
       pd1 = d1; pd2 = d2;
     }
 
+    // Filtere Sonderpunkte ausserhalb des Definitionsbereichs
+    if (fi.domainMin != null || fi.domainMax != null) {
+      const dMin = fi.domainMin != null ? fi.domainMin : -Infinity;
+      const dMax = fi.domainMax != null ? fi.domainMax : Infinity;
+      for (let j = acc.length - 1; j >= 0; j--) {
+        const pt = acc[j];
+        if (pt.fi !== fi_idx) continue;
+        if (pt.x < dMin - 1e-9 || pt.x > dMax + 1e-9) acc.splice(j, 1);
+      }
+    }
+
     { const _yp = yieldIfNeeded(); if (_yp) { await _yp; if (cancelled()) return; } }
   }
 

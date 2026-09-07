@@ -16,6 +16,323 @@
 })();
 
 // ═══════════════════════════════════════════════════════════════════
+// DEFINITIONSBEREICH: automatische Erkennung
+// ═══════════════════════════════════════════════════════════════════
+
+// Speichert pro Funktionsobjekt: { timer, userSet }
+// WeakMap: wird automatisch geleert wenn die Funktion aus dem Array entfernt wird
+const _fnDomState = new WeakMap();
+function _domSt(fn) {
+  if (!_fnDomState.has(fn)) _fnDomState.set(fn, { timer: null, userSet: false });
+  return _fnDomState.get(fn);
+}
+
+// Scannt den Ausdruck numerisch und sucht nach NaN↔finite-Übergängen.
+// Gibt {domainMin, domainMax, excluded} zurück.
+//   domainMin/domainMax: null = keine Grenze erkannt.
+//   excluded: Array von x-Werten wo Polstellen/Lücken liegen (z.B. [0] für 1/x).
+// Polstellen werden als excluded gemeldet, nicht als Domänengrenze.
+function detectNaturalDomain(expr) {
+  if (!expr || !expr.trim()) return { domainMin: null, domainMax: null, excluded: [] };
+  const SMIN = -500, SMAX = 500, STEPS = 5000;
+  const step = (SMAX - SMIN) / STEPS;
+  let leftBnd = null, rightBnd = null;
+  const excluded = [];
+  let prevFin = null, prevX = null;
+  let waitingForPoleEnd = false, poleStart = null;
+
+  const snapRound = v => {
+    const r = Math.round(v * 100) / 100;
+    return Math.abs(v - r) < 0.005 ? r : parseFloat(v.toFixed(4));
+  };
+
+  for (let i = 0; i <= STEPS; i++) {
+    const x = SMIN + i * step;
+    const fin = isFinite(safeEval(expr, x));
+    if (prevFin !== null) {
+      if (!prevFin && fin) {
+        // NaN → finite: linke Domänengrenze oder Ende einer Polstelle?
+        let lo = prevX, hi = x;
+        for (let k = 0; k < 50; k++) { const m=(lo+hi)/2; if(isFinite(safeEval(expr,m))) hi=m; else lo=m; }
+        const bnd = (lo+hi)/2;
+        if (!isFinite(safeEval(expr, Math.min(bnd-20, SMIN*0.9))) && leftBnd === null) {
+          // Funktion links davon nicht definiert → echte linke Grenze
+          leftBnd = snapRound(bnd);
+          waitingForPoleEnd = false; poleStart = null;
+        } else if (waitingForPoleEnd && poleStart !== null) {
+          // Wir kommen aus einer NaN-Region heraus, die links von etwas Finitem war → Polstelle
+          // Mittelpunkt der NaN-Region als Ausnahme-Punkt melden
+          const poleMid = snapRound((poleStart + bnd) / 2);
+          if (!excluded.includes(poleMid)) excluded.push(poleMid);
+          waitingForPoleEnd = false; poleStart = null;
+        }
+      }
+      if (prevFin && !fin) {
+        // finite → NaN: rechte Domänengrenze oder Beginn einer Polstelle?
+        let lo = prevX, hi = x;
+        for (let k = 0; k < 50; k++) { const m=(lo+hi)/2; if(isFinite(safeEval(expr,m))) lo=m; else hi=m; }
+        const bnd = (lo+hi)/2;
+        if (!isFinite(safeEval(expr, Math.max(bnd+20, SMAX*0.9))) && rightBnd === null) {
+          // Funktion rechts davon nicht definiert → echte rechte Grenze
+          rightBnd = snapRound(bnd);
+        } else {
+          // Funktion ist rechts wieder definiert → Polstelle beginnt hier
+          waitingForPoleEnd = true; poleStart = bnd;
+        }
+      }
+    }
+    prevFin = fin; prevX = x;
+  }
+  return { domainMin: leftBnd, domainMax: rightBnd, excluded };
+}
+
+// Erzeugt den Anzeigetext für den Domänen-Button, inklusive Ausnahmen (Polstellen).
+function _domainLabel(fn) {
+  const excl = fn.domainExcluded || [];
+  const hasBounds = fn.domainMin != null || fn.domainMax != null;
+  let exclStr = '';
+  if (excl.length > 0 && excl.length <= 4) exclStr = ` \\ {${excl.join(', ')}}`;
+  else if (excl.length > 4)               exclStr = ' \\ {…}';
+  if (!hasBounds) return excl.length > 0 ? `D: ℝ${exclStr}` : 'D: ℝ';
+  const dmn = fn.domainMin != null ? fn.domainMin : '−∞';
+  const dmx = fn.domainMax != null ? fn.domainMax : '+∞';
+  return `D: [${dmn}, ${dmx}]${exclStr}`;
+}
+
+// Wendet erkannten Definitionsbereich auf fn + UI-Elemente an
+function _applyDetectedDomain(fn, domainToggle, vonInp, bisInp, rangeSpan) {
+  const det = detectNaturalDomain(fn.expr);
+  fn.domainMin = det.domainMin;
+  fn.domainMax = det.domainMax;
+  fn.domainExcluded = det.excluded || [];
+  domainToggle.textContent = _domainLabel(fn);
+  vonInp.value = fn.domainMin != null ? fn.domainMin : '';
+  bisInp.value = fn.domainMax != null ? fn.domainMax : '';
+  if (rangeSpan) _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, rangeSpan);
+  clearEvalCache(); scheduleComputeSpecials(); scheduleDraw();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// WERTEMENGE: automatische Erkennung
+// ═══════════════════════════════════════════════════════════════════
+
+// Scannt numerisch und bestimmt den Wertebereich [rangeMin, rangeMax].
+// null = unbeschränkt in diese Richtung.
+function detectRange(expr, domainMin, domainMax) {
+  if (!expr || !expr.trim()) return { rangeMin: null, rangeMax: null };
+
+  const dMin = domainMin != null ? domainMin : -500;
+  const dMax = domainMax != null ? domainMax : 500;
+  const STEPS = 3000;
+  const dx = (dMax - dMin) / STEPS;
+
+  let yMin = Infinity, yMax = -Infinity;
+  let prevFin = null, nanAfterFinite = false, hasInteriorNaN = false;
+  let prevY = null, prevX = null, nanEnterX = null;
+  let hasFiniteZeroCross = false, hasZeroDirect = false;
+  const interiorPoles = []; // ungefähre x-Positionen der Polstellen
+
+  for (let i = 0; i <= STEPS; i++) {
+    const x = dMin + i * dx;
+    const y = safeEval(expr, x);
+    const fin = isFinite(y);
+    if (fin) {
+      if (y < yMin) yMin = y;
+      if (y > yMax) yMax = y;
+      if (Math.abs(y) < 1e-9) hasZeroDirect = true;
+      if (prevY !== null && prevFin === true && ((prevY < 0 && y > 0) || (prevY > 0 && y < 0)))
+        hasFiniteZeroCross = true;
+      if (nanAfterFinite) {
+        hasInteriorNaN = true;
+        if (nanEnterX !== null) {
+          interiorPoles.push((nanEnterX + x) / 2);
+          nanEnterX = null;
+        }
+        nanAfterFinite = false; // Reset für nächste Polstelle
+      }
+      prevY = y;
+    } else {
+      if (prevFin === true) { nanAfterFinite = true; nanEnterX = prevX; }
+      prevY = null;
+    }
+    prevFin = fin; prevX = x;
+  }
+
+  // Rundet auf sinnvolle Stellen
+  const rnd = v => {
+    if (Math.abs(v) < 1e-6) return 0;
+    const a = Math.abs(v);
+    return parseFloat(v.toFixed(a >= 100 ? 0 : a >= 10 ? 1 : 2));
+  };
+
+  // Funktion nirgends definiert
+  if (!isFinite(yMin)) return { rangeMin: null, rangeMax: null, rangeExcluded: [] };
+
+  // Polstellen im Inneren: Approach-Richtung durch Direktproben ermitteln
+  if (hasInteriorNaN) {
+    const zeroAchieved = hasZeroDirect || hasFiniteZeroCross;
+
+    // Für jede Polstelle: testet ob f → +∞ oder f → −∞
+    const EPS = 1e-7, THR = 100;
+    let polePos = false, poleNeg = false;
+    interiorPoles.forEach(px => {
+      for (const tx of [px - EPS, px + EPS]) {
+        if (tx <= dMin || tx >= dMax) continue;
+        const ty = safeEval(expr, tx);
+        if (!isFinite(ty)) continue;
+        if (ty >  THR) polePos = true;
+        if (ty < -THR) poleNeg = true;
+      }
+    });
+    // Fallback wenn interiorPoles leer (Scan zu grob): Vorzeichen aus Scan ableiten
+    if (!polePos && !poleNeg) { if (yMax > 10) polePos = true; if (yMin < -10) poleNeg = true; }
+
+    // Grenzwert bei ±∞ (für Fälle mit unbeschränkter Domain)
+    const farLimit = (findMin) => {
+      const pts = [];
+      const farVals = [500, 1000, 2000];
+      farVals.forEach(fx => {
+        if (domainMax == null || fx <= domainMax) { const v = safeEval(expr, fx); if (isFinite(v)) pts.push(v); }
+        if (domainMin == null || -fx >= domainMin) { const v = safeEval(expr, -fx); if (isFinite(v)) pts.push(v); }
+      });
+      return pts.length ? (findMin ? Math.min(...pts) : Math.max(...pts)) : null;
+    };
+
+    if (polePos && poleNeg) {
+      // Pol geht zu ±∞ → horizontale Asymptote bestimmen (= ausgeschlossener W-Wert)
+      // z.B. 1/x → Asymptote 0 → W: ℝ\{0}; 1/x-1 → Asymptote -1 → W: ℝ\{-1}; tan → keine Asymptote → W: ℝ
+      const farSmp = (xs) => xs
+        .filter(x => (domainMin == null || x >= domainMin) && (domainMax == null || x <= domainMax))
+        .map(x => safeEval(expr, x)).filter(isFinite);
+      const rSamp = farSmp([1000, 2000, 5000]);
+      const lSamp = farSmp([-1000, -2000, -5000]);
+      const sprd = arr => arr.length >= 2 ? Math.max(...arr) - Math.min(...arr) : Infinity;
+      const lastV = arr => arr.length ? arr[arr.length - 1] : null;
+
+      const rConv = sprd(rSamp) < 0.5, lConv = sprd(lSamp) < 0.5;
+      const rLim = lastV(rSamp), lLim = lastV(lSamp);
+
+      let asymptote = null;
+      if (rConv && lConv && rLim !== null && lLim !== null && Math.abs(rLim - lLim) < 1.0) {
+        asymptote = rnd((rLim + lLim) / 2);         // beide Seiten konvergieren → Asymptote
+      } else if (rConv && rLim !== null) {
+        asymptote = rnd(rLim);                       // nur rechts konvergent
+      } else if (lConv && lLim !== null) {
+        asymptote = rnd(lLim);                       // nur links konvergent
+      }
+      // Keine Konvergenz (z.B. tan(x)): Asymptote = null → W: ℝ
+
+      return asymptote !== null
+        ? { rangeMin: null, rangeMax: null, rangeExcluded: [asymptote] }
+        : { rangeMin: null, rangeMax: null, rangeExcluded: [] };
+    }
+
+    const domBounded = domainMin != null && domainMax != null;
+
+    if (polePos) {
+      // Pol → +∞; untere Grenze = asymptotischer Grenzwert bei ±∞
+      if (!domBounded) {
+        const lim = farLimit(true);
+        if (lim !== null) {
+          const limR = rnd(lim);
+          return { rangeMin: limR, rangeMax: null, rangeExcluded: [limR] }; // W: (lim, +∞)
+        }
+      } else {
+        // Beschränkte Domain: Minimum ist an den Grenzen erreichbar
+        return { rangeMin: rnd(yMin), rangeMax: null, rangeExcluded: [] }; // W: [min, +∞)
+      }
+    }
+
+    if (poleNeg) {
+      // Pol → −∞; obere Grenze = asymptotischer Grenzwert bei ±∞
+      if (!domBounded) {
+        const lim = farLimit(false);
+        if (lim !== null) {
+          const limR = rnd(lim);
+          return { rangeMin: null, rangeMax: limR, rangeExcluded: [limR] }; // W: (−∞, lim)
+        }
+      } else {
+        return { rangeMin: null, rangeMax: rnd(yMax), rangeExcluded: [] }; // W: (−∞, max]
+      }
+    }
+
+    return { rangeMin: null, rangeMax: null, rangeExcluded: [] };
+  }
+
+  let rangeMin = rnd(yMin), rangeMax = rnd(yMax);
+
+  // Prüft ob Funktion zwischen zwei x-Werten monoton steigt/fällt (> 0.5 Differenz)
+  const trend = (xa, xb) => {
+    const ya = safeEval(expr, xa), yb = safeEval(expr, xb);
+    if (!isFinite(ya) || !isFinite(yb)) return 0;
+    return yb > ya + 0.5 ? 1 : yb < ya - 0.5 ? -1 : 0;
+  };
+
+  // Unbeschränktheit nach rechts prüfen (nur bei offener rechter Domain)
+  if (domainMax == null) {
+    const r = [trend(100,200), trend(200,400), trend(400,800)];
+    if (r.every(v => v === 1))  rangeMax = null; // wächst nach +∞
+    if (r.every(v => v === -1)) rangeMin = null; // fällt nach −∞
+  }
+
+  // Unbeschränktheit nach links prüfen (nur bei offener linker Domain)
+  if (domainMin == null) {
+    // Paare von innen nach außen (x wird kleiner): y(-400)<y(-200) → fällt nach −∞
+    const yL100 = safeEval(expr, -100), yL200 = safeEval(expr, -200), yL400 = safeEval(expr, -400);
+    if (isFinite(yL100) && isFinite(yL200) && isFinite(yL400)) {
+      if (yL400 > yL200 + 0.5 && yL200 > yL100 + 0.5) rangeMax = null; // steigt nach +∞ links
+      if (yL400 < yL200 - 0.5 && yL200 < yL100 - 0.5) rangeMin = null; // fällt nach −∞ links
+    }
+  }
+
+  // Asymptotik an den Domain-Grenzen prüfen (z.B. log(x) nahe x=0)
+  if (domainMin != null) {
+    const eps = Math.max(dx / 1000, 1e-9);
+    const y1 = safeEval(expr, dMin + eps);
+    const y2 = safeEval(expr, dMin + eps * 100);
+    if (isFinite(y1) && isFinite(y2)) {
+      if (y1 < y2 - 2) rangeMin = null; // nähert sich −∞ von rechts
+      if (y1 > y2 + 2) rangeMax = null; // nähert sich +∞ von rechts
+    }
+  }
+  if (domainMax != null) {
+    const eps = Math.max(dx / 1000, 1e-9);
+    const y1 = safeEval(expr, dMax - eps);
+    const y2 = safeEval(expr, dMax - eps * 100);
+    if (isFinite(y1) && isFinite(y2)) {
+      if (y1 > y2 + 2) rangeMax = null; // nähert sich +∞ von links
+      if (y1 < y2 - 2) rangeMin = null; // nähert sich −∞ von links
+    }
+  }
+
+  return { rangeMin, rangeMax, rangeExcluded: [] };
+}
+
+// Aktualisiert das rangeSpan-Element mit der berechneten Wertemenge
+function _updateRangeSpan(expr, domainMin, domainMax, rangeSpan) {
+  if (!expr || !expr.trim()) { rangeSpan.textContent = ''; return; }
+  const { rangeMin, rangeMax, rangeExcluded } = detectRange(expr, domainMin, domainMax);
+  const excl = rangeExcluded || [];
+  if (rangeMin === null && rangeMax === null) {
+    // ℝ mit möglichen Ausnahmen (z.B. ℝ\{0})
+    const exclStr = excl.length > 0 && excl.length <= 3 ? ` \\ {${excl.join(', ')}}`
+                  : excl.length > 3 ? ' \\ {…}' : '';
+    rangeSpan.textContent = `W: ℝ${exclStr}`;
+  } else {
+    const lo = rangeMin != null ? rangeMin : '−∞';
+    const hi = rangeMax != null ? rangeMax : '+∞';
+    // Offene Klammer wenn der Grenzwert in excl enthalten ist (asymptotisch angenähert)
+    const lB = (rangeMin == null || excl.includes(rangeMin)) ? '(' : '[';
+    const rB = (rangeMax == null || excl.includes(rangeMax)) ? ')' : ']';
+    // Nur solche excl-Werte im \{}-Teil anzeigen, die nicht schon als Intervallgrenze sichtbar sind
+    const inner = excl.filter(v => v !== rangeMin && v !== rangeMax);
+    const exclStr = inner.length > 0 && inner.length <= 3 ? ` \\ {${inner.join(', ')}}`
+                  : inner.length > 3 ? ' \\ {…}' : '';
+    rangeSpan.textContent = `W: ${lB}${lo}, ${hi}${rB}${exclStr}`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // MODUL: ui_functions — Funktionsliste in der Sidebar
 // Enthält:  renderFuncList(), addFunction(), removeFunction()
 //           syncAreaSelects(), renderPreview(), setActiveInput()
@@ -251,6 +568,20 @@ function renderFuncList() {
       fn.expr = raw;
       clearEvalCache(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
       if (showArea) updateAreaResult(); syncLinearExtra(); scheduleDraw();
+      // Definitionsbereich bei Ausdrucksänderung neu erkennen (wenn nicht manuell gesetzt)
+      const _ds = _domSt(fn);
+      _ds.userSet = false;
+      clearTimeout(_ds.timer);
+      fn.domainMin = null; fn.domainMax = null; fn.domainExcluded = [];
+      domainToggle.textContent = 'D: ℝ'; vonInp.value = ''; bisInp.value = '';
+      if (raw.trim()) {
+        _ds.timer = setTimeout(() => {
+          if (_domSt(fn).userSet) return;
+          _applyDetectedDomain(fn, domainToggle, vonInp, bisInp, rangeSpan);
+        }, 700);
+      } else {
+        rangeSpan.textContent = '';
+      }
     };
     // Keine Newlines; Brüche als Einheit löschen; Exponent-Escape mit ArrowRight
     inp.onkeydown = e => {
@@ -381,8 +712,90 @@ function renderFuncList() {
     smartBtns.id = `smart-btns-${i}`;
     const solvePanel = document.createElement('div');
     solvePanel.id = `solve-panel-${i}`;
+    // ── Definitionsbereich-Zeile ──────────────────────────────────────
+    const domainRow = document.createElement('div');
+    domainRow.style.cssText = 'margin:0 0 4px 28px;';
+
+    const hasDomain = fn.domainMin != null || fn.domainMax != null;
+
+    const domainToggle = document.createElement('button');
+    domainToggle.className = 'smart-btn';
+    domainToggle.style.cssText = `border-color:${fn.color}66;color:${fn.color};font-size:10px;padding:1px 7px;border-radius:10px;white-space:nowrap;background:transparent;border:1.5px solid;cursor:pointer;font-family:system-ui,sans-serif;line-height:1.5;`;
+    domainToggle.textContent = _domainLabel(fn);
+    domainToggle.title = 'Definitionsbereich einschränken';
+
+    const domainLine1 = document.createElement('div');
+    domainLine1.style.cssText = 'display:flex;align-items:center;gap:4px;';
+
+    const domainInputs = document.createElement('div');
+    domainInputs.style.cssText = `display:${hasDomain ? 'flex' : 'none'};align-items:center;gap:3px;flex-wrap:nowrap;margin-top:3px;`;
+
+    const vonInp = document.createElement('input'); vonInp.type = 'number'; vonInp.step = '0.5';
+    vonInp.placeholder = '−∞'; vonInp.style.cssText = 'width:52px;font-size:11px;padding:2px 4px;border:1px solid var(--border-input);border-radius:4px;background:var(--bg-input);color:var(--text);';
+    if (fn.domainMin != null) vonInp.value = fn.domainMin;
+
+    const bisInp = document.createElement('input'); bisInp.type = 'number'; bisInp.step = '0.5';
+    bisInp.placeholder = '+∞'; bisInp.style.cssText = 'width:52px;font-size:11px;padding:2px 4px;border:1px solid var(--border-input);border-radius:4px;background:var(--bg-input);color:var(--text);';
+    if (fn.domainMax != null) bisInp.value = fn.domainMax;
+
+    const mkSpan = t => { const s = document.createElement('span'); s.textContent = t; s.style.cssText = 'font-size:11px;color:var(--text-muted);'; return s; };
+
+    const domainClear = document.createElement('button'); domainClear.textContent = '✕';
+    domainClear.style.cssText = 'font-size:10px;padding:1px 5px;border-radius:4px;border:1px solid var(--border-input);background:var(--bg-btn);color:var(--text-muted);cursor:pointer;';
+    domainClear.title = 'Zurücksetzen (D = ℝ)';
+    domainClear.onclick = () => {
+      fn.domainMin = null; fn.domainMax = null;
+      clearEvalCache(); scheduleComputeSpecials(); scheduleDraw();
+      renderFuncList();
+    };
+
+    // rangeSpan VOR updateDomainFromInputs deklarieren (wird in Closure referenziert)
+    const rangeSpan = document.createElement('span');
+    rangeSpan.style.cssText = 'font-size:10px;color:var(--text-muted);white-space:nowrap;padding-left:6px;opacity:0.85;';
+
+    const updateDomainFromInputs = () => {
+      // Manuelle Eingabe → Auto-Erkennung stoppen
+      const _ds = _domSt(fn); _ds.userSet = true; clearTimeout(_ds.timer);
+      const minV = vonInp.value.trim() === '' ? null : parseFloat(vonInp.value);
+      const maxV = bisInp.value.trim() === '' ? null : parseFloat(bisInp.value);
+      fn.domainMin = (minV != null && isFinite(minV)) ? minV : null;
+      fn.domainMax = (maxV != null && isFinite(maxV)) ? maxV : null;
+      domainToggle.textContent = _domainLabel(fn);
+      // Wertemenge nach kurzer Pause neu berechnen (rechenintensiv)
+      clearTimeout(rangeSpan._rangeTimer);
+      rangeSpan._rangeTimer = setTimeout(() =>
+        _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, rangeSpan), 300);
+      clearEvalCache(); scheduleComputeSpecials();
+      if (!historyPaused) { clearTimeout(_histDebounce); _histDebounce = setTimeout(pushHistory, 400); }
+      scheduleDraw();
+    };
+    vonInp.oninput = updateDomainFromInputs;
+    bisInp.oninput = updateDomainFromInputs;
+
+    domainToggle.onclick = () => {
+      const open = domainInputs.style.display === 'none';
+      domainInputs.style.display = open ? 'flex' : 'none';
+    };
+
+    domainInputs.append(mkSpan('['), vonInp, mkSpan(','), bisInp, mkSpan(']'), domainClear);
+    domainLine1.append(domainToggle, rangeSpan);
+    domainRow.append(domainLine1, domainInputs);
+
+    // Beim ersten Rendern mit befülltem Ausdruck aber ohne Domain: auto-erkennen
+    if (fn.expr.trim() && fn.domainMin == null && fn.domainMax == null && !_domSt(fn).userSet) {
+      const _ds = _domSt(fn);
+      clearTimeout(_ds.timer);
+      _ds.timer = setTimeout(() => {
+        if (_domSt(fn).userSet) return;
+        _applyDetectedDomain(fn, domainToggle, vonInp, bisInp, rangeSpan);
+      }, 200);
+    } else if (fn.expr.trim()) {
+      // Domain bereits bekannt (z.B. nach manuellem Setzen oder Laden): Wertemenge sofort berechnen
+      setTimeout(() => _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, rangeSpan), 50);
+    }
+
     const funcItem = document.createElement('div');
-    funcItem.append(row, preview, smartBtns, solvePanel);
+    funcItem.append(row, preview, domainRow, smartBtns, solvePanel);
     el.appendChild(funcItem);
   });
   // Steigungsdreieck-Sektion anzeigen wenn lineare Funktion vorhanden
@@ -794,9 +1207,15 @@ function updateFuncLabelsOverlay() {
       ? exprWithValues(fn.expr)
       : (typeof exprToDisplayStr === 'function' ? exprToDisplayStr(fn.expr) : fn.expr);
     const html = typeof exprToHtml === 'function' ? exprToHtml(substituted) : substituted;
+    let domainSuffix = '';
+    if (fn.domainMin != null || fn.domainMax != null) {
+      const dlo = fn.domainMin != null ? fn.domainMin : '−∞';
+      const dhi = fn.domainMax != null ? fn.domainMax : '+∞';
+      domainSuffix = `<span style="font-size:0.85em;opacity:0.7;">&thinsp;, x ∈ [${dlo}, ${dhi}]</span>`;
+    }
     return `<div class="flo-row">
       <span class="flo-dot" style="background:${fn.color};"></span>
-      <span class="flo-expr">f<sub>${i+1}</sub>(x) = ${html}</span>
+      <span class="flo-expr">f<sub>${i+1}</sub>(x) = ${html}${domainSuffix}</span>
     </div>`;
   }).join('');
   el.style.display = 'block';

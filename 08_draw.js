@@ -936,7 +936,13 @@ function draw() {
     ctx.beginPath();
     let started = false, prevY = null;
     for (let i = 0; i <= steps; i++) {
-      const x = v.xmin + (i/steps) * (v.xmax - v.xmin), y = safeEval(fn.expr, x);
+      const x = v.xmin + (i/steps) * (v.xmax - v.xmin);
+      // Definitionsbereich prüfen
+      if ((fn.domainMin != null && x < fn.domainMin - 1e-9) ||
+          (fn.domainMax != null && x > fn.domainMax + 1e-9)) {
+        started = false; prevY = null; continue;
+      }
+      const y = safeEval(fn.expr, x);
       if (!isFinite(y)) { started = false; prevY = null; continue; } // Lücke (z.B. log(<0))
       // Grosser Sprung → Linie unterbrechen (verhindert senkrechte "Linien" bei Asymptoten)
       if (prevY !== null && Math.abs(y - prevY) > yRange * 5) { started = false; }
@@ -948,6 +954,22 @@ function draw() {
     }
     ctx.stroke();
     if (fn.dashed) ctx.setLineDash([]);
+
+    // Endpunkt-Marker an den Grenzen des Definitionsbereichs
+    if (fn.domainMin != null || fn.domainMax != null) {
+      ctx.save();
+      [fn.domainMin, fn.domainMax].forEach(bx => {
+        if (bx == null) return;
+        if (bx < v.xmin - 0.5 || bx > v.xmax + 0.5) return;
+        const by = safeEval(fn.expr, bx);
+        if (!isFinite(by)) return;
+        const { cx: bcx, cy: bcy } = toCanvas(bx, by);
+        ctx.beginPath(); ctx.arc(bcx, bcy, bw(4.5), 0, 2*PI);
+        ctx.fillStyle = '#fff'; ctx.fill();
+        ctx.strokeStyle = fn.color; ctx.lineWidth = bw(2); ctx.stroke();
+      });
+      ctx.restore();
+    }
   });
 
   // ── 8. Steigungsdreieck ───────────────────────────────────────
