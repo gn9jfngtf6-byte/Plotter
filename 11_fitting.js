@@ -19,6 +19,7 @@ function slopeTriTogglePick() {
   // Andere Pick-Modi deaktivieren bevor slopeTriPickMode gesetzt wird
   if (fitPickMode) genericStopPick();
   if (line2ptPicking) toggleLine2PtMode();
+  if (perpPickMode) linPerpStopPick();
   slopeTriPickMode = true;
   slopeTriPts = []; slopeTriFi = -1;
   document.getElementById('slopetri-pick-btn').classList.add('active-btn');
@@ -185,6 +186,7 @@ function genericTogglePick(panelDef) {
   if (fitPickMode) genericStopPick();
   if (line2ptPicking) toggleLine2PtMode(); // laufendes line2pt stoppen
   if (slopeTriPickMode) slopeTriStopPick(); // slopeTriPickMode deaktivieren
+  if (perpPickMode) linPerpStopPick(); // Senkrechten-Pick deaktivieren
   fitPickMode = true;
   fitPickPanel = panelDef;
   panelDef.pickNext = 0;
@@ -580,7 +582,13 @@ function genericPanelCompute(panelDef) {
       panelDef.lastAsymptoteVertical = result.asymptoteVertical || false;
     }
     renderFuncList(); syncParams(); syncAreaSelects(); computeSpecials(); scheduleDraw(); pushHistory();
-    if (res) { res.style.color = '#1D9E75'; res.textContent = '✓ ' + display + ' ' + t('msg_added'); }
+    if (res) {
+      res.style.color = '#1D9E75';
+      // Wie im Eingabefeld gerendert (statt des nicht-reparsebaren `display`-Strings) —
+      // siehe exprToMathLiveHtml() in 07_export.js.
+      const html = typeof exprToMathLiveHtml === 'function' ? exprToMathLiveHtml(expr) : display;
+      res.innerHTML = '✓ f(x) = ' + html + ' ' + t('msg_added');
+    }
   } catch(e) {
     if (res) { res.style.color = '#e24b4a'; res.textContent = e.message; }
   }
@@ -610,7 +618,228 @@ function linCompute() {
       fitPickPts = [{ x: x0, y: y0 }, { x: x1, y: y1 }];  // Punkte im Canvas
       scheduleDraw();
     }
+    // Diese Gerade wird zur "aktiven" Referenzgeraden für Senkrechte/
+    // Mittelsenkrechte (siehe linAddPerp()/linAddBisector() weiter unten).
+    linActiveFi = fi;
   }
+}
+
+// ── Steigungsform y = m·x + q mit Schiebereglern (Unterrichts-Feature) ────
+// Anders als linCompute() (Gerade aus 2 konkreten Punkten berechnen) fügt
+// dies die ALLGEMEINE Steigungsform als lebendige Funktion hinzu: m und q
+// werden zu normalen Parametern (wie a/b/c bei anderen Funktionstypen,
+// siehe syncParams() in 03_math.js) und erscheinen automatisch oben im
+// Panel "Parameter (Schieber)" — Schüler können damit live erkunden, wie
+// sich Steigung (m) und y-Achsenabschnitt (q) auf die Gerade auswirken.
+// Das Steigungsdreieck (drawSlopeTri() in 08_draw.js) wird für diese Funktion
+// explizit in slopeTriPtsMap verankert (statt nur auf die automatische
+// Priorität-2-Platzierung zu vertrauen): Punkt A fix am y-Achsenabschnitt
+// (x=0), Punkt B per Default bei x=1 — macht die Standard-Katheten direkt zu
+// 1 (Δx) und m (Δy). Punkt B lässt sich danach auf dem Graphen verschieben
+// (siehe 09_events.js, drag.type 'slopetript' + findNearSlopeTriB()), Punkt A
+// bleibt dabei stets bei x=0 fixiert.
+// Mehrfach-Klick fügt NICHT mehrfach hinzu (m/q sind globale Parameter,
+// eine zweite "m·x+q"-Funktion wäre nur eine exakte Kopie der ersten) —
+// stattdessen wird die bestehende Gerade + ihr Steigungsdreieck erneut
+// eingeblendet, falls der Nutzer sie zwischenzeitlich versteckt hat, und der
+// Anker (Punkt A) wieder auf x=0 zurückgesetzt.
+function linAddSlopeForm() {
+  const norm = e => e.replace(/\s+/g, '');
+  const existingFi = functions.findIndex(fn => norm(fn.expr) === 'm*x+q');
+  let fi;
+  if (existingFi === -1) {
+    // Unterrichts-taugliche Startwerte: m=1, q=0 → Startgerade y=x (leicht
+    // nachvollziehbar). Schrittweite 0.5 statt Parameter-Standard 0.1, damit
+    // der Schieberegler gut sichtbare "runde" Sprünge macht statt Mikro-
+    // Schritten — für den Unterricht besser lesbar. Nur setzen wenn der
+    // Parameter noch nicht existiert (falls m/q bereits von einer anderen
+    // Funktion verwendet werden, bleiben deren Werte/Bereich unangetastet).
+    if (!params.m) params.m = { val: 1, min: -5, max: 5, step: 0.5 };
+    if (!params.q) params.q = { val: 0, min: -5, max: 5, step: 0.5 };
+    functions.push({ expr: 'm*x+q', color: COLORS[functions.length % COLORS.length], visible: true });
+    fi = functions.length - 1;
+    clearEvalCache(); renderFuncList(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
+    pushHistory();
+  } else {
+    fi = existingFi;
+    if (functions[fi].visible === false) {
+      functions[fi].visible = true; // versteckte Gerade wieder einblenden
+      renderFuncList(); scheduleComputeSpecials();
+    }
+  }
+  // Steigungsdreieck-Anker setzen/zurücksetzen: Punkt A immer bei x=0
+  // (y-Achsenabschnitt), Punkt B bei x=1 falls noch nicht individuell
+  // verschoben (sonst bleibt die vom Nutzer gewählte Dreiecksgrösse erhalten).
+  if (!slopeTriPtsMap[fi] || slopeTriPtsMap[fi].length !== 2) {
+    slopeTriPtsMap[fi] = [{ x: 0, fi }, { x: 1, fi }];
+  } else {
+    slopeTriPtsMap[fi][0].x = 0;
+  }
+  document.getElementById('chk-slopetri').checked = true;
+  // Diese Gerade wird zur "aktiven" Referenzgeraden für Senkrechte/
+  // Mittelsenkrechte (siehe linAddPerp()/linAddBisector() weiter unten).
+  linActiveFi = fi;
+  scheduleDraw();
+  const res = document.getElementById('lin-slopeform-result');
+  if (res) {
+    res.style.color = '#1D9E75';
+    res.textContent = '✓ ' + t('msg_slope_form_added');
+  }
+}
+
+// ── Senkrechte & Mittelsenkrechte (Unterrichts-Feature) ────────────
+// Bezieht sich auf die "aktive" Referenzgerade (linActiveFi — zuletzt über
+// linCompute() oder linAddSlopeForm() erzeugt/aktualisiert). Beide neuen
+// Konstruktionen werden NICHT als separate, unabhängige Klicks gespeichert,
+// sondern jeweils EINE Funktion pro Art (perpMeta[fi].kind 'perp'/'bisector')
+// wird bei erneutem Klick aktualisiert statt dupliziert — damit z.B. nach
+// Verschieben des Punktes Q oder Ändern von m/q einfach neu geklickt werden
+// kann, ohne die Funktionsliste mit alten Ständen zuzumüllen.
+let linActiveFi   = -1;  // fi der zuletzt aktiven linearen Referenzgeraden
+let linPerpFi     = -1;  // fi der zuletzt erzeugten Senkrechten (falls vorhanden)
+let linBisectorFi = -1;  // fi der zuletzt erzeugten Mittelsenkrechten (falls vorhanden)
+let perpMeta = {};       // fi -> {kind:'perp'|'bisector', refFi, m0, b0, ...} — für
+                          // Lösungsweg (showLoesungsweg()) und Marker (drawPerpMarkers()
+                          // in 08_draw.js)
+let perpPickMode = false; // Pick-Modus für den freien Punkt Q der Senkrechten
+
+// Liefert {fi, fn, m, b, ptA, ptB} der aktiven Referenzgeraden, oder null
+// wenn (noch) keine geeignete lineare Funktion existiert. ptA/ptB (zwei
+// Punkte AUF der Geraden) werden — wie in showLoesungsweg() — der Reihe
+// nach aus verknüpften Punkten, dem Steigungsdreieck-Anker oder den
+// P1/P2-Eingabefeldern des "Berechnen"-Bereichs ermittelt.
+function getLinRefLine() {
+  const fi = linActiveFi;
+  const fn = functions[fi];
+  if (fi < 0 || !fn || !fn.expr.trim() || fn.visible === false || !isLinearFunc(fn.expr)) return null;
+  const m = deriv1(fn.expr, 0), b = safeEval(fn.expr, 0);
+  if (!isFinite(m) || !isFinite(b)) return null;
+  let ptA = null, ptB = null;
+  const ll = linkedLines.find(l => l.fi === fi);
+  const stPts = slopeTriPtsMap[fi];
+  if (ll && points[ll.pi1] && points[ll.pi2]) {
+    ptA = points[ll.pi1]; ptB = points[ll.pi2];
+  } else if (stPts && stPts.length === 2) {
+    const xA = stPts[0].x, xB = stPts[1].x;
+    const yA = safeEval(fn.expr, xA), yB = safeEval(fn.expr, xB);
+    if (isFinite(yA) && isFinite(yB)) { ptA = { x: xA, y: yA }; ptB = { x: xB, y: yB }; }
+  }
+  if (!ptA) {
+    const lx0 = parseFloat(document.getElementById('lin-x0')?.value);
+    const ly0 = parseFloat(document.getElementById('lin-y0')?.value);
+    const lx1 = parseFloat(document.getElementById('lin-x1')?.value);
+    const ly1 = parseFloat(document.getElementById('lin-y1')?.value);
+    if (isFinite(lx0) && isFinite(ly0) && isFinite(lx1) && isFinite(ly1)) {
+      ptA = { x: lx0, y: ly0 }; ptB = { x: lx1, y: ly1 };
+    }
+  }
+  return { fi, fn, m, b, ptA, ptB };
+}
+
+// Pick-Modus: freien Punkt Q für die Senkrechte im Graphen anklicken
+// (analog zu slopeTriTogglePick(), aber nur ein einzelner Punkt).
+function linPerpTogglePick() {
+  if (perpPickMode) { linPerpStopPick(); return; }
+  if (fitPickMode) genericStopPick();
+  if (line2ptPicking) toggleLine2PtMode();
+  if (slopeTriPickMode) slopeTriStopPick();
+  perpPickMode = true;
+  document.getElementById('perp-pick-btn')?.classList.add('active-btn');
+  canvas.style.cursor = 'crosshair';
+  const status = document.getElementById('perp-pick-status');
+  if (status) status.textContent = t('perp_pick_status');
+}
+function linPerpStopPick() {
+  perpPickMode = false;
+  document.getElementById('perp-pick-btn')?.classList.remove('active-btn');
+  canvas.style.cursor = graphPtMode ? 'cell' : (pointMode ? 'crosshair' : 'grab');
+  const status = document.getElementById('perp-pick-status');
+  if (status) status.textContent = '';
+}
+// Wird von 09_events.js aufgerufen wenn perpPickMode aktiv ist.
+function linPerpPickClick(mx, my) {
+  let snapPt = null, snapDist = 15;
+  points.forEach(p => { const c = toCanvas(p.x, p.y); const d = Math.hypot(c.cx - mx, c.cy - my); if (d < snapDist) { snapDist = d; snapPt = p; } });
+  let pt;
+  if (snapPt) {
+    pt = snapPt;
+  } else {
+    const sp = typeof findNearSpecial === 'function' ? findNearSpecial(mx, my) : null;
+    if (sp) pt = sp;
+    else { const raw = fromCanvas(mx, my); pt = snapToGrid(raw.x, raw.y); }
+  }
+  const xEl = document.getElementById('perp-qx'), yEl = document.getElementById('perp-qy');
+  if (xEl) xEl.value = parseFloat(pt.x.toFixed(4));
+  if (yEl) yEl.value = parseFloat(pt.y.toFixed(4));
+  linPerpStopPick();
+  linAddPerp(); // Punkt Q ist die einzige nötige Eingabe → sofort erstellen
+  scheduleDraw();
+}
+
+// Erstellt (oder aktualisiert) die Senkrechte zur aktiven Referenzgeraden
+// durch den frei wählbaren Punkt Q. Bei m₁ · m₂ = −1 (Steigungsbeziehung):
+// m₂ = −1/m₁, danach q₂ aus Q eingesetzt.
+function linAddPerp() {
+  const res = document.getElementById('lin-perp-result');
+  const ref = getLinRefLine();
+  if (!ref) { if (res) { res.style.color = '#e24b4a'; res.textContent = t('msg_no_ref_line'); } return; }
+  const qx = parseFloat(document.getElementById('perp-qx')?.value);
+  const qy = parseFloat(document.getElementById('perp-qy')?.value);
+  if (!isFinite(qx) || !isFinite(qy)) { if (res) { res.style.color = '#e24b4a'; res.textContent = t('msg_invalid'); } return; }
+  if (Math.abs(ref.m) < 1e-9) { if (res) { res.style.color = '#e24b4a'; res.textContent = t('msg_perp_vertical'); } return; }
+
+  const mPerp = -1 / ref.m;
+  const bPerp = qy - mPerp * qx;
+  const p = Math.max(precision, 4);
+  const { expr } = buildLineExpr(mPerp, bPerp, p);
+
+  let fi = linPerpFi;
+  if (fi < 0 || !functions[fi] || perpMeta[fi]?.kind !== 'perp') {
+    functions.push({ expr, color: COLORS[functions.length % COLORS.length], visible: true });
+    fi = functions.length - 1;
+    linPerpFi = fi;
+  } else {
+    functions[fi].expr = expr; functions[fi].visible = true;
+  }
+  perpMeta[fi] = { kind: 'perp', refFi: ref.fi, m0: ref.m, b0: ref.b, throughPt: { x: qx, y: qy } };
+
+  clearEvalCache(); renderFuncList(); scheduleComputeSpecials(); pushHistory(); scheduleDraw();
+  if (res) { res.style.color = '#1D9E75'; res.textContent = t('msg_perp_added'); }
+  const lwBox = document.getElementById('loesungsweg-box');
+  if (lwBox?.style.display === 'block') showLoesungsweg();
+}
+
+// Erstellt (oder aktualisiert) die Mittelsenkrechte der Strecke zwischen
+// den beiden Referenzpunkten der aktiven Geraden (Punkt A/B — z.B. die
+// beiden P1/P2 aus "Berechnen" oder die Eckpunkte des Steigungsdreiecks
+// bei y = mx + q), inklusive Mittelpunkt M.
+function linAddBisector() {
+  const res = document.getElementById('lin-perp-result');
+  const ref = getLinRefLine();
+  if (!ref) { if (res) { res.style.color = '#e24b4a'; res.textContent = t('msg_no_ref_line'); } return; }
+  if (!ref.ptA || !ref.ptB) { if (res) { res.style.color = '#e24b4a'; res.textContent = t('msg_no_ref_pts'); } return; }
+  if (Math.abs(ref.m) < 1e-9) { if (res) { res.style.color = '#e24b4a'; res.textContent = t('msg_perp_vertical'); } return; }
+
+  const mid = { x: (ref.ptA.x + ref.ptB.x) / 2, y: (ref.ptA.y + ref.ptB.y) / 2 };
+  const mPerp = -1 / ref.m;
+  const bPerp = mid.y - mPerp * mid.x;
+  const p = Math.max(precision, 4);
+  const { expr } = buildLineExpr(mPerp, bPerp, p);
+
+  let fi = linBisectorFi;
+  if (fi < 0 || !functions[fi] || perpMeta[fi]?.kind !== 'bisector') {
+    functions.push({ expr, color: COLORS[functions.length % COLORS.length], visible: true });
+    fi = functions.length - 1;
+    linBisectorFi = fi;
+  } else {
+    functions[fi].expr = expr; functions[fi].visible = true;
+  }
+  perpMeta[fi] = { kind: 'bisector', refFi: ref.fi, m0: ref.m, b0: ref.b, ptA: ref.ptA, ptB: ref.ptB, mid };
+
+  clearEvalCache(); renderFuncList(); scheduleComputeSpecials(); pushHistory(); scheduleDraw();
+  if (res) { res.style.color = '#1D9E75'; res.textContent = t('msg_bisector_added'); }
+  const lwBox = document.getElementById('loesungsweg-box');
+  if (lwBox?.style.display === 'block') showLoesungsweg();
 }
 
 // ── Lineare Funktionen (Live-Gerade via 2 Punkte) ─────────────────
@@ -656,290 +885,157 @@ function quadUpdateInputs() {
 function quadTogglePick() { genericTogglePick(quadPanelDef); }
 function quadCompute()    { genericPanelCompute(quadPanelDef); }
 
-// ── Exponentialfunktionen ─────────────────────────────────────────
-function expUpdateInputs() {
-  const subtype = document.getElementById('exp-subtype')?.value || 'exponential';
-  const cfg = FIT_CONFIG[subtype];
-  buildPanelInputs('exp-inputs', cfg.labels, 'exp');
-  if (expPanelDef) {
-    expPanelDef.nPts = cfg.pts;
-    expPanelDef.labels = cfg.labels;
-  }
-  const hint = document.getElementById('exp-hint');
-  if (hint) {
-    hint.textContent = subtype === 'exponential'
-      ? t('hint_exp_basic')
-      : t('hint_exp_horiz');
-  }
-  const res = document.getElementById('exp-result');
-  if (res) res.textContent = '';
-  if (fitPickMode && fitPickPanel === expPanelDef) genericStopPick();
-}
-function expTogglePick() { genericTogglePick(expPanelDef); }
-function expCompute()    { genericPanelCompute(expPanelDef); }
-
-// ── Exp-Asymptote ─────────────────────────────────────────────────
-let showExpAsymptote = false;
-function toggleExpAsymptote() {
-  showExpAsymptote = !showExpAsymptote;
-  document.getElementById('exp-asym-btn')?.classList.toggle('active-btn', showExpAsymptote);
-  scheduleDraw();
-}
-
-// ── Logarithmusfunktionen ──────────────────────────────────────────
-function logUpdateInputs() {
-  const subtype = document.getElementById('log-subtype')?.value || 'logarithm';
-  const cfg = FIT_CONFIG[subtype];
-  buildPanelInputs('log-inputs', cfg.labels, 'log');
-  if (logPanelDef) {
-    logPanelDef.nPts = cfg.pts;
-    logPanelDef.labels = cfg.labels;
-  }
-  const hint = document.getElementById('log-hint');
-  if (hint) {
-    hint.textContent = subtype === 'logarithm'
-      ? t('hint_log_basic')
-      : t('hint_log_horiz');
-  }
-  const res = document.getElementById('log-result');
-  if (res) res.textContent = '';
-  if (fitPickMode && fitPickPanel === logPanelDef) genericStopPick();
-}
-function logTogglePick() { genericTogglePick(logPanelDef); }
-function logCompute()    { genericPanelCompute(logPanelDef); }
-
-// ── Log-Asymptote ──────────────────────────────────────────────────
-let showLogAsymptote = false;
-function toggleLogAsymptote() {
-  showLogAsymptote = !showLogAsymptote;
-  document.getElementById('log-asym-btn')?.classList.toggle('active-btn', showLogAsymptote);
-  scheduleDraw();
-}
-
-// ── Log-Lösungsweg ────────────────────────────────────────────────
-function showLogLoesungsweg() {
-  const box = document.getElementById('log-lw-box');
-  if (!box) return;
-  if (box.style.display === 'block') { box.style.display = ''; return; }
-
-  const subtype = document.getElementById('log-subtype')?.value;
-  if (subtype !== 'logarithm') {
-    box.innerHTML = '<span style="color:#e24b4a;">' + t('lw_log_only_simple') + '</span>';
-    box.style.display = 'block'; return;
-  }
-
-  const x1 = parseFloat(document.getElementById('log-x0')?.value);
-  const y1 = parseFloat(document.getElementById('log-y0')?.value);
-  const x2 = parseFloat(document.getElementById('log-x1')?.value);
-  const y2 = parseFloat(document.getElementById('log-y1')?.value);
-  if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
-    box.innerHTML = '<span style="color:#e24b4a;">' + t('lw_select_2pts') + '</span>';
-    box.style.display = 'block'; return;
-  }
-
-  function fH(v)  { return fracHTML(v); }
-  function fHa(v) { return fracHTML(Math.abs(v)); }
-  function lwLine(text, indent) {
-    return `<span class="${['lw-line', indent ? 'lw-indent' : ''].filter(Boolean).join(' ')}">${text}</span>`;
-  }
-  function mf(num, den) {
-    return `<span class="mfrac"><span class="mfrac-num">${num}</span><span class="mfrac-den">${den}</span></span>`;
-  }
-  function sHead(title) {
-    return `<span class="lw-line" style="display:block;font-weight:700;font-size:11.5px;`
-         + `color:var(--active-border);padding-top:2px;letter-spacing:.02em;">${title}</span>`;
-  }
-
-  const lnDiff = Math.log(x2) - Math.log(x1);
-  const a = (y2 - y1) / lnDiff;
-  const c = y1 - a * Math.log(x1);
-  const x1H = fH(x1), y1H = fH(y1), x2H = fH(x2), y2H = fH(y2);
-  const aH = fH(a), cH = fH(c);
-  const html = [sHead(`P₁(${x1H} | ${y1H})  und  P₂(${x2H} | ${y2H})`), lwLine('')];
-
-  // Sonderfall: ein Punkt hat x = 1 → ln(1) = 0 → c direkt bekannt
-  const p1IsOne = Math.abs(x1 - 1) < 1e-12;
-  const p2IsOne = Math.abs(x2 - 1) < 1e-12;
-
-  if (p1IsOne || p2IsOne) {
-    const [xA, yA, xB, yB] = p1IsOne ? [x1, y1, x2, y2] : [x2, y2, x1, y1];
-    const xAH = fH(xA), yAH = fH(yA), xBH = fH(xB), yBH = fH(yB);
-    const lnXB = fH(Math.log(xB));
-
-    html.push(
-      sHead(t('lw_log_special_head')),
-      lwLine(`${tf('lw_since_x', {x: xAH})} &nbsp; f(${xAH}) = a·ln(${xAH}) + c = a·0 + c = c`, true),
-      lwLine(`<b>→  c = ${yAH}</b>`, true),
-      lwLine(''),
-      sHead(t('lw_log_step2_fa')),
-      lwLine(tf('lw_log_insert_c', {c: yAH, x: xBH, y: yBH}), false),
-      lwLine(`${yBH} = a · ln(${xBH}) + ${yAH}`, true),
-      lwLine(`a · ln(${xBH}) = ${yBH} − ${yAH} = ${fH(yB - yA)}`, true),
-      lwLine(`<b>a = ${mf(fH(yB - yA), `ln(${xBH})`)} = ${mf(fH(yB - yA), lnXB)} = ${aH}</b>`, true),
-      lwLine(''),
-      sHead(t('lw_result_head')),
-      lwLine(`f(x) = ${aH} · ln(x) + ${cH}`, true),
-      lwLine('')
-    );
+// ── Exponentialfunktionen: allgemeine Form y = a·bˣ + c mit Schiebereglern
+// (Unterrichts-Feature) ─────────────────────────────────────────────
+// Ersetzt die frühere Punkte-Berechnung (2/3-Punkte-Fit) vollständig: statt
+// eine Kurve aus konkreten Punkten zu berechnen, fügt dies die ALLGEMEINE
+// Form als lebendige Funktion hinzu — a, b und c werden zu normalen
+// Parametern (wie m/q bei linAddSlopeForm() weiter oben, siehe dort für die
+// ausführliche Erklärung des Mechanismus über syncParams() in 03_math.js)
+// und erscheinen automatisch oben im Panel "Parameter (Schieber)".
+// Mehrfach-Klick fügt NICHT mehrfach hinzu — siehe linAddSlopeForm() oben,
+// exakt dieselbe Dedup-Logik.
+function expAddGeneralForm() {
+  const norm = e => e.replace(/\s+/g, '');
+  const existingFi = functions.findIndex(fn => norm(fn.expr) === 'a*b^x+c');
+  let fi;
+  if (existingFi === -1) {
+    // Unterrichts-taugliche Startwerte: a=1, b=2, c=0 → Startkurve y=2ˣ
+    // (leicht nachvollziehbar). b bewusst auf (0, 5] begrenzt — für b≤0 ist
+    // bˣ für nicht-ganzzahlige x nicht reell definiert.
+    if (!params.a) params.a = { val: 1, min: -5, max: 5, step: 0.5 };
+    if (!params.b) params.b = { val: 2, min: 0.1, max: 5, step: 0.1 };
+    if (!params.c) params.c = { val: 0, min: -5, max: 5, step: 0.5 };
+    functions.push({ expr: 'a*b^x+c', color: COLORS[functions.length % COLORS.length], visible: true });
+    fi = functions.length - 1;
+    clearEvalCache(); renderFuncList(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
+    pushHistory();
   } else {
-    // Allgemeiner Fall
-    const dy = y2 - y1;
-    const dyH = fH(dy);
-    const ratioH = fH(x2 / x1);
-    const lnRatioH = fH(lnDiff);
-    const ln1H = fH(Math.log(x1));
-
-    html.push(
-      sHead(t('lw_step1_system')),
-      lwLine(`${y1H} = a · ln(${x1H}) + c   …(I)`, true),
-      lwLine(`${y2H} = a · ln(${x2H}) + c   …(II)`, true),
-      lwLine(''),
-      sHead(t('lw_log_step2_subtr')),
-      lwLine(`${y2H} − ${y1H} = a · ln(${x2H}) − a · ln(${x1H})`, true),
-      lwLine(`${dyH} = a · (ln(${x2H}) − ln(${x1H}))`, true),
-      lwLine(''),
-      lwLine(t('lw_log_law'), false),
-      lwLine(`${dyH} = a · ln(${ratioH})`, true),
-      lwLine(`<b>a = ${mf(dyH, `ln(${ratioH})`)} = ${mf(dyH, lnRatioH)} = ${aH}</b>`, true),
-      lwLine(''),
-      sHead(t('lw_log_step3_c')),
-      lwLine(`c = ${y1H} − ${aH} · ln(${x1H})`, true),
-      lwLine(`c = ${y1H} − ${aH} · ${ln1H} = <b>${cH}</b>`, true),
-      lwLine(''),
-      sHead(t('lw_result_head')),
-      lwLine(`f(x) = ${aH} · ln(x) + ${cH}`, true),
-      lwLine('')
-    );
-  }
-
-  box.innerHTML = html.join('');
-  box.style.display = 'block';
-}
-
-// ── Exp-Lösungsweg ────────────────────────────────────────────────
-function showExpLoesungsweg() {
-  const box = document.getElementById('exp-lw-box');
-  if (!box) return;
-  if (box.style.display === 'block') { box.style.display = ''; return; }
-
-  const subtype = document.getElementById('exp-subtype')?.value;
-  if (subtype !== 'exponential') {
-    box.innerHTML = '<span style="color:#e24b4a;">' + t('lw_exp_only_simple') + '</span>';
-    box.style.display = 'block'; return;
-  }
-
-  const x1 = parseFloat(document.getElementById('exp-x0')?.value);
-  const y1 = parseFloat(document.getElementById('exp-y0')?.value);
-  const x2 = parseFloat(document.getElementById('exp-x1')?.value);
-  const y2 = parseFloat(document.getElementById('exp-y1')?.value);
-  if (!isFinite(x1) || !isFinite(y1) || !isFinite(x2) || !isFinite(y2)) {
-    box.innerHTML = '<span style="color:#e24b4a;">' + t('lw_select_2pts') + '</span>';
-    box.style.display = 'block'; return;
-  }
-
-  function fH(v)  { return fracHTML(v); }
-  function fHa(v) { return fracHTML(Math.abs(v)); }
-  function lwLine(text, indent) {
-    const cls = ['lw-line', indent ? 'lw-indent' : ''].filter(Boolean).join(' ');
-    return `<span class="${cls}">${text}</span>`;
-  }
-  function mf(num, den) {
-    return `<span class="mfrac"><span class="mfrac-num">${num}</span><span class="mfrac-den">${den}</span></span>`;
-  }
-  function sHead(title) {
-    return `<span class="lw-line" style="display:block;font-weight:700;font-size:11.5px;`
-         + `color:var(--active-border);padding-top:2px;letter-spacing:.02em;">${title}</span>`;
-  }
-
-  const dx  = x2 - x1;
-  const b   = Math.exp((Math.log(Math.abs(y2)) - Math.log(Math.abs(y1))) / dx);
-  const a   = y1 / Math.pow(b, x1);
-
-  const x1H = fH(x1), y1H = fH(y1), x2H = fH(x2), y2H = fH(y2);
-  const bH  = (Math.abs(b - Math.round(b)) < 1e-6)
-              ? String(Math.round(b))
-              : parseFloat(b.toFixed(Math.max(precision, 3))).toString();
-  const aH  = fH(a);
-
-  // Sonderfall: ein Punkt liegt auf der y-Achse (x = 0)
-  const p1OnY = Math.abs(x1) < 1e-12;
-  const p2OnY = Math.abs(x2) < 1e-12;
-  const html  = [sHead(`P₁(${x1H} | ${y1H})  und  P₂(${x2H} | ${y2H})`), lwLine('')];
-
-  if (p1OnY || p2OnY) {
-    // ── Sonderfall: a direkt ablesen ──────────────────────────────
-    // Normalisieren: yAxis-Punkt = (xA, yA), anderer Punkt = (xB, yB)
-    const [xA, yA, xB, yB] = p1OnY ? [x1, y1, x2, y2] : [x2, y2, x1, y1];
-    const xAH = fH(xA), yAH = fH(yA), xBH = fH(xB), yBH = fH(yB);
-    const ratioAbs      = Math.abs(yB / yA);
-    const ratioH        = fH(ratioAbs);
-    const xBAbsH        = fHa(xB);
-    const negExp        = xB < -1e-12;
-    const reciprocalH   = fH(1 / ratioAbs);   // 1/ratio für negativen Exponenten
-    const rootRadicandH = negExp ? reciprocalH : ratioH;
-
-    const schritt2Lines = [
-      sHead(t('lw_exp_step2_head')),
-      lwLine(tf('lw_exp_insert_a', {a: yAH, x: xBH, y: yBH}), false),
-      lwLine(`${yBH} = ${yAH} · b<sup>${xBH}</sup>`, true),
-      lwLine(`b<sup>${xBH}</sup> = ${mf(yBH, yAH)} = ${ratioH}`, true),
-      lwLine(''),
-    ];
-    if (negExp) {
-      schritt2Lines.push(
-        lwLine(t('lw_exp_neg_exp'), false),
-        lwLine(`b<sup>${xBAbsH}</sup> = ${mf('1', ratioH)} = ${reciprocalH}`, true),
-        lwLine(''),
-      );
+    fi = existingFi;
+    if (functions[fi].visible === false) {
+      functions[fi].visible = true; // versteckte Kurve wieder einblenden
+      renderFuncList(); scheduleComputeSpecials();
     }
-    schritt2Lines.push(
-      lwLine(tf('lw_exp_root_sides', {n: xBAbsH}), false),
-      lwLine(`<b>b = <sup>${xBAbsH}</sup>√<span style="text-decoration:overline;padding:0 2px">${rootRadicandH}</span> = ${bH}</b>`, true),
-      lwLine(''),
-    );
+  }
+  scheduleDraw();
+  const res = document.getElementById('exp-generalform-result');
+  if (res) {
+    res.style.color = '#1D9E75';
+    res.textContent = '✓ ' + t('msg_exp_form_added');
+  }
+}
 
-    html.push(
-      sHead(t('lw_exp_special_head')),
-      lwLine(`${tf('lw_since_x', {x: xAH})} &nbsp; f(${xAH}) = a · b<sup>${xAH}</sup> = a · 1 = a`, true),
-      lwLine(`<b>→  a = ${yAH}</b>`, true),
-      lwLine(''),
-      ...schritt2Lines,
-      sHead(t('lw_result_head')),
-      lwLine(`f(x) = ${aH} · ${bH}<sup>x</sup>`, true),
-      lwLine('')
-    );
-
+// ── Logarithmusfunktionen: allgemeine Form y = a·log_b(x) + c mit
+// Schiebereglern (Unterrichts-Feature) ─────────────────────────────
+// Ersetzt die frühere Punkte-Berechnung (2/3-Punkte-Fit) vollständig — exakt
+// dasselbe Muster wie bei den Exponentialfunktionen (siehe expAddGeneralForm()
+// weiter oben für die ausführliche Erklärung des Mechanismus über
+// syncParams() in 03_math.js). log_b(x) wird über die bereits vorhandene
+// logn(x, b)-Funktion (03_math.js) ausgedrückt: logn(v, base) = ln(v)/ln(base).
+// a, b und c teilen sich die gleichen Parameter-Buchstaben wie bei
+// y = a·bˣ + c — sinnvoll, da log_b(x) die Umkehrfunktion von bˣ ist.
+function logAddGeneralForm() {
+  const norm = e => e.replace(/\s+/g, '');
+  const existingFi = functions.findIndex(fn => norm(fn.expr) === 'a*logn(x,b)+c');
+  let fi;
+  if (existingFi === -1) {
+    // Unterrichts-taugliche Startwerte: a=1, b=2, c=0 → Startkurve y=log₂(x)
+    // (Umkehrfunktion der Exponential-Startkurve y=2ˣ). b bewusst auf (0, 5]
+    // begrenzt — für b≤0 und b=1 ist log_b(x) nicht definiert bzw. singulär.
+    if (!params.a) params.a = { val: 1, min: -5, max: 5, step: 0.5 };
+    if (!params.b) params.b = { val: 2, min: 0.1, max: 5, step: 0.1 };
+    if (!params.c) params.c = { val: 0, min: -5, max: 5, step: 0.5 };
+    functions.push({ expr: 'a*logn(x,b)+c', color: COLORS[functions.length % COLORS.length], visible: true });
+    fi = functions.length - 1;
+    clearEvalCache(); renderFuncList(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
+    pushHistory();
   } else {
-    // ── Kein Punkt auf der y-Achse → kein Lösungsweg ─────────────
-    box.innerHTML = '<span style="color:#e24b4a;">' + t('lw_exp_need_yaxis') + '</span>';
-    box.style.display = 'block'; return;
+    fi = existingFi;
+    if (functions[fi].visible === false) {
+      functions[fi].visible = true; // versteckte Kurve wieder einblenden
+      renderFuncList(); scheduleComputeSpecials();
+    }
   }
-
-  box.innerHTML = html.join('');
-  box.style.display = 'block';
+  scheduleDraw();
+  const res = document.getElementById('log-generalform-result');
+  if (res) {
+    res.style.color = '#1D9E75';
+    res.textContent = '✓ ' + t('msg_log_form_added');
+  }
 }
 
-// ── Potenz- und Wurzelfunktionen ──────────────────────────────────
-function powerUpdateInputs() {
-  const subtype = document.getElementById('power-subtype')?.value || 'positive power';
-  const cfg = FIT_CONFIG[subtype];
-  buildPanelInputs('power-inputs', cfg.labels, 'pow');
-  if (powerPanelDef) {
-    powerPanelDef.nPts = cfg.pts;
-    powerPanelDef.labels = cfg.labels;
-  }
+// ── Potenz- und Wurzelfunktionen: allgemeine Form y = a·(x−v)ⁿ + h mit
+// Schiebereglern (Unterrichts-Feature) ─────────────────────────────
+// Ersetzt die frühere Punkte-Berechnung vollständig — dasselbe Muster wie bei
+// den Exponential-/Logarithmusfunktionen (siehe expAddGeneralForm() weiter
+// oben), aber mit einer vorgeschalteten Fallunterscheidung für n: je nach Fall
+// ist n auf eine andere Wertemenge/Schrittweite beschränkt (positiv/negativ
+// gerade/ungerade Potenz, oder Wurzelfunktion über die vorhandene
+// nthroot(x,n)-Funktion, 03_math.js). a, v und h behalten fallübergreifend
+// dieselbe Bedeutung (Amplitude/Horizontal-/Vertikalverschiebung — v und h
+// wie schon vorher bei den Punkte-Fits "a/(x−v)ⁿ+h" und "a·√(x−v)+h" benannt)
+// und werden — wie bei linAddSlopeForm()/expAddGeneralForm() — nur beim
+// allerersten Mal seeded.
+const POWER_CASES = {
+  // n gerade & positiv: (x−v)², (x−v)⁴, … (achsensymmetrisch zu x=v)
+  pos_even: { expr: 'a*(x-v)^n+h', nRange: { val: 2,  min: 2,   max: 10, step: 2 } },
+  // n ungerade & positiv: (x−v), (x−v)³, … (punktsymmetrisch zu (v|h))
+  pos_odd:  { expr: 'a*(x-v)^n+h', nRange: { val: 3,  min: 1,   max: 9,  step: 2 } },
+  // n gerade & negativ: (x−v)⁻², (x−v)⁻⁴, … (Hyperbel-artig, Asymptoten x=v/y=h)
+  neg_even: { expr: 'a*(x-v)^n+h', nRange: { val: -2, min: -10, max: -2, step: 2 } },
+  // n ungerade & negativ: (x−v)⁻¹, (x−v)⁻³, … (Hyperbel-artig, punktsymmetrisch)
+  neg_odd:  { expr: 'a*(x-v)^n+h', nRange: { val: -1, min: -9,  max: -1, step: 2 } },
+  // Wurzelfunktion: ⁿ√(x−v) — n ist hier der Wurzelindex (2,3,4,…), nicht der
+  // Exponent von x; nthroot(v,n) übernimmt die Definitionsbereichs-Logik
+  // (reelle Wurzel für negatives Radikand nur bei ungeradem n) bereits korrekt.
+  root:     { expr: 'a*nthroot(x-v,n)+h', nRange: { val: 2, min: 2, max: 6, step: 1 } },
+};
+let powerLastSubtype = null; // erkennt einen Fall-Wechsel seit dem letzten Aufschalten
+
+// Aktualisiert nur den erläuternden Hinweistext unter der Typ-Auswahl —
+// die Punkte-Eingabefelder/Pick-Mechanik gibt es hier nicht mehr.
+function powerUpdateHint() {
+  const subtype = document.getElementById('power-subtype')?.value || 'pos_even';
   const hint = document.getElementById('power-hint');
-  if (hint) {
-    if      (subtype === 'positive power') hint.textContent = t('hint_power_pos');
-    else if (subtype === 'negative power') hint.textContent = t('hint_power_neg');
-    else                                   hint.textContent = t('hint_power_sqrt');
-  }
-  const res = document.getElementById('power-result');
-  if (res) res.textContent = '';
-  if (fitPickMode && fitPickPanel === powerPanelDef) genericStopPick();
+  if (hint) hint.textContent = t('hint_power_case_' + subtype);
 }
-function powerTogglePick() { genericTogglePick(powerPanelDef); }
-function powerCompute()    { genericPanelCompute(powerPanelDef); }
+
+function powerAddGeneralForm() {
+  const norm = e => e.replace(/\s+/g, '');
+  const subtype = document.getElementById('power-subtype')?.value || 'pos_even';
+  const cfg = POWER_CASES[subtype];
+  if (!cfg) return;
+  const existingFi = functions.findIndex(fn => norm(fn.expr) === norm(cfg.expr));
+
+  // n-Bereich neu setzen, wenn die Kurve neu angelegt wird ODER sich der Fall
+  // seit dem letzten Aufschalten geändert hat — ein wiederholter Klick auf
+  // denselben, bereits aktiven Fall lässt eine per Schieber verstellte
+  // n-Position dagegen unangetastet (gleiches Verhalten wie a/v/h).
+  if (existingFi === -1 || subtype !== powerLastSubtype) {
+    params.n = { ...cfg.nRange };
+  }
+  if (!params.a) params.a = { val: 1, min: -5, max: 5, step: 0.5 };
+  if (!params.v) params.v = { val: 0, min: -5, max: 5, step: 0.5 };
+  if (!params.h) params.h = { val: 0, min: -5, max: 5, step: 0.5 };
+  powerLastSubtype = subtype;
+
+  let fi;
+  if (existingFi === -1) {
+    functions.push({ expr: cfg.expr, color: COLORS[functions.length % COLORS.length], visible: true });
+    fi = functions.length - 1;
+  } else {
+    fi = existingFi;
+    if (functions[fi].visible === false) functions[fi].visible = true; // versteckte Kurve wieder einblenden
+  }
+  clearEvalCache(); renderFuncList(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
+  pushHistory();
+  scheduleDraw();
+  const res = document.getElementById('power-generalform-result');
+  if (res) {
+    res.style.color = '#1D9E75';
+    res.textContent = '✓ ' + t('msg_power_form_added');
+  }
+}
 
 // ── Fit-Punkte: suchen + neu berechnen ───────────────────────────
 
@@ -1004,14 +1100,6 @@ function recomputeFitFn(fi) {
     if (fn.fitType === 'linear') {
       const b = document.getElementById('loesungsweg-box');
       if (b?.style.display === 'block') showLoesungsweg();
-    }
-    if (fn.fitType === 'exponential') {
-      const b = document.getElementById('exp-lw-box');
-      if (b?.style.display === 'block') showExpLoesungsweg();
-    }
-    if (fn.fitType === 'logarithm') {
-      const b = document.getElementById('log-lw-box');
-      if (b?.style.display === 'block') showLogLoesungsweg();
     }
     if (['quadratic', 'vertex', 'roots'].includes(fn.fitType)) {
       const sp = document.getElementById('quad-sp-box');
@@ -1528,6 +1616,10 @@ function showLoesungsweg() {
 
   const html = [];
   linFuncs.forEach(({ fn, fi }) => {
+    // Senkrechte/Mittelsenkrechte bekommen unten einen eigenen, detaillierteren
+    // Konstruktions-Abschnitt (mit Steigungsbeziehung m₁·m₂=−1) statt dieses
+    // generischen Blocks.
+    if (perpMeta[fi]) return;
     const m = deriv1(fn.expr, 0);
     const b = safeEval(fn.expr, 0);
     if (!isFinite(m) || !isFinite(b)) return;
@@ -1594,6 +1686,63 @@ function showLoesungsweg() {
     }
   });
 
+  // ── Senkrechte / Mittelsenkrechte: Konstruktion + Steigungsbeziehung ──
+  // Eigener, ausführlicherer Abschnitt für jede über linAddPerp()/
+  // linAddBisector() erzeugte Funktion — zeigt explizit m₁·m₂ = −1.
+  Object.keys(perpMeta).forEach(key => {
+    const fi = parseInt(key, 10);
+    const fn = functions[fi];
+    const meta = perpMeta[fi];
+    if (!fn || !fn.expr.trim() || !meta || fn.visible === false) return;
+    const mPerp = deriv1(fn.expr, 0), bPerp = safeEval(fn.expr, 0);
+    if (!isFinite(mPerp) || !isFinite(bPerp)) return;
+    const m0H = fH(meta.m0), mPerpH = fH(mPerp);
+    const prodRounded = Math.round(meta.m0 * mPerp * 1e9) / 1e9;
+    const prodH = fH(prodRounded);
+
+    if (meta.kind === 'perp') {
+      const qxH = fH(meta.throughPt.x), qyH = fH(meta.throughPt.y), qxPs = parenH(meta.throughPt.x);
+      const mqx = mPerp * meta.throughPt.x;
+      const mqxSign = mqx >= 0 ? `− ${fH(Math.abs(mqx))}` : `+ ${fH(Math.abs(mqx))}`;
+      html.push(
+        lwLine(`── f<sub>${fi+1}</sub>(x): ${t('lw_perp_title')} f<sub>${meta.refFi+1}</sub> ${t('lw_through')} Q(${qxH}|${qyH}) ──`, false, true),
+        lwLine(''),
+        lwLine(`${t('lw_perp_slope')}:`),
+        lwLine(`m₁ · m₂ = −1  ⇒  m₂ = <span class="mfrac"><span class="mfrac-num">−1</span><span class="mfrac-den">m₁</span></span> = <span class="mfrac"><span class="mfrac-num">−1</span><span class="mfrac-den">${m0H}</span></span> = ${mPerpH}`, true),
+        lwLine(''),
+        lwLine(`${t('lw_intercept')}:`),
+        lwLine(`${t('lw_insert')} Q(${qxH}|${qyH}) in  y = m·x + q:`, true),
+        lwLine(`${qyH} = ${mPerpH}·${qxPs} + q`, true),
+        lwLine(`q = ${qyH} ${mqxSign}`, true),
+        lwLine(`q = ${fH(bPerp)}`, true),
+        lwLine(''),
+        lwLine(`${t('lw_result')}:`, false, true),
+        lwLine(`f<sub>${fi+1}</sub>(x) = ${mPerpH}·x ${signH(bPerp)}`, true),
+        lwLine(''),
+        lwLine(`${t('lw_perp_check')}: m₁ · m₂ = ${m0H} · ${mPerpH} = ${prodH} ✓`, true),
+        lwLine('')
+      );
+    } else if (meta.kind === 'bisector' && meta.ptA && meta.ptB && meta.mid) {
+      const { ptA, ptB, mid } = meta;
+      html.push(
+        lwLine(`── f<sub>${fi+1}</sub>(x): ${t('lw_bisector_title')} ${t('lw_of_segment')} (${fH(ptA.x)}|${fH(ptA.y)}) ${t('lw_and')} (${fH(ptB.x)}|${fH(ptB.y)}) ──`, false, true),
+        lwLine(''),
+        lwLine(`${t('lw_midpoint')} M:`),
+        lwLine(`M = <span class="mfrac"><span class="mfrac-num">x₁ + x₂</span><span class="mfrac-den">2</span></span> | <span class="mfrac"><span class="mfrac-num">y₁ + y₂</span><span class="mfrac-den">2</span></span>`, true),
+        lwLine(`M = (${fH(mid.x)} | ${fH(mid.y)})`, true),
+        lwLine(''),
+        lwLine(`${t('lw_perp_slope')}:`),
+        lwLine(`m₁ · m₂ = −1  ⇒  m₂ = <span class="mfrac"><span class="mfrac-num">−1</span><span class="mfrac-den">m₁</span></span> = <span class="mfrac"><span class="mfrac-num">−1</span><span class="mfrac-den">${m0H}</span></span> = ${mPerpH}`, true),
+        lwLine(''),
+        lwLine(`${t('lw_result')}:`, false, true),
+        lwLine(`f<sub>${fi+1}</sub>(x) = ${mPerpH}·x ${signH(bPerp)}`, true),
+        lwLine(''),
+        lwLine(`${t('lw_perp_check')}: m₁ · m₂ = ${m0H} · ${mPerpH} = ${prodH} ✓`, true),
+        lwLine('')
+      );
+    }
+  });
+
   box.innerHTML = html.join('');
   box.style.display = 'block';
 }
@@ -1631,54 +1780,29 @@ function showLoesungsweg() {
     computeFn: quadCompute,
   };
 
-  // Exponential-Panel
-  expPanelDef = {
-    prefix: 'exp',
-    pickBtnId: 'exp-pick-btn',
-    statusId: 'exp-pick-status',
-    resultId: 'exp-result',
-    nPts: FIT_CONFIG.exponential.pts,
-    labels: FIT_CONFIG.exponential.labels,
-    pickNext: 0,
-    lastExpr: '',
-    getCurrentType: () => document.getElementById('exp-subtype')?.value || 'exponential',
-    computeFn: expCompute,
-  };
+  // Kein expPanelDef mehr — die Exponentialfunktionen-Punkte-Berechnung
+  // wurde durch die allgemeine Schieberegler-Form ersetzt (expAddGeneralForm()
+  // weiter oben). expPanelDef bleibt bei seiner Deklaration (Zeile ~149) auf
+  // null; die Asymptoten-/Recompute-Stellen, die noch darauf verweisen
+  // (08_draw.js, recomputeFitFn() unten), sind dafür bereits abgesichert.
 
-  // Logarithmus-Panel
-  logPanelDef = {
-    prefix: 'log',
-    pickBtnId: 'log-pick-btn',
-    statusId: 'log-pick-status',
-    resultId: 'log-result',
-    nPts: FIT_CONFIG.logarithm.pts,
-    labels: FIT_CONFIG.logarithm.labels,
-    pickNext: 0,
-    lastExpr: '',
-    getCurrentType: () => document.getElementById('log-subtype')?.value || 'logarithm',
-    computeFn: logCompute,
-  };
+  // Kein logPanelDef mehr — die Logarithmusfunktionen-Punkte-Berechnung
+  // wurde durch die allgemeine Schieberegler-Form ersetzt (logAddGeneralForm()
+  // weiter oben). logPanelDef bleibt bei seiner Deklaration (Zeile ~150) auf
+  // null; die Asymptoten-/Recompute-Stellen, die noch darauf verweisen
+  // (08_draw.js, recomputeFitFn() oben), sind dafür bereits abgesichert.
 
-  // Potenz-Panel
-  powerPanelDef = {
-    prefix: 'pow',
-    pickBtnId: 'power-pick-btn',
-    statusId: 'power-pick-status',
-    resultId: 'power-result',
-    nPts: FIT_CONFIG['positive power'].pts,
-    labels: FIT_CONFIG['positive power'].labels,
-    pickNext: 0,
-    lastExpr: '',
-    getCurrentType: () => document.getElementById('power-subtype')?.value || 'positive power',
-    computeFn: powerCompute,
-  };
+  // Kein powerPanelDef mehr — die Potenz-/Wurzelfunktionen-Punkte-Berechnung
+  // wurde durch die allgemeine Schieberegler-Form ersetzt (powerAddGeneralForm()
+  // weiter oben). powerPanelDef bleibt bei seiner Deklaration (Zeile ~151) auf
+  // null; recomputeFitFn() oben verweist nur noch über FIT_PREFIX['pow'] auf
+  // das (jetzt nicht mehr existierende) '#pow-result'-Element, was dort bereits
+  // mit einem einfachen getElementById-Null-Check abgesichert ist.
 
   // Eingabefelder initial aufbauen
   linUpdateInputs();
   quadUpdateInputs();
-  expUpdateInputs();
-  logUpdateInputs();
-  powerUpdateInputs();
+  powerUpdateHint();
 })();
 
 // ═══════════════════════════════════════════════════════════════════

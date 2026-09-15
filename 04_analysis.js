@@ -97,6 +97,14 @@ function tryAnalyticalZerosEx(fi_idx, expr) {
     }
   }
   const aI = Math.round(a * scale), bI = Math.round(b * scale), cI = Math.round(c * scale);
+  // Schutz vor Division durch 0 weiter unten (2*aI im Nenner): bei einer nur
+  // numerisch (finite-Differenzen-Rauschen) knapp über der 1e-6-Schwelle
+  // liegenden zweiten Ableitung kann a so winzig sein, dass es bei keiner der
+  // Skalierungsstufen zu einer von 0 verschiedenen Ganzzahl gerundet wird
+  // (z.B. bei "m·x+q" mit bestimmten Schieberegler-Werten beobachtet — echte
+  // Gerade, fälschlich als Parabel mit a≈0 erkannt). Ohne diesen Guard entsteht
+  // ein Phantom-Nullstellen-Paar mit x=NaN und einem ".../0"-Bruch im Label.
+  if (aI === 0) return [];
   const DInt = bI * bI - 4 * aI * cI;
   if (DInt < 0) return [];
 
@@ -150,6 +158,14 @@ function tryAnalyticalZerosEx(fi_idx, expr) {
 }
 
 async function computeSpecials(myToken) {
+  // D_f/W_f-Anzeige direkt in den Funktionstyp-Panels (siehe
+  // updatePanelDomainRanges() in 06_ui_functions.js) — als allererstes und
+  // synchron, damit sie bei JEDER Schieber-/Ausdrucksänderung automatisch
+  // mit aktualisiert wird, ohne jede einzelne UI-Stelle einzeln anfassen zu
+  // müssen. In try/catch, damit ein Fehler dort niemals die eigentliche
+  // Spezialpunkte-Berechnung verhindert.
+  try { if (typeof updatePanelDomainRanges === 'function') updatePanelDomainRanges(); } catch (e) {}
+
   // Zeit-basiertes Yielding — WICHTIG: nicht async, gibt null ODER eine echte
   // setTimeout-Promise zurück. Nur wenn eine Promise zurückkommt, wird awaited.
   // await einer bereits aufgelösten Promise (Microtask) gibt dem Browser KEINE Kontrolle —
@@ -347,24 +363,51 @@ async function computeSpecials(myToken) {
 
   // ── Asymptoten & Pole ─────────────────────────────────────────────
   const BIG = 1e7;
+  // Unterscheidet echte Divergenz (z.B. log(x) an x→0+, |f| wächst UNBESCHRÄNKT
+  // beim Annähern) von einem gewöhnlichen beschränkten Definitionsrand (z.B.
+  // sqrt(x) an x=0, oder eine verschobene Wurzel wie (x-2)^(1/4)-1, die sich
+  // einem endlichen Wert ≠0 nähert). Verglichen werden die DIFFERENZEN
+  // aufeinanderfolgender, geometrisch verkleinerter Stichproben statt der
+  // Rohwerte selbst — das macht den Test unabhängig von einer additiven
+  // Verschiebung (h≠0): schrumpfen die Differenzen deutlich, konvergiert f
+  // gegen EINEN endlichen Wert (auch ≠0) → kein Pol; bleiben sie gleich gross
+  // (oder wachsen), divergiert f unbeschränkt → echter Pol.
+  const probeDivergence = (expr, x0, dirSign) => {
+    const f1 = safeEval(expr, x0 + dirSign * 1e-2);
+    const f2 = safeEval(expr, x0 + dirSign * 1e-4);
+    const f3 = safeEval(expr, x0 + dirSign * 1e-6);
+    if (!isFinite(f1) || !isFinite(f2) || !isFinite(f3)) return true;
+    const d12 = Math.abs(f2 - f1), d23 = Math.abs(f3 - f2);
+    return !(d23 < d12 * 0.5 + 1e-9);
+  };
+
   for (let fi_idx = 0; fi_idx < functions.length; fi_idx++) {
     const fi_obj = functions[fi_idx];
     if (!fi_obj.expr.trim() || fi_obj.visible === false) continue;
     const col = fi_obj.color;
     const isLin = isLinearFunc(fi_obj.expr);
+    const dMin = fi_obj.domainMin != null ? fi_obj.domainMin : -Infinity;
+    const dMax = fi_obj.domainMax != null ? fi_obj.domainMax : Infinity;
 
     if (!isLin) {
-      const yP = [safeEval(fi_obj.expr, BIG), safeEval(fi_obj.expr, BIG*0.9), safeEval(fi_obj.expr, BIG*0.8)];
-      const yM = [safeEval(fi_obj.expr, -BIG), safeEval(fi_obj.expr, -BIG*0.9), safeEval(fi_obj.expr, -BIG*0.8)];
+      // Horizontale/schräge Asymptoten nur in Richtungen prüfen, die der
+      // Definitionsbereich überhaupt zulässt (sonst z.B. bei sqrt(x-2) mit
+      // domainMin=2 fälschlich Richtung -∞ scannen).
+      const canPlus  = dMax === Infinity;
+      const canMinus = dMin === -Infinity;
+      const yP = canPlus  ? [safeEval(fi_obj.expr, BIG), safeEval(fi_obj.expr, BIG*0.9), safeEval(fi_obj.expr, BIG*0.8)] : [NaN,NaN,NaN];
+      const yM = canMinus ? [safeEval(fi_obj.expr, -BIG), safeEval(fi_obj.expr, -BIG*0.9), safeEval(fi_obj.expr, -BIG*0.8)] : [NaN,NaN,NaN];
       const conv = (arr) => arr.every(isFinite) && (Math.max(...arr) - Math.min(...arr)) < 1e-2;
       const addAsymp = (val, dir) => {
         if (!acc.some(p => p.kind==='asymp' && p.fi===fi_idx && Math.abs(p.y - val) < 1e-4))
           acc.push({ kind:'asymp', fi:fi_idx, x:0, y:val, col, dir, asympKey:`asymp_${fi_idx}_${parseFloat(val.toFixed(6))}` });
       };
-      if (conv(yP)) { const v = yP[0]; if (isFinite(v)) addAsymp(v, '+∞'); }
-      if (conv(yM)) { const v = yM[0]; if (isFinite(v)) addAsymp(v, '-∞'); }
+      if (canPlus  && conv(yP)) { const v = yP[0]; if (isFinite(v)) addAsymp(v, '+∞'); }
+      if (canMinus && conv(yM)) { const v = yM[0]; if (isFinite(v)) addAsymp(v, '-∞'); }
 
-      for (const [arr, dirSign, dirStr] of [[yP, 1, '+∞'], [yM, -1, '-∞']]) {
+      const BIG_LO = 1e4; // zweite, deutlich kleinere Skala für den Kreuz-Skalen-Konsistenztest unten
+      for (const [arr, dirSign, dirStr, dirOk] of [[yP, 1, '+∞', canPlus], [yM, -1, '-∞', canMinus]]) {
+        if (!dirOk) continue;
         if (!arr.every(isFinite)) continue;
         if (conv(arr)) continue;
         const dX = BIG * 0.1 * dirSign;
@@ -375,6 +418,27 @@ async function computeSpecials(myToken) {
         const slope = (s1 + s2) / 2;
         const intercept = arr[0] - slope * BIG * dirSign;
         if (!isFinite(intercept)) continue;
+        // Kreuz-Skalen-Konsistenz: eine ECHTE schräge Asymptote hat eine Steigung,
+        // die bei JEDER hinreichend grossen Grössenordnung von x (nicht nur nahe
+        // bei BIG=1e7) gleich ist. Sub-linear wachsende Funktionen wie sqrt(x)
+        // sehen lokal bei x≈1e7 fälschlich "gerade" aus (Steigung ≈ 1/(2√x) ist
+        // dort fast konstant), haben bei einer 1000× kleineren Skala aber eine
+        // deutlich ANDERE Steigung — das deckt diesen falsch-positiven Fall auf.
+        const arrLo = [safeEval(fi_obj.expr, BIG_LO*dirSign), safeEval(fi_obj.expr, BIG_LO*0.9*dirSign), safeEval(fi_obj.expr, BIG_LO*0.8*dirSign)];
+        if (arrLo.every(isFinite)) {
+          const dXLo = BIG_LO * 0.1 * dirSign;
+          const slopeLo = ((arrLo[0]-arrLo[1])/dXLo + (arrLo[1]-arrLo[2])/dXLo) / 2;
+          // Verhältnis-Vergleich statt absoluter Differenz: bei einer ECHTEN
+          // schrägen Asymptote ist die Steigung bei jeder Grössenordnung von x
+          // (fast) gleich gross, das Verhältnis also ≈1 — unabhängig davon, ob
+          // die Steigung selbst gross oder (wie bei sqrt(x), ≈1.6e-4) winzig
+          // ist. Eine additive Toleranz würde bei so kleinen Steigungen jede
+          // noch so grosse relative Abweichung fälschlich durchlassen.
+          if (isFinite(slopeLo) && Math.abs(slopeLo) > 1e-12) {
+            const ratio = slope / slopeLo;
+            if (!isFinite(ratio) || ratio < 0.5 || ratio > 2) continue;
+          }
+        }
         const _fv1 = safeEval(fi_obj.expr, 1), _fv2 = safeEval(fi_obj.expr, 2);
         if (isFinite(_fv1) && isFinite(_fv2) &&
             Math.abs(_fv1 - (slope + intercept)) < 0.01 &&
@@ -388,14 +452,21 @@ async function computeSpecials(myToken) {
                      asympKey:`asymp_${fi_idx}_oblique_${dirStr}` });
       }
 
-      // Vertikale Pole
+      // Vertikale Pole — Scan nur im Schnitt aus Sichtfenster und Definitionsbereich
+      const scanXMin = Math.max(view.xmin, dMin);
+      const scanXMax = Math.min(view.xmax, dMax);
+      if (scanXMax > scanXMin) {
       const pSteps = 1200;
-      const pDx = (view.xmax - view.xmin) / pSteps;
+      const pDx = (scanXMax - scanXMin) / pSteps;
       const yR = view.ymax - view.ymin;
-      const MERGE_POLE = (view.xmax - view.xmin) / 50;
+      // Merge-Radius primär am Abtastschritt orientiert (nicht nur an der
+      // Sichtfensterbreite) — verhindert, dass bei weit rausgezoomten Ansichten
+      // eng benachbarte periodische Pole (z.B. tan(x), Abstand π) fälschlich
+      // zu einem einzigen zusammengelegt werden.
+      const MERGE_POLE = Math.max(pDx * 3, (view.xmax - view.xmin) / 500);
       let prevPy = NaN, prevPx = null;
 
-      const bisectPole = (lo, hi) => {
+      const findBoundary = (lo, hi) => {
         const ylo0 = safeEval(fi_obj.expr, lo), yhi0 = safeEval(fi_obj.expr, hi);
         const bothFin = isFinite(ylo0) && isFinite(yhi0);
         const sLo = Math.sign(ylo0);
@@ -408,39 +479,236 @@ async function computeSpecials(myToken) {
           else lo = m;
           ax = (lo + hi) / 2;
         }
+        return ax;
+      };
+      // Eigene, richtungsklare Bisektion für den Übergang undefiniert -> definiert
+      // (Definitionsrand, z.B. Wurzel-/Log-Funktion). findBoundary() oben geht
+      // von der ANDEREN Anordnung aus (lo=definiert, hi=wird undefiniert/unendlich
+      // — der klassische Pol-Fall) und würde hier, mit vertauschten Rollen
+      // aufgerufen, in die falsche Richtung bisektieren (konvergiert fälschlich
+      // fast zu lo statt zur echten Grenze). Hier: lo=undefiniert, hi=definiert.
+      const findDomainBoundary = (loUndef, hiDef) => {
+        let lo = loUndef, hi = hiDef;
+        for (let it = 0; it < 50; it++) {
+          const m = (lo + hi) / 2;
+          const ym = safeEval(fi_obj.expr, m);
+          if (isFinite(ym)) hi = m; else lo = m;
+        }
+        return hi; // knapp innerhalb des Definitionsbereichs, beliebig nah an der Grenze
+      };
+      const addPole = (ax) => {
         const ri = Math.round(ax);
         const axNice = Math.abs(ri - ax) < 1e-4 ? ri : parseFloat(ax.toFixed(4));
+        // xRaw (volle Bisektions-Präzision, ungerundet) wird zusätzlich zum
+        // gerundeten Anzeige-x gespeichert — Phase 2 (Nerdamer) braucht das,
+        // um zu erkennen, ob die Polstelle sauber rational ist (siehe dort).
         if (!acc.some(p => p.kind==='pole' && p.fi===fi_idx && Math.abs(p.x - ax) < MERGE_POLE))
-          acc.push({ kind:'pole', fi:fi_idx, x:axNice, y:0, col });
+          acc.push({ kind:'pole', fi:fi_idx, x:axNice, y:0, col, xRaw:ax });
+      };
+      const bisectPole = (lo, hi) => { addPole(findBoundary(lo, hi)); };
+
+      // Verifiziert, dass innerhalb [lo,hi] eine ECHTE Singularität liegt (|f|
+      // wächst unbeschränkt, je näher man kommt), statt nur eine STEILE aber
+      // stetige Funktion (z.B. a·b^x mit grosser Basis b) — bei der ein grober
+      // Scan-Schritt ebenfalls einen riesigen Sprung zeigen kann, obwohl die
+      // Funktion dort nirgends divergiert. Feinere Zwischenpunkte einer echten
+      // Polstelle liegen beliebig nah an ihr und zeigen daher |f|-Werte, die
+      // die Intervall-Randwerte um ein Vielfaches übersteigen; bei einer
+      // stetigen (auch steilen) Funktion bleibt |f| innerhalb des schmalen
+      // Intervalls dagegen in der gleichen Grössenordnung wie an den Rändern.
+      const verifyInteriorPole = (lo, hi) => {
+        const fLo = safeEval(fi_obj.expr, lo), fHi = safeEval(fi_obj.expr, hi);
+        // Kleinerer der beiden Randbeträge als Referenz — bei einem echten Pol
+        // steigt |f| zwischen den Rändern noch deutlich über BEIDE hinaus an
+        // (auch über den bereits grösseren Rand), während eine stetige, nur
+        // steile Funktion innerhalb des schmalen Fensters nahe am GRÖSSEREN
+        // Randwert bleibt.
+        const base = Math.max(Math.min(Math.abs(fLo), Math.abs(fHi)), 1e-9);
+        const N = 24;
+        for (let i = 1; i < N; i++) {
+          const x = lo + (hi - lo) * i / N;
+          const v = safeEval(fi_obj.expr, x);
+          if (!isFinite(v)) return true;
+          if (Math.abs(v) > base * 8) return true;
+        }
+        return false;
       };
 
       for (let s = 0; s <= pSteps; s++) {
         { const _yp = yieldIfNeeded(); if (_yp) { await _yp; _lastYield = performance.now(); if (cancelled()) return; } }
-        const px = view.xmin + s * pDx;
+        const px = scanXMin + s * pDx;
         const py = safeEval(fi_obj.expr, px);
-        if (prevPx !== null && isFinite(prevPy)) {
-          if (!isFinite(py)) {
-            // py ist unendlich → Pol direkt erkannt (1/x, 1/x² usw.)
-            bisectPole(prevPx, px);
-          } else if (Math.abs(py - prevPy) > yR * 6) {
-            // Grosser Sprung — auch ohne Vorzeichenwechsel (deckt 1/x² ab)
-            bisectPole(prevPx, px);
-          } else if (Math.abs(prevPy) > yR * 20 && Math.abs(py) > yR * 20
-                     && Math.sign(prevPy) === Math.sign(py)) {
-            // Beide Werte sehr gross und gleiches Vorzeichen: Pol könnte dazwischen liegen
-            // (Scan hat Polstelle übersprungen) → Mittelpunkt prüfen
-            const midX = (prevPx + px) / 2;
-            const midY = safeEval(fi_obj.expr, midX);
-            if (!isFinite(midY) || Math.abs(midY) > Math.max(Math.abs(prevPy), Math.abs(py)) * 2) {
+        if (prevPx !== null) {
+          const prevFin = isFinite(prevPy), curFin = isFinite(py);
+          if (prevFin && !curFin) {
+            // py ist unendlich/undefiniert. Das deckt sowohl echte, beidseitige
+            // Pole ab (1/x, 1/x² usw. — |f| divergiert von BEIDEN Seiten) als
+            // auch einen rechtsseitigen (oberen) Definitionsrand, z.B. bei einer
+            // vom Nutzer getippten Funktion wie sqrt(2-x) (definiert für x≤2).
+            // probeDivergence unterscheidet auch hier: echte Divergenz (Pol) vs.
+            // gewöhnliches Auslaufen an einem Wurzel-artigen Rand.
+            const ax = findBoundary(prevPx, px);
+            if (probeDivergence(fi_obj.expr, ax, -1)) addPole(ax);
+          } else if (!prevFin && curFin) {
+            // Übergang undefiniert -> definiert (z.B. links vom Definitionsrand
+            // einer Wurzel- oder Log-Funktion). Nur als Pol werten, wenn |f|
+            // beim Annähern tatsächlich divergiert (log-artig), nicht bloss
+            // an einem gewöhnlichen Wurzel-Rand ausläuft (sqrt-artig). Der Scan
+            // läuft links->rechts, der Definitionsbereich liegt hier also IMMER
+            // rechts von der gefundenen Grenze (definedSign=+1).
+            const ax = findDomainBoundary(prevPx, px);
+            if (probeDivergence(fi_obj.expr, ax, 1)) addPole(ax);
+          } else if (prevFin && curFin) {
+            if (Math.abs(py - prevPy) > yR * 6 && verifyInteriorPole(prevPx, px)) {
+              // Grosser Sprung — auch ohne Vorzeichenwechsel (deckt 1/x² ab) — und
+              // bestätigt als ECHTE Divergenz, nicht bloss eine steile stetige Kurve.
               bisectPole(prevPx, px);
+            } else if (Math.abs(prevPy) > yR * 20 && Math.abs(py) > yR * 20
+                       && Math.sign(prevPy) === Math.sign(py)) {
+              // Beide Werte sehr gross und gleiches Vorzeichen: Pol könnte dazwischen liegen
+              // (Scan hat Polstelle übersprungen) → Mittelpunkt prüfen
+              const midX = (prevPx + px) / 2;
+              const midY = safeEval(fi_obj.expr, midX);
+              if ((!isFinite(midY) || Math.abs(midY) > Math.max(Math.abs(prevPy), Math.abs(py)) * 2)
+                  && verifyInteriorPole(prevPx, px)) {
+                bisectPole(prevPx, px);
+              }
             }
           }
         }
         prevPy = py; prevPx = px;
       }
+      }
     }
 
     { const _yp = yieldIfNeeded(); if (_yp) { await _yp; if (cancelled()) return; } }
+  }
+
+  // ── Phase 2: Exakte Bestätigung/Verfeinerung via Nerdamer (CAS) ────────
+  // Nerdamer wird als AUTORITATIV behandelt, wenn es eine eindeutige Antwort
+  // liefert (Wert ODER "bestätigt kein Grenzwert") — sie ERSETZT dann das
+  // numerische Heuristik-Ergebnis für diese Richtung/Stelle. Ist Nerdamer
+  // nicht bestimmbar (Timeout/Fehler/periodisch/nicht auswertbar), bleibt
+  // das bisherige numerische Ergebnis unverändert (nie schlechter als vorher).
+  // Pol-Einträge werden von Phase 2 NUR entfernt (nie hinzugefügt) — die
+  // numerische Bisektion bleibt die einzige Kandidatensuche für Pol-STELLEN,
+  // da Nerdamer nicht selbst danach suchen kann, sondern nur eine gegebene
+  // Kandidatenstelle bestätigen/widerlegen kann.
+  //
+  // WICHTIG: die Pol-vs-Lücke-Prüfung (ndPoleOrHole) darf NUR bei sauber
+  // rationalen Polstellen (z.B. x=1 bei 1/(x-1)) angewendet werden. Bei
+  // irrationalen Polstellen — typischerweise periodische Funktionen wie
+  // tan(x) mit Polen bei π/2+k·π — liefert die numerische Bisektion nur eine
+  // Dezimal-NÄHERUNG (z.B. 1.5708 statt π/2). Würde man diese Näherung an
+  // Nerdamer übergeben, würde Nerdamer dort tatsächlich einen riesigen aber
+  // ENDLICHEN Wert berechnen (nicht die wahre Unendlichkeit an der exakten
+  // Stelle π/2) und den korrekt gefundenen Pol fälschlich als "hebbare Lücke"
+  // verwerfen. _niceRationalOrNull erkennt daher zuerst, ob die (ungerundete)
+  // Kandidatenstelle zu einem einfachen Bruch "schnappt" — nur dann wird
+  // Nerdamer überhaupt gefragt.
+  function _niceRationalOrNull(x, tol) {
+    if (!isFinite(x) || Math.abs(x) > 1e6) return null;
+    for (const d of [1,2,3,4,5,6,7,8,9,10,12,16,20,24]) {
+      const n = Math.round(x * d);
+      if (Math.abs(n / d - x) < tol) return n === 0 ? '0' : (d === 1 ? String(n) : `((${n})/(${d}))`);
+    }
+    return null;
+  }
+  // Nerdamer hat bestätigte Bugs (siehe Kommentare in 16_calculus.js /
+  // 18_nerdamer_limits.js, z.B. der 2-Argument-log-Bug). Für schräge
+  // Asymptoten wurde zusätzlich beobachtet, dass "limit(simplify(f(x)/x), x,
+  // Infinity)" bei gebrochenen Exponenten (z.B. nthroot, a·(x-v)^(1/n)) einen
+  // FALSCHEN, aber plausibel aussehenden Wert liefert (z.B. 1/4 statt 0 für
+  // nthroot(x,4)/x) — Nerdamer wird daher NIE blind übernommen, sondern jedes
+  // Ergebnis zusätzlich numerisch an einer weit aussen liegenden Stelle
+  // gegengeprüft (analog zum calcNumericAgree-Muster in 16_calculus.js).
+  // Bestätigt sich der Wert numerisch nicht, wird er verworfen und die
+  // bisherige numerische Heuristik bleibt (unverändert) massgebend.
+  const ND_VERIFY_X = 1e6;
+  const verifyHorizontalND = (expr, dirStr, value) => {
+    const x = dirStr === 'Infinity' ? ND_VERIFY_X : -ND_VERIFY_X;
+    const fv = safeEval(expr, x);
+    if (!isFinite(fv)) return false;
+    return Math.abs(fv - value) < Math.max(Math.abs(value), 1) * 0.02 + 0.05;
+  };
+  const verifyObliqueND = (expr, dirStr, slope, intercept) => {
+    const x = dirStr === 'Infinity' ? ND_VERIFY_X : -ND_VERIFY_X;
+    const fv = safeEval(expr, x);
+    const predicted = slope * x + intercept;
+    if (!isFinite(fv) || !isFinite(predicted)) return false;
+    return Math.abs(fv - predicted) < Math.max(Math.abs(predicted), 1) * 0.02 + 1;
+  };
+  const verifyHoleND = (expr, x0, holeValue) => {
+    const eps = 1e-4;
+    const fL = safeEval(expr, x0 - eps), fR = safeEval(expr, x0 + eps);
+    if (!isFinite(fL) || !isFinite(fR)) return false;
+    const tol = Math.max(Math.abs(holeValue), 1) * 0.05 + 0.05;
+    return Math.abs(fL - holeValue) < tol && Math.abs(fR - holeValue) < tol;
+  };
+  if (typeof ndEvalAsync === 'function') {
+    for (let fi_idx = 0; fi_idx < functions.length; fi_idx++) {
+      if (cancelled()) return;
+      const fi_obj = functions[fi_idx];
+      if (!fi_obj.expr.trim() || fi_obj.visible === false) continue;
+      if (isLinearFunc(fi_obj.expr)) continue;
+      const dMin = fi_obj.domainMin != null ? fi_obj.domainMin : -Infinity;
+      const dMax = fi_obj.domainMax != null ? fi_obj.domainMax : Infinity;
+
+      // -- Pol vs. hebbare Lücke (nur bei sauber rationaler Kandidatenstelle) --
+      const poleEntries = acc.filter(p => p.kind === 'pole' && p.fi === fi_idx);
+      for (const p of poleEntries) {
+        if (cancelled()) return;
+        const niceX = _niceRationalOrNull(p.xRaw != null ? p.xRaw : p.x, 1e-7);
+        if (niceX === null) continue; // irrationale/periodische Stelle -> Nerdamer nicht befragen (s.o.)
+        const verdict = await ndPoleOrHole(fi_obj.expr, niceX);
+        if (verdict && verdict.isPole === false && verifyHoleND(fi_obj.expr, p.x, verdict.holeValue)) {
+          const idx = acc.indexOf(p);
+          if (idx !== -1) acc.splice(idx, 1); // hebbare Lücke -> kein Pol-Marker
+        }
+      }
+
+      // -- Horizontale / schräge Asymptoten je Richtung --
+      for (const [dirStr, dirLabel, domainOk] of [
+        ['Infinity', '+∞', dMax === Infinity],
+        ['-Infinity', '-∞', dMin === -Infinity]
+      ]) {
+        if (!domainOk) continue;
+        if (cancelled()) return;
+        let hz = await ndHorizontalLimit(fi_obj.expr, dirStr);
+        if (hz.ok && !verifyHorizontalND(fi_obj.expr, dirStr, hz.value)) hz = { ok: false, confirmed: false };
+        // "confirmed" (Nerdamer: kein endlicher Grenzwert) nur zum Entfernen
+        // eines bestehenden numerischen Treffers nutzen, wenn dieser nicht
+        // bereits durch eine starke numerische Konvergenz belegt ist — sonst
+        // könnte ein unentdeckter Nerdamer-Fehler einen korrekten Befund
+        // fälschlich löschen.
+        const hasExistingHoriz = acc.some(p => p.fi === fi_idx && p.kind === 'asymp' && !p.oblique && p.dir === dirLabel);
+        if (hz.ok || (hz.confirmed && !hasExistingHoriz)) {
+          for (let j = acc.length - 1; j >= 0; j--) {
+            const p = acc[j];
+            if (p.fi === fi_idx && p.kind === 'asymp' && p.dir === dirLabel) acc.splice(j, 1);
+          }
+          if (hz.ok) {
+            acc.push({ kind:'asymp', fi:fi_idx, x:0, y:hz.value, col: fi_obj.color, dir:dirLabel,
+                       asympKey:`asymp_${fi_idx}_${parseFloat(hz.value.toFixed(6))}` });
+            continue;
+          }
+        }
+        if (cancelled()) return;
+        let ob = await ndObliqueLimit(fi_obj.expr, dirStr);
+        if (ob.ok && !verifyObliqueND(fi_obj.expr, dirStr, ob.slope, ob.intercept)) ob = { ok: false };
+        if (ob.ok) {
+          for (let j = acc.length - 1; j >= 0; j--) {
+            const p = acc[j];
+            if (p.fi === fi_idx && p.kind === 'asymp' && p.dir === dirLabel) acc.splice(j, 1);
+          }
+          const slopeR = parseFloat(ob.slope.toFixed(5)), intR = parseFloat(ob.intercept.toFixed(4));
+          acc.push({ kind:'asymp', fi:fi_idx, x:0, y:0, col: fi_obj.color, dir:dirLabel,
+                     oblique:true, slope:slopeR, intercept:intR,
+                     asympKey:`asymp_${fi_idx}_oblique_${dirLabel}` });
+        }
+      }
+      { const _yp = yieldIfNeeded(); if (_yp) { await _yp; if (cancelled()) return; } }
+    }
   }
 
   // Ergebnis übernehmen — nur wenn Token noch gültig (kein neuerer Lauf hat gestartet)
@@ -455,8 +723,14 @@ function kindBadge(k) { return k==='max'?'badge-max' : k==='min'?'badge-min' : k
 
 // Rendert die Spezielle-Punkte-Liste in der Sidebar.
 // Gruppiert periodische Punkte (z.B. alle Nullstellen von sin) zu einem zusammenfassenden Eintrag.
+// Das Sidebar-Panel "Spezielle Punkte" wurde auf Nutzerwunsch entfernt (redundant
+// zu den Smart-Buttons direkt unter jeder Funktion) — #special-list existiert daher
+// nicht mehr. updateSmartButtons() (weiter unten aufgerufen) bleibt aber nötig, da es
+// genau diese Smart-Buttons aktualisiert; darum hier nur early-return statt die
+// Funktion ganz zu entfernen.
 function renderSpecialList() {
   const el = document.getElementById('special-list');
+  if (!el) { if (typeof updateSmartButtons === 'function') updateSmartButtons(); return; }
   if (!specials.length) { el.innerHTML = '<span style="font-size:11px;color:#9ca3af;">—</span>'; return; }
   el.innerHTML = '';
   // Gruppieren nach Funktion + Typ + evtl. zweiter Funktion (für Schnittpunkte)
@@ -494,14 +768,12 @@ function addSPRow(el, pt, label) {
   const lbl = document.createElement('span');
   if (pt.kind === 'asymp') {
     if (pt.oblique) {
-      const sS = Math.abs(pt.slope-1)<1e-5?'':(Math.abs(pt.slope+1)<1e-5?'−':niceNumDec(pt.slope)+'·');
-      const bS = Math.abs(pt.intercept)<1e-5?'':(pt.intercept>0?` + ${niceNumDec(pt.intercept)}`:` − ${niceNumDec(Math.abs(pt.intercept))}`);
-      lbl.textContent = `f${pt.fi+1} y = ${sS}x${bS}  (${t('sp_oblique')}, x→${pt.dir})`;
+      lbl.textContent = `f${pt.fi+1} ${fmtObliqueAsymLabel(pt.slope, pt.intercept)}  (${t('sp_oblique')}, x→${pt.dir})`;
     } else {
-      lbl.textContent = `f${pt.fi+1} y = ${niceNumDec(pt.y)}  (x→${pt.dir})`;
+      lbl.textContent = `f${pt.fi+1} ${fmtHorizontalAsymLabel(pt.y)}  (x→${pt.dir})`;
     }
   } else if (pt.kind === 'pole') {
-    lbl.textContent = `f${pt.fi+1} x = ${niceNumDec(pt.x)}  (${t('sp_vert_asymp_lbl')})`;
+    lbl.textContent = `f${pt.fi+1} ${fmtVerticalAsymLabel(pt.x)}  (${t('sp_vert_asymp_lbl')})`;
   } else {
     lbl.innerHTML  = (pt.kind === 'isect' ? `f${pt.fi+1}∩f${pt.fj+1} ` : `f${pt.fi+1} `) + label;
   }
@@ -544,10 +816,22 @@ function generateSolveSteps(pt) {
   function rrSign(v) { return v >= 0 ? `+ ${rr(v)}` : `- ${rr(Math.abs(v))}`; }
   // Format a factor (number being multiplied): negative gets parentheses
   function rrFactor(v) { return v < 0 ? `(${rr(v)})` : rr(v); }
+  // Räumt doppelte Vorzeichen auf, die beim Einsetzen negativer Werte entstehen
+  // (z.B. "b - x" mit x=-2 → "b - -2" statt "b + 2"). Erkennt sowohl Bindestrich
+  // "-" als auch das an anderen Stellen verwendete echte Minuszeichen "−" (z.B.
+  // aus fmtObliqueAsymLabel) und beliebige Folgezeichen (Ziffer, Buchstabe,
+  // Klammer, LaTeX-Backslash) statt nur einzelner Ziffern — vorher wurden z.B.
+  // "- -(x+1)" oder "+ -√2" nicht erkannt. Mehrfach angewendet, da eine
+  // Ersetzung ein weiteres Doppel-Vorzeichen freilegen kann.
   function fixMM(s) {
-    return s.replace(/\+\s*-\s*(\d)/g, '- $1')
-            .replace(/-\s*-\s*(\d)/g, '+ $1')
-            .replace(/\+\s*\+\s*/g, '+ ');
+    for (let i = 0; i < 2; i++) {
+      const before = s;
+      s = s.replace(/\+\s*[-−]\s*(?=[\d(a-zA-Z\\√π])/g, '- ')
+           .replace(/[-−]\s*[-−]\s*(?=[\d(a-zA-Z\\√π])/g, '+ ')
+           .replace(/\+\s*\+\s*/g, '+ ');
+      if (s === before) break;
+    }
+    return s;
   }
 
   function getLinCoeffs() {

@@ -49,6 +49,13 @@ function formatPi(p, q) {
   const sign = p < 0 ? '-' : '', ap = Math.abs(p), ns = ap === 1 ? 'π' : `${ap}π`;
   return q === 1 ? `${sign}${ns}` : `${sign}${ns}/${q}`;
 }
+// LaTeX-Variante von formatPi() — für die MathLive-gerenderten Canvas-Overlay-
+// Beschriftungen (drawMathLabel() in 08_draw.js), damit π-Brüche dort exakt wie
+// im Eingabefeld erscheinen (echter Bruchstrich statt "/"-Zeichen).
+function formatPiLatex(p, q) {
+  const sign = p < 0 ? '-' : '', ap = Math.abs(p), ns = ap === 1 ? '\\pi' : `${ap}\\pi`;
+  return q === 1 ? `${sign}${ns}` : `${sign}\\frac{${ns}}{${q}}`;
+}
 
 // Formatiert eine Zahl schön für die Anzeige.
 // forAxis=true: keine unnötigen Nullen (parseFloat entfernt sie)
@@ -64,7 +71,11 @@ function gcd(a, b) { return b < 0.0001 ? Math.round(a) : gcd(b, a % b); }
 // Beispiele: √2/2, √3/2, √5/5, 2√3/3, √6/3, √10/5 …
 // Algorithmus: prüft ob v² eine einfache rationale Zahl p/q ist,
 // zieht Quadrate aus Zähler/Nenner heraus und bildet den Wurzelausdruck.
-function asSurd(v) {
+// latex=true: liefert LaTeX statt Unicode-String (\sqrt{}/\frac{} statt √ und /) —
+// für drawMathLabel()-Overlays (08_draw.js), die über MathLive.convertLatexToMarkup()
+// exakt wie das Eingabefeld gerendert werden. Bestehende Aufrufer (latex weggelassen)
+// verhalten sich unverändert.
+function asSurd(v, latex) {
   if (!isFinite(v) || Math.abs(v) < 1e-9) return null;
   const neg = v < 0 ? '-' : '';
   const abs = Math.abs(v);
@@ -91,6 +102,11 @@ function asSurd(v) {
     if (radicand === 1 || radicand > 250) continue; // rational oder zu komplex
     const gc2 = gcd(a, b * s);
     const nc = a / gc2, dc = (b * s) / gc2;
+    if (latex) {
+      const sqrtLatex = `\\sqrt{${radicand}}`;
+      const top = nc === 1 ? sqrtLatex : `${nc}${sqrtLatex}`;
+      return `${neg}${dc > 1 ? `\\frac{${top}}{${dc}}` : top}`;
+    }
     // Ergebnis-String: nc·√radicand / dc
     const sqSym = `√${radicand}`;
     let result = nc === 1 ? sqSym : `${nc}${sqSym}`;
@@ -100,7 +116,7 @@ function asSurd(v) {
   return null;
 }
 
-function asSimpleFrac(v) {
+function asSimpleFrac(v, latex) {
   if (Math.abs(v) < 1e-9 || !isFinite(v)) return null;
   const neg = v < 0 ? '-' : '';
   const abs = Math.abs(v);
@@ -110,19 +126,22 @@ function asSimpleFrac(v) {
     for (let q = 2; q <= 100; q++) {
       const p = Math.round(abs * q);
       if (p > 0 && Math.abs(p / q - abs) < tol) {
-        const g = gcd(p, q); return `${neg}${p/g}/${q/g}`;
+        const g = gcd(p, q);
+        return latex ? `${neg}\\frac{${p/g}}{${q/g}}` : `${neg}${p/g}/${q/g}`;
       }
     }
   }
   return null;
 }
-function niceNum(v, forAxis) {
+// latex=true: gibt LaTeX zurück (für drawMathLabel()-Overlays); sonst wie bisher
+// den Unicode-Anzeigestring (Eingabefeld-Textinput, Solve-Panel, …).
+function niceNum(v, forAxis, latex) {
   if (!isFinite(v)) return '–';
   if (Math.abs(v) < 1e-9) return '0'; // sehr kleine Zahlen = 0
-  if (usePiMode()) { const pf = asPiFraction(v); if (pf) return formatPi(pf.p, pf.q); }
+  if (usePiMode()) { const pf = asPiFraction(v); if (pf) return latex ? formatPiLatex(pf.p, pf.q) : formatPi(pf.p, pf.q); }
   if (!forAxis) {
-    const sr = asSurd(v); if (sr) return sr;     // Wurzel-Formen: √2/2, √3/2 …
-    const fr = asSimpleFrac(v); if (fr) return fr; // rationale Brüche: 1/3, 2/5 …
+    const sr = asSurd(v, latex); if (sr) return sr;     // Wurzel-Formen: √2/2, √3/2 …
+    const fr = asSimpleFrac(v, latex); if (fr) return fr; // rationale Brüche: 1/3, 2/5 …
   }
   return parseFloat(v.toFixed(precision)).toString();
 }
@@ -142,16 +161,41 @@ function fracHTML(v) {
   return parseFloat(v.toFixed(Math.max(precision, 2))).toString();
 }
 
-// Koordinaten-String, z.B. "(1/3 | 2)"
-function niceCoord(x, y) { return `(${niceNum(x)} | ${niceNum(y)})`; }
+// Koordinaten-String, z.B. "(1/3 | 2)". latex=true → LaTeX für drawMathLabel()-Overlays.
+function niceCoord(x, y, latex) {
+  if (latex) return `(${niceNum(x, false, true)} \\mid ${niceNum(y, false, true)})`;
+  return `(${niceNum(x)} | ${niceNum(y)})`;
+}
+
+// Einheitliche Formatierung einer schrägen Asymptote "y = m·x + k" (inkl. Sonderfälle
+// m=±1 → kein Koeffizient/Minuszeichen vor x, k=0 → kein Achsenabschnitt-Term).
+// Genutzt von ALLEN Anzeigeorten (Canvas-Beschriftung in 08_draw.js, Sonderpunkte-Liste
+// und Lösungsweg-Tooltip in 04_analysis.js/06_ui_functions.js, Asymptoten-Pills) —
+// damit dieselbe Asymptote überall garantiert identisch aussieht, statt an jeder Stelle
+// unabhängig (und potenziell leicht abweichend) neu zusammengebaut zu werden.
+// Dezimaldarstellung (niceNumDec) statt Brüche/Wurzeln, da Steigung/Achsenabschnitt
+// hier aus numerischer Schätzung stammen, nicht aus exakter symbolischer Rechnung.
+// Analog: horizontale bzw. vertikale Asymptote — selber Grund für niceNumDec.
+// latex=true (für drawMathLabel()-Overlays in 08_draw.js): LaTeX statt Unicode-Minus.
+function fmtHorizontalAsymLabel(y, latex) { return `y = ${niceNumDec(y, latex)}`; }
+function fmtVerticalAsymLabel(x, latex) { return `x = ${niceNumDec(x, latex)}`; }
+
+function fmtObliqueAsymLabel(slope, intercept, latex) {
+  const minus = latex ? '-' : '−'; // LaTeX rendert "-" im Mathe-Modus bereits als echtes Minuszeichen
+  const sS = Math.abs(slope - 1) < 1e-5 ? '' : (Math.abs(slope + 1) < 1e-5 ? minus : niceNumDec(slope, latex) + (latex ? '\\cdot ' : '·'));
+  const bS = Math.abs(intercept) < 1e-5 ? '' : (intercept > 0 ? ` + ${niceNumDec(intercept, latex)}` : ` ${minus} ${niceNumDec(Math.abs(intercept), latex)}`);
+  return `y = ${sS}x${bS}`;
+}
 
 // Dezimal-Darstellung ohne Brüche/Wurzeln — für dynamische Werte (Schieber, Hover).
 // Gerundet auf die eingestellte Präzision, keine springenden Brüche.
-function niceNumDec(v) {
+// latex=true → LaTeX (nur für π-Vielfache relevant; reine Dezimalzahlen sind in
+// LaTeX und Unicode identisch geschrieben).
+function niceNumDec(v, latex) {
   if (!isFinite(v)) return '–';
   if (Math.abs(v) < 1e-9) return '0';
   // Pi-Modus: exakte π-Vielfache bleiben (z.B. π/2 im Trig-Kontext)
-  if (usePiMode()) { const pf = asPiFraction(v); if (pf) return formatPi(pf.p, pf.q); }
+  if (usePiMode()) { const pf = asPiFraction(v); if (pf) return latex ? formatPiLatex(pf.p, pf.q) : formatPi(pf.p, pf.q); }
   return parseFloat(v.toFixed(precision)).toString();
 }
 
@@ -199,78 +243,87 @@ document.addEventListener('focusin', e => {
   if (t.tagName === 'INPUT' && (t.type === 'text' || t.type === 'number')) {
     if (!activeInput || activeInput.el !== t) activeInput = { el: t, fi: -1 };
   }
-  // Contenteditable-Felder (Funktionseingaben) werden über setActiveInput gesetzt
-  // Alle anderen contenteditable-Elemente ignorieren
+  // math-field-Elemente (Funktions-/Folgen-Eingaben) werden über setActiveInput
+  // gesetzt (siehe deren eigenen 'focusin'-Listener in 06_ui_functions.js / 13_sequences.js).
 });
 
-// Selektion beim Mousedown merken (vor Focus-Reset durch Tastenklick).
-document.addEventListener('mousedown', e => {
-  if (!activeInput || activeInput.el.contentEditable !== 'true') return;
-  const el = activeInput.el;
-  const sel = window.getSelection();
-  if (sel && sel.rangeCount) {
-    const range = sel.getRangeAt(0);
-    if (!el.contains(range.commonAncestorContainer)) return;
-    const fullRaw = el.getAttribute('data-raw') || '';
-    const selRaw = !range.collapsed ? ceSelRawFromRange(range, el) : '';
-    _ceKbdSel = { fullRaw, selRaw };
-  }
-}, true);
-
 // Fügt Text ins aktive Eingabefeld an der Cursor-Position ein.
+// Liest die aktuelle Selektion eines MathLive-Feldes als LaTeX (leer, wenn
+// keine/eine eingeklappte Selektion vorliegt). Mehrfach abgesichert, da die
+// genaue Selektions-API je nach MathLive-Version leicht variieren kann.
+function mlSelectionLatex(mf) {
+  try {
+    if (typeof mf.selectionIsCollapsed === 'boolean' && mf.selectionIsCollapsed) return '';
+    if (mf.selection) {
+      const v = mf.getValue(mf.selection, 'latex');
+      if (v) return v;
+    }
+  } catch (ex) { /* fällt durch auf leeren String */ }
+  return '';
+}
+
+// LaTeX-Vorlagen für die Tastatur-Buttons im math-field. argLatex ist die
+// LaTeX-Form einer evtl. vorhandenen Selektion — wird sie eingesetzt, "erbt"
+// der Baustein die Selektion (z.B. Bruch/Wurzel/Funktion um Markiertes legen),
+// sonst landet ein \placeholder{}, den MathLive automatisch anwählt.
+function mlKbdTemplate(before, after, extraArg, argLatex) {
+  const arg = argLatex || '\\placeholder{}';
+  switch (before) {
+    case 'x': return 'x';
+    case 'pi': return '\\pi';
+    case 'EC': return 'e';
+    case '(': return '(';
+    case ')': return ')';
+    case '+': return '+';
+    case '-': return '-';
+    case '*': return '\\cdot ';
+    case '/': return '/'; // MathLive wandelt "/" selbst in einen Bruch um
+    case '^2': return '^{2}';
+    case '^': return argLatex ? ('{' + argLatex + '}^{\\placeholder{}}') : '^{\\placeholder{}}';
+    // Vergleichsoperatoren (Lineare Optimierung, siehe 17_linopt.js) — reine
+    // Operator-Einfügung ohne Platzhalter/Selektion, analog zu '+'/'-'.
+    case '<=': return '\\le ';
+    case '>=': return '\\ge ';
+    case 'exp(': return 'e^{' + arg + '}';
+    case 'sin(': return '\\sin(' + arg + ')';
+    case 'cos(': return '\\cos(' + arg + ')';
+    case 'tan(': return '\\tan(' + arg + ')';
+    case 'sqrt(': return '\\sqrt{' + arg + '}';
+    case 'log(': return '\\ln(' + arg + ')';
+    case 'log10(': return '\\log_{10}(' + arg + ')';
+    case 'logn(': return '\\log_{' + extraArg + '}(' + arg + ')';
+    case 'nthroot(': return '\\sqrt[' + extraArg + ']{' + arg + '}';
+    case 'abs(': return '\\left|' + arg + '\\right|';
+    default: return before;
+  }
+}
+
+// Safari-Fix: Ein Klick auf einen Tastatur-Button (ausserhalb des math-field)
+// ruft zwar el.focus() auf, aber Safari übernimmt den :focus-Zustand des
+// <math-field>-Custom-Elements danach manchmal nicht rechtzeitig/zuverlässig
+// (bekannte WebKit-Eigenart bei Shadow-DOM-Elementen mit delegatesFocus,
+// v.a. nach programmatischem Fokus aus einem fremden Klick-Handler heraus).
+// MathLive rendert die neu eingefügte (per Platzhalter ausgewählte) Stelle
+// dann in ihrem "nicht fokussiert"-Stil statt im blauen Auswahl-Ton — sichtbar
+// als dunkelgraue Fläche im Eingabefeld. Fix: Fokus nach dem Insert auf dem
+// nächsten Frame nochmals explizit setzen, damit Safari :focus neu auswertet.
+function mlEnsureFocusAfterInsert(el) {
+  requestAnimationFrame(() => {
+    try { if (document.activeElement !== el) el.focus(); } catch (ex) { /* ignorieren */ }
+  });
+}
+
 function kbdInsert(before, after, extraArg) {
   if (!activeInput) return;
   const el = activeInput.el, fi = activeInput.fi;
   el.focus();
 
-  // Contenteditable-Funktionsfeld (div[contenteditable])
-  const isCE = el.contentEditable === 'true';
-  if (isCE) {
-    // Selektion VOR el.focus() sichern (focus() setzt Selektion zurück).
-    const selObj = window.getSelection();
-    let selTxt = '';
-    if (selObj && selObj.rangeCount > 0) {
-      const r = selObj.getRangeAt(0);
-      if (el.contains(r.commonAncestorContainer) && !r.collapsed)
-        selTxt = ceSelRawFromRange(r, el);
-    }
-    if (!selTxt && _ceKbdSel && _ceKbdSel.selRaw) selTxt = _ceKbdSel.selRaw;
-    el.focus();
-
-    // Insert-Text bestimmen
-    let insert;
-    if (before === 'EC') insert = fi >= 0 ? 'EC' : String(Math.E.toFixed(10));
-    else if (before === 'pi') insert = fi >= 0 ? 'pi' : String(Math.PI.toFixed(10));
-    else if (extraArg !== undefined) insert = before + (selTxt || 'x') + ',' + extraArg + ')';
-    else if (after !== undefined) insert = before + (selTxt || 'x') + after;
-    else if (selTxt) insert = '(' + selTxt + ')' + before;
-    else insert = before;
-
-    if (selTxt) {
-      // SELEKTION: Rohausdruck-String ersetzen (kein DOM-deleteContents).
-      const fullRaw = el.getAttribute('data-raw') || (_ceKbdSel && _ceKbdSel.fullRaw) || '';
-      const idx = fullRaw.indexOf(selTxt);
-      const newRaw = idx >= 0
-        ? fullRaw.slice(0, idx) + insert + fullRaw.slice(idx + selTxt.length)
-        : fullRaw + insert;
-      el.setAttribute('data-raw', newRaw);
-      if (fi >= 0 && functions[fi]) {
-        functions[fi].expr = newRaw;
-        if (typeof ceRenderEl === 'function') ceRenderEl(el);
-        syncParams(); syncAreaSelects(); scheduleComputeSpecials();
-        if (showArea) updateAreaResult(); scheduleDraw();
-      }
-    } else {
-      // KEIN SELECTION: execCommand an Cursor-Position
-      document.execCommand('insertText', false, insert);
-      const newRaw = typeof ceRawFromDom === 'function' ? ceRawFromDom(el) : el.textContent;
-      el.setAttribute('data-raw', newRaw);
-      if (fi >= 0 && functions[fi]) {
-        functions[fi].expr = newRaw;
-        syncParams(); syncAreaSelects(); scheduleComputeSpecials();
-        if (showArea) updateAreaResult(); scheduleDraw();
-      }
-    }
+  // MathLive-Eingabefeld (neues, robustes Eingabefeld)
+  if (el.tagName === 'MATH-FIELD') {
+    const argLatex = mlSelectionLatex(el);
+    const latex = mlKbdTemplate(before, after, extraArg, argLatex);
+    el.insert(latex, { insertionMode: 'replaceSelection', selectionMode: 'placeholder', focus: true });
+    mlEnsureFocusAfterInsert(el);
     return;
   }
 
@@ -318,36 +371,12 @@ function kbdFrac() {
   const el = activeInput.el, fi = activeInput.fi;
   el.focus();
 
-  const isCE = el.contentEditable === 'true';
-  if (isCE) {
-    const sel = window.getSelection();
-    const selTxt = sel.toString();
-    // Bruch-DOM direkt einfügen — kein blur nötig, Feld bleibt immer gerendert
-    const frac = document.createElement('span'); frac.className = 'preview-frac';
-    const numEl = document.createElement('span'); numEl.className = 'pf-num'; numEl.textContent = selTxt;
-    const denEl = document.createElement('span'); denEl.className = 'pf-den';
-    frac.append(numEl, denEl);
-    // Cursor-Anker-Span nach dem Bruch — begrenzt Schreibmarken-Höhe auf Schriftgrösse
-    const zws = document.createElement('span'); zws.className = 'pf-cursor-anchor'; zws.textContent = '​';
-    if (sel.rangeCount) {
-      const range = sel.getRangeAt(0);
-      range.deleteContents(); // markierten Text (künftiger Zähler) entfernen
-      range.insertNode(zws);
-      range.insertNode(frac); // frac vor zws → korrekte DOM-Reihenfolge
-    } else {
-      el.appendChild(frac); el.appendChild(zws);
-    }
-    // Cursor sofort in den Nenner setzen
-    const r = document.createRange(); r.selectNodeContents(denEl); r.collapse(false);
-    sel.removeAllRanges(); sel.addRange(r);
-    // Daten aktualisieren
-    const raw = ceRawFromDom(el);
-    el.setAttribute('data-raw', raw);
-    if (fi >= 0 && functions[fi]) {
-      functions[fi].expr = raw;
-      syncParams(); syncAreaSelects(); scheduleComputeSpecials();
-      if (showArea) updateAreaResult(); scheduleDraw();
-    }
+  // MathLive-Eingabefeld (neues, robustes Eingabefeld)
+  if (el.tagName === 'MATH-FIELD') {
+    const argLatex = mlSelectionLatex(el);
+    const latex = '\\frac{' + (argLatex || '\\placeholder{}') + '}{\\placeholder{}}';
+    el.insert(latex, { insertionMode: 'replaceSelection', selectionMode: 'placeholder', focus: true });
+    mlEnsureFocusAfterInsert(el);
     return;
   }
 
@@ -382,23 +411,6 @@ const H = 1e-5;
 // Verhindert dass new Function() bei jedem Pixel aufgerufen wird (wäre sehr langsam).
 // Cache wird geleert wenn Ausdruck oder Parameter sich ändern (clearEvalCache()).
 const evalCache = new Map();
-
-// Gespeicherte Selektion beim Mousedown (vor el.focus()-Reset).
-let _ceKbdSel = null;
-
-// Extrahiert den Rohausdruck der Selektion aus einem CE-Element.
-function ceSelRawFromRange(range, el) {
-  const children = Array.from(el.childNodes);
-  const sel = children.filter(ch => {
-    try { return range.intersectsNode(ch); } catch(e) { return false; }
-  });
-  if (!sel.length) return '';
-  const tmp = document.createElement('div');
-  sel.forEach(n => tmp.appendChild(n.cloneNode(true)));
-  return typeof ceRawFromDom === 'function'
-    ? ceRawFromDom(tmp)
-    : tmp.textContent.replace(/​/g, '');
-}
 
 // Kompiliert einen Ausdruck zu einer JavaScript-Funktion und cacht das Ergebnis.
 // expr: z.B. "sin(x) + a*x"
@@ -435,7 +447,7 @@ function fixNegParenPow(s) {
 //   Funktionsnamen (sin, cos, …) werden NICHT mit * versehen.
 function insertImplicitMult(expr) {
   // Bekannte Funktionsnamen — vor diesen darf kein * eingefügt werden
-  const FNAMES = /^(sin|cos|tan|sqrt|abs|log|exp|nthroot|logn|log10|logbase|pi|EC)$/;
+  const FNAMES = /^(sin|cos|tan|asin|acos|atan|sqrt|abs|log|exp|nthroot|logn|log10|logbase|pi|EC)$/;
 
   let r = expr;
 
@@ -443,7 +455,12 @@ function insertImplicitMult(expr) {
   r = r.replace(/(\d)([a-zA-Z_])/g, '$1*$2');
 
   // 2) Ziffer direkt vor (: 2(x+1) → 2*(x+1)
-  r = r.replace(/(\d)\(/g, '$1*(');
+  //    Ausnahme: die Ziffer gehört zu einem Bezeichner wie "log10" —
+  //    sonst würde "log10(x)" zu "log10*(x)" verstümmelt (log10 als
+  //    Parameter-Name interpretiert, Funktion*x statt Funktionsaufruf,
+  //    Ergebnis dauerhaft NaN). Erkannt über: kein Buchstabe/_ direkt
+  //    vor der Ziffernfolge.
+  r = r.replace(/(?<![a-zA-Z_][0-9]*)(\d)\(/g, '$1*(');
 
   // 3) ) vor (: )(x-1) → )*(x-1)
   r = r.replace(/\)\(/g, ')*(');
@@ -467,6 +484,9 @@ const _logn     = (v, base) => Math.log(v) / Math.log(base);
 const _log10    = (v) => Math.log(v) / Math.LN10;
 const _logbase  = (v, base) => Math.log(v) / Math.log(base);
 
+// _asin/_acos/_atan (=Math.asin/acos/atan) direkt als eingebaute Funktionen an
+// new Function()/fn(...) übergeben — kein Wrapper nötig, siehe getEvalFn/safeEval unten.
+
 function getEvalFn(expr, pNames) {
   // Cache-Check VOR insertImplicitMult — Regex läuft nur beim ersten Aufruf pro Ausdruck.
   const key = expr + '|' + pNames.join(',');
@@ -489,7 +509,7 @@ function getEvalFn(expr, pNames) {
     // So werden Math-Funktionen und Parameter als lokale Variablen übergeben.
     const fn = new Function(
       'x', 'sin','cos','tan','sqrt','abs','log','exp','pi','__EULER__',
-      'nthroot','logn','log10','logbase',
+      'nthroot','logn','log10','logbase','asin','acos','atan',
       ...pNames,
       `"use strict"; return (${e});`
     );
@@ -502,7 +522,7 @@ function getEvalFn(expr, pNames) {
 // Gibt NaN zurück bei Syntaxfehler oder mathematisch undefiniertem Wert.
 // xVal: der x-Wert (z.B. 1.5)
 // Eingebaute Funktionen die man verwenden kann:
-//   sin, cos, tan, sqrt, abs, log (=ln), exp (=eˣ)
+//   sin, cos, tan, asin, acos, atan, sqrt, abs, log (=ln), exp (=eˣ)
 //   nthroot(x,n) = ⁿ√x, logn(x,b) = log_b(x), log10(x)
 //   pi = π, EC = e (Eulersche Zahl)
 // Um neue Funktionen hinzuzufügen:
@@ -517,7 +537,7 @@ function safeEval(expr, xVal) {
     if (!fn) return NaN;
     const pV = pN.map(p => params[p].val);
     return fn(xVal, Math.sin, Math.cos, Math.tan, Math.sqrt, Math.abs, Math.log, Math.exp,
-              PI, Math.E, _nthroot, _logn, _log10, _logbase, ...pV);
+              PI, Math.E, _nthroot, _logn, _log10, _logbase, Math.asin, Math.acos, Math.atan, ...pV);
   } catch (ex) { return NaN; }
 }
 

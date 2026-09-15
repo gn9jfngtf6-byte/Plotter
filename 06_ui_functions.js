@@ -16,8 +16,11 @@
 })();
 
 // ═══════════════════════════════════════════════════════════════════
-// DEFINITIONSBEREICH: automatische Erkennung
+// DEFINITIONSBEREICH (D_f) & WERTEMENGE (W_f): automatische Erkennung
 // ═══════════════════════════════════════════════════════════════════
+// Die eigentliche Berechnung erfolgt symbolisch+numerisch in
+// 15_domain_range.js (computeDomain / computeRange) — siehe dort für die
+// Herleitung. Dieser Abschnitt bindet das nur noch an die UI an.
 
 // Speichert pro Funktionsobjekt: { timer, userSet }
 // WeakMap: wird automatisch geleert wenn die Funktion aus dem Array entfernt wird
@@ -27,308 +30,198 @@ function _domSt(fn) {
   return _fnDomState.get(fn);
 }
 
-// Scannt den Ausdruck numerisch und sucht nach NaN↔finite-Übergängen.
-// Gibt {domainMin, domainMax, excluded} zurück.
-//   domainMin/domainMax: null = keine Grenze erkannt.
-//   excluded: Array von x-Werten wo Polstellen/Lücken liegen (z.B. [0] für 1/x).
-// Polstellen werden als excluded gemeldet, nicht als Domänengrenze.
-function detectNaturalDomain(expr) {
-  if (!expr || !expr.trim()) return { domainMin: null, domainMax: null, excluded: [] };
-  const SMIN = -500, SMAX = 500, STEPS = 5000;
-  const step = (SMAX - SMIN) / STEPS;
-  let leftBnd = null, rightBnd = null;
-  const excluded = [];
-  let prevFin = null, prevX = null;
-  let waitingForPoleEnd = false, poleStart = null;
-
-  const snapRound = v => {
-    const r = Math.round(v * 100) / 100;
-    return Math.abs(v - r) < 0.005 ? r : parseFloat(v.toFixed(4));
-  };
-
-  for (let i = 0; i <= STEPS; i++) {
-    const x = SMIN + i * step;
-    const fin = isFinite(safeEval(expr, x));
-    if (prevFin !== null) {
-      if (!prevFin && fin) {
-        // NaN → finite: linke Domänengrenze oder Ende einer Polstelle?
-        let lo = prevX, hi = x;
-        for (let k = 0; k < 50; k++) { const m=(lo+hi)/2; if(isFinite(safeEval(expr,m))) hi=m; else lo=m; }
-        const bnd = (lo+hi)/2;
-        if (!isFinite(safeEval(expr, Math.min(bnd-20, SMIN*0.9))) && leftBnd === null) {
-          // Funktion links davon nicht definiert → echte linke Grenze
-          leftBnd = snapRound(bnd);
-          waitingForPoleEnd = false; poleStart = null;
-        } else if (waitingForPoleEnd && poleStart !== null) {
-          // Wir kommen aus einer NaN-Region heraus, die links von etwas Finitem war → Polstelle
-          // Mittelpunkt der NaN-Region als Ausnahme-Punkt melden
-          const poleMid = snapRound((poleStart + bnd) / 2);
-          if (!excluded.includes(poleMid)) excluded.push(poleMid);
-          waitingForPoleEnd = false; poleStart = null;
-        }
-      }
-      if (prevFin && !fin) {
-        // finite → NaN: rechte Domänengrenze oder Beginn einer Polstelle?
-        let lo = prevX, hi = x;
-        for (let k = 0; k < 50; k++) { const m=(lo+hi)/2; if(isFinite(safeEval(expr,m))) lo=m; else hi=m; }
-        const bnd = (lo+hi)/2;
-        if (!isFinite(safeEval(expr, Math.max(bnd+20, SMAX*0.9))) && rightBnd === null) {
-          // Funktion rechts davon nicht definiert → echte rechte Grenze
-          rightBnd = snapRound(bnd);
-        } else {
-          // Funktion ist rechts wieder definiert → Polstelle beginnt hier
-          waitingForPoleEnd = true; poleStart = bnd;
-        }
-      }
-    }
-    prevFin = fin; prevX = x;
-  }
-  return { domainMin: leftBnd, domainMax: rightBnd, excluded };
-}
-
-// Erzeugt den Anzeigetext für den Domänen-Button, inklusive Ausnahmen (Polstellen).
+// Erzeugt den Anzeigetext für den Domänen-Button, inklusive Ausnahmen
+// (isolierte Polstellen UND ausgeschlossene Teilintervalle/"Lücken", z.B.
+// D_f = ℝ \ (−2, 2) für sqrt(x²−4)).
 function _domainLabel(fn) {
-  const excl = fn.domainExcluded || [];
+  const allExcl = fn.domainExcluded || [];
+  const gaps = fn.domainGaps || [];
   const hasBounds = fn.domainMin != null || fn.domainMax != null;
-  let exclStr = '';
-  if (excl.length > 0 && excl.length <= 4) exclStr = ` \\ {${excl.join(', ')}}`;
-  else if (excl.length > 4)               exclStr = ' \\ {…}';
-  if (!hasBounds) return excl.length > 0 ? `D: ℝ${exclStr}` : 'D: ℝ';
+  // Liegt ein ausgeschlossener Punkt GENAU auf domainMin/domainMax (z.B. 1/sqrt(1-x):
+  // die Definitionslücke bei x=1 fällt mit der oberen Bereichsgrenze zusammen), wird
+  // das nicht als zusätzliche "\ {1}"-Ausnahme neben "[…, 1]" angezeigt, sondern als
+  // offene Klammer "…, 1)" — mathematisch dasselbe, aber die erwartete Schreibweise.
+  const closeTo = (a, b) => a != null && b != null && Math.abs(a - b) < 1e-6;
+  const minOpen = allExcl.some(v => closeTo(v, fn.domainMin));
+  const maxOpen = allExcl.some(v => closeTo(v, fn.domainMax));
+  const excl = allExcl.filter(v => !closeTo(v, fn.domainMin) && !closeTo(v, fn.domainMax));
+  const pieces = [];
+  if (excl.length > 0 && excl.length <= 4) pieces.push(`{${excl.join(', ')}}`);
+  else if (excl.length > 4)               pieces.push('{…}');
+  if (gaps.length > 0 && gaps.length <= 3) gaps.forEach(g => pieces.push(`(${g.lo}, ${g.hi})`));
+  else if (gaps.length > 3)               pieces.push('(…)');
+  const exclStr = pieces.length ? ` \\ ${pieces.length > 1 ? '(' + pieces.join(' ∪ ') + ')' : pieces[0]}` : '';
+  if (!hasBounds) return pieces.length ? `D: ℝ${exclStr}` : 'D: ℝ';
   const dmn = fn.domainMin != null ? fn.domainMin : '−∞';
   const dmx = fn.domainMax != null ? fn.domainMax : '+∞';
-  return `D: [${dmn}, ${dmx}]${exclStr}`;
+  // Offene Klammer auch wenn die Grenze selbst aus einer STRIKTEN Bedingung
+  // stammt (z.B. log-Argument > 0 -> "(0, +∞)" statt "[0, +∞)" für log(x)) —
+  // siehe domainMinOpen/domainMaxOpen in computeDomain() (15_domain_range.js).
+  const lB = (fn.domainMin == null || minOpen || fn.domainMinOpen) ? '(' : '[';
+  const rB = (fn.domainMax == null || maxOpen || fn.domainMaxOpen) ? ')' : ']';
+  return `D: ${lB}${dmn}, ${dmx}${rB}${exclStr}`;
 }
 
 // Wendet erkannten Definitionsbereich auf fn + UI-Elemente an
 function _applyDetectedDomain(fn, domainToggle, vonInp, bisInp, rangeSpan) {
-  const det = detectNaturalDomain(fn.expr);
+  const det = computeDomain(fn.expr);
   fn.domainMin = det.domainMin;
   fn.domainMax = det.domainMax;
+  fn.domainMinOpen = !!det.domainMinOpen;
+  fn.domainMaxOpen = !!det.domainMaxOpen;
   fn.domainExcluded = det.excluded || [];
+  fn.domainGaps = det.gaps || [];
   domainToggle.textContent = _domainLabel(fn);
   vonInp.value = fn.domainMin != null ? fn.domainMin : '';
   bisInp.value = fn.domainMax != null ? fn.domainMax : '';
-  if (rangeSpan) _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, rangeSpan);
+  if (rangeSpan) _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, fn.domainExcluded, fn.domainGaps, rangeSpan);
   clearEvalCache(); scheduleComputeSpecials(); scheduleDraw();
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// WERTEMENGE: automatische Erkennung
-// ═══════════════════════════════════════════════════════════════════
-
-// Scannt numerisch und bestimmt den Wertebereich [rangeMin, rangeMax].
-// null = unbeschränkt in diese Richtung.
-function detectRange(expr, domainMin, domainMax) {
-  if (!expr || !expr.trim()) return { rangeMin: null, rangeMax: null };
-
-  const dMin = domainMin != null ? domainMin : -500;
-  const dMax = domainMax != null ? domainMax : 500;
-  const STEPS = 3000;
-  const dx = (dMax - dMin) / STEPS;
-
-  let yMin = Infinity, yMax = -Infinity;
-  let prevFin = null, nanAfterFinite = false, hasInteriorNaN = false;
-  let prevY = null, prevX = null, nanEnterX = null;
-  let hasFiniteZeroCross = false, hasZeroDirect = false;
-  const interiorPoles = []; // ungefähre x-Positionen der Polstellen
-
-  for (let i = 0; i <= STEPS; i++) {
-    const x = dMin + i * dx;
-    const y = safeEval(expr, x);
-    const fin = isFinite(y);
-    if (fin) {
-      if (y < yMin) yMin = y;
-      if (y > yMax) yMax = y;
-      if (Math.abs(y) < 1e-9) hasZeroDirect = true;
-      if (prevY !== null && prevFin === true && ((prevY < 0 && y > 0) || (prevY > 0 && y < 0)))
-        hasFiniteZeroCross = true;
-      if (nanAfterFinite) {
-        hasInteriorNaN = true;
-        if (nanEnterX !== null) {
-          interiorPoles.push((nanEnterX + x) / 2);
-          nanEnterX = null;
-        }
-        nanAfterFinite = false; // Reset für nächste Polstelle
-      }
-      prevY = y;
-    } else {
-      if (prevFin === true) { nanAfterFinite = true; nanEnterX = prevX; }
-      prevY = null;
-    }
-    prevFin = fin; prevX = x;
-  }
-
-  // Rundet auf sinnvolle Stellen
-  const rnd = v => {
-    if (Math.abs(v) < 1e-6) return 0;
-    const a = Math.abs(v);
-    return parseFloat(v.toFixed(a >= 100 ? 0 : a >= 10 ? 1 : 2));
-  };
-
-  // Funktion nirgends definiert
-  if (!isFinite(yMin)) return { rangeMin: null, rangeMax: null, rangeExcluded: [] };
-
-  // Polstellen im Inneren: Approach-Richtung durch Direktproben ermitteln
-  if (hasInteriorNaN) {
-    const zeroAchieved = hasZeroDirect || hasFiniteZeroCross;
-
-    // Für jede Polstelle: testet ob f → +∞ oder f → −∞
-    const EPS = 1e-7, THR = 100;
-    let polePos = false, poleNeg = false;
-    interiorPoles.forEach(px => {
-      for (const tx of [px - EPS, px + EPS]) {
-        if (tx <= dMin || tx >= dMax) continue;
-        const ty = safeEval(expr, tx);
-        if (!isFinite(ty)) continue;
-        if (ty >  THR) polePos = true;
-        if (ty < -THR) poleNeg = true;
-      }
-    });
-    // Fallback wenn interiorPoles leer (Scan zu grob): Vorzeichen aus Scan ableiten
-    if (!polePos && !poleNeg) { if (yMax > 10) polePos = true; if (yMin < -10) poleNeg = true; }
-
-    // Grenzwert bei ±∞ (für Fälle mit unbeschränkter Domain)
-    const farLimit = (findMin) => {
-      const pts = [];
-      const farVals = [500, 1000, 2000];
-      farVals.forEach(fx => {
-        if (domainMax == null || fx <= domainMax) { const v = safeEval(expr, fx); if (isFinite(v)) pts.push(v); }
-        if (domainMin == null || -fx >= domainMin) { const v = safeEval(expr, -fx); if (isFinite(v)) pts.push(v); }
-      });
-      return pts.length ? (findMin ? Math.min(...pts) : Math.max(...pts)) : null;
-    };
-
-    if (polePos && poleNeg) {
-      // Pol geht zu ±∞ → horizontale Asymptote bestimmen (= ausgeschlossener W-Wert)
-      // z.B. 1/x → Asymptote 0 → W: ℝ\{0}; 1/x-1 → Asymptote -1 → W: ℝ\{-1}; tan → keine Asymptote → W: ℝ
-      const farSmp = (xs) => xs
-        .filter(x => (domainMin == null || x >= domainMin) && (domainMax == null || x <= domainMax))
-        .map(x => safeEval(expr, x)).filter(isFinite);
-      const rSamp = farSmp([1000, 2000, 5000]);
-      const lSamp = farSmp([-1000, -2000, -5000]);
-      const sprd = arr => arr.length >= 2 ? Math.max(...arr) - Math.min(...arr) : Infinity;
-      const lastV = arr => arr.length ? arr[arr.length - 1] : null;
-
-      const rConv = sprd(rSamp) < 0.5, lConv = sprd(lSamp) < 0.5;
-      const rLim = lastV(rSamp), lLim = lastV(lSamp);
-
-      let asymptote = null;
-      if (rConv && lConv && rLim !== null && lLim !== null && Math.abs(rLim - lLim) < 1.0) {
-        asymptote = rnd((rLim + lLim) / 2);         // beide Seiten konvergieren → Asymptote
-      } else if (rConv && rLim !== null) {
-        asymptote = rnd(rLim);                       // nur rechts konvergent
-      } else if (lConv && lLim !== null) {
-        asymptote = rnd(lLim);                       // nur links konvergent
-      }
-      // Keine Konvergenz (z.B. tan(x)): Asymptote = null → W: ℝ
-
-      return asymptote !== null
-        ? { rangeMin: null, rangeMax: null, rangeExcluded: [asymptote] }
-        : { rangeMin: null, rangeMax: null, rangeExcluded: [] };
-    }
-
-    const domBounded = domainMin != null && domainMax != null;
-
-    if (polePos) {
-      // Pol → +∞; untere Grenze = asymptotischer Grenzwert bei ±∞
-      if (!domBounded) {
-        const lim = farLimit(true);
-        if (lim !== null) {
-          const limR = rnd(lim);
-          return { rangeMin: limR, rangeMax: null, rangeExcluded: [limR] }; // W: (lim, +∞)
-        }
-      } else {
-        // Beschränkte Domain: Minimum ist an den Grenzen erreichbar
-        return { rangeMin: rnd(yMin), rangeMax: null, rangeExcluded: [] }; // W: [min, +∞)
-      }
-    }
-
-    if (poleNeg) {
-      // Pol → −∞; obere Grenze = asymptotischer Grenzwert bei ±∞
-      if (!domBounded) {
-        const lim = farLimit(false);
-        if (lim !== null) {
-          const limR = rnd(lim);
-          return { rangeMin: null, rangeMax: limR, rangeExcluded: [limR] }; // W: (−∞, lim)
-        }
-      } else {
-        return { rangeMin: null, rangeMax: rnd(yMax), rangeExcluded: [] }; // W: (−∞, max]
-      }
-    }
-
-    return { rangeMin: null, rangeMax: null, rangeExcluded: [] };
-  }
-
-  let rangeMin = rnd(yMin), rangeMax = rnd(yMax);
-
-  // Prüft ob Funktion zwischen zwei x-Werten monoton steigt/fällt (> 0.5 Differenz)
-  const trend = (xa, xb) => {
-    const ya = safeEval(expr, xa), yb = safeEval(expr, xb);
-    if (!isFinite(ya) || !isFinite(yb)) return 0;
-    return yb > ya + 0.5 ? 1 : yb < ya - 0.5 ? -1 : 0;
-  };
-
-  // Unbeschränktheit nach rechts prüfen (nur bei offener rechter Domain)
-  if (domainMax == null) {
-    const r = [trend(100,200), trend(200,400), trend(400,800)];
-    if (r.every(v => v === 1))  rangeMax = null; // wächst nach +∞
-    if (r.every(v => v === -1)) rangeMin = null; // fällt nach −∞
-  }
-
-  // Unbeschränktheit nach links prüfen (nur bei offener linker Domain)
-  if (domainMin == null) {
-    // Paare von innen nach außen (x wird kleiner): y(-400)<y(-200) → fällt nach −∞
-    const yL100 = safeEval(expr, -100), yL200 = safeEval(expr, -200), yL400 = safeEval(expr, -400);
-    if (isFinite(yL100) && isFinite(yL200) && isFinite(yL400)) {
-      if (yL400 > yL200 + 0.5 && yL200 > yL100 + 0.5) rangeMax = null; // steigt nach +∞ links
-      if (yL400 < yL200 - 0.5 && yL200 < yL100 - 0.5) rangeMin = null; // fällt nach −∞ links
-    }
-  }
-
-  // Asymptotik an den Domain-Grenzen prüfen (z.B. log(x) nahe x=0)
-  if (domainMin != null) {
-    const eps = Math.max(dx / 1000, 1e-9);
-    const y1 = safeEval(expr, dMin + eps);
-    const y2 = safeEval(expr, dMin + eps * 100);
-    if (isFinite(y1) && isFinite(y2)) {
-      if (y1 < y2 - 2) rangeMin = null; // nähert sich −∞ von rechts
-      if (y1 > y2 + 2) rangeMax = null; // nähert sich +∞ von rechts
-    }
-  }
-  if (domainMax != null) {
-    const eps = Math.max(dx / 1000, 1e-9);
-    const y1 = safeEval(expr, dMax - eps);
-    const y2 = safeEval(expr, dMax - eps * 100);
-    if (isFinite(y1) && isFinite(y2)) {
-      if (y1 > y2 + 2) rangeMax = null; // nähert sich +∞ von links
-      if (y1 < y2 - 2) rangeMin = null; // nähert sich −∞ von links
-    }
-  }
-
-  return { rangeMin, rangeMax, rangeExcluded: [] };
-}
-
-// Aktualisiert das rangeSpan-Element mit der berechneten Wertemenge
-function _updateRangeSpan(expr, domainMin, domainMax, rangeSpan) {
-  if (!expr || !expr.trim()) { rangeSpan.textContent = ''; return; }
-  const { rangeMin, rangeMax, rangeExcluded } = detectRange(expr, domainMin, domainMax);
+// Reiner Formatierer: berechnete Wertemenge -> Anzeigetext ("W: […]").
+// Extrahiert aus _updateRangeSpan(), damit dieselbe Formatierung sowohl von
+// der Pro-Zeilen-Anzeige (Sidebar) als auch von der neuen Panel-Anzeige
+// (siehe updatePanelDomainRanges() weiter unten) genutzt werden kann.
+function _rangeLabel(rangeMin, rangeMax, rangeExcluded) {
   const excl = rangeExcluded || [];
   if (rangeMin === null && rangeMax === null) {
     // ℝ mit möglichen Ausnahmen (z.B. ℝ\{0})
     const exclStr = excl.length > 0 && excl.length <= 3 ? ` \\ {${excl.join(', ')}}`
                   : excl.length > 3 ? ' \\ {…}' : '';
-    rangeSpan.textContent = `W: ℝ${exclStr}`;
-  } else {
-    const lo = rangeMin != null ? rangeMin : '−∞';
-    const hi = rangeMax != null ? rangeMax : '+∞';
-    // Offene Klammer wenn der Grenzwert in excl enthalten ist (asymptotisch angenähert)
-    const lB = (rangeMin == null || excl.includes(rangeMin)) ? '(' : '[';
-    const rB = (rangeMax == null || excl.includes(rangeMax)) ? ')' : ']';
-    // Nur solche excl-Werte im \{}-Teil anzeigen, die nicht schon als Intervallgrenze sichtbar sind
-    const inner = excl.filter(v => v !== rangeMin && v !== rangeMax);
-    const exclStr = inner.length > 0 && inner.length <= 3 ? ` \\ {${inner.join(', ')}}`
-                  : inner.length > 3 ? ' \\ {…}' : '';
-    rangeSpan.textContent = `W: ${lB}${lo}, ${hi}${rB}${exclStr}`;
+    return `W: ℝ${exclStr}`;
+  }
+  const lo = rangeMin != null ? rangeMin : '−∞';
+  const hi = rangeMax != null ? rangeMax : '+∞';
+  // Offene Klammer wenn der Grenzwert in excl enthalten ist (asymptotisch angenähert)
+  const lB = (rangeMin == null || excl.includes(rangeMin)) ? '(' : '[';
+  const rB = (rangeMax == null || excl.includes(rangeMax)) ? ')' : ']';
+  // Nur solche excl-Werte im \{}-Teil anzeigen, die nicht schon als Intervallgrenze sichtbar sind
+  const inner = excl.filter(v => v !== rangeMin && v !== rangeMax);
+  const exclStr = inner.length > 0 && inner.length <= 3 ? ` \\ {${inner.join(', ')}}`
+                : inner.length > 3 ? ' \\ {…}' : '';
+  return `W: ${lB}${lo}, ${hi}${rB}${exclStr}`;
+}
+
+// Aktualisiert das rangeSpan-Element mit der berechneten Wertemenge
+function _updateRangeSpan(expr, domainMin, domainMax, domainExcluded, domainGaps, rangeSpan) {
+  if (!expr || !expr.trim()) { rangeSpan.textContent = ''; return; }
+  const { rangeMin, rangeMax, rangeExcluded } = computeRange(expr, domainMin, domainMax, domainExcluded || [], domainGaps || []);
+  rangeSpan.textContent = _rangeLabel(rangeMin, rangeMax, rangeExcluded);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// D_f / W_f DIREKT IN DEN FUNKTIONSTYP-PANELS (Lineare, Quadratische,
+// Exponential-, Logarithmus-, Potenz-/Wurzel- und trigonometrische
+// Funktionen) — analog zur Pro-Zeilen-Anzeige oben, aber direkt im
+// jeweiligen Menüpunkt und LIVE abhängig von den aktuell eingestellten
+// Schiebereglerwerten (nicht nur bei Ausdrucksänderung). Wird zentral aus
+// computeSpecials() (04_analysis.js) heraus bei jeder Schieber-/Funktions-
+// änderung neu aufgerufen — dadurch automatisch "live", ohne dass jede
+// einzelne UI-Stelle (Slider-oninput, Aufschalten-Knopf, …) selbst daran
+// denken muss.
+// ═══════════════════════════════════════════════════════════════════
+
+// Berechnet D_f/W_f frisch für eine konkrete Funktion, mit den AKTUELLEN
+// Parameterwerten (computeDomain/computeRange werten numerisch über
+// safeEval() aus, das liest params{} live — siehe 15_domain_range.js).
+// Eine vom Nutzer in der Sidebar manuell eingeschränkte Domain (_domSt(fn).userSet,
+// siehe oben) wird als zusätzliche äussere Schranke übernommen, da das die
+// tatsächlich gezeichnete Kurve ist.
+function _panelDomainRangeFor(fn) {
+  if (!fn || !fn.expr || !fn.expr.trim()) return null;
+  let det;
+  try { det = computeDomain(fn.expr); } catch (e) { return null; }
+  let domainMin = det.domainMin, domainMax = det.domainMax;
+  let domainMinOpen = !!det.domainMinOpen, domainMaxOpen = !!det.domainMaxOpen;
+  const excluded = det.excluded || [], gaps = det.gaps || [];
+  if (_domSt(fn).userSet) {
+    // Manuell eingegebene Grenzen gelten als eingeschlossen (geschlossene
+    // Klammer, siehe updateDomainFromInputs() oben) — nur wenn sie die
+    // natürliche Grenze tatsächlich verschärfen, übernehmen wir sie.
+    if (fn.domainMin != null && (domainMin == null || fn.domainMin > domainMin)) { domainMin = fn.domainMin; domainMinOpen = false; }
+    if (fn.domainMax != null && (domainMax == null || fn.domainMax < domainMax)) { domainMax = fn.domainMax; domainMaxOpen = false; }
+  }
+  let rng;
+  try { rng = computeRange(fn.expr, domainMin, domainMax, excluded, gaps); }
+  catch (e) { rng = { rangeMin: null, rangeMax: null, rangeExcluded: [] }; }
+  return {
+    domainMin, domainMax, domainMinOpen, domainMaxOpen, domainExcluded: excluded, domainGaps: gaps,
+    rangeMin: rng.rangeMin, rangeMax: rng.rangeMax, rangeExcluded: rng.rangeExcluded || [],
+  };
+}
+
+// Formatiert D_f + W_f einer Funktion als einzeiligen Anzeigetext (oder '' bei Fehler)
+function _panelDWText(fn) {
+  const r = _panelDomainRangeFor(fn);
+  if (!r) return '';
+  const dLabel = _domainLabel({ domainMin: r.domainMin, domainMax: r.domainMax, domainMinOpen: r.domainMinOpen, domainMaxOpen: r.domainMaxOpen, domainExcluded: r.domainExcluded, domainGaps: r.domainGaps });
+  const wLabel = _rangeLabel(r.rangeMin, r.rangeMax, r.rangeExcluded);
+  return dLabel + '   ' + wLabel;
+}
+
+// Schreibt (oder leert) die D_f/W_f-Anzeige eines Panel-Elements
+function _setPanelDW(elId, fn) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.textContent = fn ? _panelDWText(fn) : '';
+}
+
+// Findet die (erste sichtbare) Funktion, deren normalisierter Ausdruck exakt
+// einem gegebenen Muster entspricht — dieselbe Zuordnungslogik, die die
+// "Aufschalten"-Knöpfe selbst benutzen (siehe linAddSlopeForm()/
+// expAddGeneralForm()/logAddGeneralForm()/powerAddGeneralForm()/
+// trigAddFunction() in 11_fitting.js bzw. weiter oben in dieser Datei).
+function _findByPattern(pattern) {
+  const norm = e => e.replace(/\s+/g, '');
+  const p = norm(pattern);
+  const fi = functions.findIndex(fn => fn.visible !== false && norm(fn.expr || '') === p);
+  return fi === -1 ? null : functions[fi];
+}
+
+// Zentrale Aktualisierung ALLER sechs Panel-Anzeigen auf einen Schlag — wird
+// aus computeSpecials() aufgerufen, also bei jeder Schieber-Bewegung, jedem
+// Aufschalten/Löschen/Ein-Ausblenden einer Funktion und jeder Ausdrucks-
+// änderung automatisch neu ausgeführt.
+function updatePanelDomainRanges() {
+  // Lineare Funktionen: entweder die Steigungsform y=mx+q (mit Schiebern,
+  // eigenes Anzeige-Element) oder das letzte "Berechnen"-Ergebnis aus 2
+  // Punkten (kein Schieberegler, aber ebenfalls anzeigenswert).
+  _setPanelDW('lin-slopeform-dw', _findByPattern('m*x+q'));
+  const linFitFn = (typeof linPanelDef !== 'undefined' && linPanelDef && linPanelDef.lastFi != null)
+    ? functions[linPanelDef.lastFi] : null;
+  _setPanelDW('lin-dw', linFitFn && linFitFn.visible !== false ? linFitFn : null);
+
+  // Quadratische Funktionen: letztes "Berechnen"-Ergebnis (kein Schieberegler)
+  const quadFitFn = (typeof quadPanelDef !== 'undefined' && quadPanelDef && quadPanelDef.lastFi != null)
+    ? functions[quadPanelDef.lastFi] : null;
+  _setPanelDW('quad-dw', quadFitFn && quadFitFn.visible !== false ? quadFitFn : null);
+
+  // Exponential-/Logarithmusfunktionen: allgemeine Form mit Schiebern
+  _setPanelDW('exp-generalform-dw', _findByPattern('a*b^x+c'));
+  _setPanelDW('log-generalform-dw', _findByPattern('a*logn(x,b)+c'));
+
+  // Potenz-/Wurzelfunktionen: allgemeine Form des GERADE im Panel gewählten
+  // Falls (Dropdown #power-subtype) — dasselbe Muster wie powerAddGeneralForm().
+  if (typeof POWER_CASES !== 'undefined') {
+    const subtype = document.getElementById('power-subtype')?.value || 'pos_even';
+    const cfg = POWER_CASES[subtype];
+    _setPanelDW('power-generalform-dw', cfg ? _findByPattern(cfg.expr) : null);
+  }
+
+  // Trigonometrische Funktionen: sin/cos/tan haben keine Schieberegler — D_f/W_f
+  // sind konstant, werden aber über dieselbe Berechnung angezeigt (bleibt robust,
+  // z.B. falls domänenbeschränkt) — je eine Zeile pro aktuell aufgeschalteter Funktion.
+  const trigEl = document.getElementById('trig-dw');
+  if (trigEl) {
+    const lines = [];
+    ['sin', 'cos', 'tan'].forEach(kind => {
+      const fn = _findByPattern(kind + '(x)');
+      if (fn) {
+        const txt = _panelDWText(fn);
+        if (txt) lines.push(`<div>${kind}(x):&nbsp; ${txt}</div>`);
+      }
+    });
+    trigEl.innerHTML = lines.join('');
   }
 }
 
@@ -347,83 +240,6 @@ function _updateRangeSpan(expr, domainMin, domainMax, rangeSpan) {
 // Beispiel (precision=2): "5.65685424949*1.189207115^x" → "5.66*1.19^x"
 function exprToDisplayStr(expr) {
   return expr.replace(/\d+\.\d+/g, m => parseFloat(parseFloat(m).toFixed(precision)).toString());
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// DOM → RAW-AUSDRUCK REKONSTRUKTION
-// ═══════════════════════════════════════════════════════════════════
-
-// Setzt den Cursor in einem contenteditable-Div auf Zeichen-Offset offset (im textContent).
-function ceSetCursorAt(el, offset) {
-  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-  let rem = offset;
-  while (walker.nextNode()) {
-    const len = walker.currentNode.length;
-    if (rem <= len) {
-      const r = document.createRange();
-      r.setStart(walker.currentNode, rem);
-      r.collapse(true);
-      const s = window.getSelection();
-      s.removeAllRanges();
-      s.addRange(r);
-      return;
-    }
-    rem -= len;
-  }
-  // Fallback: ans Ende
-  const r = document.createRange(); r.selectNodeContents(el); r.collapse(false);
-  window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
-}
-
-// Rekonstruiert den Rohausdruck (für safeEval) aus dem gerenderten HTML des Eingabefeldes.
-// Kehrt die Transformationen von exprToHtml um:
-//   .preview-frac → (Zähler)/(Nenner)
-//   .preview-sup  → ^Inhalt
-//   ⋅ / ·         → *
-//   π             → pi
-//   alleinsteh. e → EC
-// Wird aufgerufen wenn das Feld in "always-rendered"-Modus ist (oninput, onblur).
-function ceRawFromDom(el) {
-  function walk(node) {
-    if (node.nodeType === 3 /* TEXT_NODE */) {
-      return node.textContent
-        .replace(/​/g, '')        // Zero-Width-Space (Cursor-Anker) entfernen
-        .replace(/[⋅·]/g, '*')        // Mittelpunkt → Multiplikation
-        .replace(/π/g, 'pi')           // π → pi
-        .replace(/\be\b/g, 'EC');      // alleinsteh. e → EC (Eulersche Zahl)
-    }
-    if (node.nodeType === 1 /* ELEMENT_NODE */) {
-      const cls = node.className || '';
-      // Bruch: (Zähler)/(Nenner)
-      if (cls.includes('preview-frac')) {
-        const numEl = Array.from(node.children).find(c => c.classList.contains('pf-num'));
-        const denEl = Array.from(node.children).find(c => c.classList.contains('pf-den'));
-        const num = numEl ? Array.from(numEl.childNodes).map(walk).join('') : '';
-        const den = denEl ? Array.from(denEl.childNodes).map(walk).join('') : '';
-        return `(${num})/(${den})`;
-      }
-      // Hochgestellter Exponent: ^Inhalt
-      // Komplexer Inhalt (mit Operatoren) in Klammern → ^(n+1)
-      if (cls.includes('preview-sup')) {
-        const inner = Array.from(node.childNodes).map(walk).join('');
-        const needsParens = /[+\-*\/]/.test(inner) && !inner.startsWith('(');
-        return needsParens ? `^(${inner})` : `^${inner}`;
-      }
-      // Platzhalter-Span ignorieren
-      if (node.style && node.style.fontStyle === 'italic') return '';
-      // Cursor-Anker: Inhalt zurückgeben (ZWS wird im Text-Knoten-Handler gestrippt)
-      if (cls.includes('pf-cursor-anchor')) return Array.from(node.childNodes).map(walk).join('');
-      // Sonstige Elemente: rekursiv
-      return Array.from(node.childNodes).map(walk).join('');
-    }
-    return '';
-  }
-  return Array.from(el.childNodes).map(walk).join('');
-}
-
-// Öffentliche Funktion: CE-Feld von außen neu rendern (z.B. nach kbdInsert).
-function ceRenderEl(el) {
-  if (el._ceRender) { el._ceRender(); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -451,118 +267,74 @@ function renderFuncList() {
     lbl.style.cssText = 'font-size:11px;color:#6b7280;min-width:24px;flex-shrink:0;';
     lbl.innerHTML = `f<sub>${i+1}</sub>:`;
 
-    // Contenteditable-Eingabefeld (zeigt Brüche als echte Brüche im Ruhezustand)
-    const inp = document.createElement('div');
-    inp.contentEditable = 'true';
-    inp.spellcheck = false;
+    // MathLive-Eingabefeld (robuster Mathe-Editor statt des früheren
+    // contenteditable-Divs — siehe 14_mathinput.js für den Konverter
+    // Rohausdruck <-> LaTeX/ASCIIMath). MathLive bringt eigene, ausgereifte
+    // Cursor-/Touch-/Tastatur-Navigation mit; die frühere Cursor-Hakelei
+    // rund um Brüche/Exponenten entfällt dadurch vollständig.
+    const inp = document.createElement('math-field');
     inp.className = 'func-inp-ce';
-    inp.setAttribute('inputmode', 'decimal');
-    inp.setAttribute('data-raw', fn.expr);
-    // overflow-x:clip statt overflow-x:hidden — clip erzwingt kein overflow-y:auto (CSS-Spezifikation),
-    // sodass overflow-y:visible wirksam bleibt und das Feld bei Brüchen vertikal wächst.
-    inp.style.cssText = `font-family:'Cascadia Code','Fira Mono',monospace;font-size:12px;padding:4px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);outline:none;flex:1;min-width:0;cursor:text;overflow-x:auto;overflow-y:visible;white-space:nowrap;line-height:normal;min-height:28px;${fn.visible ? '' : 'opacity:0.45;'}`;
-    if (isLinked) { inp.style.background = '#f0f9ff'; inp.title = t('title_live_line'); }
+    // align-self:stretch — das Feld soll genauso hoch sein wie die Spalte aus
+    // Auge/Löschen/Menü daneben (statt in der Zeilenmitte kleiner zu wirken).
+    inp.style.cssText = `font-size:15px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);flex:1;min-width:0;align-self:stretch;box-sizing:border-box;${fn.visible ? '' : 'opacity:0.45;'}`;
+    // Auf Touch-Geräten würde MathLive per Default (Policy "auto") bei JEDEM
+    // Antippen des Feldes sofort die grosse, fast schwarze Bildschirmtastatur
+    // aufklappen — das verdeckt dann gut die Hälfte des Bildschirms und
+    // macht Eingabefeld + Vorschau unlesbar. Mit "manual" bleibt sie zu, bis
+    // der Nutzer aktiv auf das (weiterhin sichtbare) Tastatur-Icon tippt.
+    inp.mathVirtualKeyboardPolicy = 'manual';
 
-    // Guard: verhindert dass oninput feuert wenn ceRender() das HTML programmatisch setzt
-    let ceRendering = false;
-
-    // Ruhezustand: formatierte Darstellung (Brüche + Exponenten, Dezimalzahlen gerundet)
-    function ceRender() {
-      const raw = inp.getAttribute('data-raw') || '';
-      const disp = raw ? exprToDisplayStr(raw) : '';
-      ceRendering = true;
-      if (exprNeedsPreview(raw)) {
-        inp.innerHTML = exprToHtml(disp || raw);
-        // Wrap top-level text nodes in pf-inline for vertical alignment next to fractions
-        Array.from(inp.childNodes).forEach(nd => {
-          if (nd.nodeType === 3 && nd.textContent.replace(/​/g, '').length > 0) {
-            const pli = document.createElement('span'); pli.className = 'pf-inline';
-            inp.insertBefore(pli, nd); pli.appendChild(nd);
-          }
-        });
-        // Cursor-Anker: Span am Ende sicherstellen — begrenzt Schreibmarken-Höhe auf Schriftgrösse
-        if (!inp.lastChild || !inp.lastChild.classList?.contains('pf-cursor-anchor')) {
-          const anchor = document.createElement('span');
-          anchor.className = 'pf-cursor-anchor';
-          anchor.textContent = '​';
-          inp.appendChild(anchor);
-        }
-      }
-      else { inp.textContent = disp || ''; if (!disp) { inp.innerHTML = `<span style="color:var(--text-muted);font-style:italic;">${t('eg_fn')}</span>`; } }
-      ceRendering = false;
+    // Safari-Fix: Ein Klick auf einen Tastatur-Button (z.B. "Bruch" oder "√x")
+    // sitzt ausserhalb des <math-field>; MathLive markiert den frisch
+    // eingefügten Platzhalter zwar als ausgewählt, aber Safari übernimmt den
+    // :focus-Zustand des Custom-Elements danach nicht immer rechtzeitig
+    // (bekannte WebKit-Eigenart bei Shadow-DOM-Elementen mit delegatesFocus).
+    // MathLive rendert die Auswahl dann in ihrem "nicht fokussiert"-Stil statt
+    // im blauen Auswahl-Ton — das erscheint als dunkelgraue Fläche im Feld.
+    // MathLive selbst exportiert `.ML__selection` nicht als ::part(), daher
+    // direkt ein kleines Style-Tag ins Shadow-DOM dieses Feldes einfügen, das
+    // den Auswahl-Hintergrund unabhängig vom :focus-Status erzwingt.
+    if (inp.shadowRoot) {
+      const selFix = document.createElement('style');
+      selFix.textContent = '.ML__selection{background:var(--_selection-background-color, rgba(55,138,221,0.25)) !important;}';
+      inp.shadowRoot.appendChild(selFix);
     }
-    ceRender();
-    inp._ceRender = ceRender;
 
-    inp.onfocus = () => {
-      // Feld bleibt immer gerendert — kein Wechsel auf Rohtext beim Fokussieren.
+    if (isLinked) { inp.style.background = '#f0f9ff'; inp.title = t('title_live_line'); }
+    inp.setAttribute('data-raw', fn.expr || '');
+    if (!fn.expr || !fn.expr.trim()) inp.setAttribute('placeholder', t('eg_fn'));
+
+    // Setzt das Feld (Anzeige + data-raw) aus einem Rohausdruck-String neu —
+    // wird initial und von aussen (z.B. nach Kurvenanpassung) über
+    // renderFuncList() erneut aufgerufen, das jede Zeile frisch aufbaut.
+    function mlSetFromRaw(raw) {
+      let latex = '';
+      try { latex = (raw && raw.trim()) ? rawToLatex(raw) : ''; } catch (ex) { latex = ''; }
+      inp.setAttribute('data-raw', raw || '');
+      inp.value = latex;
+    }
+    mlSetFromRaw(fn.expr);
+    inp._mlSetFromRaw = mlSetFromRaw;
+
+    inp.addEventListener('focusin', () => {
       inp.style.borderColor = '#378ADD';
       setActiveInput(inp, i);
-      // Exponenten-Hervorhebung: aktiven sup blau umranden
-      const onSelChange = () => {
-        inp.querySelectorAll('.preview-sup').forEach(s => s.classList.remove('sup-cursor-active'));
-        const sel = window.getSelection(); if (!sel.rangeCount) return;
-        let nd = sel.getRangeAt(0).startContainer;
-        while (nd && nd !== inp) {
-          if (nd.nodeType === 1 && nd.classList?.contains('preview-sup')) { nd.classList.add('sup-cursor-active'); break; }
-          nd = nd.parentNode;
-        }
-      };
-      document.addEventListener('selectionchange', onSelChange);
-      inp._onSelChange = onSelChange;
-      // Leeres Feld: Platzhalter entfernen damit sofort getippt werden kann
-      if (!(inp.getAttribute('data-raw') || '')) {
-        ceRendering = true; inp.innerHTML = ''; ceRendering = false;
-      }
-      // Nach kbdFrac: Cursor in den Zähler des letzten Bruchs
-      const nextCursor = inp.getAttribute('data-next-cursor');
-      if (nextCursor) {
-        inp.removeAttribute('data-next-cursor');
-        const fracs = inp.querySelectorAll('.preview-frac');
-        if (fracs.length > 0) {
-          const numEl = fracs[fracs.length-1].querySelector('.pf-num');
-          if (numEl) {
-            const r = document.createRange(); r.selectNodeContents(numEl); r.collapse(false);
-            window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
-            return;
-          }
-        }
-      }
-      // Standardfall: Cursor ans Ende
-      const r = document.createRange(); r.selectNodeContents(inp); r.collapse(false);
-      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
-    };
-    inp.onblur = () => {
-      if (inp._onSelChange) { document.removeEventListener('selectionchange', inp._onSelChange); inp._onSelChange = null; }
-      inp.querySelectorAll('.preview-sup').forEach(s => s.classList.remove('sup-cursor-active'));
-      // Rohausdruck aus dem gerenderten DOM rekonstruieren und neu rendern
-      const raw = ceRawFromDom(inp);
-      inp.setAttribute('data-raw', raw);
+    });
+    inp.addEventListener('focusout', () => {
       inp.style.borderColor = '';
-      ceRender();
       if (!historyPaused) { clearTimeout(_histDebounce); _histDebounce = setTimeout(pushHistory, 100); }
-    };
-    inp.oninput = () => {
-      if (ceRendering) return;
-      let raw = ceRawFromDom(inp);
-      // Einfache a/b-Muster automatisch als Bruch rendern (z.B. x/2 → (x)/(2))
-      const converted = raw.replace(
-        /([a-zA-Z0-9_.]+(?:\([^()]*\))?(?:\^(?:\([^)]*\)|[a-zA-Z0-9_.]+))?)\/([a-zA-Z0-9_.]+(?:\([^()]*\))?(?:\^(?:\([^)]*\)|[a-zA-Z0-9_.]+))?)/g,
-        '($1)/($2)'
-      );
-      if (converted !== raw) {
-        inp.setAttribute('data-raw', converted);
-        ceRender();
-        // Cursor ans Ende des Nenners des letzten Bruchs
-        const fracs = inp.querySelectorAll('.preview-frac');
-        if (fracs.length > 0) {
-          const denEl = fracs[fracs.length-1].querySelector('.pf-den');
-          if (denEl) {
-            const r = document.createRange(); r.selectNodeContents(denEl); r.collapse(false);
-            window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
-          }
-        }
-        raw = converted;
+    });
+
+    inp.addEventListener('input', () => {
+      let raw;
+      try {
+        raw = asciiMathToRaw(inp.getValue('ascii-math'));
+      } catch (ex) {
+        // Unvollständiger Zwischenzustand während des Tippens (z.B. "2+",
+        // leerer Bruchnenner) — bisherigen Rohausdruck unverändert lassen
+        // statt Funktion/Graph kaputtzumachen. Sobald der Ausdruck wieder
+        // gültig ist, greift dieser Handler beim nächsten Tastendruck erneut.
+        return;
       }
       inp.setAttribute('data-raw', raw);
       fn.expr = raw;
@@ -572,7 +344,8 @@ function renderFuncList() {
       const _ds = _domSt(fn);
       _ds.userSet = false;
       clearTimeout(_ds.timer);
-      fn.domainMin = null; fn.domainMax = null; fn.domainExcluded = [];
+      fn.domainMin = null; fn.domainMax = null; fn.domainMinOpen = false; fn.domainMaxOpen = false;
+      fn.domainExcluded = []; fn.domainGaps = [];
       domainToggle.textContent = 'D: ℝ'; vonInp.value = ''; bisInp.value = '';
       if (raw.trim()) {
         _ds.timer = setTimeout(() => {
@@ -582,107 +355,11 @@ function renderFuncList() {
       } else {
         rangeSpan.textContent = '';
       }
-    };
-    // Keine Newlines; Brüche als Einheit löschen; Exponent-Escape mit ArrowRight
-    inp.onkeydown = e => {
+    });
+
+    inp.addEventListener('keydown', e => {
       if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
-      // ArrowRight / Tab / ArrowDown / End: Aus dem Exponenten heraus navigieren (zwei Zustände)
-      if (e.key === 'ArrowRight' || e.key === 'Tab' || e.key === 'ArrowDown' || e.key === 'End') {
-        const sel = window.getSelection();
-        if (sel && sel.rangeCount) {
-          let nd = sel.getRangeAt(0).startContainer;
-          let supEl = null, anchEl = null, tempNd = nd;
-          while (tempNd && tempNd !== inp) {
-            if (tempNd.nodeType === 1 && tempNd.classList?.contains('preview-sup')) { supEl = tempNd; break; }
-            tempNd = tempNd.parentNode;
-          }
-          tempNd = nd;
-          while (tempNd && tempNd !== inp) {
-            if (tempNd.nodeType === 1 && tempNd.classList?.contains('pf-cursor-anchor')) { anchEl = tempNd; break; }
-            tempNd = tempNd.parentNode;
-          }
-          const anchAfterSup = anchEl && anchEl.previousSibling?.classList?.contains('preview-sup');
-          if (supEl) {
-            // Zustand 1: Kursor im sup → in den Anker danach bewegen
-            e.preventDefault();
-            let anch = supEl.nextSibling;
-            if (!anch || !anch.classList?.contains('pf-cursor-anchor')) {
-              anch = document.createElement('span'); anch.className = 'pf-cursor-anchor'; anch.textContent = '​';
-              supEl.parentNode.insertBefore(anch, supEl.nextSibling);
-            }
-            const nr = document.createRange();
-            const tx = anch.firstChild;
-            if (tx && tx.nodeType === 3) { nr.setStart(tx, tx.length); } else { nr.selectNodeContents(anch); nr.collapse(false); }
-            nr.collapse(true); sel.removeAllRanges(); sel.addRange(nr);
-            return;
-          }
-          if (anchAfterSup) {
-            // Zustand 2: Kursor im Anker → hinter den Anker bewegen
-            e.preventDefault();
-            const nr = document.createRange();
-            const after = anchEl.nextSibling;
-            if (after && after.nodeType === 3) { nr.setStart(after, 0); }
-            else if (after) { nr.setStartBefore(after); }
-            else { nr.selectNodeContents(inp); nr.collapse(false); }
-            nr.collapse(true); sel.removeAllRanges(); sel.addRange(nr);
-            return;
-          }
-        }
-      }
-      // Backspace direkt nach einem Bruch: Bruch als Ganzes entfernen
-      if (e.key === 'Backspace') {
-        const sel = window.getSelection();
-        if (!sel.rangeCount) return;
-        const range = sel.getRangeAt(0);
-        if (!range.collapsed) return;
-        const node = range.startContainer, offset = range.startOffset;
-        let fracToDelete = null;
-        if (node.nodeType === 3 && offset === 0 &&
-            node.previousSibling?.classList?.contains('preview-frac'))
-          fracToDelete = node.previousSibling;
-        else if (node === inp && offset > 0 &&
-                 inp.childNodes[offset-1]?.classList?.contains('preview-frac'))
-          fracToDelete = inp.childNodes[offset-1];
-        if (fracToDelete) {
-          e.preventDefault();
-          fracToDelete.remove();
-          const raw = ceRawFromDom(inp);
-          inp.setAttribute('data-raw', raw); fn.expr = raw;
-          clearEvalCache(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
-          if (showArea) updateAreaResult(); scheduleDraw();
-        }
-      }
-      // Slash innerhalb eines Exponenten: aus preview-sup heraus + / einfügen
-      if (e.key === '/') {
-        const sel = window.getSelection();
-        if (sel && sel.rangeCount) {
-          let nd = sel.getRangeAt(0).startContainer;
-          while (nd && nd !== inp) {
-            if (nd.nodeType === 1 && nd.classList?.contains('preview-sup')) {
-              e.preventDefault();
-              let anch = nd.nextSibling;
-              if (!anch || !anch.classList?.contains('pf-cursor-anchor')) {
-                anch = document.createElement('span');
-                anch.className = 'pf-cursor-anchor'; anch.textContent = '​';
-                nd.parentNode.insertBefore(anch, nd.nextSibling);
-              }
-              const nr = document.createRange();
-              const tx = anch.firstChild;
-              if (tx && tx.nodeType === 3) { nr.setStart(tx, tx.length); }
-              else { nr.selectNodeContents(anch); nr.collapse(false); }
-              nr.collapse(true); sel.removeAllRanges(); sel.addRange(nr);
-              document.execCommand('insertText', false, '/');
-              const newRaw = ceRawFromDom(inp);
-              inp.setAttribute('data-raw', newRaw); fn.expr = newRaw;
-              clearEvalCache(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
-              if (showArea) updateAreaResult(); scheduleDraw();
-              return;
-            }
-            nd = nd.parentNode;
-          }
-        }
-      }
-    };
+    });
 
     const preview = document.createElement('div'); // Dummy, nicht mehr verwendet
     preview.style.display = 'none';
@@ -706,7 +383,28 @@ function renderFuncList() {
       clearEvalCache(); renderFuncList(); syncParams(); syncAreaSelects(); scheduleComputeSpecials(); if (showArea) updateAreaResult();
       pushHistory(); scheduleDraw();
     };
-    row.append(dot, lbl, inp, eye, del);
+    // Menü-Knopf ("☰") — MathLive zeigt diesen normalerweise selbst rechts
+    // im Eingabefeld an (::part(menu-toggle), per CSS in index.html jetzt
+    // versteckt). Stattdessen hier als eigener Knopf UNTER Auge/Löschen,
+    // damit das Feld mehr Platz hat. Ruft MathLive's öffentliche
+    // showMenu()-Methode auf; öffnet/schliesst selbst per Zustandsprüfung,
+    // dadurch entfällt der frühere Workaround für den (nur beim internen,
+    // jetzt versteckten Knopf auftretenden) "schliesst manchmal nicht"-Bug.
+    const menuBtn = document.createElement('button');
+    menuBtn.className = 'del-btn'; menuBtn.innerHTML = '&#9776;'; menuBtn.title = 'Menü';
+    menuBtn.onclick = () => {
+      const menu = inp._mathfield && inp._mathfield.menu;
+      if (menu && menu.state !== 'closed') { menu.hide(); return; }
+      const r = menuBtn.getBoundingClientRect();
+      inp.showMenu({ location: { x: r.left, y: r.bottom } });
+    };
+
+    // Auge + Löschen + Menü untereinander statt nebeneinander stapeln, damit
+    // das Eingabefeld mehr horizontalen Platz bekommt.
+    const btnCol = document.createElement('div');
+    btnCol.style.cssText = 'display:flex;flex-direction:column;gap:2px;flex-shrink:0;';
+    btnCol.append(eye, del, menuBtn);
+    row.append(dot, lbl, inp, btnCol);
     const smartBtns = document.createElement('div');
     smartBtns.className = 'smart-btn-row';
     smartBtns.id = `smart-btns-${i}`;
@@ -760,11 +458,14 @@ function renderFuncList() {
       const maxV = bisInp.value.trim() === '' ? null : parseFloat(bisInp.value);
       fn.domainMin = (minV != null && isFinite(minV)) ? minV : null;
       fn.domainMax = (maxV != null && isFinite(maxV)) ? maxV : null;
+      // Manuell eingegebene Grenzen gelten per Konvention als eingeschlossen
+      // (geschlossene Klammer) — der Nutzer hat diesen Wert ja selbst gewählt.
+      fn.domainMinOpen = false; fn.domainMaxOpen = false;
       domainToggle.textContent = _domainLabel(fn);
       // Wertemenge nach kurzer Pause neu berechnen (rechenintensiv)
       clearTimeout(rangeSpan._rangeTimer);
       rangeSpan._rangeTimer = setTimeout(() =>
-        _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, rangeSpan), 300);
+        _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, fn.domainExcluded, fn.domainGaps, rangeSpan), 300);
       clearEvalCache(); scheduleComputeSpecials();
       if (!historyPaused) { clearTimeout(_histDebounce); _histDebounce = setTimeout(pushHistory, 400); }
       scheduleDraw();
@@ -791,12 +492,17 @@ function renderFuncList() {
       }, 200);
     } else if (fn.expr.trim()) {
       // Domain bereits bekannt (z.B. nach manuellem Setzen oder Laden): Wertemenge sofort berechnen
-      setTimeout(() => _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, rangeSpan), 50);
+      setTimeout(() => _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, fn.domainExcluded, fn.domainGaps, rangeSpan), 50);
     }
 
     const funcItem = document.createElement('div');
     funcItem.append(row, preview, domainRow, smartBtns, solvePanel);
     el.appendChild(funcItem);
+    // 3-Strich-Kontextmenü auf sinnvolle Einträge reduzieren (siehe 14_mathinput.js) --
+    // das math-field "mountet" sich intern erst asynchron nach dem Einhängen
+    // ins DOM (nicht synchron danach) -- deshalb per Microtask verzoegern,
+    // sonst greift die Zuweisung ins Leere bzw. wirft einen Fehler.
+    queueMicrotask(() => { inp.menuItems = mlFilterMenuItems(inp.menuItems); });
   });
   // Steigungsdreieck-Sektion anzeigen wenn lineare Funktion vorhanden
   const le = document.getElementById('linear-extra');
@@ -863,10 +569,90 @@ function addFunction() {
   document.getElementById('func-list').lastChild?.querySelector('input')?.focus();
 }
 
+// Neue Funktion mit vorgegebenem Rohausdruck hinzufügen (z.B. Ableitung oder
+// Stammfunktion eines bestehenden f_i) — wird über die Analysis-Knöpfe unter
+// dem Eingabefeld aufgerufen (siehe appendCalculusButtons()).
+function addDerivedFunction(rawExpr) {
+  functions.push({ expr: rawExpr, color: COLORS[functions.length % COLORS.length], visible: true });
+  clearEvalCache(); renderFuncList(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
+  if (showArea) updateAreaResult();
+  pushHistory(); scheduleDraw();
+}
+
+// ── Trigonometrische Funktionen: sin/cos/tan mit Einheitskreis-Punkt ─────
+// "Aufschalten"-Knöpfe im Panel "Trigonometrische Funktionen" (Unterrichts-
+// Feature, analog zu linAddSlopeForm() in 11_fitting.js): fügt sin(x)/cos(x)/
+// tan(x) hinzu (falls nicht schon vorhanden) und aktiviert den Einheitskreis
+// (chk-unitcircle). Es gibt dafür EINEN einzigen ziehbaren Punkt — den ganz
+// normalen, bereits bestehenden Einheitskreis-Punkt (unitCirclePts, siehe
+// findNearCirclePt()/unitCircleHandleClick() in 08_draw.js). drawUnitCircle()
+// zeichnet für jeden unitCirclePts-Eintrag ohnehin schon automatisch die
+// Projektion (Hypotenuse + Gegen-/Ankathete + gestrichelte Linie) auf JEDE
+// sichtbare sin/cos/tan-Funktion — das ist also derselbe Punkt, der sowohl
+// auf dem Kreis als auch (via seiner Projektion) auf dem Graphen erscheint.
+// Ziehen geht von beiden Seiten: auf dem Kreis direkt (drag.type='circlept',
+// 09_events.js) oder auf dem Projektions-Punkt auf dem Graphen
+// (drag.type='trigproj', nutzt findNearTrigProjDot() in 08_draw.js) — beide
+// Wege ändern denselben unitCirclePts[i].angle.
+// (Frühere Version nutzte zusätzlich einen zweiten, unabhängigen Punkt auf
+// graphPoints — das führte zu zwei sich überlagernden/konkurrierenden
+// Punkten für dieselbe Sache und wurde deshalb wieder entfernt.)
+function trigAddFunction(kind) {
+  const exprMap = { sin: 'sin(x)', cos: 'cos(x)', tan: 'tan(x)' };
+  const expr = exprMap[kind];
+  if (!expr) return;
+  const norm = e => e.replace(/\s+/g, '');
+
+  let fi = functions.findIndex(fn => norm(fn.expr) === expr);
+  if (fi === -1) {
+    functions.push({ expr, color: COLORS[functions.length % COLORS.length], visible: true });
+    fi = functions.length - 1;
+    clearEvalCache(); renderFuncList(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
+  } else if (functions[fi].visible === false) {
+    functions[fi].visible = true; // versteckte Funktion wieder einblenden
+    renderFuncList(); scheduleComputeSpecials();
+  }
+
+  // Genau EIN gemeinsamer Einheitskreis-Punkt für alle aufgeschalteten
+  // trigonometrischen Funktionen — nur anlegen, falls noch keiner existiert.
+  if (unitCirclePts.length === 0) {
+    unitCirclePts.push({ angle: PI / 4 }); // Start: 45°, dort sin=cos
+  }
+  document.getElementById('chk-unitcircle').checked = true;
+  pushHistory();
+  scheduleDraw();
+}
+
 // Alles löschen (Funktionen, Punkte, Geraden, Einheitskreis-Punkte, Graph-Punkte)
 function clearAll() {
   functions = []; params = {}; points = []; specials = []; graphPoints = []; unitCirclePts = []; linkedLines = [];
   line2ptPicking = false; line2ptPts = []; slopeTriPts = []; slopeTriPtsMap = {}; showArea = false; clearEvalCache();
+  // Senkrechte/Mittelsenkrechte-Referenzen zurücksetzen (siehe 11_fitting.js) —
+  // sonst würden nach dem Löschen alte fi-Indizes auf neue, unabhängige
+  // Funktionen zeigen und drawPerpMarkers() falsche Marker zeichnen.
+  perpMeta = {}; linActiveFi = -1; linPerpFi = -1; linBisectorFi = -1;
+  const perpRes = document.getElementById('lin-perp-result'); if (perpRes) perpRes.textContent = '';
+  // Lineare Optimierung zurücksetzen (siehe 17_linopt.js)
+  if (typeof loConstraints !== 'undefined') {
+    loConstraints = []; loObjA = 1; loObjB = 1; loObjK = 0; loObjActive = false; loMode = 'max';
+    loObjKMin = -10; loObjKMax = 10;
+    if (typeof clearLoEvalCache === 'function') clearLoEvalCache();
+    if (typeof renderLoConstraints === 'function') renderLoConstraints();
+    const loBox = document.getElementById('lo-loesungsweg-box'); if (loBox) { loBox.innerHTML = ''; loBox.style.display = ''; }
+    const loInp = document.getElementById('lo-obj-input');
+    if (loInp) { (loInp._mlSetFromRaw ? loInp._mlSetFromRaw('') : (loInp.value = '')); loInp.style.borderColor = ''; }
+    if (typeof loSyncObjSliderFull === 'function') loSyncObjSliderFull();
+    document.getElementById('lo-mode-max')?.classList.add('active-btn');
+    document.getElementById('lo-mode-min')?.classList.remove('active-btn');
+  }
+  // Folgen zurücksetzen (siehe 13_sequences.js) — fehlte bisher hier, wurde beim
+  // Aufräumen des LaTeX-Exports entdeckt: "Alles löschen" liess bestehende Folgen
+  // (Punkte + Verbindungslinie) sowohl auf dem Canvas als auch im Export unbemerkt
+  // stehen.
+  if (typeof sequences !== 'undefined') {
+    sequences = [];
+    if (typeof renderSeqList === 'function') renderSeqList();
+  }
   document.getElementById('area-toggle-btn').classList.remove('active-btn');
   document.getElementById('area-toggle-btn').textContent = t('btn_area');
   document.getElementById('area-result').textContent = '';
@@ -998,11 +784,14 @@ function rerender() { scheduleComputeSpecials(); if (showArea) updateAreaResult(
 // Gibt zurück welcher Label-Modus aktiv ist: 'all', 'none', 'hover'
 function getLabelMode() { return document.getElementById('label-mode').value; }
 
-// Prüft ob ein Punkt-Typ durch die globalen Checkboxen sichtbar ist (für Sidebar-Liste)
+// Früher: prüfte globale Ein-/Ausblenden-Checkboxen im (inzwischen entfernten)
+// "Spezielle Punkte"-Sidebar-Panel — je Punkt-Typ (Max/Min/Wende/Nullst./...).
+// Dieses Panel gab es doppelt zu den Smart-Buttons direkt unter jeder Funktion
+// und wurde auf Nutzerwunsch entfernt. Alle Punkt-Typen gelten seither als
+// immer sichtbar; die Funktion bleibt (statt Aufrufer anzupassen) als simpler
+// Stub bestehen, siehe 05_points.js, 08_draw.js, renderSpecialList() in 04_analysis.js.
 function isKindVisible(kind) {
-  const map = { max:'show-max', min:'show-min', inf:'show-inf', zero:'show-zero', yaxis:'show-yaxis', isect:'show-isect', asymp:'show-asymp' };
-  const id = map[kind]; if (!id) return true;
-  const el = document.getElementById(id); return el ? el.checked : true;
+  return true;
 }
 
 // Prüft ob ein spezieller Punkt angezeigt werden soll.
@@ -1017,15 +806,17 @@ function isPointActive(pt) {
 // SMART-BUTTONS — Relevante Sonderpunkte direkt unter der Funktion
 // ═══════════════════════════════════════════════════════════════════
 
-// Konfiguration für jeden Punkt-Typ: Beschriftung, Farbe, Checkbox-ID
+// Konfiguration für jeden Punkt-Typ: Beschriftung (kurz, für den Knopf selbst —
+// bei vielen Spezialpunkten pro Funktion wird die Knopfleiste sonst zu breit),
+// ausgeschriebener Name (für den Tooltip/title), Farbe, Checkbox-ID.
 const SMART_BTN_CONFIG = {
-  zero:  { label: 'Nullstellen',  color: '#92400e', checkId: 'show-zero'  },
-  yaxis: { label: 'y-Achse',      color: '#BD10E0', checkId: 'show-yaxis' },
-  max:   { label: 'Hochpunkt',    color: '#e24b4a', checkId: 'show-max'   },
-  min:   { label: 'Tiefpunkt',    color: '#1D9E75', checkId: 'show-min'   },
-  inf:   { label: 'Wendepunkt',   color: '#7F77DD', checkId: 'show-inf'   },
-  asymp: { label: 'Asymptoten',   color: '#f59e0b', checkId: 'show-asymp' },
-  isect: { label: 'Schnittpunkt', color: '#378ADD', checkId: 'show-isect' },
+  zero:  { label: 'NS',   full: 'Nullstellen',  color: '#92400e', checkId: 'show-zero'  },
+  yaxis: { label: 'Sy',   full: 'y-Achse',       color: '#BD10E0', checkId: 'show-yaxis' },
+  max:   { label: 'Max',  full: 'Hochpunkt',     color: '#e24b4a', checkId: 'show-max'   },
+  min:   { label: 'Min',  full: 'Tiefpunkt',     color: '#1D9E75', checkId: 'show-min'   },
+  inf:   { label: 'WP',   full: 'Wendepunkt',    color: '#7F77DD', checkId: 'show-inf'   },
+  asymp: { label: 'Asym', full: 'Asymptoten',    color: '#f59e0b', checkId: 'show-asymp' },
+  isect: { label: 'SP',   full: 'Schnittpunkt',  color: '#378ADD', checkId: 'show-isect' },
 };
 const SMART_BTN_ORDER = ['zero', 'yaxis', 'max', 'min', 'inf', 'asymp', 'isect'];
 
@@ -1048,7 +839,6 @@ function updateSmartButtons() {
       }
       if (sp.fj === i) foundKinds.add(sp.kind); // Schnittpunkte: für beide Funktionen
     });
-    if (foundKinds.size === 0) return;
 
     SMART_BTN_ORDER.forEach(kind => {
       if (!foundKinds.has(kind)) return;
@@ -1062,7 +852,7 @@ function updateSmartButtons() {
       btn.className = 'smart-btn' + (isActive ? ' sb-active' : '');
       btn.textContent = cfg.label;
       btn.style.borderColor = cfg.color;
-      btn.title = `${cfg.label} für f${i+1} ${isActive ? 'ausblenden' : 'einblenden'}`;
+      btn.title = `${cfg.full} für f${i+1} ${isActive ? 'ausblenden' : 'einblenden'}`;
       if (isActive) {
         btn.style.background = cfg.color;
         btn.style.color = '#fff';
@@ -1117,10 +907,130 @@ function updateSmartButtons() {
       container.appendChild(btn);
     });
 
+    // Immer sichtbare Analysis-Knöpfe (unabhängig von erkannten Spezialpunkten)
+    appendCalculusButtons(container, fn, i);
+
     // Solve-Panel leeren — Lösungswege erscheinen als Tooltip (Canvas-Overlay)
     const solvePanel = document.getElementById(`solve-panel-${i}`);
     if (solvePanel) solvePanel.innerHTML = '';
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ANALYSIS-KNÖPFE — Grenzwerte im Unendlichen, Ableitungsfunktion,
+// unbestimmtes Integral. Anders als die Smart-Buttons oben (die nur
+// gefundene Spezialpunkte ein-/ausblenden) erscheinen diese drei IMMER,
+// solange die Funktion einen nicht-leeren Ausdruck hat — unabhängig
+// davon, ob überhaupt Spezialpunkte gefunden wurden. Ableitung/Integral
+// legen dabei jeweils eine NEUE Funktion an (siehe addDerivedFunction()),
+// statt nur eine Anzeige umzuschalten.
+// ═══════════════════════════════════════════════════════════════════
+const CALC_BTN_COLORS = { lim: '#0F766E', deriv: '#B45309', integral: '#6D28D9' };
+
+function appendCalculusButtons(container, fn, i) {
+  // Grenzwerte im Unendlichen (rein informativ, öffnet Tooltip)
+  const limBtn = document.createElement('button');
+  limBtn.className = 'smart-btn';
+  limBtn.textContent = 'lim∞'; // kurz für "Grenzwerte im Unendlichen" — voller Name im title
+  limBtn.style.borderColor = CALC_BTN_COLORS.lim;
+  limBtn.style.color = CALC_BTN_COLORS.lim;
+  limBtn.title = `Grenzwerte im Unendlichen für f${i+1} anzeigen`;
+  limBtn.onclick = () => {
+    const tooltip = document.getElementById('solve-tooltip');
+    const already = tooltip && tooltip.style.display !== 'none' &&
+                    window._activeTooltipPt && window._activeTooltipPt.fi === i &&
+                    window._activeTooltipPt.kind === 'liminf';
+    if (already) { hideSolveTooltip(); return; }
+    showLimitsInfinityTooltip(i);
+  };
+  container.appendChild(limBtn);
+
+  // Ableitungsfunktion — erzeugt f'(x) als neue Funktion (immer möglich)
+  const dBtn = document.createElement('button');
+  dBtn.className = 'smart-btn';
+  dBtn.textContent = "f'"; // kurz für "Ableitungsfunktion" — voller Name im title
+  dBtn.style.borderColor = CALC_BTN_COLORS.deriv;
+  dBtn.style.color = CALC_BTN_COLORS.deriv;
+  dBtn.title = `Ableitung von f${i+1} als neue Funktion einfügen`;
+  dBtn.onclick = () => {
+    try {
+      const ast = miParseRaw(fn.expr);
+      const dAst = calcDiff(ast, 'x');
+      const raw = miToRaw(dAst, 0);
+      addDerivedFunction(raw);
+    } catch (ex) {
+      showCalcMessage(i, `f<sub>${i+1}</sub>&thinsp;Ableitungsfunktion`, 'Die Ableitung konnte nicht gebildet werden.');
+    }
+  };
+  container.appendChild(dBtn);
+
+  // Unbestimmtes Integral — erzeugt eine Stammfunktion als neue Funktion,
+  // sofern eine elementare Stammfunktion im unterstützten Umfang existiert.
+  const iBtn = document.createElement('button');
+  iBtn.className = 'smart-btn';
+  iBtn.textContent = '∫'; // kurz für "Unbestimmtes Integral" — voller Name im title
+  iBtn.style.borderColor = CALC_BTN_COLORS.integral;
+  iBtn.style.color = CALC_BTN_COLORS.integral;
+  iBtn.title = `Stammfunktion von f${i+1} als neue Funktion einfügen`;
+  iBtn.onclick = () => {
+    let iAst = null, raw = null;
+    try {
+      const ast = miParseRaw(fn.expr);
+      iAst = calcIntegrate(ast, 'x');
+      if (iAst) raw = miToRaw(iAst, 0);
+    } catch (ex) { iAst = null; raw = null; }
+    if (!iAst || !raw) {
+      showCalcMessage(i, `f<sub>${i+1}</sub>&thinsp;Unbestimmtes Integral`,
+        'Für diese Funktion konnte keine elementare Stammfunktion gefunden werden.');
+      return;
+    }
+    addDerivedFunction(raw);
+  };
+  container.appendChild(iBtn);
+}
+
+// Zeigt lim x→−∞ und lim x→+∞ von f_i im bestehenden Lösungsweg-Tooltip an
+// (informativ, legt keine neue Funktion an). Nutzt die bereits vorhandene
+// Grenzwert-Erkennung aus 15_domain_range.js (daBoundaryLimit).
+function showLimitsInfinityTooltip(fi) {
+  const fn = functions[fi];
+  const tooltip = document.getElementById('solve-tooltip');
+  const titleEl = document.getElementById('solve-tooltip-title');
+  const content = document.getElementById('solve-tooltip-content');
+  if (!tooltip || !titleEl || !content || !fn) return;
+
+  const lm = daBoundaryLimit(fn.expr, -Infinity, 1);
+  const lp = daBoundaryLimit(fn.expr, Infinity, -1);
+  const fmt = res => {
+    if (!res) return '?';
+    if (res.kind === 'inf') return res.sign > 0 ? '+∞' : '−∞';
+    if (res.kind === 'value') return niceNum(res.v);
+    return 'nicht bestimmbar';
+  };
+
+  titleEl.innerHTML = `f<sub>${fi+1}</sub>&thinsp;Grenzwerte im Unendlichen`;
+  titleEl.style.color = fn.color || '';
+  content.innerHTML =
+    `<div style="margin-bottom:4px;">lim<sub>x→−∞</sub>&thinsp;f<sub>${fi+1}</sub>(x) = ${fmt(lm)}</div>` +
+    `<div>lim<sub>x→+∞</sub>&thinsp;f<sub>${fi+1}</sub>(x) = ${fmt(lp)}</div>`;
+
+  window._activeTooltipPt = { fi, kind: 'liminf' };
+  tooltip.style.display = 'block';
+}
+
+// Kleine Info-/Fehlermeldung im selben Tooltip-Panel (statt eines blockierenden
+// alert()) — z.B. wenn keine elementare Stammfunktion gefunden werden konnte.
+function showCalcMessage(fi, title, html) {
+  const tooltip = document.getElementById('solve-tooltip');
+  const titleEl = document.getElementById('solve-tooltip-title');
+  const content = document.getElementById('solve-tooltip-content');
+  if (!tooltip || !titleEl || !content) return;
+  const fn = functions[fi];
+  titleEl.innerHTML = title;
+  titleEl.style.color = fn ? fn.color : '';
+  content.innerHTML = html;
+  window._activeTooltipPt = { fi, kind: 'calcmsg' };
+  tooltip.style.display = 'block';
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1152,12 +1062,10 @@ function showSolveTooltip(pts) {
     let coordStr = '';
     if (pt.kind === 'asymp') {
       if (pt.oblique) {
-        const sS = Math.abs(pt.slope-1)<1e-5?'':Math.abs(pt.slope+1)<1e-5?'−':niceNum(pt.slope)+'·';
-        const bS = Math.abs(pt.intercept)<1e-5?'':(pt.intercept>0?` + ${niceNum(pt.intercept)}`:` − ${niceNum(Math.abs(pt.intercept))}`);
-        coordStr = `y = ${sS}x${bS}`;
-      } else { coordStr = `y = ${niceNum(pt.y)}`; }
+        coordStr = fmtObliqueAsymLabel(pt.slope, pt.intercept);
+      } else { coordStr = fmtHorizontalAsymLabel(pt.y); }
     } else if (pt.kind === 'pole') {
-      coordStr = `x = ${niceNum(pt.x)}`;
+      coordStr = fmtVerticalAsymLabel(pt.x);
     } else {
       coordStr = pt.exactLabel || niceCoord(pt.x, pt.y);
     }
@@ -1202,11 +1110,11 @@ function updateFuncLabelsOverlay() {
   if (rows.length === 0) { el.style.display = 'none'; return; }
 
   el.innerHTML = rows.map(({ fn, i }) => {
-    // Parameterwerte einsetzen + vereinfachen, dann als HTML formatieren
+    // Parameterwerte einsetzen + vereinfachen, dann exakt wie im Eingabefeld rendern
     const substituted = typeof exprWithValues === 'function'
       ? exprWithValues(fn.expr)
       : (typeof exprToDisplayStr === 'function' ? exprToDisplayStr(fn.expr) : fn.expr);
-    const html = typeof exprToHtml === 'function' ? exprToHtml(substituted) : substituted;
+    const html = typeof exprToMathLiveHtml === 'function' ? exprToMathLiveHtml(substituted) : substituted;
     let domainSuffix = '';
     if (fn.domainMin != null || fn.domainMax != null) {
       const dlo = fn.domainMin != null ? fn.domainMin : '−∞';

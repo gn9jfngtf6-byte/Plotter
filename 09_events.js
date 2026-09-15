@@ -12,6 +12,29 @@
 // mousedown: Prüft in fester Prioritätsreihenfolge was gedrückt wurde.
 // Reihenfolge: Einheitskreis > Line-2pt-Picking > Graph-Punkt > Freier Punkt > Alt/Modus > View-Pan
 // pointermove/pointerleave: Laserpointer-Position tracken (Maus, Stift, Touch)
+// Findet die Funktion (fi), deren Steigungsdreieck-Punkt B (zweiter,
+// verschiebbarer Eckpunkt in slopeTriPtsMap) in Klick-/Touch-Nähe liegt.
+// Punkt A (erster Eckpunkt, z.B. der y-Achsenabschnitt bei "y = mx + q")
+// ist bewusst NICHT Teil dieser Suche — er dient als fixierter Anker und
+// wird nie über diese Funktion verschoben (siehe linAddSlopeForm()).
+function findNearSlopeTriB(mx, my) {
+  const chk = document.getElementById('chk-slopetri');
+  if (!chk || !chk.checked) return -1;
+  for (const key in slopeTriPtsMap) {
+    const fi = parseInt(key, 10);
+    const fn = functions[fi];
+    const pts = slopeTriPtsMap[fi];
+    if (!fn || fn.visible === false || !pts || pts.length !== 2) continue;
+    if (!fn.expr || !fn.expr.trim() || !isLinearFunc(fn.expr)) continue;
+    const xB = pts[1].x;
+    const yB = safeEval(fn.expr, xB);
+    if (!isFinite(yB)) continue;
+    const { cx, cy } = toCanvas(xB, yB);
+    if (Math.hypot(cx - mx, cy - my) < 10) return fi;
+  }
+  return -1;
+}
+
 canvas.addEventListener('pointermove', e => {
   if (!pointerMode || !e.isPrimary) return;
   const r = canvas.getBoundingClientRect();
@@ -33,6 +56,42 @@ canvas.addEventListener('mousedown', e => {
   // 0. Lösch-Modus: Objekt löschen
   if (deleteMode) { tryDeleteAt(m.x, m.y); return; }
 
+  // 0b. Graph-Punkte immer ziehbar (auch ohne graphPtMode) — Löschen per X.
+  // WICHTIG: Diese Prüfung muss VOR dem Einheitskreis-Klick-Handler (unten)
+  // laufen — Graph-Punkte auf sin/cos/tan (siehe trigAddFunction() in
+  // 06_ui_functions.js) liegen oft nur wenige Pixel vom Einheitskreis
+  // entfernt (Radius=1 ≈ Funktionswert), sonst würde ein Klick darauf
+  // stattdessen fälschlich einen neuen Einheitskreis-Punkt setzen.
+  {
+    const gi0 = findNearGP(m.x, m.y);
+    if (gi0 >= 0) {
+      const gp0 = graphPoints[gi0]; const fn0 = functions[gp0.fi];
+      const y0 = safeEval(fn0?.expr || '', gp0.x);
+      if (isFinite(y0)) {
+        const { cx: cx0, cy: cy0 } = toCanvas(gp0.x, y0);
+        if (Math.hypot(cx0+8-m.x, cy0-6-m.y) < 10) { graphPoints.splice(gi0, 1); scheduleDraw(); return; }
+      }
+      drag = { type:'graphpt', idx:gi0 }; canvas.style.cursor = 'grabbing'; return;
+    }
+  }
+
+  // 0c. Trig-Projektionspunkt auf dem Graphen (sin/cos/tan aufgeschaltet über
+  // trigAddFunction(), siehe 06_ui_functions.js): das ist derselbe Punkt wie
+  // der Einheitskreis-Punkt unten (nicht ein zweiter, unabhängiger Punkt!) —
+  // ziehbar auf BEIDEN Darstellungen. Muss vor dem Einheitskreis-Klick-
+  // Handler geprüft werden, da diese Projektion nahe am Kreis liegen kann.
+  if (document.getElementById('chk-unitcircle').checked) {
+    const tp0 = findNearTrigProjDot(m.x, m.y);
+    if (tp0) { drag = { type:'trigproj', ucpIdx: tp0.ucpIdx, kind: tp0.kind }; canvas.style.cursor = 'grabbing'; return; }
+  }
+
+  // 0d. Zielfunktions-Griff der linearen Optimierung immer ziehbar (siehe
+  // 17_linopt.js: findNearLoHandle()/loUpdateFromDrag()) — sobald eine
+  // Zielfunktion aufgeschaltet ist (loObjActive).
+  if (typeof findNearLoHandle === 'function' && findNearLoHandle(m.x, m.y)) {
+    drag = { type:'loobj' }; canvas.style.cursor = 'grabbing'; return;
+  }
+
   // 1. Einheitskreis-Punkt drag starten (höchste Priorität wenn Kreis aktiv)
   if (document.getElementById('chk-unitcircle').checked) {
     const ci = findNearCirclePt(m.x, m.y);
@@ -47,36 +106,28 @@ canvas.addEventListener('mousedown', e => {
   // 1c. Steigungsdreieck-Pick-Modus
   if (slopeTriPickMode) { slopeTriPickClick(m.x, m.y); return; }
 
+  // 1d. Senkrechte: Punkt Q im Plot wählen
+  if (perpPickMode) { linPerpPickClick(m.x, m.y); return; }
+
   // 2. Gerade-durch-2-Punkte Picking-Modus
   if (line2ptPicking) { line2ptPickClick(m.x, m.y); return; }
 
-  // 3. Graph-Punkt-Modus: Punkt verschieben oder löschen oder neu setzen
-  if (graphPtMode) {
-    const gi = findNearGP(m.x, m.y);
-    if (gi >= 0) {
-      const gp = graphPoints[gi]; const fn = functions[gp.fi];
-      const y = safeEval(fn?.expr || '', gp.x);
-      // Klick auf Löschen-X (8px rechts, 6px oben vom Punkt-Zentrum)
-      if (isFinite(y)) { const { cx, cy } = toCanvas(gp.x, y); if (Math.hypot(cx+8-m.x, cy-6-m.y) < 10) { graphPoints.splice(gi, 1); scheduleDraw(); return; } }
-      drag = { type:'graphpt', idx:gi }; canvas.style.cursor = 'grabbing';
-    } else {
-      addGraphPoint(m.x, m.y); // neuen Punkt auf Kurve setzen
-    }
-    return;
+  // 2b. Steigungsdreieck-Punkt B ziehen (verschiebbarer zweiter Eckpunkt,
+  // z.B. bei "y = mx + q" — Punkt A bleibt fix am y-Achsenabschnitt).
+  // Vor den Graph-Punkt-Checks, damit ein Klick auf diesen Punkt nicht
+  // stattdessen einen neuen Graph-Punkt anlegt oder ihn ansonsten verdeckt.
+  {
+    const sfi = findNearSlopeTriB(m.x, m.y);
+    if (sfi >= 0) { drag = { type:'slopetript', fi: sfi, pi: 1 }; canvas.style.cursor = 'grabbing'; return; }
   }
 
-  // 3b. Graph-Punkte immer ziehbar (auch ohne graphPtMode) — Löschen per X
-  {
-    const gi = findNearGP(m.x, m.y);
-    if (gi >= 0) {
-      const gp = graphPoints[gi]; const fn = functions[gp.fi];
-      const y = safeEval(fn?.expr || '', gp.x);
-      if (isFinite(y)) {
-        const { cx, cy } = toCanvas(gp.x, y);
-        if (Math.hypot(cx+8-m.x, cy-6-m.y) < 10) { graphPoints.splice(gi, 1); scheduleDraw(); return; }
-      }
-      drag = { type:'graphpt', idx:gi }; canvas.style.cursor = 'grabbing'; return;
-    }
+  // 3. Graph-Punkt-Modus: Klick auf leere Stelle setzt neuen Punkt auf der
+  // Kurve. Ein Klick auf einen BESTEHENDEN Graph-Punkt wurde schon oben
+  // (0b, immer aktiv) abgefangen, bevor der Einheitskreis-Klick-Handler
+  // drankommt — dieser Zweig behandelt daher nur noch das Neusetzen.
+  if (graphPtMode) {
+    addGraphPoint(m.x, m.y); // neuen Punkt auf Kurve setzen
+    return;
   }
 
   // 4. Fit-Punkte: ziehbar (Funktionen durch gewählte Punkte)
@@ -167,6 +218,25 @@ canvas.addEventListener('mousemove', e => {
       unitCirclePts[drag.idx].angle = circleAngleFromCanvas(m.x, m.y);
       scheduleDraw();
 
+    } else if (drag.type === 'loobj') {
+      // Zielfunktions-Gerade parallel verschieben (Wert k), mit Snapping an
+      // die Eckpunkte des Planungspolygons — siehe loUpdateFromDrag() in
+      // 17_linopt.js.
+      loUpdateFromDrag(m.x, m.y);
+      const tip = document.getElementById('tooltip');
+      tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
+      tip.textContent = `z = ${niceNum(loObjK)}`;
+      scheduleDraw();
+
+    } else if (drag.type === 'trigproj') {
+      // Denselben Einheitskreis-Punkt über seine Projektion auf dem Graphen
+      // verschieben — Umkehrformel je nach Funktionstyp (siehe
+      // findNearTrigProjDot() in 08_draw.js: sin/tan xG=a, cos xG=a−π/2).
+      const xG = fromCanvas(m.x, m.y).x;
+      const a = drag.kind === 'cos' ? xG + PI / 2 : xG;
+      unitCirclePts[drag.ucpIdx].angle = ((a % (2 * PI)) + (2 * PI)) % (2 * PI);
+      scheduleDraw();
+
     } else if (drag.type === 'fitpt') {
       const fn = functions[drag.fi];
       if (fn && fn.fitPts) {
@@ -197,6 +267,31 @@ canvas.addEventListener('mousemove', e => {
         tip.textContent = niceCoord(pt2.x, pt2.y);
         scheduleDraw();
       }
+
+    } else if (drag.type === 'slopetript') {
+      // Steigungsdreieck-Punkt B entlang der Funktion verschieben (ändert Δx,
+      // Punkt A bleibt unangetastet bei seinem fixen x-Wert, z.B. 0).
+      let newX = fromCanvas(m.x, m.y).x;
+      const fnS = functions[drag.fi], ptsS = slopeTriPtsMap[drag.fi];
+      if (fnS && ptsS) {
+        const xA = ptsS[0].x;
+        const v2 = isoView || view;
+        const pxPerUnit = getW() / (v2.xmax - v2.xmin);
+        const snapDist = 20 / pxPerUnit;
+        if (document.getElementById('chk-gridsnap').checked) {
+          const xs = gridStep(v2.xmax - v2.xmin);
+          const snappedX = Math.round(newX / xs) * xs;
+          if (Math.abs(newX - snappedX) < snapDist) newX = snappedX;
+        }
+        // Mindestabstand zu Punkt A, damit das Dreieck nicht auf Δx=0 kollabiert
+        if (Math.abs(newX - xA) < 0.05) newX = xA + (newX >= xA ? 0.05 : -0.05);
+        ptsS[1].x = newX;
+        const yB = safeEval(fnS.expr, newX);
+        const tip = document.getElementById('tooltip');
+        tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
+        tip.textContent = niceCoord(newX, isFinite(yB) ? yB : NaN);
+      }
+      scheduleDraw();
     }
     return; // kein Hover während Drag
   }
@@ -204,18 +299,23 @@ canvas.addEventListener('mousemove', e => {
   // Kein Drag: Hover-Position tracken und Cursor anpassen
   hoverPt = fromCanvas(m.x, m.y).x;
   const nearPt = findNearPoint(m.x, m.y) >= 0;
-  const nearGP = graphPtMode && findNearGP(m.x, m.y) >= 0;
+  // Graph-Punkte sind immer ziehbar (nicht nur im graphPtMode, siehe 0b in
+  // mousedown) — der Grab-Cursor soll das entsprechend immer anzeigen.
+  const nearGP = findNearGP(m.x, m.y) >= 0;
   const nearCP = document.getElementById('chk-unitcircle').checked && findNearCirclePt(m.x, m.y) >= 0;
+  const nearTP = document.getElementById('chk-unitcircle').checked && !!findNearTrigProjDot(m.x, m.y);
   const nearFP = typeof findNearFitPt === 'function' && !!findNearFitPt(m.x, m.y);
+  const nearSTB = findNearSlopeTriB(m.x, m.y) >= 0;
+  const nearLO = typeof findNearLoHandle === 'function' && findNearLoHandle(m.x, m.y);
   // Grab-Cursor wenn Maus über ziehendem Element
-  canvas.style.cursor = (nearPt || nearGP || nearCP || nearFP) ? 'grab' : 'default';
+  canvas.style.cursor = (nearPt || nearGP || nearCP || nearTP || nearFP || nearSTB || nearLO) ? 'grab' : 'default';
   scheduleDraw();
 });
 
 // mouseup: Drag beenden, Tooltip verstecken, Cursor zurücksetzen
 canvas.addEventListener('mouseup', e => {
   // Undo-Eintrag nach Drag (Punkt verschieben) — muss VOR drag=null sein
-  if (drag && (drag.type === 'point' || drag.type === 'graphpt' || drag.type === 'fitpt')) pushHistory();
+  if (drag && (drag.type === 'point' || drag.type === 'graphpt' || drag.type === 'fitpt' || drag.type === 'slopetript' || drag.type === 'trigproj' || drag.type === 'loobj')) pushHistory();
   // Nach Pan/Zoom: Sonderpunkte jetzt (einmalig) neu berechnen
   const wasPan = drag && drag.type === 'view';
   drag = null;
@@ -270,6 +370,24 @@ canvas.addEventListener('touchstart', e => {
     // 0. Lösch-Modus: Objekt löschen
     if (deleteMode) { tryDeleteAt(m.x, m.y); return; }
 
+    // 0b. Graph-Punkte immer ziehbar — VOR dem Einheitskreis-Klick-Handler
+    // (s. mousedown 0b): Punkte auf sin/cos/tan (trigAddFunction()) liegen
+    // oft nur wenige Pixel vom Einheitskreis entfernt.
+    const gi0 = findNearGP(m.x, m.y);
+    if (gi0 >= 0) { drag = { type:'graphpt', idx:gi0 }; touchState = { type:'drag' }; return; }
+
+    // 0c. Trig-Projektionspunkt (siehe mousedown 0c) — derselbe Punkt wie der
+    // Einheitskreis-Punkt unten, nur auf dem Graphen gegriffen.
+    if (document.getElementById('chk-unitcircle').checked) {
+      const tp0t = findNearTrigProjDot(m.x, m.y);
+      if (tp0t) { drag = { type:'trigproj', ucpIdx: tp0t.ucpIdx, kind: tp0t.kind }; touchState = { type:'drag' }; return; }
+    }
+
+    // 0d. Zielfunktions-Griff (siehe mousedown 0d)
+    if (typeof findNearLoHandle === 'function' && findNearLoHandle(m.x, m.y)) {
+      drag = { type:'loobj' }; touchState = { type:'drag' }; return;
+    }
+
     // Einheitskreis-Punkt?
     if (document.getElementById('chk-unitcircle').checked) {
       const ci = findNearCirclePt(m.x, m.y);
@@ -283,12 +401,15 @@ canvas.addEventListener('touchstart', e => {
     // 1c. Steigungsdreieck-Pick-Modus
     if (slopeTriPickMode) { slopeTriPickClick(m.x, m.y); return; }
 
+    // 1d. Senkrechte: Punkt Q im Plot wählen
+    if (perpPickMode) { linPerpPickClick(m.x, m.y); return; }
+
     // 2-Punkt-Picking?
     if (line2ptPicking) { line2ptPickClick(m.x, m.y); return; }
 
-    // Graph-Punkt ziehen?
-    const gi = findNearGP(m.x, m.y);
-    if (gi >= 0) { drag = { type:'graphpt', idx:gi }; touchState = { type:'drag' }; return; }
+    // Steigungsdreieck-Punkt B ziehen? (vor Graph-Punkt-Checks, s. mousedown)
+    const sfiT = findNearSlopeTriB(m.x, m.y);
+    if (sfiT >= 0) { drag = { type:'slopetript', fi: sfiT, pi: 1 }; touchState = { type:'drag' }; return; }
 
     // Fit-Punkt ziehen?
     const fpt = typeof findNearFitPt === 'function' ? findNearFitPt(m.x, m.y) : null;
@@ -358,6 +479,12 @@ canvas.addEventListener('touchmove', e => {
       graphPoints[drag.idx].x = newX;
     } else if (drag.type === 'circlept') {
       unitCirclePts[drag.idx].angle = circleAngleFromCanvas(m.x, m.y);
+    } else if (drag.type === 'trigproj') {
+      const xGt = fromCanvas(m.x, m.y).x;
+      const at = drag.kind === 'cos' ? xGt + PI / 2 : xGt;
+      unitCirclePts[drag.ucpIdx].angle = ((at % (2 * PI)) + (2 * PI)) % (2 * PI);
+    } else if (drag.type === 'loobj') {
+      loUpdateFromDrag(m.x, m.y);
     } else if (drag.type === 'fitpt') {
       const fn = functions[drag.fi];
       if (fn && fn.fitPts) {
@@ -379,6 +506,22 @@ canvas.addEventListener('touchmove', e => {
         fn.fitPts[drag.pi].y = pt2.y;
         recomputeFitFn(drag.fi);
         scheduleComputeSpecials();
+      }
+    } else if (drag.type === 'slopetript') {
+      let newX = fromCanvas(m.x, m.y).x;
+      const fnS = functions[drag.fi], ptsS = slopeTriPtsMap[drag.fi];
+      if (fnS && ptsS) {
+        const xA = ptsS[0].x;
+        const v2 = isoView || view;
+        const pxPerUnit = getW() / (v2.xmax - v2.xmin);
+        const snapDist = 20 / pxPerUnit;
+        if (document.getElementById('chk-gridsnap').checked) {
+          const xs = gridStep(v2.xmax - v2.xmin);
+          const snappedX = Math.round(newX / xs) * xs;
+          if (Math.abs(newX - snappedX) < snapDist) newX = snappedX;
+        }
+        if (Math.abs(newX - xA) < 0.05) newX = xA + (newX >= xA ? 0.05 : -0.05);
+        ptsS[1].x = newX;
       }
     }
     scheduleDraw();
@@ -433,7 +576,7 @@ canvas.addEventListener('touchmove', e => {
 
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
-  if (drag && (drag.type === 'point' || drag.type === 'graphpt' || drag.type === 'fitpt')) pushHistory();
+  if (drag && (drag.type === 'point' || drag.type === 'graphpt' || drag.type === 'fitpt' || drag.type === 'slopetript' || drag.type === 'trigproj' || drag.type === 'loobj')) pushHistory();
   const wasPanOrPinch = touchState && (touchState.type === 'pan' || touchState.type === 'pinch');
   drag = null; touchState = null;
   document.getElementById('tooltip').style.display = 'none';
@@ -468,7 +611,11 @@ let history = [], historyIdx = -1, historyPaused = false;
 function captureState() {
   return JSON.parse(JSON.stringify({
     functions, params, points, linkedLines,
-    graphPoints, unitCirclePts, showArea
+    graphPoints, unitCirclePts, showArea,
+    // Lineare Optimierung (siehe 17_linopt.js) — optional-verkettet, da ältere
+    // gespeicherte Zustände (vor Einführung dieses Features) diese Felder
+    // nicht kennen; applyState() unten setzt dann einfach die Defaults.
+    loConstraints, loObjA, loObjB, loObjK, loObjActive, loMode, loObjKMin, loObjKMax
   }));
 }
 
@@ -480,6 +627,30 @@ function applyState(s) {
   functions = sc.functions; params = sc.params; points = sc.points;
   linkedLines = sc.linkedLines; graphPoints = sc.graphPoints;
   unitCirclePts = sc.unitCirclePts; showArea = sc.showArea;
+  // Lineare Optimierung — Defaults falls aus einem älteren Zustand geladen
+  // (siehe captureState() oben / 17_linopt.js).
+  loConstraints = sc.loConstraints || []; loObjA = sc.loObjA ?? 1; loObjB = sc.loObjB ?? 1;
+  loObjK = sc.loObjK ?? 0; loObjActive = sc.loObjActive || false; loMode = sc.loMode || 'max';
+  loObjKMin = sc.loObjKMin ?? -10; loObjKMax = sc.loObjKMax ?? 10;
+  if (typeof clearLoEvalCache === 'function') clearLoEvalCache();
+  if (typeof renderLoConstraints === 'function') renderLoConstraints();
+  const loInp = document.getElementById('lo-obj-input');
+  // State speichert nur die Koeffizienten (loObjA/loObjB), nicht den
+  // ursprünglich getippten Text — Anzeige im math-field wird daraus
+  // rekonstruiert (loBuildObjRawFromAB() behandelt das Vorzeichen von b
+  // korrekt, siehe dort — sonst würde rawToLatex() an "3x+-2y" scheitern).
+  if (loInp) {
+    if (loObjActive && typeof loBuildObjRawFromAB === 'function' && loInp._mlSetFromRaw) {
+      loInp._mlSetFromRaw(loBuildObjRawFromAB(loObjA, loObjB));
+    } else if (loInp._mlSetFromRaw) {
+      loInp._mlSetFromRaw('');
+    } else {
+      loInp.value = '';
+    }
+  }
+  if (typeof loSyncObjSliderFull === 'function') loSyncObjSliderFull();
+  document.getElementById('lo-mode-max')?.classList.toggle('active-btn', loMode === 'max');
+  document.getElementById('lo-mode-min')?.classList.toggle('active-btn', loMode === 'min');
   // view wird NICHT wiederhergestellt
   clearEvalCache();
   renderFuncList(); renderPointList(); syncParams(); syncAreaSelects();

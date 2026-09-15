@@ -2,7 +2,7 @@
 // MODUL: core — Konstanten, globaler Zustand, Canvas-Setup, Koordinaten
 // Enthält:  COLORS, RESERVED, view, functions[], points[]
 //           setupCanvas(), toCanvas(), fromCanvas(), gridStep()
-//           scheduleDraw(), toggleDarkMode()
+//           scheduleDraw(), toggleDarkMode(), toggleSettingsMenu()
 // Ändern:  Standardfarben → COLORS[]
 //           Startansicht  → view = {xmin,xmax,ymin,ymax}
 // ═══════════════════════════════════════════════════════════════════
@@ -50,6 +50,39 @@ function toggleKbd() {
   if (arrow) arrow.style.transform = _kbdOpen ? '' : 'rotate(-90deg)';
 }
 
+// Einstellungen-Popover (obere Leiste, ⚙-Knopf) — gleiches Fixed-Position-Muster
+// wie das Sprachmenü (toggleLangMenu() in 01_i18n.js): Popover unter dem Knopf
+// positionieren, bei Klick ausserhalb wieder schliessen. Der Inhalt (Achsen-
+// Schriftgrösse, Gitternetz, Nachkommastellen, π-Notation, Zahlendarstellung,
+// Beschriftungen) ist statisches HTML in index.html, daher hier nur Ein-/Ausblenden
+// + Positionierung nötig (kein dynamischer Aufbau wie beim Sprachmenü).
+function toggleSettingsMenu() {
+  const menu = document.getElementById('settings-menu');
+  if (!menu) return;
+  if (menu.style.display === 'none' || !menu.style.display) {
+    const btn = document.getElementById('settings-btn');
+    if (btn) {
+      const r = btn.getBoundingClientRect();
+      menu.style.top = (r.bottom + 4) + 'px';
+      menu.style.left = (r.left) + 'px';
+    }
+    menu.style.display = 'block';
+    setTimeout(() => { document.addEventListener('click', closeSettingsMenuOutside, { once: true }); }, 0);
+  } else {
+    closeSettingsMenu();
+  }
+}
+function closeSettingsMenu() {
+  const menu = document.getElementById('settings-menu');
+  if (menu) menu.style.display = 'none';
+  document.removeEventListener('click', closeSettingsMenuOutside);
+}
+function closeSettingsMenuOutside(e) {
+  const menu = document.getElementById('settings-menu');
+  const btn = document.getElementById('settings-btn');
+  if (menu && !menu.contains(e.target) && e.target !== btn) closeSettingsMenu();
+}
+
 let darkMode = false;
 function toggleDarkMode() {
   darkMode = !darkMode;
@@ -94,7 +127,7 @@ document.addEventListener('visibilitychange', async () => {
 
 // Reservierte Namen die NICHT als Parameter erkannt werden sollen.
 // Neue eingebaute Funktionen hier eintragen wenn man sie in safeEval ergänzt.
-const RESERVED = new Set(['x','sin','cos','tan','sqrt','abs','log','exp','pi','EC','nthroot','logn','log10','logbase','e']);
+const RESERVED = new Set(['x','sin','cos','tan','sqrt','abs','log','exp','pi','EC','nthroot','logn','log10','logbase','e','asin','acos','atan']);
 
 const PI = Math.PI; // Abkürzung für häufige Verwendung
 
@@ -290,10 +323,11 @@ function fromCanvas(cx, cy) {
 }
 
 // Berechnet einen schönen Gitternetz-Abstand für einen gegebenen Bereich.
-// Ziel: ca. 6 Gitterlinien sichtbar. Ergebnis ist immer 1, 2 oder 5 × 10^n.
+// Ziel: ca. so viele Gitterlinien sichtbar wie in "Gitternetz-Feinheit" eingestellt
+// (Default: 10, fein). Ergebnis ist immer 1, 2 oder 5 × 10^n.
 // range: z.B. view.xmax - view.xmin = 20 → gridStep = 2 oder 5
 function gridStep(range) {
-  const density = parseInt(document.getElementById('grid-density')?.value || 6);
+  const density = parseInt(document.getElementById('grid-density')?.value || 10);
   const raw = range / density;
   const mag = Math.pow(10, Math.floor(Math.log10(raw)));
   const r = raw / mag;

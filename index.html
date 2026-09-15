@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Funktionenplotter</title>
 
+<!-- Für MathLive.convertLatexToMarkup() — statisches Formel-Rendering ausserhalb
+     eines <math-field> (Legende, Kurven-Beschriftungen, ...), siehe
+     exprToMathLiveHtml() in 07_export.js. Ohne dieses Stylesheet fehlen den
+     .ML__...-Klassen und KaTeX-Schriften die Formatierung. -->
+<link rel="stylesheet" href="mathlive-static.css">
+
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -147,9 +153,80 @@ select { font-family: 'Segoe UI',system-ui,sans-serif; font-size: 12px; padding:
   font-size: 9px;
 }
 
+/* ── MathLive-Eingabefeld: an bestehendes Design angeglichen ─────────── */
+/* Alle unten gesetzten --xxx-Variablen pinnen MathLive-interne Farben fest
+   auf ihre HELLEN Standardwerte. Grund: MathLive definiert für etliche
+   Farben (u.a. --contains-highlight-background-color — die Fläche, die den
+   ganzen Bruch/die Wurzel umrahmt, sobald der Cursor darin steht) einen
+   ZWEITEN, dunklen Satz Werte unter @media (prefers-color-scheme: dark),
+   der greift sobald der Browser/das Betriebssystem "dunkel" meldet (z.B.
+   bei automatischer Zeitsteuerung des Erscheinungsbilds) — unabhängig vom
+   eigenen 🌙-Dark-Mode-Schalter dieser App. Ohne diese Pins wurde die
+   Umrandung des Bruchs dann fast schwarzgrau und die Schrift darin kaum
+   lesbar. Werte hier = MathLive's eigene Werte für den hellen Modus. */
+math-field.func-inp-ce {
+  --primary: #378ADD;
+  --caret-color: #378ADD;
+  --selection-color: #000;
+  --selection-background-color: rgba(55,138,221,0.25);
+  --smart-fence-color: var(--text-muted);
+  --placeholder-opacity: 0.55;
+  --placeholder-color: hsl(212, 40%, 49%);
+  --contains-highlight-color: #378ADD;
+  --contains-highlight-background-color: hsl(212, 40%, 95%);
+  --highlight-text: hsla(212, 40%, 50%, 0.1);
+  --text-highlight-background-color: hsla(212, 40%, 50%, 0.1);
+  --composition-background-color: #fff1c2;
+  --composition-text-color: #000;
+  cursor: text;
+}
+math-field.func-inp-ce::part(virtual-keyboard-toggle) {
+  opacity: 0.45;
+  transform: scale(0.8);
+}
+/* Der "☰"-Menü-Knopf, den MathLive sonst selbst rechts im Eingabefeld
+   anzeigt, wird hier ausgeblendet — er existiert stattdessen als eigener
+   Knopf unter Auge/Löschen (06_ui_functions.js, ruft showMenu() auf), damit
+   das Eingabefeld mehr Platz für den Ausdruck hat. */
+math-field.func-inp-ce::part(menu-toggle) {
+  display: none;
+}
+/* Auf Touch-Geräten bleibt der Umschalter sichtbar, damit die Bildschirm-
+   tastatur bei Bedarf per Antippen geöffnet werden kann (mathVirtualKeyboardPolicy
+   ist in 06_ui_functions.js bewusst auf "manual" gesetzt, damit sie sich
+   nicht mehr bei jedem Antippen des Feldes von selbst aufklappt und die
+   Eingabe verdeckt); auf Geräten mit Maus/Trackpad blendet ihn das aus, da
+   dort meist die physische Tastatur benutzt wird. */
+@media not (pointer: coarse) {
+  math-field.func-inp-ce::part(virtual-keyboard-toggle) { display: none; }
+}
+
 body.delete-mode #canvas { cursor:crosshair !important; }
 button.delete-mode-btn { color:#e24b4a; }
 button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; color:#e24b4a; }
+
+/* ── Mathe-Beschriftungs-Overlay (Punkte/Asymptoten, direkt im Canvas) ──────
+   Ersetzt Canvas-Text (system-ui-Font) für Beschriftungen mit Zahlen, die
+   Brüche/Wurzeln enthalten können (Koordinaten, Asymptoten-Gleichungen).
+   drawMathLabel() in 08_draw.js rendert per MathLive.convertLatexToMarkup()
+   HINEIN in diesen Container — exakt dieselbe Schrift/Formeldarstellung
+   (echte Bruchstriche, Wurzelzeichen mit Überstrich, korrekte Vorzeichen)
+   wie im <math-field>-Eingabefeld. font-family hier ist nur ein Fallback für
+   Label-Teile, die (noch) als reines HTML statt über MathLive erzeugt werden
+   (z.B. exakte Wurzel-Label bei quadratischen Nullstellen, siehe 04_analysis.js). */
+#canvas-label-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  font-family: 'KaTeX_Main', 'Cambria Math', Georgia, serif;
+  z-index: 15;
+}
+.canvas-math-label {
+  position: absolute;
+  white-space: nowrap;
+  line-height: 1;
+}
 
 /* ── Funktions-Label-Overlay (oben rechts im Canvas) ──────── */
 #func-labels-overlay {
@@ -214,7 +291,7 @@ body.beam {
 }
 
 /* Funktions-Eingabefeld: deutlich grösser */
-body.beam div.func-inp-ce {
+body.beam math-field.func-inp-ce {
   font-size: 22px !important;
   min-height: 40px;
   line-height: 1.5;
@@ -372,36 +449,42 @@ body.beam select { font-size: 16px; }
     <div class="toolbar">
       <button onclick="addFunction()" data-i18n="btn_add_fn">+ Funktion</button>
     </div>
+    <!-- Asymptoten-Pills (aus dem gelöschten "⚙ Extras"-Menüpunkt hierher verschoben,
+         auf Nutzerwunsch) — Klick fügt die erkannte Asymptote als eigene Funktion
+         hinzu; wird von updateAsymPills() in 08_draw.js nach jedem Zeichnen befüllt.
+         Hier direkt im (standardmässig offenen) Funktionen-Panel statt in einem eigenen,
+         normalerweise eingeklappten Panel, damit die Pills ohne Extra-Klick sichtbar sind. -->
+    <div id="asym-pills" style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 2px 0;"></div>
     <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:4px;">
       <div class="panel-title" style="margin-bottom:0;cursor:pointer;" onclick="toggleKbd()">
         ⌨ Tastatur <span id="kbd-arrow" class="panel-arrow" style="transform:rotate(-90deg);">▾</span>
       </div>
       <div id="kbd-body" style="display:none;">
         <div class="kbd">
-          <button onmousedown="return false" onclick="kbdInsert('x')">x</button>
-          <button onmousedown="return false" onclick="kbdInsert('pi')">π</button>
-          <button onmousedown="return false" onclick="kbdInsert('EC')">e</button>
-          <button onmousedown="return false" onclick="kbdInsert('(')">(</button>
-          <button onmousedown="return false" onclick="kbdInsert(')')">)</button>
+          <button onmousedown="return false" onclick="kbdInsert('x')" data-mlatex="x">x</button>
+          <button onmousedown="return false" onclick="kbdInsert('pi')" data-mlatex="\pi">π</button>
+          <button onmousedown="return false" onclick="kbdInsert('EC')" data-mlatex="e">e</button>
+          <button onmousedown="return false" onclick="kbdInsert('(')" data-mlatex="(">(</button>
+          <button onmousedown="return false" onclick="kbdInsert(')')" data-mlatex=")">)</button>
           <div style="display:inline-grid;grid-template-columns:1fr 1fr;gap:3px;align-self:flex-start;">
-            <button onmousedown="return false" onclick="kbdInsert('+')" style="margin:0;">+</button>
-            <button onmousedown="return false" onclick="kbdInsert('-')" style="margin:0;">−</button>
-            <button onmousedown="return false" onclick="kbdInsert('*')" style="margin:0;">⋅</button>
-            <button onmousedown="return false" onclick="kbdInsert('/')" style="margin:0;">÷</button>
+            <button onmousedown="return false" onclick="kbdInsert('+')" style="margin:0;" data-mlatex="+">+</button>
+            <button onmousedown="return false" onclick="kbdInsert('-')" style="margin:0;" data-mlatex="-">−</button>
+            <button onmousedown="return false" onclick="kbdInsert('*')" style="margin:0;" data-mlatex="\cdot">⋅</button>
+            <button onmousedown="return false" onclick="kbdInsert('/')" style="margin:0;" data-mlatex="\div">÷</button>
           </div>
-          <button onmousedown="return false" onclick="kbdInsert('^2')">x²</button>
-          <button onmousedown="return false" onclick="kbdInsert('^')">xⁿ</button>
+          <button onmousedown="return false" onclick="kbdInsert('^2')" data-mlatex="x^{2}">x²</button>
+          <button onmousedown="return false" onclick="kbdInsert('^')" data-mlatex="x^{n}">xⁿ</button>
           <button onmousedown="return false" onclick="kbdFrac()" data-i18n-title="title_frac" style="padding:3px 8px;line-height:1;"><span class="preview-frac" style="pointer-events:none;font-size:10px;"><span class="pf-num">□</span><span class="pf-den">□</span></span></button>
-          <button onmousedown="return false" onclick="kbdInsert('exp(',')')">eˣ</button>
-          <button onmousedown="return false" onclick="kbdInsert('sin(',')')">sin</button>
-          <button onmousedown="return false" onclick="kbdInsert('cos(',')')">cos</button>
-          <button onmousedown="return false" onclick="kbdInsert('tan(',')')">tan</button>
-          <button onmousedown="return false" onclick="kbdInsert('sqrt(',')')">√x</button>
-          <button onmousedown="return false" onclick="kbdInsert('nthroot(','',3)">ⁿ√x</button>
-          <button onmousedown="return false" onclick="kbdInsert('log(',')')">ln</button>
-          <button onmousedown="return false" onclick="kbdInsert('log10(',')')">log₁₀</button>
-          <button onmousedown="return false" onclick="kbdInsert('logn(','',2)">logₙ</button>
-          <button onmousedown="return false" onclick="kbdInsert('abs(',')')">|x|</button>
+          <button onmousedown="return false" onclick="kbdInsert('exp(',')')" data-mlatex="e^{x}">eˣ</button>
+          <button onmousedown="return false" onclick="kbdInsert('sin(',')')" data-mlatex="\sin">sin</button>
+          <button onmousedown="return false" onclick="kbdInsert('cos(',')')" data-mlatex="\cos">cos</button>
+          <button onmousedown="return false" onclick="kbdInsert('tan(',')')" data-mlatex="\tan">tan</button>
+          <button onmousedown="return false" onclick="kbdInsert('sqrt(',')')" data-mlatex="\sqrt{x}">√x</button>
+          <button onmousedown="return false" onclick="kbdInsert('nthroot(','',3)" data-mlatex="\sqrt[n]{x}">ⁿ√x</button>
+          <button onmousedown="return false" onclick="kbdInsert('log(',')')" data-mlatex="\ln">ln</button>
+          <button onmousedown="return false" onclick="kbdInsert('log10(',')')" data-mlatex="\log_{10}">log₁₀</button>
+          <button onmousedown="return false" onclick="kbdInsert('logn(','',2)" data-mlatex="\log_{n}">logₙ</button>
+          <button onmousedown="return false" onclick="kbdInsert('abs(',')')" data-mlatex="\left|x\right|">|x|</button>
         </div>
         <div class="hint" style="margin-top:4px;" data-i18n="lbl_kbd_hint">Klicke ins Funktionsfeld, dann auf eine Taste.<br><code>nthroot(x,n)</code>=ⁿ√x &nbsp;<code>logn(x,b)</code>=log<sub>b</sub>x &nbsp;<code>EC</code>=e</div>
       </div>
@@ -426,6 +509,18 @@ body.beam select { font-size: 16px; }
     </div>
     <div id="lin-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
     <div id="lin-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
+    <div id="lin-dw" style="font-size:11px;color:var(--text-muted);min-height:14px;"></div>
+
+    <!-- Steigungsform y = m·x + q mit Schiebereglern — Unterrichts-Feature zum
+         Erkunden (statt Berechnen aus Punkten): m/q lassen sich nach dem
+         Aufschalten oben im Panel "Parameter (Schieber)" live verändern,
+         Steigungsdreieck + Beschriftung folgen automatisch. -->
+    <div class="subpanel">
+      <div class="hint" style="margin-bottom:5px;" data-i18n="hint_slope_form">y = m·x + q live erkunden: Gerade aufschalten, dann m und q oben mit den Schiebereglern verändern.</div>
+      <button onclick="linAddSlopeForm()" style="width:100%;" data-mlatex="y=mx+q">y = mx + q</button>
+      <div id="lin-slopeform-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:16px;"></div>
+      <div id="lin-slopeform-dw" style="font-size:11px;color:var(--text-muted);min-height:14px;"></div>
+    </div>
 
     <!-- Steigungsdreieck + Lösungsweg -->
     <div class="subpanel">
@@ -438,6 +533,30 @@ body.beam select { font-size: 16px; }
       </div>
       <div id="slopetri-pick-status" style="font-size:10px;color:#378ADD;min-height:12px;margin-top:3px;"></div>
       <div id="loesungsweg-box" class="lw-box"></div>
+    </div>
+
+    <!-- Senkrechte & Mittelsenkrechte (Unterrichts-Feature) — beziehen sich
+         auf die zuletzt aktive Gerade (linActiveFi in 11_fitting.js), also
+         entweder aus "Berechnen" (2 Punkte) oder aus "y = mx + q". Der
+         Lösungsweg inkl. Steigungsbeziehung m₁·m₂ = −1 erscheint im selben
+         "📋 Lösungsweg"-Kasten oben (showLoesungsweg() wurde dafür erweitert),
+         kein zweiter Lösungsweg-Knopf nötig. -->
+    <div class="subpanel">
+      <div class="hint" style="margin-bottom:5px;" data-i18n="perp_hint">Senkrechte oder Mittelsenkrechte zur Geraden oben konstruieren — inkl. Lösungsweg und Beziehung der Steigungen (m₁·m₂ = −1).</div>
+      <div class="toolbar" style="margin-top:2px;gap:5px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:11px;color:var(--text-muted);">Q:</span>
+        <span style="font-size:11px;color:var(--text-muted);">x=</span>
+        <input type="text" id="perp-qx" inputmode="decimal" pattern="-?[0-9]*\.?[0-9]*" style="width:48px;" placeholder="—">
+        <span style="font-size:11px;color:var(--text-muted);">y=</span>
+        <input type="text" id="perp-qy" inputmode="decimal" pattern="-?[0-9]*\.?[0-9]*" style="width:48px;" placeholder="—">
+        <button id="perp-pick-btn" onclick="linPerpTogglePick()" data-i18n="btn_perp_pick" data-i18n-title="btn_perp_pick">🎯 Punkt Q im Plot wählen</button>
+      </div>
+      <div id="perp-pick-status" style="font-size:10px;color:#378ADD;min-height:12px;margin-top:3px;"></div>
+      <div class="toolbar" style="margin-top:4px;gap:4px;flex-wrap:wrap;">
+        <button onclick="linAddPerp()" style="flex:1;" data-i18n="btn_perp_add">⊥ Senkrechte durch Q</button>
+        <button onclick="linAddBisector()" style="flex:1;" data-i18n="btn_bisector_add">⊥ Mittelsenkrechte (inkl. M)</button>
+      </div>
+      <div id="lin-perp-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:16px;"></div>
     </div>
   </div>
 
@@ -462,6 +581,7 @@ body.beam select { font-size: 16px; }
     </div>
     <div id="quad-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
     <div id="quad-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
+    <div id="quad-dw" style="font-size:11px;color:var(--text-muted);min-height:14px;"></div>
 
     <!-- Lösungsweg: Scheitelpunkt + Nullstellen -->
     <div class="subpanel">
@@ -474,92 +594,79 @@ body.beam select { font-size: 16px; }
     </div>
   </div>
 
-  <!-- PANEL 5: Exponentialfunktionen -->
+  <!-- PANEL 5: Exponentialfunktionen — nur noch die allgemeine Form
+       y = a·bˣ + c als Unterrichts-Feature zum Erkunden (statt Berechnen aus
+       Punkten): a, b, c werden nach dem Aufschalten zu normalen Parametern
+       und lassen sich oben im Panel "Parameter (Schieber)" live verändern —
+       exakt das gleiche Muster wie "y = mx + q" im Panel "Lineare Funktionen"
+       (siehe linAddSlopeForm() in 11_fitting.js / expAddGeneralForm() dort). -->
   <div class="panel" id="exp-panel">
     <div class="panel-title" data-i18n="panel_exp_fn">📊 Exponentialfunktionen</div>
-
-    <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
-      <label style="font-size:11px;" data-i18n="lbl_type">Typ:</label>
-      <select id="exp-subtype" onchange="expUpdateInputs()" style="flex:1;">
-        <option value="exponential" data-i18n="opt_exp_basic_sel">a·bˣ &nbsp;(2 Punkte)</option>
-        <option value="exponential_h" data-i18n="opt_exp_horiz_sel">a·bˣ + h &nbsp;(3 Punkte)</option>
-      </select>
-    </div>
-
-    <div id="exp-hint" class="hint" style="margin-top:4px;margin-bottom:6px;">a·bˣ durch 2 Punkte &nbsp;(y &gt; 0)</div>
-    <div id="exp-inputs"></div>
-
-    <div class="toolbar" style="margin-top:5px;">
-      <button id="exp-pick-btn" onclick="expTogglePick()" data-i18n="btn_click">✏ Im Plot klicken</button>
-      <button onclick="expCompute()" data-i18n="btn_calc">Berechnen</button>
-    </div>
-    <div id="exp-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
-    <div id="exp-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
-
-    <!-- Asymptote + Lösungsweg -->
-    <div class="subpanel">
-      <div class="toolbar" style="margin-top:0;gap:4px;">
-        <button id="exp-asym-btn" onclick="toggleExpAsymptote()" data-i18n="btn_exp_asym">〜 Asymptote</button>
-        <button onclick="showExpLoesungsweg()" data-i18n="btn_solution">📋 Lösungsweg</button>
-      </div>
-      <div id="exp-lw-box" class="lw-box"></div>
-    </div>
+    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_exp_form">y = a·bˣ + c live erkunden: Funktion aufschalten, dann a, b und c oben mit den Schiebereglern verändern.</div>
+    <button onclick="expAddGeneralForm()" style="width:100%;" data-mlatex="y=ab^x+c">y = a·bˣ + c</button>
+    <div id="exp-generalform-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:16px;"></div>
+    <div id="exp-generalform-dw" style="font-size:11px;color:var(--text-muted);min-height:14px;"></div>
   </div>
 
-  <!-- PANEL 6: Logarithmusfunktionen -->
+  <!-- PANEL 6: Logarithmusfunktionen — nur noch die allgemeine Form
+       y = a·log_b(x) + c als Unterrichts-Feature zum Erkunden (statt
+       Berechnen aus Punkten): a, b, c werden nach dem Aufschalten zu
+       normalen Parametern und lassen sich oben im Panel "Parameter
+       (Schieber)" live verändern — exakt das gleiche Muster wie bei den
+       Exponentialfunktionen (siehe logAddGeneralForm() in 11_fitting.js). -->
   <div class="panel" id="log-panel">
     <div class="panel-title" data-i18n="panel_log_fn">📉 Logarithmusfunktionen</div>
-
-    <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
-      <label style="font-size:11px;" data-i18n="lbl_type">Typ:</label>
-      <select id="log-subtype" onchange="logUpdateInputs()" style="flex:1;">
-        <option value="logarithm" data-i18n="opt_log_basic_sel">a·ln(x) + c &nbsp;(2 Punkte)</option>
-        <option value="logarithm_vh" data-i18n="opt_log_horiz_sel">a·ln(x−v) + h &nbsp;(3 Punkte)</option>
-      </select>
-    </div>
-
-    <div id="log-hint" class="hint" style="margin-top:4px;margin-bottom:6px;">a·ln(x) + c durch 2 Punkte &nbsp;(x &gt; 0)</div>
-    <div id="log-inputs"></div>
-
-    <div class="toolbar" style="margin-top:5px;">
-      <button id="log-pick-btn" onclick="logTogglePick()" data-i18n="btn_click">✏ Im Plot klicken</button>
-      <button onclick="logCompute()" data-i18n="btn_calc">Berechnen</button>
-    </div>
-    <div id="log-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
-    <div id="log-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
-
-    <!-- Asymptote + Lösungsweg -->
-    <div class="subpanel">
-      <div class="toolbar" style="margin-top:0;gap:4px;">
-        <button id="log-asym-btn" onclick="toggleLogAsymptote()" data-i18n="btn_log_asym">| Asymptote</button>
-        <button onclick="showLogLoesungsweg()" data-i18n="btn_solution">📋 Lösungsweg</button>
-      </div>
-      <div id="log-lw-box" class="lw-box"></div>
-    </div>
+    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_log_form">y = a·log_b(x) live erkunden: Funktion aufschalten, dann a, b und c oben mit den Schiebereglern verändern.</div>
+    <button onclick="logAddGeneralForm()" style="width:100%;" data-mlatex="y=a\log_b(x)+c">y = a·log_b(x) + c</button>
+    <div id="log-generalform-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:16px;"></div>
+    <div id="log-generalform-dw" style="font-size:11px;color:var(--text-muted);min-height:14px;"></div>
   </div>
 
-  <!-- PANEL 7: Potenz- und Wurzelfunktionen -->
+  <!-- PANEL 7: Potenz- und Wurzelfunktionen — nur noch die allgemeine Form
+       y = a·(x−v)ⁿ + h als Unterrichts-Feature zum Erkunden (statt Berechnen
+       aus Punkten): erst Fallunterscheidung für n (positiv/negativ, gerade/
+       ungerade, oder Wurzelfunktion), dann Aufschalten — a, v, n, h werden
+       normale Parameter und lassen sich oben im Panel "Parameter (Schieber)"
+       live verändern — exakt das gleiche Muster wie bei den Exponential-/
+       Logarithmusfunktionen (siehe powerAddGeneralForm() in 11_fitting.js). -->
   <div class="panel" id="power-panel">
     <div class="panel-title" data-i18n="panel_power_fn">🔢 Potenz- und Wurzelfunktionen</div>
+    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_power_form">y = a·(x−v)ⁿ + h live erkunden: Fall wählen, aufschalten, dann a, v, n und h oben mit den Schiebereglern verändern.</div>
 
     <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
       <label style="font-size:11px;" data-i18n="lbl_type">Typ:</label>
-      <select id="power-subtype" onchange="powerUpdateInputs()" style="flex:1;">
-        <option value="positive power" data-i18n="opt_power_pos">Positive Potenz: a·xⁿ</option>
-        <option value="negative power" data-i18n="opt_power_neg">Negative Potenz: a/(x−v)ⁿ+h</option>
-        <option value="square root" data-i18n="opt_power_sqrt">Wurzel: a·√(x−v)+h</option>
+      <select id="power-subtype" onchange="powerUpdateHint()" style="flex:1;">
+        <option value="pos_even" data-i18n="opt_power_pos_even">n positiv gerade: a·(x−v)ⁿ + h</option>
+        <option value="pos_odd" data-i18n="opt_power_pos_odd">n positiv ungerade: a·(x−v)ⁿ + h</option>
+        <option value="neg_even" data-i18n="opt_power_neg_even">n negativ gerade: a·(x−v)ⁿ + h</option>
+        <option value="neg_odd" data-i18n="opt_power_neg_odd">n negativ ungerade: a·(x−v)ⁿ + h</option>
+        <option value="root" data-i18n="opt_power_root">Wurzelfunktion: a·ⁿ√(x−v) + h</option>
       </select>
     </div>
+    <div id="power-hint" class="hint" style="margin:4px 0 6px;" data-i18n="hint_power_case_pos_even">z. B. (x−v)², (x−v)⁴, … — achsensymmetrisch zu x = v.</div>
 
-    <div id="power-hint" class="hint" style="margin-bottom:4px;">a·xⁿ — 2 Punkte (x &gt; 0, y &gt; 0)</div>
-    <div id="power-inputs" style="margin-top:4px;"></div>
+    <button onclick="powerAddGeneralForm()" style="width:100%;" data-i18n="btn_power_add">Aufschalten</button>
+    <div id="power-generalform-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:16px;"></div>
+    <div id="power-generalform-dw" style="font-size:11px;color:var(--text-muted);min-height:14px;"></div>
+  </div>
 
-    <div class="toolbar" style="margin-top:5px;">
-      <button id="power-pick-btn" onclick="powerTogglePick()" data-i18n="btn_click">✏ Im Plot klicken</button>
-      <button onclick="powerCompute()" data-i18n="btn_calc">Berechnen</button>
+  <!-- Trigonometrische Funktionen: sin/cos/tan "aufschalten" mit EINEM
+       ziehbaren Punkt (dem normalen Einheitskreis-Punkt, unitCirclePts),
+       der gleichzeitig auf dem Kreis und — über seine Projektion — auf dem
+       Graphen erscheint und von beiden Seiten gezogen werden kann
+       (Zusammenhang sin=Gegenkathete/Hypotenuse sichtbar machen) —
+       Unterrichts-Feature, siehe trigAddFunction() in 06_ui_functions.js
+       und findNearTrigProjDot()/drawUnitCircle() in 08_draw.js. -->
+  <div class="panel">
+    <div class="panel-title" data-i18n="panel_trig">∿ Trigonometrische Funktionen</div>
+    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_trig_circle">sin(x), cos(x) oder tan(x) aufschalten: ein ziehbarer Punkt auf dem Graphen zeigt den Zusammenhang mit dem Einheitskreis (sin = Gegenkathete/Hypotenuse).</div>
+    <div class="toolbar" style="gap:4px;flex-wrap:wrap;">
+      <button onclick="trigAddFunction('sin')" data-mlatex="\sin(x)" style="flex:1;">sin(x)</button>
+      <button onclick="trigAddFunction('cos')" data-mlatex="\cos(x)" style="flex:1;">cos(x)</button>
+      <button onclick="trigAddFunction('tan')" data-mlatex="\tan(x)" style="flex:1;">tan(x)</button>
     </div>
-    <div id="power-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
-    <div id="power-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
+    <div class="settings-row" style="margin-top:6px;"><label><input type="checkbox" id="chk-unitcircle" autocomplete="off" onchange="scheduleDraw()"> <span data-i18n="chk_unitcircle">Einheitskreis</span></label></div>
+    <div id="trig-dw" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div>
   </div>
 
   <!-- PANEL 7: Fläche zwischen zwei Funktionen -->
@@ -582,6 +689,72 @@ body.beam select { font-size: 16px; }
     <div id="area-result"></div>
   </div>
 
+  <!-- Lineare Optimierung: Ungleichungssystem → Planungspolygon (automatisch
+       nur 1. Quadrant, x≥0/y≥0), Zielfunktion aufschalten & im Plot
+       verschieben (snappt an die Eckpunkte), Lösungsweg mit Max/Min —
+       siehe 17_linopt.js für die gesamte Logik. -->
+  <div class="panel">
+    <div class="panel-title" data-i18n="panel_lo">📐 Lineare Optimierung</div>
+    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_lo_quadrant">Es wird automatisch nur der 1. Quadrant betrachtet (x ≥ 0, y ≥ 0).</div>
+
+    <div id="lo-constraints"></div>
+    <div class="toolbar" style="gap:4px;">
+      <button onmousedown="return false" onclick="kbdInsert('<=')" data-mlatex="\le" data-i18n-title="title_lo_le" title="≤ einfügen" style="flex:1;">≤</button>
+      <button onmousedown="return false" onclick="kbdInsert('>=')" data-mlatex="\ge" data-i18n-title="title_lo_ge" title="≥ einfügen" style="flex:1;">≥</button>
+    </div>
+    <div class="toolbar" style="margin-top:4px;">
+      <button onclick="loAddConstraint()" style="width:100%;" data-i18n="btn_lo_add_constraint">+ Ungleichung</button>
+    </div>
+
+    <div class="settings-row" style="margin-top:6px;">
+      <label><input type="checkbox" id="chk-lo-polygon" checked onchange="scheduleDraw()"> <span data-i18n="chk_lo_polygon">Planungspolygon anzeigen</span></label>
+    </div>
+
+    <div class="subpanel">
+      <div class="hint" style="margin-bottom:5px;" data-i18n="hint_lo_objective">Zielfunktion angeben und im Plot verschieben — sie snappt leicht an die Eckpunkte des Planungspolygons.</div>
+      <div class="toolbar" style="gap:5px;align-items:center;flex-wrap:nowrap;">
+        <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">z =</span>
+        <math-field id="lo-obj-input" class="func-inp-ce" placeholder="z.B. 3x+2y" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+        <button onclick="loSetObjective()" data-i18n="btn_lo_set_objective" style="flex-shrink:0;">Aufschalten</button>
+      </div>
+      <div class="toolbar" style="margin-top:5px;gap:4px;">
+        <button id="lo-mode-max" class="active-btn" onclick="loSetMode('max')" style="flex:1;" data-i18n="btn_lo_max">Maximum</button>
+        <button id="lo-mode-min" onclick="loSetMode('min')" style="flex:1;" data-i18n="btn_lo_min">Minimum</button>
+      </div>
+      <!-- Schieberegler für z (loObjK) — nur sichtbar solange eine Zielfunktion
+           aufgeschaltet ist, siehe loSyncObjSliderFull() in 17_linopt.js.
+           Gleicher Aufbau/Stil wie "Parameter (Schieber)" (syncParams() in
+           03_math.js): Zeile 1 Name|Min|Schieber|Max, Zeile 2 Direktwert|Δ —
+           die Direktwert-Anzeige hat dadurch eine FESTE Breite (.param-val-inp),
+           sodass sich die Schieber-Grösse beim Ziehen nicht mehr mitverändert. -->
+      <div id="lo-obj-slider-row" style="display:none;">
+        <div class="param-wrap">
+          <div class="param-row">
+            <span class="param-name">z =</span>
+            <input type="number" id="lo-obj-slider-min" inputmode="decimal" value="-10" step="1" style="width:42px;">
+            <input type="range" id="lo-obj-slider" min="-10" max="10" step="0.1" value="0" style="flex:1;">
+            <input type="number" id="lo-obj-slider-max" inputmode="decimal" value="10" step="1" style="width:42px;">
+          </div>
+          <div class="param-ctrl-row">
+            <input type="text" id="lo-obj-slider-val" inputmode="decimal" class="param-val-inp" placeholder="z.B. pi, 1.5">
+            <span style="color:#9ca3af;">Δ:</span>
+            <select id="lo-obj-slider-step" style="font-size:10px;padding:1px 3px;border:1px solid #c8cdd6;border-radius:3px;">
+              <option value="0.001">0.001</option>
+              <option value="0.01">0.01</option>
+              <option value="0.05">0.05</option>
+              <option value="0.1" selected>0.1</option>
+              <option value="0.25">0.25</option>
+              <option value="0.5">0.5</option>
+              <option value="1">1</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar" style="margin-top:4px;"><button onclick="loShowSolution()" style="width:100%;" data-i18n="btn_solution">📋 Lösungsweg</button></div>
+      <div id="lo-loesungsweg-box" class="lw-box"></div>
+    </div>
+  </div>
+
   <!-- Manuelle Punkte (ausgeblendet) -->
   <div class="panel" style="display:none">
     <div class="panel-title" data-i18n="panel_points">· Punkte</div>
@@ -596,15 +769,6 @@ body.beam select { font-size: 16px; }
     <div class="hint" data-i18n="hint_alt">Alt + Klick auf den Graphen · Punkte sind immer ziehbar</div>
   </div>
 
-  <!-- Extras -->
-  <div class="panel">
-    <div class="panel-title" data-i18n="panel_extras">⚙ Extras</div>
-    <div class="settings-row"><label><input type="checkbox" id="chk-funclabels" checked onchange="updateFuncLabelsOverlay();scheduleDraw()"> <span data-i18n="chk_labels">Funktionsbeschriftung im Plot</span></label></div>
-    <div id="asym-pills" style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 2px 0;"></div>
-    <div class="settings-row"><label><input type="checkbox" id="chk-unitcircle" autocomplete="off" onchange="scheduleDraw()"> <span data-i18n="chk_unitcircle">Einheitskreis</span></label></div>
-    <div class="settings-row"><label><input type="checkbox" id="chk-gridsnap" checked onchange="scheduleDraw()"> <span data-i18n="chk_gridsnap">Gitterpunkt-Snapping</span></label></div>
-  </div>
-
   <!-- Folgen -->
   <div class="panel">
     <div class="panel-title" data-i18n="panel_sequences">∑ Folgen</div>
@@ -613,77 +777,6 @@ body.beam select { font-size: 16px; }
       <button onclick="addSeq()" data-i18n="btn_add_seq">+ Folge</button>
     </div>
     <div class="hint" style="margin-top:4px;" data-i18n="seq_hint">n = natürliche Zahl &nbsp;|&nbsp; Beispiele: 1/n &nbsp; n^2 &nbsp; (-1)^n/n &nbsp; (1+1/n)^n</div>
-  </div>
-
-  <!-- Spezielle Punkte -->
-  <div class="panel">
-    <div class="panel-title" data-i18n="panel_specials">∩ Spezielle Punkte</div>
-    <div style="display:flex;flex-wrap:wrap;gap:4px 10px;margin-bottom:8px;">
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-max" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#e24b4a;flex-shrink:0;"></span><span data-i18n="sp_max">Max</span></label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-min" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#1D9E75;flex-shrink:0;"></span><span data-i18n="sp_min">Min</span></label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-inf" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:8px;height:8px;background:#7F77DD;flex-shrink:0;clip-path:polygon(50% 0%,100% 100%,0% 100%);"></span><span data-i18n="sp_inflect">Wende</span></label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-zero" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #92400e;flex-shrink:0;"></span><span data-i18n="sp_zero">Nullst.</span></label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-yaxis" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #BD10E0;flex-shrink:0;"></span><span data-i18n="chk_yaxis">y-Achse</span></label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-isect" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #378ADD;flex-shrink:0;"></span><span data-i18n="sp_isect">∩ Schnitt</span></label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer;"><input type="checkbox" id="show-asymp" checked onchange="scheduleDraw();renderSpecialList();"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #f59e0b;flex-shrink:0;"></span><span>Asym.</span></label>
-    </div>
-    <div id="special-list"><span style="font-size:11px;color:#9ca3af;">—</span></div>
-  </div>
-
-  <!-- Anzeigeeinstellungen -->
-  <div class="panel">
-    <div class="panel-title" data-i18n="panel_settings">Einstellungen</div>
-    <div class="settings-row">
-      <label>Achsen-Schriftgrösse:</label>
-      <select id="axis-font-size" onchange="scheduleDraw()">
-        <option value="9">9 px</option>
-        <option value="10">10 px</option>
-        <option value="11">11 px</option>
-        <option value="12" selected>12 px</option>
-        <option value="14">14 px</option>
-        <option value="16">16 px</option>
-        <option value="18">18 px</option>
-        <option value="20">20 px</option>
-      </select>
-    </div>
-    <div class="settings-row">
-      <label data-i18n="lbl_grid">Gitternetz-Feinheit:</label>
-      <select id="grid-density" onchange="scheduleDraw()">
-        <option value="3">Grob (3)</option>
-        <option value="6" selected>Normal (6)</option>
-        <option value="10">Fein (10)</option>
-        <option value="20">Sehr fein (20)</option>
-      </select>
-    </div>
-    <div class="settings-row">
-      <label data-i18n="lbl_prec">Nachkommastellen:</label>
-      <select id="precision-sel" onchange="setPrecision()">
-        <option value="0">0</option><option value="1" selected>1</option><option value="2">2</option>
-        <option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option>
-      </select>
-    </div>
-    <div class="settings-row">
-      <label data-i18n="lbl_pi">π-Notation:</label>
-      <select id="pi-mode" onchange="rerender()">
-        <option value="pi" data-i18n="opt_pi">π anzeigen</option>
-        <option value="decimal" data-i18n="opt_decimal">Dezimal</option>
-      </select>
-    </div>
-    <div class="settings-row">
-      <label data-i18n="lbl_frac">Zahlendarstellung:</label>
-      <select id="frac-mode" onchange="rerender()">
-        <option value="fraction" data-i18n="opt_fraction">Bruch (1/2)</option>
-        <option value="decimal" data-i18n="opt_decimal2">Dezimal (0.5)</option>
-      </select>
-    </div>
-    <div class="settings-row">
-      <label data-i18n="lbl_labels">Beschriftungen:</label>
-      <select id="label-mode" onchange="scheduleDraw()">
-        <option value="all" data-i18n="opt_labels_all">Alle sichtbar</option>
-        <option value="none" data-i18n="opt_labels_none">Ausgeblendet</option>
-        <option value="hover" data-i18n="opt_labels_hover">Nur bei Hover</option>
-      </select>
-    </div>
   </div>
 
   <!-- PANEL: Begriffe (mathematisches Glossar) -->
@@ -768,11 +861,15 @@ body.beam select { font-size: 16px; }
 <div class="graph-area">
   <div class="range-bar">
     <button id="sidebar-toggle" onclick="toggleSidebar()" data-i18n-title="title_menu" title="Menü" aria-label="Menü öffnen/schließen">☰</button>
-    <label>x:</label><input type="number" id="xmin" value="-10" step="1" style="width:52px;">
-    <label>bis</label><input type="number" id="xmax" value="10" step="1" style="width:52px;">
-    <label>y:</label><input type="number" id="ymin" value="-6" step="1" style="width:52px;">
-    <label>bis</label><input type="number" id="ymax" value="6" step="1" style="width:52px;">
-    <button onclick="applyRange()" data-i18n="btn_apply">Anwenden</button>
+    <!-- Die manuellen x/y-Koordinatengrenzen-Felder (+ Anwenden-Knopf) wurden
+         entfernt (auf Nutzerwunsch, als überflüssig empfunden — Zoomen/Pan
+         per Maus/Touch reicht). syncInputs() in 06_ui_functions.js bleibt
+         bestehen (hält intern den view-Zustand für Zoom/Pan nach), schreibt
+         aber nichts mehr in nicht mehr vorhandene Felder (Guard-Klausel). -->
+    <input type="number" id="xmin" value="-10" step="1" hidden>
+    <input type="number" id="xmax" value="10" step="1" hidden>
+    <input type="number" id="ymin" value="-6" step="1" hidden>
+    <input type="number" id="ymax" value="6" step="1" hidden>
     <button id="undo-btn" onmousedown="return false" onclick="commitAndUndo()" style="font-size:14px;padding:3px 9px;" disabled>↩</button>
     <button id="redo-btn" onmousedown="return false" onclick="commitAndRedo()" style="font-size:14px;padding:3px 9px;" disabled>↪</button>
     <button id="pointer-mode-btn" onclick="togglePointerMode()" title="Laserpointer (Maus / Stift / Touch)" style="font-size:13px;">🔴 Pointer</button>
@@ -781,6 +878,69 @@ body.beam select { font-size: 16px; }
     <button id="delete-mode-btn" onclick="toggleDeleteMode()" class="delete-mode-btn" data-i18n="btn_delete">🗑 Löschen</button>
     <button onclick="toggleDarkMode()" id="dark-btn" title="Dark Mode" style="font-size:14px;padding:3px 9px;">🌙</button>
     <button onclick="toggleBeamMode()" id="beam-btn" title="Beamer-Modus EIN">📺</button>
+    <div style="position:relative;display:inline-block;">
+      <button onclick="toggleSettingsMenu()" id="settings-btn" data-i18n-title="panel_settings" title="Einstellungen" style="font-size:14px;padding:3px 9px;">⚙</button>
+      <!-- Einstellungen: war vorher ein eigenes Sidebar-Panel (⚙ Einstellungen),
+           auf Nutzerwunsch in die obere Leiste verschoben — gleiches Popover-Muster
+           wie #lang-menu (position:fixed, Schliessen bei Klick ausserhalb),
+           siehe toggleSettingsMenu() in 02_core.js. Inhalt/IDs der Felder unverändert
+           (axis-font-size, grid-density, precision-sel, pi-mode, frac-mode, label-mode). -->
+      <div id="settings-menu" style="display:none;position:fixed;background:var(--bg-sidebar);border:1px solid var(--border);border-radius:8px;padding:10px 12px;box-shadow:0 4px 16px rgba(0,0,0,0.18);z-index:9999;min-width:220px;">
+        <div class="settings-row">
+          <label>Achsen-Schriftgrösse:</label>
+          <select id="axis-font-size" onchange="scheduleDraw()">
+            <option value="9">9 px</option>
+            <option value="10">10 px</option>
+            <option value="11">11 px</option>
+            <option value="12" selected>12 px</option>
+            <option value="14">14 px</option>
+            <option value="16">16 px</option>
+            <option value="18">18 px</option>
+            <option value="20">20 px</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label data-i18n="lbl_grid">Gitternetz-Feinheit:</label>
+          <select id="grid-density" onchange="scheduleDraw()">
+            <option value="3">Grob (3)</option>
+            <option value="6">Normal (6)</option>
+            <option value="10" selected>Fein (10)</option>
+            <option value="20">Sehr fein (20)</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label data-i18n="lbl_prec">Nachkommastellen:</label>
+          <select id="precision-sel" onchange="setPrecision()">
+            <option value="0">0</option><option value="1" selected>1</option><option value="2">2</option>
+            <option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label data-i18n="lbl_pi">π-Notation:</label>
+          <select id="pi-mode" onchange="rerender()">
+            <option value="pi" data-i18n="opt_pi">π anzeigen</option>
+            <option value="decimal" data-i18n="opt_decimal">Dezimal</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label data-i18n="lbl_frac">Zahlendarstellung:</label>
+          <select id="frac-mode" onchange="rerender()">
+            <option value="fraction" data-i18n="opt_fraction">Bruch (1/2)</option>
+            <option value="decimal" data-i18n="opt_decimal2">Dezimal (0.5)</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label data-i18n="lbl_labels">Beschriftungen:</label>
+          <select id="label-mode" onchange="scheduleDraw()">
+            <option value="all" data-i18n="opt_labels_all">Alle sichtbar</option>
+            <option value="none" data-i18n="opt_labels_none">Ausgeblendet</option>
+            <option value="hover" data-i18n="opt_labels_hover">Nur bei Hover</option>
+          </select>
+        </div>
+        <div class="settings-row"><label><input type="checkbox" id="chk-funclabels" checked onchange="updateFuncLabelsOverlay();scheduleDraw()"> <span data-i18n="chk_labels">Funktionsbeschriftung im Plot</span></label></div>
+        <div class="settings-row" style="margin-bottom:0;"><label><input type="checkbox" id="chk-gridsnap" checked onchange="scheduleDraw()"> <span data-i18n="chk_gridsnap">Gitterpunkt-Snapping</span></label></div>
+      </div>
+    </div>
     <div style="position:relative;display:inline-block;">
       <button onclick="toggleLangMenu()" id="lang-btn" title="Sprache / Language" style="font-size:12px;padding:3px 8px;">🌐 DE</button>
       <div id="lang-menu" style="display:none;position:fixed;background:var(--bg-sidebar);border:1px solid var(--border);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.18);z-index:9999;min-width:140px;">
@@ -792,10 +952,11 @@ body.beam select { font-size: 16px; }
   <div id="canvas-wrap" style="flex:1; position:relative; min-height:0;">
     <canvas id="canvas"></canvas>
     <div class="tooltip" id="tooltip"></div>
+    <div id="canvas-label-overlay"></div>
     <div id="func-labels-overlay" style="display:none;"></div>
-    <div id="solve-tooltip" style="display:none;position:absolute;top:8px;left:8px;z-index:50;width:270px;background:var(--bg-panel);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.16);padding:4px 10px 6px;font-size:10.5px;line-height:1.65;font-family:monospace;white-space:pre-wrap;color:var(--text);">
+    <div id="solve-tooltip" style="display:none;position:absolute;top:8px;left:8px;z-index:50;width:270px;background:var(--bg-panel);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.16);padding:4px 10px 6px;font-size:10.5px;line-height:1.65;font-family:'KaTeX_Main','Cambria Math',Georgia,serif;white-space:pre-wrap;color:var(--text);">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;line-height:1.2;margin-bottom:2px;">
-        <span id="solve-tooltip-title" style="font-weight:700;font-size:11px;font-family:system-ui;white-space:nowrap;overflow:visible;"></span>
+        <span id="solve-tooltip-title" style="font-weight:700;font-size:11px;white-space:nowrap;overflow:visible;"></span>
         <span onclick="hideSolveTooltip()" style="cursor:pointer;font-size:14px;opacity:0.4;flex-shrink:0;font-family:system-ui;line-height:1;" title="Schließen">✕</span>
       </div>
       <div id="solve-tooltip-content" style="max-height:200px;overflow-y:auto;"></div>
@@ -832,7 +993,7 @@ function closeSidebar() {
 // (damit man danach gleich in den Canvas tippen kann)
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll(
-    '#lin-pick-btn, #quad-pick-btn, #exp-pick-btn, #log-pick-btn, #power-pick-btn, #slopetri-pick-btn'
+    '#lin-pick-btn, #quad-pick-btn, #slopetri-pick-btn'
   ).forEach(btn => {
     btn.addEventListener('click', () => {
       // Nur auf mobil schließen
@@ -841,11 +1002,27 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/mathlive"></script>
+<!-- Nerdamer (CAS) für 16_calculus.js: vereinfacht/integriert Ausdrücke. Version
+     gepinnt (1.1.13) — vor jedem Versions-Update erneut gegen die Tests in
+     16_calculus.js prüfen (bekannte Nerdamer-Bugs werden dort umgangen, siehe
+     Kommentare bei ndFromAst/calcDiff/calcIntegrate). all.min.js bündelt
+     core+Calculus+Algebra+Extra+Solve in einer Datei. -->
+<script src="https://cdn.jsdelivr.net/npm/nerdamer@1.1.13/all.min.js"></script>
+<script src="14_mathinput.js"></script>
 <script src="01_i18n.js"></script>
 <script src="02_core.js"></script>
+<script src="17_linopt.js"></script>
 <script src="03_math.js"></script>
+<script src="15_domain_range.js"></script>
 <script src="04_analysis.js"></script>
 <script src="05_points.js"></script>
+<script src="16_calculus.js"></script>
+<!-- Nerdamer-basierte Grenzwertberechnung (exakte Asymptoten) — nutzt
+     miParseRaw (14_mathinput.js) und ndFromAst (16_calculus.js), daher hier
+     nach beiden geladen. Wird von computeSpecials() in 04_analysis.js
+     konsumiert (Phase 2: Nerdamer-Verfeinerung). -->
+<script src="18_nerdamer_limits.js"></script>
 <script src="06_ui_functions.js"></script>
 <script src="07_export.js"></script>
 <script src="08_draw.js"></script>
@@ -897,6 +1074,23 @@ document.addEventListener('DOMContentLoaded', () => {
   ['ltx-xmin','ltx-xmax','ltx-ymin','ltx-ymax'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
+  // Beschriftungen der Mathe-Tastatur-Tasten (⌨ Tastatur-Panel) durch MathLive-
+  // gerenderte Formeln ersetzen (statt Unicode-Annäherung x²/√/ⁿ), damit sie in
+  // EXAKT derselben Schrift/Grösse erscheinen wie das Eingabefeld selbst — siehe
+  // latexToMathLiveHtml() in 07_export.js. Einmalig beim Start, nicht pro Redraw.
+  // Selektor bewusst NICHT mehr auf ".kbd" beschränkt (ursprünglich nur für die
+  // Mathe-Tastatur-Tasten gedacht) — der Knopf "y = mx + q" im Panel "Lineare
+  // Funktionen" nutzt dasselbe data-mlatex-Attribut, damit seine Beschriftung
+  // in exakt derselben Schrift wie überall sonst erscheint (Nutzerwunsch).
+  if (typeof latexToMathLiveHtml === 'function') {
+    document.querySelectorAll('button[data-mlatex]').forEach(btn => {
+      const html = latexToMathLiveHtml(btn.getAttribute('data-mlatex'));
+      if (html) btn.innerHTML = html;
+    });
+  }
+  // Zielfunktions-Eingabefeld der "Lineare Optimierung" (math-field, siehe
+  // loSetupObjectiveField() in 17_linopt.js) einmalig einrichten.
+  if (typeof loSetupObjectiveField === 'function') loSetupObjectiveField();
 });
 </script>
 </body>

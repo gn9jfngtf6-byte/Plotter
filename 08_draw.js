@@ -2,7 +2,7 @@
 // MODUL: draw — Alle Zeichenfunktionen & Haupt-draw()-Loop
 // Enthält:  draw(), drawGrid(), drawFunctions(), drawSpecials()
 //           drawAsymptotes(), drawSlopeTri(), drawUnitCircle()
-//           drawGraphPoints(), renderMathText(), drawFuncLabels()
+//           drawGraphPoints(), renderMathText()
 // Ändern:  Liniendicke → ctx.lineWidth in den draw*()-Funktionen
 //           Punkt-Radius → SPECIAL_R / GRAPH_PT_R Konstanten in core.js
 // ═══════════════════════════════════════════════════════════════════
@@ -158,10 +158,17 @@ function drawAsymptotes(w, h) {
     specials.filter(sp => sp.kind === 'pole' && sp.fi === fi_idx).forEach(sp => {
       const { cx } = toCanvas(sp.x, 0);
       ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
-      const lbl = 'x = ' + sp.x;
-      ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
-      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-      ctx.fillText(lbl, cx + 3, 4); ctx.restore();
+      const lbl = fmtVerticalAsymLabel(sp.x);
+      // MathLive-gerendert (wie Eingabefeld) statt Canvas-Text — Fallback auf
+      // fillText falls latexToMathLiveHtml (noch) nicht verfügbar ist.
+      const lblHtml = typeof latexToMathLiveHtml === 'function' ? latexToMathLiveHtml(fmtVerticalAsymLabel(sp.x, true)) : null;
+      if (lblHtml) {
+        drawMathLabel(lblHtml, cx + 3, 4, fn.color + 'cc', { align: 'left', baseline: 'top', fontSize: 10 });
+      } else {
+        ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillText(lbl, cx + 3, 4); ctx.restore();
+      }
       window._asymLines.push({ type: 'vertical', expr: null, label: lbl, color: fn.color });
     });
 
@@ -171,10 +178,15 @@ function drawAsymptotes(w, h) {
       if (haVal < v.ymin - 0.1 || haVal > v.ymax + 0.1) return;
       const { cy: hy } = toCanvas(0, haVal);
       ctx.beginPath(); ctx.moveTo(0, hy); ctx.lineTo(w, hy); ctx.stroke();
-      const haLbl = 'y = ' + parseFloat(haVal.toFixed(4));
-      ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
-      ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-      ctx.fillText(haLbl, w - 4, hy - 2); ctx.restore();
+      const haLbl = fmtHorizontalAsymLabel(haVal);
+      const haLblHtml = typeof latexToMathLiveHtml === 'function' ? latexToMathLiveHtml(fmtHorizontalAsymLabel(haVal, true)) : null;
+      if (haLblHtml) {
+        drawMathLabel(haLblHtml, w - 4, hy - 2, fn.color + 'cc', { align: 'right', baseline: 'bottom', fontSize: 10 });
+      } else {
+        ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
+        ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+        ctx.fillText(haLbl, w - 4, hy - 2); ctx.restore();
+      }
       function _fmtHa(val) {
         if (Math.abs(val) < 1e-9) return '0';
         if (Number.isInteger(val)) return String(val);
@@ -191,47 +203,19 @@ function drawAsymptotes(w, h) {
       const { cx: cxA, cy: cyA } = toCanvas(v.xmin, slopeR*v.xmin + intR);
       const { cx: cxB, cy: cyB } = toCanvas(v.xmax, slopeR*v.xmax + intR);
       ctx.beginPath(); ctx.moveTo(cxA, cyA); ctx.lineTo(cxB, cyB); ctx.stroke();
-      const sStr = Math.abs(slopeR-1)<1e-4?'':(Math.abs(slopeR+1)<1e-4?'-':String(parseFloat(slopeR.toFixed(4))));
-      const iStr = Math.abs(intR)<1e-4?'':(intR>0?' + '+parseFloat(intR.toFixed(4)):' − '+Math.abs(parseFloat(intR.toFixed(4))));
-      const oaLbl = 'y = ' + sStr + 'x' + iStr;
+      const oaLbl = fmtObliqueAsymLabel(slopeR, intR);
       const midCx = (cxA+cxB)/2, midCy = (cyA+cyB)/2;
-      ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      ctx.fillText(oaLbl, midCx, midCy - 4); ctx.restore();
+      const oaLblHtml = typeof latexToMathLiveHtml === 'function' ? latexToMathLiveHtml(fmtObliqueAsymLabel(slopeR, intR, true)) : null;
+      if (oaLblHtml) {
+        drawMathLabel(oaLblHtml, midCx, midCy - 4, fn.color + 'cc', { align: 'center', baseline: 'bottom', fontSize: 10 });
+      } else {
+        ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillText(oaLbl, midCx, midCy - 4); ctx.restore();
+      }
       window._asymLines.push({ type:'oblique', label:oaLbl, color:fn.color, _slope:slopeR, _int:intR });
     });
 
-    // ── Schräge Asymptoten (Fallback: direkte Auswertung für nicht-erkannte Fälle) ───
-    const BIG2 = 1e6, BIG1 = 1e5, Xt = 5e5;
-    for (const dir of [1, -1]) {
-      const X1 = dir * BIG1, X2 = dir * BIG2;
-      const fX1 = safeEval(fn.expr, X1), fX2 = safeEval(fn.expr, X2);
-      if (!isFinite(fX1) || !isFinite(fX2)) continue;
-      const slope = (fX2 - fX1) / (X2 - X1);
-      if (!isFinite(slope) || Math.abs(slope) < 1e-9) continue;
-      const intercept = fX2 - slope * X2;
-      if (!isFinite(intercept)) continue;
-      const fXt = safeEval(fn.expr, dir * Xt);
-      const predicted = slope * (dir * Xt) + intercept;
-      if (!isFinite(fXt) || Math.abs(fXt - predicted) > 1e-3 * Math.abs(dir * Xt)) continue;
-      const _fLin1 = safeEval(fn.expr, 1), _fLin2 = safeEval(fn.expr, 2);
-      if (isFinite(_fLin1) && isFinite(_fLin2) &&
-          Math.abs(_fLin1 - (slope*1 + intercept)) < 1e-4*(Math.abs(_fLin1)+1) &&
-          Math.abs(_fLin2 - (slope*2 + intercept)) < 1e-4*(Math.abs(_fLin2)+1)) continue;
-      const slopeR = parseFloat(slope.toFixed(6)), intR = parseFloat(intercept.toFixed(4));
-      if (window._asymLines.some(a => a.type==='oblique' && Math.abs(a._slope-slopeR)<1e-4 && Math.abs(a._int-intR)<1e-4)) continue;
-      const { cx: cxA, cy: cyA } = toCanvas(v.xmin, slope*v.xmin + intercept);
-      const { cx: cxB, cy: cyB } = toCanvas(v.xmax, slope*v.xmax + intercept);
-      ctx.beginPath(); ctx.moveTo(cxA, cyA); ctx.lineTo(cxB, cyB); ctx.stroke();
-      const slopeStr = Math.abs(slopeR-1)<1e-4?'': Math.abs(slopeR+1)<1e-4?'-':String(parseFloat(slope.toFixed(4)));
-      const intStr = Math.abs(intR)<1e-4?'': intR>0?' + '+parseFloat(intR.toFixed(4)):' - '+Math.abs(parseFloat(intR.toFixed(4)));
-      const oaLbl = 'y = ' + slopeStr + 'x' + intStr;
-      const midCx = (cxA+cxB)/2, midCy = (cyA+cyB)/2;
-      ctx.save(); ctx.font = '10px system-ui'; ctx.fillStyle = fn.color + 'cc';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      ctx.fillText(oaLbl, midCx, midCy - 4); ctx.restore();
-      window._asymLines.push({ type:'oblique', label:oaLbl, color:fn.color, _slope:slopeR, _int:intR });
-    }
   });
 
   ctx.restore();
@@ -371,30 +355,102 @@ function drawSlopeTri(w, h) {
       if (Math.abs(xB - xA) > 0.001) { drawTriBetween(fn, xA, xB); return; }
     }
 
-    // ── Priorität 2: Standard-Dreieck Δx=1 im sichtbaren Bereich ──────
-    // Standard: Δx = 1 (zeigt direkt die Steigung: Δy = m)
+    // ── Priorität 2: Standard-Dreieck Δx=1, verankert am y-Achsenabschnitt ──
+    // Default: Punkt A bei x=0 (Achsenabschnitt) — macht die Katheten direkt
+    // zu 1 (Δx) und m (Δy), analog zur "y = mx + q"-Steigungsform (Priorität
+    // 1). Gilt jetzt auch für direkt ins Eingabefeld getippte lineare
+    // Funktionen (Nutzerwunsch) — nicht nur für die dort explizit gesetzten
+    // Punkte. Nur wenn x=0 ausserhalb des sichtbaren Bereichs liegt (z.B.
+    // nach Verschieben/Zoomen des Views) oder das Dreieck dort aus dem
+    // sichtbaren y-Bereich ragen würde, wird auf die bisherige Position
+    // im sichtbaren Bereich zurückgefallen.
     const triW = 1;
     const xRange = v.xmax - v.xmin;
-    // Platziere Dreieck im unteren Drittel des sichtbaren x-Bereichs
-    let testX = v.xmin + xRange * 0.15;
-    // Korrektur: sicherstellen dass das Dreieck im View liegt
-    if (testX + triW > v.xmax - xRange*0.05) testX = v.xmax - xRange*0.15 - triW;
-    if (testX < v.xmin + xRange*0.05) testX = v.xmin + xRange*0.05;
-
-    const y0 = safeEval(fn.expr, testX), y1 = safeEval(fn.expr, testX + triW);
-    if (!isFinite(y0) || !isFinite(y1)) return;
-    // Beide Punkte müssen im sichtbaren y-Bereich liegen
     const ypad = (v.ymax - v.ymin) * 0.15;
-    if (y0 < v.ymin - ypad || y0 > v.ymax + ypad || y1 < v.ymin - ypad || y1 > v.ymax + ypad) {
-      // Versuch: Dreieck in der Mitte
-      testX = (v.xmin + v.xmax) / 2 - 0.5;
-      const y0b = safeEval(fn.expr, testX), y1b = safeEval(fn.expr, testX + triW);
-      if (!isFinite(y0b) || !isFinite(y1b)) return;
-      if (y0b < v.ymin - ypad || y0b > v.ymax + ypad || y1b < v.ymin - ypad || y1b > v.ymax + ypad) return;
-      drawTriBetween(fn, testX, testX + triW);
-      return;
+    const xPad = xRange * 0.05;
+
+    // Prüft eine Kandidaten-Position: liegt sie (samt Δx=1) im sichtbaren
+    // x-Bereich, und liegen beide Eckpunkte im sichtbaren y-Bereich?
+    function tryTri(x) {
+      if (x < v.xmin + xPad || x + triW > v.xmax - xPad) return null;
+      const y0 = safeEval(fn.expr, x), y1 = safeEval(fn.expr, x + triW);
+      if (!isFinite(y0) || !isFinite(y1)) return null;
+      if (y0 < v.ymin - ypad || y0 > v.ymax + ypad || y1 < v.ymin - ypad || y1 > v.ymax + ypad) return null;
+      return x;
     }
+
+    let testX = tryTri(0); // 1. Wahl: y-Achsenabschnitt
+    if (testX === null) {
+      // 2. Wahl: alte Standardposition im unteren Drittel des sichtbaren Bereichs
+      let fallback = v.xmin + xRange * 0.15;
+      if (fallback + triW > v.xmax - xPad) fallback = v.xmax - xRange * 0.15 - triW;
+      if (fallback < v.xmin + xPad) fallback = v.xmin + xPad;
+      testX = tryTri(fallback);
+    }
+    if (testX === null) {
+      // 3. Wahl: Mitte des sichtbaren Bereichs
+      testX = tryTri((v.xmin + v.xmax) / 2 - 0.5);
+    }
+    if (testX === null) return; // keine sichtbare Position gefunden
     drawTriBetween(fn, testX, testX + triW);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SENKRECHTE & MITTELSENKRECHTE: KONSTRUKTIONSMARKER
+// ═══════════════════════════════════════════════════════════════════
+// Zeichnet für jede über linAddPerp()/linAddBisector() erzeugte Funktion
+// (siehe perpMeta in 11_fitting.js) den zugehörigen Konstruktionspunkt:
+// bei einer Mittelsenkrechten die gestrichelte Ausgangsstrecke + den
+// Mittelpunkt M, bei einer einfachen Senkrechten den frei gewählten Punkt Q
+// — jeweils mit MathLive-gerenderter Koordinatenbeschriftung (gleiche
+// Schrift wie überall, siehe drawMathLabel()). Unabhängig vom
+// "Steigungsdreieck"-Kontrollkästchen, da dies eine eigene Konstruktion ist.
+function drawPerpMarkers() {
+  if (typeof perpMeta !== 'object' || !perpMeta) return;
+
+  function dot(x, y, col) {
+    const { cx, cy } = toCanvas(x, y);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, 4, 0, 2 * PI);
+    ctx.fillStyle = col; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.restore();
+    return { cx, cy };
+  }
+  function labelAt(cx, cy, letter, x, y, col) {
+    const html = (typeof latexToMathLiveHtml === 'function')
+      ? letter + latexToMathLiveHtml(niceCoord(x, y, true))
+      : null;
+    if (html) {
+      drawMathLabel(html, cx + 7, cy - 8, col, { align: 'left', baseline: 'bottom', fontSize: 11 });
+    } else {
+      ctx.save();
+      ctx.font = '11px system-ui'; ctx.fillStyle = col;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+      ctx.fillText(`${letter}${niceCoord(x, y)}`, cx + 7, cy - 8);
+      ctx.restore();
+    }
+  }
+
+  Object.keys(perpMeta).forEach(key => {
+    const fi = parseInt(key, 10);
+    const fn = functions[fi];
+    const meta = perpMeta[fi];
+    if (!fn || fn.visible === false || !meta) return;
+
+    if (meta.kind === 'bisector' && meta.ptA && meta.ptB && meta.mid) {
+      const a = toCanvas(meta.ptA.x, meta.ptA.y), b = toCanvas(meta.ptB.x, meta.ptB.y);
+      ctx.save();
+      ctx.strokeStyle = '#9aa0a6'; ctx.lineWidth = 1.3; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.moveTo(a.cx, a.cy); ctx.lineTo(b.cx, b.cy); ctx.stroke();
+      ctx.restore();
+      const { cx, cy } = dot(meta.mid.x, meta.mid.y, fn.color);
+      labelAt(cx, cy, 'M', meta.mid.x, meta.mid.y, fn.color);
+    } else if (meta.kind === 'perp' && meta.throughPt) {
+      const { cx, cy } = dot(meta.throughPt.x, meta.throughPt.y, fn.color);
+      labelAt(cx, cy, 'Q', meta.throughPt.x, meta.throughPt.y, fn.color);
+    }
   });
 }
 
@@ -577,152 +633,83 @@ function drawUnitCircle(w, h) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MATHE-TEXT CANVAS RENDERING (Superscript für ^, Subscript für _)
+// TRIG-PROJEKTIONSPUNKT AUF DEM GRAPHEN ↔ EINHEITSKREIS (Hit-Test)
 // ═══════════════════════════════════════════════════════════════════
+// drawUnitCircle() zeichnet für JEDEN unitCirclePts-Eintrag automatisch die
+// Projektion (Hypotenuse, Gegen-/Ankathete, gestrichelte Linie) auf jede
+// sichtbare sin/cos/tan-artige Funktion — das ist der EINE Punkt, der über
+// die "sin(x)/cos(x)/tan(x) aufschalten"-Knöpfe (trigAddFunction() in
+// 06_ui_functions.js) auf den Einheitskreis gesetzt wird. Damit dieser
+// Punkt nicht nur auf dem Kreis, sondern auch direkt auf dem Graphen
+// gezogen werden kann (beides dieselbe Stelle, kein zweiter Punkt!),
+// braucht es einen Hit-Test für die Graph-seitige Projektion — die
+// Zieh-Logik selbst steht in 09_events.js (drag.type === 'trigproj').
+// Formeln exakt wie in drawUnitCircle(): sin/tan → xG=a, cos → xG=a−π/2.
+function findNearTrigProjDot(mx, my) {
+  const { ox, oy, r } = getCircleParams(); if (r < 2) return null;
+  const HIT = ('ontouchstart' in window) ? 22 : 14;
+  for (let i = unitCirclePts.length - 1; i >= 0; i--) {
+    const a = unitCirclePts[i].angle;
+    for (const fn of functions) {
+      if (!fn.expr.trim() || fn.visible === false) continue;
+      const expr = fn.expr.trim();
+      const hasSin = /\bsin\s*\(/.test(expr);
+      const hasCos = /\bcos\s*\(/.test(expr);
+      const hasTan = /\btan\s*\(/.test(expr);
+      const isSinLike = hasSin && !hasCos && !hasTan;
+      const isCosLike = hasCos && !hasSin && !hasTan;
+      const isTanLike = hasTan && !hasSin && !hasCos;
+      if (!isSinLike && !isCosLike && !isTanLike) continue;
 
-// Zeichnet Text auf Canvas mit Superscript (^n) und Bruch-Rendering ((a)/(b)).
-// Gibt die Gesamtbreite zurück.
-function drawMathLabel(ctx, text, x, y, color) {
-  ctx.fillStyle = color;
-  ctx.textAlign = 'left';
-  const baseFont = ctx.font;
-
-  // ── Schritt 1: Text in Segmente aufteilen: normal, hochgestellt, Bruch ──
-  // Zuerst Brüche (a)/(b) erkennen, dann ^{...} / ^n
-  const segs = [];
-  const fracRe = /\(([^()]*)\)\/\(([^()]*)\)/;
-
-  function parseSupSeg(raw) {
-    // Teile in normale und hochgestellte Teile auf
-    const re = /\^(\{[^}]*\}|[^\s\+\-\*·()\^]+)/;
-    let rest = raw, m;
-    while ((m = re.exec(rest)) !== null) {
-      if (m.index > 0) segs.push({ type: 'text', s: rest.slice(0, m.index) });
-      const supText = m[1].startsWith('{') ? m[1].slice(1, -1) : m[1];
-      segs.push({ type: 'sup', s: supText });
-      rest = rest.slice(m.index + m[0].length);
+      const kind = isSinLike ? 'sin' : isCosLike ? 'cos' : 'tan';
+      const xG = isCosLike ? a - PI / 2 : a;
+      const yG = safeEval(fn.expr, xG);
+      if (!isFinite(yG)) continue;
+      const { cx: gx, cy: gy } = toCanvas(xG, yG);
+      if (Math.hypot(gx - mx, gy - my) < HIT) return { ucpIdx: i, kind };
     }
-    if (rest) segs.push({ type: 'text', s: rest });
   }
-
-  let rest = text, m;
-  while ((m = fracRe.exec(rest)) !== null) {
-    if (m.index > 0) parseSupSeg(rest.slice(0, m.index));
-    segs.push({ type: 'frac', num: m[1], den: m[2] });
-    rest = rest.slice(m.index + m[0].length);
-  }
-  if (rest) parseSupSeg(rest);
-
-  // ── Schritt 2: Segmente zeichnen ──
-  let cx = x;
-  segs.forEach(seg => {
-    if (seg.type === 'frac') {
-      // Bruch: Zähler oben, Linie, Nenner unten — kleiner Font
-      ctx.font = 'bold 9px system-ui,sans-serif';
-      const nw = ctx.measureText(seg.num).width;
-      const dw = ctx.measureText(seg.den).width;
-      const fw = Math.max(nw, dw) + 4;
-      ctx.fillStyle = color;
-      ctx.fillText(seg.num, cx + (fw - nw) / 2, y - 3);  // Zähler
-      ctx.fillRect(cx, y, fw, 1);                          // Bruchlinie
-      ctx.fillText(seg.den, cx + (fw - dw) / 2, y + 9);   // Nenner
-      ctx.font = baseFont;
-      cx += fw + 2;
-    } else if (seg.type === 'sup') {
-      ctx.font = `bold 8px system-ui,sans-serif`;
-      ctx.fillStyle = color;
-      ctx.fillText(seg.s, cx, y - 5);
-      cx += ctx.measureText(seg.s).width + 1;
-      ctx.font = baseFont;
-    } else {
-      ctx.font = baseFont;
-      ctx.fillStyle = color;
-      ctx.fillText(seg.s, cx, y);
-      cx += ctx.measureText(seg.s).width;
-    }
-  });
-  return cx - x;
-}
-
-// Misst die Breite eines Math-Labels (ohne zu zeichnen) — für Hintergrundrechtecke.
-function measureMathLabel(ctx, text) {
-  const baseFont = ctx.font;
-  const fracRe = /\(([^()]*)\)\/\(([^()]*)\)/g;
-  let width = 0, last = 0, m;
-  while ((m = fracRe.exec(text)) !== null) {
-    // Text vor dem Bruch
-    width += ctx.measureText(text.slice(last, m.index)).width;
-    // Bruchbreite (kleiner Font)
-    ctx.font = 'bold 9px system-ui,sans-serif';
-    const fw = Math.max(ctx.measureText(m[1]).width, ctx.measureText(m[2]).width) + 6;
-    ctx.font = baseFont;
-    width += fw;
-    last = m.index + m[0].length;
-  }
-  width += ctx.measureText(text.slice(last)).width;
-  return width;
+  return null;
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// FUNKTIONSBESCHRIFTUNGEN IM PLOT
+// MATHE-BESCHRIFTUNGS-OVERLAY — Beschriftungen im selben Rendering wie das
+// Eingabefeld (echte Bruchstriche, Wurzelzeichen, korrekte Vorzeichen), statt
+// Canvas-fillText mit system-ui-Font. Nutzt dieselbe Engine wie das Funktions-
+// Label-Overlay (updateFuncLabelsOverlay() in 06_ui_functions.js) — siehe
+// exprToMathLiveHtml()/latexToMathLiveHtml() in 07_export.js für Details.
+// Positionierung: toCanvas() liefert bereits CSS-Pixel (kein DPR-Faktor nötig,
+// siehe setupCanvas()), daher direkt als position:absolute im #canvas-wrap
+// verwendbar — dieselben Koordinaten wie für ctx.fillText().
 // ═══════════════════════════════════════════════════════════════════
-
-// Zeichnet Labels direkt auf die Graphen im Plot.
-// Algorithmus: Sucht eine "gute" Position im rechten Drittel des Views
-// (weit weg von anderen Graphen, nicht am Rand).
-// Anpassen: xc = v.xmin + (0.1 + ...) für Labels weiter links
-function drawFuncLabels(w, h) {
-  if (!document.getElementById('chk-funclabels').checked) return;
-  const v = isoView || view;
-  ctx.font = `bold ${bf(12)}px system-ui,sans-serif`;
-  functions.forEach((fn, i) => {
-    if (!fn.expr.trim() || fn.visible === false) return;
-    if (/^x\s*=/.test(fn.expr.trim())) return;
-
-    // Beste Position finden: 15 Kandidaten im rechten Bereich des Views
-    let bestX = null, bestY = null, bestScore = -Infinity;
-    for (let c = 0; c < 15; c++) {
-      const xc = v.xmin + (0.55 + 0.38 * c/14) * (v.xmax - v.xmin);
-      const yc = safeEval(fn.expr, xc);
-      if (!isFinite(yc) || yc <= v.ymin || yc >= v.ymax) continue;
-      // Score: Abstand von anderen Graphen belohnen, Randnähe bestrafen
-      let score = 0;
-      functions.forEach((f2, j) => {
-        if (j === i || !f2.expr.trim()) return;
-        const y2 = safeEval(f2.expr, xc);
-        if (isFinite(y2)) score -= 10 / (Math.abs(yc - y2) + 0.3);
-      });
-      if (yc < v.ymin + 0.15*(v.ymax-v.ymin) || yc > v.ymax - 0.15*(v.ymax-v.ymin)) score -= 5;
-      if (score > bestScore) { bestScore = score; bestX = xc; bestY = yc; }
-    }
-    if (bestX === null) return;
-
-    const { cx, cy } = toCanvas(bestX, bestY);
-    // Label-Text: bei Live-Geraden die aktuelle Formel anzeigen
-    const ll = linkedLines.find(l => l.fi === i);
-    let rawExpr;
-    if (ll) { const res = computeLinkedLine(ll); rawExpr = res ? res.label : fn.expr; }
-    else rawExpr = fn.expr.length > 18 ? fn.expr.slice(0,16)+'…' : fn.expr;
-
-    // Schönere Darstellung: * → ·, ^n → hochgestellt per Superscript-Rendering
-    const labelPrefix = `f${subDigit(i+1)}(x)=`;
-    const labelExpr = rawExpr.replace(/\*/g, '·');
-
-    // Messe Gesamtbreite für Hintergrundrechteck (berücksichtigt Brüche)
-    const fullLabel = labelPrefix + labelExpr;
-    const hasFrac = /\([^()]*\)\/\([^()]*\)/.test(fullLabel);
-    const tw = measureMathLabel(ctx, fullLabel);
-    const rectH = hasFrac ? 26 : 20;
-    const rectTop = hasFrac ? cy - 18 : cy - 15;
-    ctx.save();
-    ctx.fillStyle = 'rgba(255,255,255,0.88)';
-    ctx.beginPath(); ctx.roundRect(cx + 4, rectTop, tw + 10, rectH, 4); ctx.fill();
-    ctx.strokeStyle = fn.color + (ll ? 'cc' : '44'); ctx.lineWidth = ll ? 1.5 : 1; ctx.stroke();
-
-    // Text mit Superscript- und Bruch-Rendering
-    drawMathLabel(ctx, fullLabel, cx + 9, cy, fn.color);
-    ctx.restore();
-  });
+function clearMathLabelOverlay() {
+  const ov = document.getElementById('canvas-label-overlay');
+  if (ov) ov.innerHTML = '';
+}
+// html: fertiges HTML (z.B. von latexToMathLiveHtml() oder ein bereits
+//       vorhandenes exaktes HTML-Label wie pt.exactLabel).
+// x,y:  Ankerpunkt in CSS-Pixel-Canvas-Koordinaten (wie ctx.fillText).
+// opts.align:    'left' (Default) | 'center' | 'right'   — wie ctx.textAlign
+// opts.baseline: 'alphabetic' (Default) | 'top' | 'bottom' — wie ctx.textBaseline
+//   ('alphabetic' wird wie 'bottom' behandelt — die optische Differenz durch
+//   Unterlängen ist bei den hier verwendeten kurzen Labels vernachlässigbar.)
+function drawMathLabel(html, x, y, color, opts) {
+  const ov = document.getElementById('canvas-label-overlay');
+  if (!ov || !html) return;
+  const o = opts || {};
+  const div = document.createElement('div');
+  div.className = 'canvas-math-label';
+  div.innerHTML = html;
+  div.style.left = x + 'px';
+  div.style.top = y + 'px';
+  div.style.color = color || C.anno;
+  div.style.fontSize = (o.fontSize || 11) + 'px';
+  const align = o.align || 'left';
+  const baseline = o.baseline || 'alphabetic';
+  const tx = align === 'center' ? '-50%' : (align === 'right' ? '-100%' : '0%');
+  const ty = baseline === 'top' ? '0%' : '-100%';
+  div.style.transform = `translate(${tx}, ${ty})`;
+  ov.appendChild(div);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -755,10 +742,15 @@ function placeLabel(ctx, text, cx, cy, dir) {
   return { x:cx+ox, y:cy+oy+th-2 };
 }
 
-// Zeichnet ein Label mit automatischer Kollisionsvermeidung
-function drawLabel(ctx, text, cx, cy, col, dir = 'r') {
+// Zeichnet ein Label mit automatischer Kollisionsvermeidung.
+// html (optional): wenn gesetzt, wird STATT ctx.fillText(text,...) ein
+// MathLive-gerendertes HTML-Overlay-Label (drawMathLabel(), selbe Position)
+// gezeichnet — 'text' dient dann nur noch der Breitenschätzung für die
+// Kollisionsvermeidung (ctx.measureText), nicht der eigentlichen Anzeige.
+function drawLabel(ctx, text, cx, cy, col, dir = 'r', html) {
   ctx.fillStyle = col || C.anno;
   const p = placeLabel(ctx, text, cx, cy, dir);
+  if (html) { drawMathLabel(html, p.x, p.y, col, { align: 'left', baseline: 'alphabetic' }); return; }
   ctx.fillText(text, p.x, p.y);
 }
 
@@ -803,6 +795,11 @@ function draw() {
   const v = isoView || view; // isometrischer View für diesen Frame
   const axisFontSize = bf(parseInt(document.getElementById('axis-font-size')?.value || 12));
   const fnt = `${axisFontSize}px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif`;
+
+  // Mathe-Beschriftungs-Overlay leeren (Asymptoten- + Punkt-Labels, siehe
+  // drawMathLabel() weiter unten) — einmal pro draw()-Aufruf, VOR drawAsymptotes()
+  // und der Spezielle-Punkte-Sektion, da beide neu hineinschreiben.
+  clearMathLabelOverlay();
 
   // ── 1. Hintergrund ────────────────────────────────────────────
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, w, h);
@@ -871,7 +868,13 @@ function draw() {
   }
 
   // ── 4. Einheitskreis ──────────────────────────────────────────
-  if (document.getElementById('chk-unitcircle').checked) drawUnitCircle(w, h);
+  // Zeichnet für jeden unitCirclePts-Eintrag auch die Projektion auf alle
+  // sichtbaren sin/cos/tan-Graphen (siehe trigAddFunction() in
+  // 06_ui_functions.js für die "aufschalten"-Knöpfe, findNearTrigProjDot()
+  // oben für den zugehörigen Hit-Test zum Ziehen direkt auf dem Graphen).
+  if (document.getElementById('chk-unitcircle').checked) {
+    drawUnitCircle(w, h);
+  }
 
   // ── 5. Asymptoten ─────────────────────────────────────────────
   const _smartAsymp = functions.some((_, i) => activeSpecials.has(`${i}:asymp`));
@@ -905,6 +908,11 @@ function draw() {
       }
     }
   }
+
+  // ── 6b. Lineare Optimierung ───────────────────────────────────
+  // Planungspolygon + Zielfunktions-Gerade (siehe 17_linopt.js) — unabhängig
+  // vom Einheitskreis-Toggle, eigenes Feature mit eigenem Panel.
+  if (typeof drawLinOpt === 'function') drawLinOpt();
 
   // ── 7. Funktionsgraphen ───────────────────────────────────────
   // Abtastanzahl = Canvas-Breite × 2 (ein Punkt pro halben Pixel = sehr glatt)
@@ -974,6 +982,9 @@ function draw() {
 
   // ── 8. Steigungsdreieck ───────────────────────────────────────
   if (document.getElementById('chk-slopetri').checked) drawSlopeTri(w, h);
+  // Senkrechte/Mittelsenkrechte-Marker: unabhängig vom Steigungsdreieck-
+  // Kontrollkästchen, da eine eigene Konstruktion (siehe drawPerpMarkers()).
+  if (typeof drawPerpMarkers === 'function') drawPerpMarkers();
 
   // ── 9. Funktionsbeschriftungen ────────────────────────────────
   // Wird als HTML-Overlay gerendert (updateFuncLabelsOverlay) — kein Canvas-Text mehr
@@ -996,7 +1007,12 @@ function draw() {
     const nearHover = hoverPt !== null && Math.abs(toCanvas(pt.x, 0).cx - toCanvas(hoverPt, 0).cx) < 30;
     if (!dup) {
       if (lmode === 'all' || (lmode === 'hover' && nearHover)) {
-        drawLabel(ctx, pt.textLabel || niceCoord(pt.x, pt.y), cx, cy, C.anno, 'r');
+        // pt.exactLabel: bereits fertiges HTML mit echtem Bruchstrich/Wurzel-Überstrich
+        // (exakte quadratische Nullstellen, siehe 04_analysis.js) — sonst MathLive-
+        // gerenderte Koordinate (Brüche/Wurzeln/π wie im Eingabefeld, kein "--2").
+        const lblHtml = pt.exactLabel ||
+          (typeof latexToMathLiveHtml === 'function' ? latexToMathLiveHtml(niceCoord(pt.x, pt.y, true)) : null);
+        drawLabel(ctx, pt.textLabel || niceCoord(pt.x, pt.y), cx, cy, C.anno, 'r', lblHtml);
       }
       drawnPos.push({ cx, cy });
     }
@@ -1021,9 +1037,17 @@ function draw() {
     // Label: immer beim Ziehen, sonst lmode-abhängig; Custom-Label verwenden
     const nearHoverPt = hoverPt !== null && Math.abs(toCanvas(pt.x, 0).cx - toCanvas(hoverPt, 0).cx) < 30 && Math.abs(toCanvas(0, pt.y).cy - toCanvas(0, 0).cy + toCanvas(pt.x, pt.y).cy - toCanvas(pt.x, 0).cy) < 30;
     if (lmode === 'all' || isDragThis || (lmode === 'hover' && nearHoverPt)) {
-      const ptLbl = (pt.label || `P${i+1}`) + niceCoord(pt.x, pt.y);
+      const prefixText = pt.label || `P${i+1}`;
+      const ptLbl = prefixText + niceCoord(pt.x, pt.y);
+      // Präfix ("P1", oder ein Custom-Label des Nutzers) bleibt reiner Text;
+      // nur die Koordinate selbst wird MathLive-gerendert (Brüche/Wurzeln/π).
+      let lblHtml = null;
+      if (typeof latexToMathLiveHtml === 'function') {
+        const prefixHtml = typeof _mlEscapeHtml === 'function' ? _mlEscapeHtml(prefixText) : prefixText;
+        lblHtml = prefixHtml + latexToMathLiveHtml(niceCoord(pt.x, pt.y, true));
+      }
       ctx.fillStyle = C.anno; ctx.font = fnt; ctx.textAlign = 'left';
-      drawLabel(ctx, ptLbl, cx, cy, C.anno, 'r');
+      drawLabel(ctx, ptLbl, cx, cy, C.anno, 'r', lblHtml);
     }
 
     // Gestrichelte Verbindungslinien zu allen verknüpften Live-Geraden

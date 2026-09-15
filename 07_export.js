@@ -1,7 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════
 // MODUL: export — JPEG-Export & LaTeX-Export
 // Enthält:  exportJPEG(), generateLatex(), copyLatex()
-//           exprToPgf(), exprToMath() (Ausdrucks-Konverter)
+//           exprToPgf() (LaTeX-Quelltext-Konverter)
+//           exprToMathLiveHtml() / latexToMathLiveHtml() (einheitliche Formel-Anzeige, siehe dort)
 // Ändern:  JPEG-Qualität → toDataURL("image/jpeg", 0.95)
 //           LaTeX-Vorlage → generateLatex()-Funktion
 // ═══════════════════════════════════════════════════════════════════
@@ -27,57 +28,11 @@ function exportJPEG() {
 
 // ═══════════════════════════════════════════════════════════════════
 // LATEX-EXPORT
-// Zwei separate Konverter:
 //   exprToPgf(expr)   → pgfplots-Ausdruck für \addplot{...}
 //                       Sprache: gnuplot-ähnlich, Variable = \x
 //                       Operatoren: * / + - ^ ( )
 //                       Funktionen: sin, cos, tan, sqrt, ln, exp, abs, log10
-//   exprToMath(expr)  → LaTeX-Math für $...$ (Legende, Beschriftungen)
-//                       Sprache: echtes LaTeX-Math
 // ═══════════════════════════════════════════════════════════════════
-
-// Hilfs-Tokenizer: wandelt JS-Ausdruck in Token-Liste um
-// Token: { type: 'num'|'var'|'op'|'fn'|'lp'|'rp'|'comma', val }
-function tokenize(expr) {
-  const tokens = [];
-  let i = 0, s = expr.trim().replace(/\^/g, '**').replace(/\bEC\b/g, 'EC');
-  while (i < s.length) {
-    if (/\s/.test(s[i])) { i++; continue; }
-    // Zahl
-    if (/[\d.]/.test(s[i])) {
-      let j = i; while (j < s.length && /[\d.eE+\-]/.test(s[j]) && !(j > i && /[eE]/.test(s[j-1]) === false && /[+\-]/.test(s[j]))) j++;
-      // Einfacherer Ansatz
-      let num = '';
-      if (/\d/.test(s[i]) || s[i] === '.') {
-        while (i < s.length && /[\d.]/.test(s[i])) num += s[i++];
-        if (i < s.length && /[eE]/.test(s[i])) {
-          num += s[i++];
-          if (i < s.length && /[+\-]/.test(s[i])) num += s[i++];
-          while (i < s.length && /\d/.test(s[i])) num += s[i++];
-        }
-        tokens.push({ type:'num', val: num }); continue;
-      }
-    }
-    // Bezeichner (Funktion oder Variable)
-    if (/[a-zA-Z_]/.test(s[i])) {
-      let name = '';
-      while (i < s.length && /[a-zA-Z0-9_]/.test(s[i])) name += s[i++];
-      // Prüfe ob Funktionsaufruf (nächstes nicht-Whitespace ist '(')
-      let k = i; while (k < s.length && /\s/.test(s[k])) k++;
-      if (s[k] === '(') tokens.push({ type:'fn', val: name });
-      else tokens.push({ type:'var', val: name });
-      continue;
-    }
-    if (s[i] === '(') { tokens.push({ type:'lp', val:'(' }); i++; continue; }
-    if (s[i] === ')') { tokens.push({ type:'rp', val:')' }); i++; continue; }
-    if (s[i] === ',') { tokens.push({ type:'comma', val:',' }); i++; continue; }
-    // Operator ** zuerst
-    if (s.slice(i, i+2) === '**') { tokens.push({ type:'op', val:'**' }); i+=2; continue; }
-    if ('+-*/'.includes(s[i])) { tokens.push({ type:'op', val:s[i] }); i++; continue; }
-    i++; // unbekannt überspringen
-  }
-  return tokens;
-}
 
 // Konvertiert JS-Ausdruck → pgfplots-Ausdruck (\x als Variable, gnuplot-Syntax)
 // Unterstützte Funktionen: sin, cos, tan, sqrt, ln/log, exp, abs, log10, nthroot, logn
@@ -118,97 +73,55 @@ function exprToPgf(expr) {
   return s;
 }
 
-// Konvertiert JS-Ausdruck → LaTeX-Math-String für $...$-Umgebung
-// Gibt lesbares LaTeX zurück: \sin(x), \frac{...}{...}, x^{2} etc.
-function exprToMath(expr) {
-  let s = expr.trim();
-
-  // Reihenfolge wichtig: zuerst längere Patterns
-  // nthroot(x,n) → \sqrt[n]{x}
-  s = s.replace(/nthroot\(([^,]+),\s*([^)]+)\)/g, '\\sqrt[$2]{$1}');
-  // logn(x,b) → \log_{b}(x)
-  s = s.replace(/logn\(([^,]+),\s*([^)]+)\)/g, '\\log_{$2}($1)');
-  // log10(x) → \log_{10}(x)
-  s = s.replace(/log10\(([^)]+)\)/g, '\\log_{10}($1)');
-  // sqrt(x) → \sqrt{x}
-  s = s.replace(/sqrt\(([^)]+)\)/g, '\\sqrt{$1}');
-  // abs(x) → |x|
-  s = s.replace(/abs\(([^)]+)\)/g, '|$1|');
-  // log(x) → \ln(x)
-  s = s.replace(/\blog\(/g, '\\ln(');
-  // exp(x) → e^{x}
-  s = s.replace(/exp\(([^)]+)\)/g, 'e^{$1}');
-  // Trig-Funktionen
-  s = s.replace(/\bsin\(/g, '\\sin(');
-  s = s.replace(/\bcos\(/g, '\\cos(');
-  s = s.replace(/\btan\(/g, '\\tan(');
-  // EC → e
-  s = s.replace(/\bEC\b/g, 'e');
-  // pi → \pi
-  s = s.replace(/\bpi\b/g, '\\pi');
-  // Potenz ^ → ^{...} (nur für einfache Fälle, Zahlen und einfache Buchstaben)
-  s = s.replace(/\^(-?\d+)/g, '^{$1}');
-  s = s.replace(/\*\*/g, '^');
-  s = s.replace(/\^(-?\d+)/g, '^{$1}');
-  // Multiplikation: * → \cdot (aber ** bereits ersetzt)
-  s = s.replace(/\*/g, '\\cdot ');
-
-  // Brüche: (Zähler)/(Nenner) → \frac{Zähler}{Nenner}
-  // Iterativ von innen nach außen (für verschachtelte Brüche)
-  let prev;
-  do {
-    prev = s;
-    s = s.replace(/\(([^()]*(?:\([^()]*\)[^()]*)*)\)\/\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g, '\\frac{$1}{$2}');
-  } while (s !== prev);
-
-  // Runde Klammern: (...) → \left(...\right) damit sie sich bei \frac vergrössern
-  // Iterativ von innen nach außen (vermeidet Konflikte mit verschachtelten Klammern)
-  do {
-    prev = s;
-    s = s.replace(/\(([^()]*)\)/g, '\\left($1\\right)');
-  } while (s !== prev);
-
-  return s;
+// ═══════════════════════════════════════════════════════════════════
+// EINHEITLICHE FORMEL-DARSTELLUNG — exakt wie im Eingabefeld
+// exprToMathLiveHtml(expr) rendert einen raw-Ausdruck GENAU so, wie er im
+// MathLive-<math-field> erscheinen würde: derselbe Weg (miParseRaw → miToLatex)
+// UND dieselbe Rendering-Engine (MathLive.convertLatexToMarkup — exakt die
+// Funktion, die MathLive auch intern für die <math-field>-Elemente benutzt).
+// Dadurch sind Legende, Kurven-Beschriftungen usw. IMMER konsistent mit der
+// Eingabefeld-Schreibweise (arcsin statt asin, √ statt sqrt(...), echte
+// Bruchstriche, hochgestellte Exponenten, ...) — ganz ohne eigene, potenziell
+// abweichende Nachbau-Logik. NICHT für den LaTeX-Quelltext-Export verwenden
+// (das bleibt exprToPgf oben, echter pgfplots-Ausdruck zum Copy-Paste).
+// Ergebnis wird pro (bereits parameter-substituiertem) Ausdrucksstring
+// gecacht, da MathLive.convertLatexToMarkup() relativ teuer ist und manche
+// Aufrufer (z.B. das Beschriftungs-Overlay) bei jedem Redraw neu aufrufen.
+// ═══════════════════════════════════════════════════════════════════
+const _mlMarkupCache = new Map();
+function _mlEscapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function exprToMathLiveHtml(rawExpr) {
+  if (!rawExpr || !rawExpr.trim()) return '';
+  if (_mlMarkupCache.has(rawExpr)) return _mlMarkupCache.get(rawExpr);
+  let html;
+  try {
+    const latex = miToLatex(miParseRaw(rawExpr));
+    html = (typeof MathLive !== 'undefined' && MathLive.convertLatexToMarkup)
+      ? MathLive.convertLatexToMarkup(latex)
+      : _mlEscapeHtml(rawExpr); // Fallback falls MathLive (noch) nicht geladen ist
+  } catch (ex) {
+    html = _mlEscapeHtml(rawExpr); // z.B. während des Tippens ein (noch) unvollständiger Ausdruck, oder Sonderformate wie "x = 3"
+  }
+  if (_mlMarkupCache.size > 300) _mlMarkupCache.clear(); // unbeschränktes Wachstum verhindern
+  _mlMarkupCache.set(rawExpr, html);
+  return html;
 }
 
-// Konvertiert JS-Ausdruck → HTML für Inline-Vorschau (Brüche, Exponenten, π).
-// Wird für die Formel-Vorschau unter den Funktionseingabefeldern verwendet.
-function exprToHtml(expr) {
-  if (!expr) return '';
-  let s = expr.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  // Einfache Zahlbrüche in Klammern: (-?Zahl/Zahl) → gestapelter Bruch
-  // z.B. (1/4)*x → ¼·x,  (-2/3)*x → -⅔·x
-  s = s.replace(/\((-?\d+)\/(\d+)\)/g,
-    '<span class="preview-frac"><span class="pf-num">$1</span><span class="pf-den">$2</span></span>');
-  // Brüche iterativ von innen nach außen: (a)/(b) → gestapelter Bruch
-  let prev;
-  do {
-    prev = s;
-    s = s.replace(/\(([^()]*(?:\([^()]*\)[^()]*)*)\)\/\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g,
-      '<span class="preview-frac"><span class="pf-num">$1</span><span class="pf-den">$2</span></span>');
-  } while (s !== prev);
-  // Hochgestellte Exponenten: ^{n}, ^(n+1) oder ^n
-  s = s.replace(/\^(\{[^}]*\}|\([^)]*\)|[^\s+\-*/·()^<]+)/g, (_, m) => {
-    const inner = m.startsWith('{') ? m.slice(1,-1) : m.startsWith('(') ? m.slice(1,-1) : m;
-    return `<sup class="preview-sup">${inner}</sup>`;
-  });
-  // Symbole verschönern: * → ·, pi → π, EC → e
-  // Multiplikation direkt nach einem Bruch: ·x statt ·x (Leerzeichen entfernen)
-  s = s.replace(/\*/g, '·').replace(/\bpi\b/g, 'π').replace(/\bEC\b/g, 'e');
-  // Leerzeichen zwischen Bruch und Variable entfernen: </span>·x → </span>x
-  s = s.replace(/(span>)\s*·\s*([a-zA-Z])/g, '$1$2');
-  // Klammern neben Brüchen vergrössern (wie \left( \right) in LaTeX)
-  s = s.replace(/\(<span class="preview-frac"/g,
-    '<span class="paren-frac">(</span><span class="preview-frac"');
-  s = s.replace(/<\/span><\/span>\)/g,
-    '</span></span><span class="paren-frac">)</span>');
-  return s;
-}
-
-// Gibt true zurück wenn ein Ausdruck eine Vorschau lohnt (Bruch oder Potenz enthält).
-function exprNeedsPreview(expr) {
-  return /\(.*\)\/\(.*\)/.test(expr) || /\^/.test(expr)
-    || /\(-?\d+\/\d+\)/.test(expr); // einfache Zahlbrüche wie (1/4)
+// Variante von exprToMathLiveHtml() für bereits fertiges LaTeX (kein Rohausdruck,
+// daher kein miParseRaw/miToLatex-Schritt) — z.B. für die statischen Beschriftungen
+// der Mathe-Tastatur-Tasten (⌨ Tastatur-Panel), damit "x²", "√x", "sin", ... dort
+// in EXAKT derselben Schrift/Größe erscheinen wie im Eingabefeld, statt als
+// Unicode-Annäherung (x², √) im normalen Browser-Font. Kein Cache nötig — wird
+// nur einmal beim Start pro Taste aufgerufen, nicht pro Redraw.
+function latexToMathLiveHtml(latex) {
+  if (!latex) return '';
+  try {
+    return (typeof MathLive !== 'undefined' && MathLive.convertLatexToMarkup)
+      ? MathLive.convertLatexToMarkup(latex)
+      : _mlEscapeHtml(latex);
+  } catch (ex) {
+    return _mlEscapeHtml(latex);
+  }
 }
 
 // Rundet eine View-Grenze auf eine "schöne" Zahl (ganze Zahl oder .5)
@@ -266,38 +179,6 @@ function latexNum(v) {
   return parseFloat(v.toFixed(4)).toString();
 }
 
-// Konvertiert JS-Ausdruck → LaTeX-Mathematik (für Beschriftungen, nicht für \addplot)
-function exprToLatex(expr) {
-  let s = expr.trim();
-  // Ersetze Brüche im Stil (a/b) → \frac{a}{b}
-  s = s.replace(/\((-?\d+)\/(\d+)\)\*/g, '\\frac{$1}{$2}');
-  s = s.replace(/\((-?\d+)\/(\d+)\)/g, '\\frac{$1}{$2}');
-  s = s.replace(/(-?\d+)\/(\d+)\*/g, '\\frac{$1}{$2}');
-  // Koeffizienten: (n)* → n
-  s = s.replace(/\((-?\d+)\)\*/g, '$1');
-  // sqrt(x) → \sqrt{x}
-  s = s.replace(/sqrt\(([^)]+)\)/g, '\\sqrt{$1}');
-  // nthroot(x,n) → \sqrt[n]{x}
-  s = s.replace(/nthroot\(([^,]+),\s*([^)]+)\)/g, '\\sqrt[$2]{$1}');
-  // log( → \ln(
-  s = s.replace(/\blog\(/g, '\\ln(');
-  s = s.replace(/log10\(/g, '\\log_{10}(');
-  // abs( → |
-  s = s.replace(/abs\(([^)]+)\)/g, '|$1|');
-  // EC → e
-  s = s.replace(/\bEC\b/g, 'e');
-  // x^2 → x^{2}, x^(n) → x^{n}
-  s = s.replace(/x\^(\d+)/g, 'x^{$1}');
-  s = s.replace(/x\^\(([^)]+)\)/g, 'x^{$1}');
-  // * → \cdot (but not before \x or after \)
-  s = s.replace(/\*/g, '\\cdot ');
-  // x as variable
-  s = s.replace(/\bx\b/g, 'x');
-  // Remove outer parens around simple expressions
-  s = s.replace(/^\(([^()]+)\)$/, '$1');
-  return s;
-}
-
 function generateLatex() {
   const v = isoView || view;
   const _ltxV = id => { const el=document.getElementById(id); return el&&el.value.trim()!==''?parseFloat(el.value):null; };
@@ -319,8 +200,22 @@ function generateLatex() {
     if (range <= 35) return 0.6;
     return 0.4;
   }
-  const xCm = cmPerUnit(xRange).toFixed(1);
-  const yCm = cmPerUnit(yRange).toFixed(1);
+  // WICHTIG: isometricMode() (02_core.js) ist immer aktiv — px/Einheit ist auf
+  // dem Canvas für x UND y IMMER gleich (siehe getIsoView()), damit z.B. der
+  // Einheitskreis dort immer als echter Kreis erscheint, nicht als Ellipse.
+  // xRange/yRange kommen hier bereits aus isoView, sind bei nicht-quadratischem
+  // Canvas also unterschiedlich gross (proportional zum Seitenverhältnis) —
+  // wenn man cmPerUnit() TROTZDEM separat auf xRange und yRange anwendet,
+  // können x und y in unterschiedliche "Bucket"-Stufen fallen (z.B. x=1.0cm,
+  // y=0.6cm) und cm/Einheit wird für x und y verschieden: der Export zeichnet
+  // dann in einem gestauchten Koordinatensystem, und aus dem Einheitskreis
+  // wird eine Ellipse. Fix: EIN gemeinsamer cm/Einheit-Wert für beide Achsen
+  // (an der grösseren der beiden Ranges bemessen, damit die Figur nicht zu
+  // gross wird) — das erhält das Seitenverhältnis 1:1 pro Dateneinheit exakt
+  // wie auf dem Canvas.
+  const uCm = cmPerUnit(Math.max(xRange, yRange));
+  const xCm = uCm.toFixed(1);
+  const yCm = uCm.toFixed(1);
 
   // ── Tick-Berechnung ───────────────────────────────────────────────
   const _xts = _ltxV('ltx-xtickstep'), _yts = _ltxV('ltx-ytickstep');
@@ -381,9 +276,24 @@ function generateLatex() {
 
   // ── Hilfsfunktionen ──────────────────────────────────────────────
 
-  // Zahl → LaTeX-Math (π-Brüche für Labels, reine Dezimalzahl für Koordinaten)
+  // Zahl → LaTeX-Math (π-Brüche/Brüche/Wurzeln für Labels, reine Dezimalzahl
+  // für Koordinaten, siehe coord() weiter unten).
+  // WICHTIG: Dieser lokale latexNum() ÜBERSCHATTET (shadowing) den gleich-
+  // namigen, allgemeineren \frac{a}{b}-fähigen latexNum() ganz oben in dieser
+  // Datei — bis eben hierher kannte diese Funktion NUR π-Vielfache, jeder
+  // normale Bruch (z.B. 1/3) wurde als Dezimalzahl (0.33) ausgegeben, obwohl
+  // dieselbe Zahl auf dem Canvas (niceNum()/niceCoord(), 03_math.js) als
+  // echter Bruch bzw. sogar als Wurzelform (z.B. √2/2) angezeigt wird —
+  // gemeldeter Fehler: "falls im Plot Brüche erscheinen, sollten diese beim
+  // Latex-export auch erscheinen". Fix: dieselbe Formatierungs-Funktion wie
+  // der Canvas verwenden (niceNum(val, false, true) — forAxis=false aktiviert
+  // Bruch-/Wurzel-Erkennung, latex=true liefert \frac{}{}/\sqrt{}-LaTeX statt
+  // Unicode), damit Export und Canvas für dieselbe Zahl garantiert identisch
+  // aussehen.
   function latexNum(val) {
     if (!isFinite(val)) return '?';
+    if (typeof niceNum === 'function') return niceNum(val, false, true);
+    // Fallback, falls niceNum() aus irgendeinem Grund nicht verfügbar ist
     if (usePiMode()) {
       const pf = asPiFraction(val);
       if (pf) {
@@ -398,6 +308,19 @@ function generateLatex() {
 
   // Koordinate → sicherer Dezimal-String (nie π, nie –)
   function coord(val) { return parseFloat(val.toFixed(6)).toString(); }
+
+  // Hex-Farbe (#RRGGBB, z.B. aus COLORS[]/LO_STROKE/LO_OBJ_COLOR, siehe
+  // 02_core.js/17_linopt.js) → pgfplots/xcolor-Inline-Farbe. Wird für Features
+  // gebraucht, die ihre Farben nicht aus der festen pgfColors[]-Palette oben
+  // nehmen, sondern eigene Hex-Werte verwenden (z.B. Ungleichungen der
+  // linearen Optimierung, die dieselbe COLORS[]-Rotation wie functions[]
+  // benutzen) — kein \definecolor nötig, direkt inline verwendbar.
+  function hexToPgfColor(hex) {
+    const m = /^#?([0-9a-fA-F]{6})$/.exec(hex || '');
+    if (!m) return 'black';
+    const r = parseInt(m[1].slice(0, 2), 16), g = parseInt(m[1].slice(2, 4), 16), b = parseInt(m[1].slice(4, 6), 16);
+    return `{rgb,255:red,${r};green,${g};blue,${b}}`;
+  }
 
   // Erkennt ob irgendeine sichtbare Funktion Trigo-Charakter hat
   function hasTrig() {
@@ -451,20 +374,158 @@ function generateLatex() {
   // ── Body zusammenbauen ───────────────────────────────────────────
   let body = '';
 
+  // 0. Lineare Optimierung (Planungspolygon + Zielfunktions-Gerade) —
+  // eigenes Unterrichts-Feature mit eigenen Datenstrukturen (loConstraints[],
+  // loObjA/loObjB/loObjK, computeFeasiblePolygon(), siehe 17_linopt.js) und
+  // KOMPLETT unabhängig von functions[]. Der LaTeX-Export hat das bisher
+  // gar nicht berücksichtigt — beim Exportieren einer reinen Optimierungs-
+  // Aufgabe blieb das Bild praktisch leer. Baut 1:1 nach, was drawLinOpt()
+  // (08_draw.js/17_linopt.js) auf dem Canvas zeichnet: Polygon-Füllung +
+  // Rand, Eckpunkte mit Koordinaten-Beschriftung, Randgeraden der einzelnen
+  // Ungleichungen (über die volle Breite/Höhe des Sichtbereichs, wie
+  // loDrawBoundaryLine()), und — falls aufgeschaltet — die Zielfunktions-
+  // Gerade mit Griff-Punkt und "z=…"-Beschriftung (wie drawLoObjectiveLine()).
+  // Zeichenreihenfolge VOR den Funktionsgraphen, damit Kurven ggf. über dem
+  // Polygon liegen — exakt wie in draw() (Abschnitt 6b vor 7).
+  if (typeof loConstraints !== 'undefined' && typeof parseLoConstraint === 'function') {
+    const loShowPoly = document.getElementById('chk-lo-polygon')?.checked;
+    const validLoConstraints = loConstraints.filter(c => c.visible && parseLoConstraint(c.raw));
+    if (loShowPoly && validLoConstraints.length > 0 && typeof computeFeasiblePolygon === 'function') {
+      const { poly, box: loBox } = computeFeasiblePolygon();
+      if (poly.length >= 3) {
+        body += `  % Lineare Optimierung: Planungspolygon\n`;
+        const loStrokeCol = hexToPgfColor(typeof LO_STROKE !== 'undefined' ? LO_STROKE : '#378ADD');
+        // WICHTIG: Bei unbeschränktem Planungspolygon (z.B. nur EINE Ungleichung
+        // ohne obere Schranke) liefert computeFeasiblePolygon() Eckpunkte einer
+        // riesigen "Unendlich"-Ersatz-Box (LO_BOX_MIN=1000 Einheiten, siehe
+        // 17_linopt.js) — auf dem Canvas unproblematisch, da der Browser das
+        // Zeichnen einfach am Canvas-Rand abschneidet. In pgfplots/TikZ dagegen
+        // werden Koordinaten mit dem cm/Einheit-Massstab (x=…cm) multipliziert;
+        // 1000 Einheiten × z.B. 1cm ergibt 1000cm, weit über TeX's fester
+        // Dimensions-Obergrenze (~575cm) → "! Dimension too large."-Fehler, und
+        // die Füllung wird dadurch kaputt/unvorhersehbar dargestellt (genau der
+        // gemeldete Fehler: "Planungspolygon nicht ganz richtig ausgefüllt").
+        // Fix: das Polygon VOR der Ausgabe exakt auf den sichtbaren
+        // Achsenbereich zuschneiden (gleiche loClip()-Sutherland-Hodgman-
+        // Clipping-Funktion, die computeFeasiblePolygon() selbst benutzt) —
+        // alle exportierten Koordinaten bleiben dadurch innerhalb des
+        // sichtbaren Bereichs, und pgfplots' eigenes axis-Clipping (clip=true,
+        // Default) übernimmt exakt wie beim Canvas den optischen Feinschliff
+        // am Rand.
+        let fillPoly = poly;
+        if (typeof loClip === 'function') {
+          fillPoly = loClip(fillPoly, 1, 0, xmaxF, '<=');
+          fillPoly = loClip(fillPoly, 1, 0, xminF, '>=');
+          fillPoly = loClip(fillPoly, 0, 1, ymaxF, '<=');
+          fillPoly = loClip(fillPoly, 0, 1, yminF, '>=');
+        }
+        if (fillPoly.length >= 3) {
+          // WICHTIG: \addplot[...] coordinates {...} \closedcycle; (pgfplots'
+          // "Funktionsplot"-Mechanismus) füllt ein Polygon wie dieses — mit
+          // horizontalen/vertikalen Kanten und nicht-monotonem x-Verlauf, wie es
+          // bei einem zugeschnittenen Planungspolygon entsteht — nachweislich
+          // NUR TEILWEISE (getestet: nur ein kleines Teildreieck statt der
+          // gesamten Fläche wurde gefüllt, unabhängig von axis-clip=true/false).
+          // Das war der gemeldete Fehler ("Planungspolygon nicht ganz richtig
+          // ausgefüllt"). Ein roher TikZ-Pfad (\path ... -- cycle;) mit
+          // "axis cs:"-Koordinaten ist der pgfplots-Standardweg, um beliebige
+          // Polygone zuverlässig zu füllen, und wurde hier gegen genau diesen
+          // Fall getestet (funktioniert korrekt).
+          const pathPts = fillPoly.map(p => `(axis cs:${coord(p.x)},${coord(p.y)})`).join(' -- ');
+          body += `  \\path[draw=${loStrokeCol}, fill=blue!15, fill opacity=0.6, thick] ${pathPts} -- cycle;\n`;
+        }
+        // Eckpunkte beschriften: nur "echte" Eckpunkte (Schnittpunkte der
+        // Ungleichungen), keine Artefakte der Unendlich-Ersatz-Box — analog zu
+        // loShowSolution() (17_linopt.js), die dieselbe Unterscheidung trifft.
+        const isLoBoxVertex = p => Math.abs(p.x) > loBox * 0.9 || Math.abs(p.y) > loBox * 0.9;
+        poly.forEach(p => {
+          if (isLoBoxVertex(p)) return;
+          if (p.x < xminF - 0.5 || p.x > xmaxF + 0.5 || p.y < yminF - 0.5 || p.y > ymaxF + 0.5) return;
+          body += `  \\addplot[color=${loStrokeCol}, fill=white, only marks, mark=*, mark size=2pt] coordinates {(${coord(p.x)},${coord(p.y)})};\n`;
+          body += `  \\node[anchor=south west, font=\\tiny, color=${loStrokeCol}] at (axis cs:${coord(p.x)},${coord(p.y)}) {$\\left(${latexNum(p.x)}\\,|\\,${latexNum(p.y)}\\right)$};\n`;
+        });
+      }
+      // Randgeraden der einzelnen Ungleichungen — jeweils volle Sichtbereichsbreite/-höhe
+      body += `  % Randgeraden der Ungleichungen\n`;
+      loConstraints.forEach((con) => {
+        if (!con.visible) return;
+        const p = parseLoConstraint(con.raw);
+        if (!p) return;
+        let p1, p2;
+        if (Math.abs(p.b) > 1e-9) { p1 = { x: xminF, y: (p.c - p.a * xminF) / p.b }; p2 = { x: xmaxF, y: (p.c - p.a * xmaxF) / p.b }; }
+        else if (Math.abs(p.a) > 1e-9) { p1 = { x: p.c / p.a, y: yminF }; p2 = { x: p.c / p.a, y: ymaxF }; }
+        else return;
+        const conCol = hexToPgfColor(con.color || '#378ADD');
+        body += `  \\addplot[color=${conCol}, thin] coordinates {(${coord(p1.x)},${coord(p1.y)}) (${coord(p2.x)},${coord(p2.y)})};\n`;
+      });
+    }
+    if (typeof loObjActive !== 'undefined' && loObjActive) {
+      let p1, p2;
+      if (Math.abs(loObjB) > 1e-9) { p1 = { x: xminF, y: (loObjK - loObjA * xminF) / loObjB }; p2 = { x: xmaxF, y: (loObjK - loObjA * xmaxF) / loObjB }; }
+      else if (Math.abs(loObjA) > 1e-9) { p1 = { x: loObjK / loObjA, y: yminF }; p2 = { x: loObjK / loObjA, y: ymaxF }; }
+      else { p1 = null; p2 = null; }
+      if (p1 && p2) {
+        const objCol = hexToPgfColor(typeof LO_OBJ_COLOR !== 'undefined' ? LO_OBJ_COLOR : '#D4537E');
+        body += `  % Zielfunktions-Gerade\n`;
+        body += `  \\addplot[color=${objCol}, thick, dashed] coordinates {(${coord(p1.x)},${coord(p1.y)}) (${coord(p2.x)},${coord(p2.y)})};\n`;
+        if (typeof loGetHandlePos === 'function') {
+          const hp = loGetHandlePos();
+          if (hp.x >= xminF && hp.x <= xmaxF && hp.y >= yminF && hp.y <= ymaxF) {
+            body += `  \\addplot[color=${objCol}, fill=white, only marks, mark=*, mark size=3pt] coordinates {(${coord(hp.x)},${coord(hp.y)})};\n`;
+            body += `  \\node[anchor=south west, font=\\small\\bfseries, color=${objCol}] at (axis cs:${coord(hp.x)},${coord(hp.y)}) {$z=${latexNum(loObjK)}$};\n`;
+          }
+        }
+      }
+    }
+  }
+
   // 1. Funktionsgraphen (mit Pol-Erkennung: Domäne aufteilen)
   // WICHTIG: name path muss VOR fill-between definiert werden!
+  //
+  // WICHTIG: Funktionen aus den Menüpunkten (z.B. y=mx+q, y=a·bˣ+c, y=a·(x−v)ⁿ+h,
+  // …) speichern in fn.expr die ALLGEMEINE Form mit Parameter-BUCHSTABEN
+  // (a,b,c,m,q,n,v,h,…), nicht die aktuellen Zahlenwerte — die Schieberegler
+  // (params{}, siehe 03_math.js) liefern die Werte erst zur Auswertungszeit
+  // (safeEval liest params LIVE). exprToPgf() ist dagegen ein reiner
+  // TEXT-Konverter, der keinen Zugriff auf params{} hat: ohne vorherige
+  // Substitution landet z.B. wortwörtlich "a*b^x+c" im exportierten
+  // \addplot{...} — pgfplots kennt "a"/"b"/"c" dort nicht und kann die Kurve
+  // nicht zeichnen. exprWithValues() (03_math.js) setzt die AKTUELLEN
+  // Schieberegler-Werte textuell ein (liefert einen rein numerischen
+  // Ausdruck), bevor exprToPgf() ihn in pgfplots-Syntax übersetzt.
+  const _ltxSub = expr => (typeof exprWithValues === 'function') ? exprWithValues(expr) : expr;
   functions.forEach((fn, i) => {
     if (!fn.expr.trim() || fn.visible === false) return;
     // Ausdruck überspringen wenn er nirgends endlich ist (z.B. unvollständige Brüche wie "()/()")
     const testVals = [0, 1, -1, 2, -2].map(xv => safeEval(fn.expr, xv));
     if (testVals.every(v => !isFinite(v))) return;
     const col = pgfColors[i % pgfColors.length];
-    const pgfExpr = exprToPgf(fn.expr);
+    const pgfExpr = exprToPgf(_ltxSub(fn.expr));
     const doms = getDomains(fn.expr, xminF, xmaxF);
     doms.forEach(([dlo, dhi]) => {
       body += `  \\addplot[${col}, thick, name path=F${i}, domain=${fmtDom(dlo)}:${fmtDom(dhi)}, samples=100] {${pgfExpr}};\n`;
     });
   });
+
+  // 1b. Folgen (diskrete Punkte, eigenes Feature — sequences[]/computeSeqTerms(),
+  // siehe 13_sequences.js) — bisher ebenfalls nicht im LaTeX-Export enthalten.
+  // Baut drawSequences() (08_draw.js) nach: optionale gestrichelte Verbindungslinie
+  // + Kreis-Marker pro Folgenglied (n, a_n), begrenzt auf den sichtbaren Bereich.
+  if (typeof sequences !== 'undefined' && typeof computeSeqTerms === 'function') {
+    sequences.forEach((seq) => {
+      if (!seq.visible || !seq.expr.trim()) return;
+      const pts = computeSeqTerms(seq, false).filter(p => p.n >= xminF - 1 && p.n <= xmaxF + 1 && p.y >= yminF - 1 && p.y <= ymaxF + 1);
+      if (!pts.length) return;
+      const seqCol = hexToPgfColor(seq.color || '#378ADD');
+      body += `  % Folge: ${seq.expr.trim()}\n`;
+      if (seq.showLine) {
+        const lineCoords = pts.map(p => `(${coord(p.n)},${coord(p.y)})`).join(' ');
+        body += `  \\addplot[color=${seqCol}, opacity=0.4, thin, dashed] coordinates {${lineCoords}};\n`;
+      }
+      const ptCoords = pts.map(p => `(${coord(p.n)},${coord(p.y)})`).join(' ');
+      body += `  \\addplot[color=${seqCol}, fill=white, only marks, mark=*, mark size=2.2pt] coordinates {${ptCoords}};\n`;
+    });
+  }
 
   // 2. Fläche zwischen Funktionen (NACH den name path Plots, damit fill-between funktioniert)
   if (showArea) {
@@ -479,7 +540,7 @@ function generateLatex() {
       if (e2 === '0') {
         // Fläche zur x-Achse
         body += `  % Fläche unter f(x) zur x-Achse\n`;
-        body += `  \\addplot[${fillCol}!30, fill opacity=0.5, draw=none, domain=${d1c}:${d2c}, samples=120] {${exprToPgf(e1)}} \\closedcycle;\n`;
+        body += `  \\addplot[${fillCol}!30, fill opacity=0.5, draw=none, domain=${d1c}:${d2c}, samples=120] {${exprToPgf(_ltxSub(e1))}} \\closedcycle;\n`;
       } else {
         // Fläche zwischen zwei Funktionen (benötigt \usepgfplotslibrary{fillbetween})
         const fi1 = f1v === '__axis' ? -1 : parseInt(f1v);
@@ -630,8 +691,12 @@ function generateLatex() {
         } else if (hasTan && tanA !== null && isFinite(tanA)) {
           const yG = safeEval(fn.expr, a);
           if (!isFinite(tanA) || tanA < yminF || tanA > ymaxF) return;
-          // Tangentengerade: Mittelpunkt → Kreispunkt → (0, tanA)
-          body += `  \\addplot[${col}!60, thin, dashed] coordinates {(-1,0) (${cpxs},${cpys}) (0,${coord(tanA)})};\n`;
+          // Tangentengerade: Mittelpunkt (0,0) → Kreispunkt → (0, tanA)
+          // — exakt wie drawUnitCircle() in 08_draw.js (ctx.moveTo(ox,oy), die
+          // Canvas-Position des Ursprungs). Der Kreis liegt IMMER bei (0,0),
+          // "(-1,0)" hier war ein Überbleibsel einer älteren Konvention und
+          // liess die Konstruktionslinie an der falschen Stelle beginnen.
+          body += `  \\addplot[${col}!60, thin, dashed] coordinates {(0,0) (${cpxs},${cpys}) (0,${coord(tanA)})};\n`;
           // Tan-Marker auf y-Achse
           body += `  \\addplot[${col}, only marks, mark=o, mark size=2.5pt] coordinates {(0,${coord(tanA)})};\n`;
           if (isFinite(yG) && a >= xminF && a <= xmaxF && yG >= yminF && yG <= ymaxF) {
@@ -740,10 +805,30 @@ function generateLatex() {
       const dxMid = coord((xA + xB) / 2);
       const dxStr = latexNum(dx);
       body += `  \\node[anchor=north, font=\\tiny, ${col}] at (axis cs:${dxMid},${yAf}) {$\\Delta x=${dxStr}$};\n`;
-      // Label Δy (= Steigung)
+      // Label Δy und m: WICHTIG — Δy (=yB-yA) und m (=Steigung=dy/dx) sind nur
+      // dann derselbe Zahlenwert, wenn Δx=1 ist (der Default ohne selbst
+      // gewähltes Dreieck). Sobald der Nutzer das Steigungsdreieck im Canvas
+      // verschoben/vergrössert hat (slopeTriPtsMap, siehe oben), ist Δx meist
+      // ≠1 — die vorherige Version zeigte hier EINEN einzigen Knoten
+      // "$\Delta y = m = ${slopeLatex}$", der fälschlich den STEIGUNGS-Wert
+      // auch als "Δy" auswies, obwohl Δy=dy und m=dy/dx dann verschiedene
+      // Zahlen sind (z.B. Δx=2, Δy=6, m=3 → die alte Ausgabe hätte fälschlich
+      // "Δy = m = 3" gezeigt statt Δy=6). Fix: zwei getrennte Labels, exakt
+      // wie drawSlopeTri()/ctxFracVal()+ctxSlopeLabel() (08_draw.js) auf dem
+      // Canvas ebenfalls zwei getrennte Werte anzeigen (unterer Wert = Δy,
+      // oberer Wert = m).
       const dyMid = coord((yA + yB) / 2);
+      const dyStr = latexNum(dy);
       const slopeLatex = latexNum(slope);
-      body += `  \\node[anchor=west, font=\\tiny, ${col}] at (axis cs:${xBf},${dyMid}) {$\\Delta y = m = ${slopeLatex}$};\n`;
+      body += `  \\node[anchor=west, font=\\tiny, ${col}, yshift=-7pt] at (axis cs:${xBf},${dyMid}) {$\\Delta y=${dyStr}$};\n`;
+      body += `  \\node[anchor=west, font=\\tiny, ${col}, yshift=7pt] at (axis cs:${xBf},${dyMid}) {$m=${slopeLatex}$};\n`;
+      // Eckpunkte mit Koordinaten-Label — exakt wie drawTriBetween() (08_draw.js),
+      // das an BEIDEN Dreiecksecken (xLeft|yLeft) und (xRight|yRight) einen
+      // Koordinaten-Punkt beschriftet; im bisherigen Export fehlten diese ganz.
+      const xAStr = latexNum(xA), yAStr = latexNum(yA), xBStr = latexNum(xB), yBStr = latexNum(yB);
+      body += `  \\addplot[${col}, only marks, mark=*, mark size=2pt] coordinates {(${xAf},${yAf}) (${xBf},${yBf})};\n`;
+      body += `  \\node[anchor=south east, font=\\tiny, ${col}] at (axis cs:${xAf},${yAf}) {$\\left(${xAStr}\\,|\\,${yAStr}\\right)$};\n`;
+      body += `  \\node[anchor=south west, font=\\tiny, ${col}] at (axis cs:${xBf},${yBf}) {$\\left(${xBStr}\\,|\\,${yBStr}\\right)$};\n`;
     });
   }
 

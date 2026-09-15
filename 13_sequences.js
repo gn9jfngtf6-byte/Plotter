@@ -69,16 +69,46 @@ function renderSeqList() {
     lbl.style.cssText = 'font-size:11px;color:#6b7280;min-width:24px;flex-shrink:0;';
     lbl.innerHTML = `a<sub>${i+1}</sub>:`;
 
-    const inp = document.createElement('input');
-    inp.type = 'text';
-    inp.value = seq.expr;
-    inp.placeholder = 'z.B. 1/n, n^2, (-1)^n/n';
-    inp.style.cssText = 'flex:1;min-width:0;font-family:monospace;font-size:12px;';
-    inp.oninput = () => {
-      seq.expr = inp.value.trim();
+    // MathLive-Eingabefeld — wie bei den Funktionen (06_ui_functions.js), damit
+    // Folgen-Ausdrücke in derselben Schreibweise erscheinen (Brüche, Exponenten,
+    // arcsin statt asin, ...) statt als rohen Klartext-String.
+    const inp = document.createElement('math-field');
+    inp.className = 'func-inp-ce';
+    inp.style.cssText = 'font-size:12px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);flex:1;min-width:0;align-self:stretch;box-sizing:border-box;';
+    inp.mathVirtualKeyboardPolicy = 'manual';
+    if (inp.shadowRoot) {
+      const selFix = document.createElement('style');
+      selFix.textContent = '.ML__selection{background:var(--_selection-background-color, rgba(55,138,221,0.25)) !important;}';
+      inp.shadowRoot.appendChild(selFix);
+    }
+    inp.setAttribute('data-raw', seq.expr || '');
+    if (!seq.expr || !seq.expr.trim()) inp.setAttribute('placeholder', 'z.B. 1/n, n^2, (-1)^n/n');
+    try { inp.value = (seq.expr && seq.expr.trim()) ? rawToLatex(seq.expr) : ''; } catch (ex) { /* ignorieren */ }
+
+    inp.addEventListener('focusin', () => {
+      inp.style.borderColor = '#378ADD';
+      setActiveInput(inp, -1); // -1: kein Funktions-Index (siehe kbdInsert in 03_math.js)
+    });
+    inp.addEventListener('focusout', () => { inp.style.borderColor = ''; });
+
+    inp.addEventListener('input', () => {
+      let raw;
+      try {
+        raw = asciiMathToRaw(inp.getValue('ascii-math'));
+      } catch (ex) {
+        // Unvollständiger Zwischenzustand während des Tippens — bisherigen
+        // Rohausdruck unverändert lassen (wie beim Funktions-Eingabefeld).
+        return;
+      }
+      inp.setAttribute('data-raw', raw);
+      seq.expr = raw;
       updateSeqTermsList(i);
       scheduleDraw();
-    };
+    });
+
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+    });
 
     const eye = document.createElement('button');
     eye.className = 'del-btn';
