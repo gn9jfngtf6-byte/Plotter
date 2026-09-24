@@ -111,7 +111,12 @@ function numToFrac(v, maxDen=100) {
       const p = Math.round(absV * q);
       if (p > 0 && Math.abs(p / q - absV) < tol) {
         const g = gcdFrac(p, q);
-        return (neg ? '-' : '') + (p/g) + '/' + (q/g);
+        const qr = q / g;
+        // Rundungsrauschen (z.B. aus numerischer Ableitung) kann eine eigentlich
+        // ganze Zahl knapp verfehlen, sodass sie erst über die 5e-5-Toleranz
+        // gefunden wird — dann aber sauber als Ganzzahl statt "n/1" ausgeben.
+        if (qr === 1) return (neg ? '-' : '') + String(p / g);
+        return (neg ? '-' : '') + (p/g) + '/' + qr;
       }
     }
   }
@@ -292,7 +297,7 @@ function line2ptPickClick(mx, my) {
     const fi = functions.length - 1;
     linkedLines.push({ fi, pi1: i1, pi2: i2 });
 
-    clearEvalCache(); renderFuncList(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
+    clearEvalCache(); renderFuncList(); syncParams(); scheduleComputeSpecials();
     const fnIdx = fi + 1;
     document.getElementById('line-msg').textContent = `f${fnIdx}(x) = ${built.label}`;
     document.getElementById('line-msg').style.color = '#1D9E75';
@@ -336,7 +341,7 @@ function addLineThrough2Pts() {
   const p = Math.max(precision, 4);
   const built = buildLineExpr(m, b, p); // exakt, kein Pre-Rounding
   functions.push({ expr: built.expr, color: COLORS[functions.length % COLORS.length], visible: true });
-  clearEvalCache(); renderFuncList(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
+  clearEvalCache(); renderFuncList(); syncParams(); scheduleComputeSpecials();
   pushHistory(); scheduleDraw();
   msg.style.color = '#1D9E75';
   msg.textContent = `f${functions.length}(x) = ${built.label}`;

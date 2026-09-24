@@ -8,6 +8,221 @@
 // mit reinen Regex-Ersetzungen strukturell nicht zuverlässig möglich ist.
 // ═══════════════════════════════════════════════════════════════════
 
+// BUG (Nutzer-Meldung, September 2026): "^2 wird zu \2" -- reproduzierbar in
+// JEDEM Eingabefeld, SOFORT beim Tippen. Per Konsolen-Diagnose direkt beim
+// Nutzer (nicht nur vermutet -- tatsächlich gemessen) geklärt:
+//
+//   COMPOSITIONSTART  {data:""}
+//   COMPOSITIONUPDATE {data:"^"}
+//   BEFOREINPUT       {data:"^", inputType:"insertCompositionText"}   <- Vorschau
+//   KEYDOWN           {key:"Dead", code:"Equal", isComposing:true}
+//   BEFOREINPUT       {data:null, inputType:"deleteCompositionText"}  <- Vorschau löschen
+//   BEFOREINPUT       {data:"^", inputType:"insertFromComposition"}   <- ENDGÜLTIGE Eingabe
+//   COMPOSITIONEND    {data:"^"}
+//   KEYDOWN           {key:"2", code:"Digit2"}
+//   BEFOREINPUT       {data:"2", inputType:"insertText"}
+//
+// "^" ist auf dieser Tastatur also technisch eine "tote"/kombinierende Taste
+// (macOS-Zirkumflex, meist zum Bilden von ê/â gedacht) -- auch wenn sie sich
+// für den Nutzer wie ein normaler, sofortiger Tastendruck anfühlt. Das
+// Zeichen kommt deshalb NIE als normaler "keydown mit key:'^'" an (das hätte
+// der frühere Fix unten abgefangen), sondern ausschliesslich über diesen
+// mehrstufigen Kompositions-Mechanismus, zuletzt als "insertFromComposition".
+// MathLive interpretiert offenbar nur Zeichen, die über den einfachen
+// "insertText"-Weg ankommen, als Tastenkürzel (^ -> Hochstellung); über
+// "insertFromComposition" ankommende Zeichen werden dagegen ganz offenbar nur
+// als reiner (literaler) Text eingefügt -- das erklärt exakt das beobachtete
+// Verhalten: "^" erscheint zunächst wie ein normales Zeichen, "2" danach
+// landet als literaler Folgetext dahinter, sichtbar als "\2" (das "\" dürfte
+// aus einer internen Fallback-Darstellung für dieses nicht interpretierte
+// Zeichen stammen).
+//
+// (Ein früherer Versuch, das Problem über MathLive.setKeyboardLayoutLocale()
+// zu beheben, war NICHT die Ursache und wurde wieder entfernt -- er erzeugte
+// beim Nutzer sogar einen zusätzlichen, nutzlosen Konsolenfehler "Invalid
+// keybindings for current keyboard layout".)
+//
+// Fix, Version 2 (Version 1 -- nur die "beforeinput"/"input"-Nachkorrektur
+// unten -- hat das Problem laut Nutzer-Rückmeldung NICHT vollständig gelöst:
+// statt "\2" erschien danach eine verschachtelte Doppel-Hochstellung, "2"
+// als winziger Exponent OBEN AN "^" selbst statt an "x". Grund: preventDefault()
+// auf dem "beforeinput" (insertFromComposition) greift auf diesem Browser
+// offenbar NICHT zuverlässig, sodass zusätzlich zu unserer eigenen
+// Hochstellung noch ein literales "^" landete -- und DARAUF baute die
+// "input"-Nachkorrektur eine ZWEITE, verschachtelte Hochstellung).
+//
+// Version 2 setzt stattdessen so früh wie möglich an: bereits beim
+// ALLERERSTEN "keydown" mit key:"Dead" (dem Start der Komposition) wird
+// abgefangen und preventDefault() aufgerufen -- das verhindert im Idealfall,
+// dass die ganze mehrstufige Kompositions-Sequenz (siehe oben) überhaupt
+// erst losläuft. Da dies ein reines MATHEMATIK-Eingabefeld ist, in dem echte
+// Akzentbuchstaben (é, ñ, ü als Fliesstext) praktisch nie vorkommen, wird
+// JEDE "Dead"-Taste innerhalb eines math-field als "^" behandelt -- das ist
+// für diesen Anwendungsfall ein sicherer, eng genug gefasster Kompromiss.
+// Die spätere "beforeinput"/"input"-Nachkorrektur bleibt zusätzlich als
+// Sicherheitsnetz bestehen (falls preventDefault() auf dem "Dead"-keydown
+// die Komposition doch nicht stoppt), verzichtet dann aber -- über ein
+// Flag pro Feld -- bewusst auf eine ZWEITE Hochstellung, falls der
+// "Dead"-Abfang oben bereits gehandelt hat, und räumt in diesem Fall nur
+// noch ein eventuell zusätzlich eingefügtes literales "^" wieder weg.
+// Fix, Version 6 -- ROOT CAUSE DES SCHWARZEN KASTENS GEFUNDEN (per Konsolen-
+// Diagnose beim Nutzer: kompletter interner Shadow-DOM-Inhalt des Feldes
+// direkt nach dem Bug). Es ist weder ein natives Betriebssystem-Overlay
+// (Versionen 3/4 haben das fälschlich vermutet) noch ein zusätzliches,
+// gespeichertes Zeichen im exportierten LaTeX. Es ist ein echtes, aber
+// VERWAISTES MathLive-internes Element:
+//
+//   <span class="ML__mathit">x</span>
+//   <span class="ML__composition">^</span>   <-- genau das ist der Kasten
+//   <span class="ML__msubsup">...2...</span>
+//
+// MathLive legt bei jedem "compositionupdate" intern einen eigenen
+// "CompositionAtom" (Klasse "ML__composition", dafür siehe die CSS-Variable
+// "--_composition-background-color" -- daher die dunkle Hintergrundfarbe)
+// als Vorschau an der Cursor-Position an (Quelle: updateComposition() in
+// MathLives editor-model/composition.ts). Bei "compositionend" entfernt
+// MathLive ihn eigentlich wieder -- ABER nur, wenn das Atom an der
+// AKTUELLEN Cursor-Position noch genau dieser CompositionAtom ist
+// (removeComposition() prüft exakt das). Unser Fix ruft aber schon VORHER,
+// direkt im "Dead"-keydown-Handler, moveToSuperscript() auf -- das bewegt
+// den Cursor bereits in die neu erzeugte Hochstellung hinein. Wenn später
+// (nach unserem Eingriff) trotzdem noch ein "compositionend" nachkommt,
+// zeigt der Cursor dann nicht mehr auf den CompositionAtom, MathLives eigene
+// Aufräum-Logik greift ins Leere, und der CompositionAtom bleibt für immer
+// als Karteileiche im Modell hängen -- sichtbar als der schwarze Kasten.
+//
+// Der Fix: BEVOR wir in die Hochstellung wechseln, selbst prüfen, ob an der
+// aktuellen Cursor-Position gerade ein CompositionAtom sitzt (er wurde durch
+// das vorausgehende "compositionupdate" ja bereits eingefügt, siehe die
+// gemessene Ereignis-Reihenfolge oben) -- und falls ja, ihn zuerst selbst
+// entfernen (per "deleteBackward", da er exakt an der Cursor-Position sitzt
+// -- das ist die öffentliche API-Entsprechung dessen, was MathLive intern
+// bei "compositionend" auch tun würde). Erst danach in die Hochstellung
+// wechseln. Die Prüfung, ob es das Element WIRKLICH gibt, ist wichtig,
+// damit wir NIE versehentlich ein echtes, bereits getipptes Zeichen löschen,
+// falls die Kompositions-Vorschau in einem Randfall doch noch nicht angelegt
+// wurde.
+function _mlRemovePendingCompositionAtom(mf) {
+  // ANLAUF 1 (fehlgeschlagen, Nutzer-Rückmeldung "immer noch gleich"): Prüfung
+  // über "mf.shadowRoot.querySelector('.ML__composition')" -- das gerenderte
+  // Markup. Grund für den Fehlschlag, per Quellcode-Analyse gefunden:
+  // MathLive rendert nach "compositionupdate" NICHT sofort synchron, sondern
+  // nur verzögert über requestAnimationFrame (Funktion "requestUpdate()" in
+  // MathLives Quellcode). Zum Zeitpunkt unseres "Dead"-keydown-Handlers (der
+  // unmittelbar synchron danach läuft) stand das ".ML__composition"-Element
+  // im Shadow-DOM also noch gar nicht -- die Prüfung fand deshalb IMMER
+  // nichts und griff nie ein.
+  //
+  // ANLAUF 2: stattdessen direkt das interne Datenmodell abfragen (das wird
+  // von "updateComposition()" SOFORT synchron aktualisiert, unabhängig vom
+  // verzögerten Rendering). "mf.model" selbst ist von aussen nicht
+  // zugänglich (liefert "undefined") -- aber "mf._mathfield.model" ist es
+  // (per Test bestätigt: "_mathfield" ist zwar mit Unterstrich als intern
+  // markiert, aber nicht wirklich privat/verborgen). Darüber lässt sich exakt
+  // wie in MathLives eigener "removeComposition()"-Funktion prüfen, ob das
+  // Atom an der aktuellen Cursor-Position gerade eine Kompositions-Vorschau
+  // ist -- und falls ja, sie per "deleteBackward" entfernen, bevor wir in die
+  // Hochstellung wechseln.
+  try {
+    const model = mf._mathfield && mf._mathfield.model;
+    const atom = model && typeof model.at === 'function' ? model.at(model.position) : null;
+    if (atom && atom.type === 'composition') {
+      mf.executeCommand('deleteBackward');
+      return true;
+    }
+  } catch (ex) { /* defensiv */ }
+  return false;
+}
+function _mlHandleCaret(mf, isDeadCaret) {
+  try {
+    if (isDeadCaret) _mlRemovePendingCompositionAtom(mf);
+    mf.executeCommand('moveToSuperscript');
+  } catch (ex) { /* defensiv */ }
+}
+document.addEventListener('keydown', function (e) {
+  if (e.defaultPrevented) return;
+  const isCaret = e.key === '^';
+  const isDeadCaret = e.key === 'Dead';
+  if (!isCaret && !isDeadCaret) return;
+  const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+  const mf = path.find(n => n && n.tagName === 'MATH-FIELD');
+  if (!mf) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+  _mlHandleCaret(mf, isDeadCaret);
+  if (isDeadCaret) mf.__mlDeadCaretHandled = true;
+}, true);
+
+document.addEventListener('beforeinput', function (e) {
+  if (e.inputType !== 'insertFromComposition' || e.data !== '^') return;
+  const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+  const mf = path.find(n => n && n.tagName === 'MATH-FIELD');
+  if (!mf) return;
+  const alreadyHandled = !!mf.__mlDeadCaretHandled;
+  mf.__mlDeadCaretHandled = false;
+  e.preventDefault();
+  if (e.defaultPrevented) {
+    // Browser hat die Einfügung tatsächlich abgebrochen.
+    if (!alreadyHandled) _mlHandleCaret(mf);
+    // sonst: der "Dead"-keydown-Abfang oben hat schon alles erledigt.
+  } else {
+    // preventDefault() wirkungslos -- Korrektur nachholen, sobald das
+    // "input"-Ereignis bestätigt, dass das Zeichen trotzdem eingefügt wurde.
+    mf.__mlPendingCaretFixMode = alreadyHandled ? 'cleanup-only' : 'full';
+  }
+}, true);
+document.addEventListener('input', function (e) {
+  const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+  const mf = path.find(n => n && n.tagName === 'MATH-FIELD');
+  if (!mf || !mf.__mlPendingCaretFixMode) return;
+  const mode = mf.__mlPendingCaretFixMode;
+  mf.__mlPendingCaretFixMode = null;
+  // Das eben zusätzlich eingefügte literale "^" wieder entfernen -- entweder
+  // um danach ("full") sauber selbst in die Hochstellung zu wechseln, oder
+  // ("cleanup-only") nur das Überbleibsel neben einer bereits vom
+  // "Dead"-Abfang oben korrekt erstellten Hochstellung wegzuräumen.
+  try { mf.executeCommand('deleteBackward'); } catch (ex) { /* defensiv */ }
+  if (mode === 'full') _mlHandleCaret(mf);
+}, true);
+
+// BUG (Nutzer-Meldung, September 2026): "ich schreibe x^2 (das läuft super) und
+// anschliessend /2 und es kommt zum Ausdruck x, und dann Bruch mit dem einsamen
+// Index 2 im Zähler" -- reproduzierbar z.B. beim FRISCH GEÖFFNETEN Flächen-Panel,
+// dessen Feld mit dem Standardbeispiel "x^2" VORBELEGT ist (mlSetFromRaw('x^2'),
+// NICHT getippt) -- klickt man hinein und tippt sofort "/2", entsteht fälschlich
+// x·(2-über-2) statt (x^2)/2.
+//
+// Root Cause (per Quellcode-Analyse von mathlive.js, MathModeEditor.insert()):
+// "mf.value = ..." (das mlSetFromRaw() an allen Stellen im Projekt verwendet)
+// ruft intern setValue() -> ModeEditor.insert() auf, OHNE options.selectionMode
+// zu setzen -- Default dort ist "placeholder". Für eingefügten Text ohne
+// \placeholder{} (wie "x^{2}") landet der Code im "else if (lastNewAtom)"-Zweig
+// und setzt model.position = model.offsetOf(lastNewAtom) -- lastNewAtom ist hier
+// der "x"-Atom samt seiner angehängten Hochstellungs-Branch (^{2}). Der
+// resultierende Offset zeigt dabei NICHT "nach dem ganzen x^2-Konstrukt" (wie man
+// erwarten würde), sondern faktisch INNERHALB der Hochstellung, hinter der "2" --
+// exakt das beobachtete Symptom: ein "/" direkt danach wrapped nur die "2" (den
+// Inhalt der aktuellen Branch), "x" bleibt aussen vor.
+//
+// Bei INTERAKTIV getipptem "x^2" tritt der Bug NICHT auf: dort läuft NIE
+// setValue(), sondern MathLives eigene "smartSuperscript"-Logik
+// (insertMathModeChar() in mathlive.js) springt nach der ERSTEN Ziffer im
+// Exponenten automatisch per moveAfterParent() aus der Hochstellung heraus --
+// deshalb "läuft x^2 super", wenn man es selbst tippt, aber nicht bei
+// vorbelegten Feldern.
+//
+// Fix: nach JEDEM programmatischen "mf.value = ..." explizit den Cursor ans
+// ECHTE Ende des Feldes setzen -- dieselbe Aktion, die [End] bzw. cmd+Rechts
+// auslöst. Laut mathlive.js reine Modell-Zustandsänderung (setzt nur
+// model.position = model.lastOffset), KEIN Fokus-Seiteneffekt -- sicher auch für
+// Felder, die gerade NICHT fokussiert sind (z.B. beim initialen Aufbau vieler
+// Felder auf einmal beim Start). Wird von allen mlSetFromRaw()-Implementierungen
+// im Projekt direkt nach "inp.value = latex;" aufgerufen.
+function _mlMoveCursorToEnd(mf) {
+  try { mf.executeCommand('moveToMathfieldEnd'); } catch (ex) { /* defensiv */ }
+}
+
 const MI_FNAMES = new Set([
   'sin', 'cos', 'tan', 'sqrt', 'abs', 'log', 'exp',
   'nthroot', 'logn', 'log10', 'logbase',
@@ -358,7 +573,18 @@ function miToLatex(node, parentPrec, side, parentType) {
     }
     case 'mul': {
       const aStr = miToLatex(node.a, MI_PREC.mul, 'l');
-      const juxtaposeOk = node.a.type === 'num' && (node.b.type === 'id' || node.b.type === 'call' || node.b.type === 'pow');
+      // "5x", "5\sin(x)", "5x^2" dürfen ohne \cdot nebeneinander stehen (liest
+      // sich eindeutig) — ABER "5*0.2^x" NICHT: node.b ist zwar 'pow', doch die
+      // BASIS der Potenz (0.2) ist selbst eine Zahl, und "5" gefolgt von "0.2^x"
+      // ohne \cdot sieht in MathLive/KaTeX wie "50.2^x" aus (Leerzeichen
+      // zwischen zwei Ziffern-Atomen wird beim Rendern nicht dargestellt) —
+      // Nutzerwunsch/Bugreport: "im Eingabefeld erscheint 50.2^x - es sollte
+      // 5 · 0.2^x". Daher: bei 'pow' zusätzlich prüfen, ob die Basis selbst
+      // eine Zahl ist, und in dem Fall NICHT juxtaposen.
+      const juxtaposeOk = node.a.type === 'num' && (
+        node.b.type === 'id' || node.b.type === 'call' ||
+        (node.b.type === 'pow' && node.b.a.type !== 'num')
+      );
       const bStr = miToLatex(node.b, MI_PREC.mul, 'r');
       out = aStr + (juxtaposeOk ? ' ' : ' \\cdot ') + bStr;
       myPrec = MI_PREC.mul;
@@ -426,6 +652,77 @@ function mlFilterMenuItems(items) {
   }
   if (cleaned.length && cleaned[cleaned.length - 1].type === 'divider') cleaned.pop();
   return cleaned;
+}
+
+// ---------- Einmaliger Fokus-"Warm-up" pro <math-field> ----------
+// BUG (Nutzer-Meldung, September 2026): "g(x) wird ignoriert", "Funktion
+// sqrt(x) wird nicht angezeigt", "^2/^3 wird zu \2/\3" — alle drei liessen
+// sich auf dieselbe Ursache zurückführen: MathLive baut beim ALLERERSTEN
+// Fokussieren eines neu ins DOM eingehängten <math-field>-Elements intern
+// offenbar etwas asynchron auf (siehe auch den Kommentar bei
+// queueMicrotask(...menuItems...) in renderFuncList(), 06_ui_functions.js,
+// der dieselbe asynchrone Mount-Eigenart schon für einen anderen Zweck
+// dokumentiert). Tippt man SOFORT nach diesem allerersten Fokussieren
+// weiter (typischer Nutzer-Workflow: Feld anklicken und direkt den
+// Ausdruck eintippen), gehen die ersten ein bis zwei Zeichen dabei
+// nachweislich verloren bzw. werden falsch interpretiert — reproduziert
+// z.B. mit "x^2" sofort nach Fokus eingetippt: das führende "x" ging
+// verloren UND der Hochstellungs-Operator "^" blieb als literaler Text
+// statt einer echten Hochstellung stehen. Beim zweiten und jedem weiteren
+// Fokus desselben Elements tritt das Problem nicht mehr auf.
+// Fix: jedes math-field-Element GENAU EINMAL (direkt nachdem es ins DOM
+// eingehängt wurde) programmatisch fokussieren und sofort wieder
+// unfokussieren — dieser interne Aufbau läuft dann VOR der ersten
+// echten Nutzerinteraktion ab statt währenddessen. Der vorherige Fokus
+// wird danach wiederhergestellt, damit dieser "Warm-up" nie sichtbar
+// den Fokus stiehlt. Rein defensiv — darf niemals einen Fehler werfen
+// (z.B. falls MathLive in einer zukünftigen Version .focus()/.blur()
+// anders handhabt).
+//
+// WICHTIG: viele math-field-Elemente (z.B. f(x)/g(x) im Ober-/Untersummen-
+// Panel) stecken in einem standardmässig EINGEKLAPPTEN, also unsichtbaren
+// (display:none) Panel (siehe die "Zusammenklappbare Panels"-Sektion weiter
+// unten in dieser Datei). .focus() auf einem nicht sichtbaren Element ist
+// laut Spec wirkungslos (document.activeElement ändert sich nicht) — ABER
+// (empirisch geprüft, nicht nur Spekulation): bei MathLive ist .focus() auf
+// einem unsichtbaren <math-field> KEIN harmloses No-op — es hinterlässt das
+// Element in einem kaputten internen Zustand, der auch NACH dem späteren
+// Sichtbarwerden jeden weiteren echten Fokusversuch (Klick des Nutzers)
+// verhindert (reproduziert: nach so einem verfrühten .focus()-Aufruf liess
+// sich das betroffene Feld nie wieder fokussieren, Klicks blieben komplett
+// wirkungslos). Deshalb HIER, VOR jedem .focus()-Aufruf, Sichtbarkeit
+// prüfen (offsetParent !== null) und bei Unsichtbarkeit sofort abbrechen,
+// OHNE .focus() überhaupt anzufassen — nicht erst danach über
+// document.activeElement kontrollieren. _mlPrewarmed bleibt in diesem Fall
+// ungesetzt, sodass ein SPÄTERER Aufruf (siehe Panel-Klick-Handler weiter
+// unten in dieser Sektion, der nach dem Aufklappen erneut prewarmt) es
+// erfolgreich nachholen kann, sobald das Element tatsächlich sichtbar ist.
+function _mlPrewarmFocusNow(el) {
+  if (!el || el.tagName !== 'MATH-FIELD' || el._mlPrewarmed) return;
+  if (el.offsetParent === null) return; // unsichtbar (z.B. eingeklapptes Panel) -- .focus() NICHT anfassen
+  try {
+    const prevActive = document.activeElement;
+    el.focus();
+    if (document.activeElement !== el) return; // aus anderem Grund nicht fokussierbar -- später erneut versuchen
+    el._mlPrewarmed = true;
+    el.blur();
+    if (prevActive && prevActive !== el && prevActive !== document.body && typeof prevActive.focus === 'function') {
+      prevActive.focus();
+    }
+  } catch (ex) { /* ignorieren — siehe Kommentar oben */ }
+}
+
+// Öffentlicher Einstiegspunkt: verzögert den eigentlichen Warm-up (siehe
+// oben) über zwei requestAnimationFrame-Ticks. Ein frisch ins DOM
+// eingehängtes <math-field> "mountet" sich intern nachweislich nicht
+// innerhalb desselben Microtask-Durchlaufs (führte vereinzelt zu einer
+// von MathLive selbst geworfenen "Mathfield not mounted"-Fehlermeldung,
+// wenn direkt danach fokussiert wurde) — zwei rAF-Ticks (statt nur
+// queueMicrotask) geben dem Mount-Vorgang zuverlässig genug Zeit. Alle
+// Aufrufer rufen einfach mlPrewarmFocus(el) auf, ohne sich selbst um
+// Verzögerung/Zeitpunkt kümmern zu müssen.
+function mlPrewarmFocus(el) {
+  requestAnimationFrame(() => requestAnimationFrame(() => _mlPrewarmFocusNow(el)));
 }
 
 // ---------- Öffentliche API ----------

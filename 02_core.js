@@ -41,6 +41,71 @@ const C = { get grid(){ return darkMode?'#2d3140':'#e5e7eb'; },
              get anno(){ return beamMode?'#000000':(darkMode?'#c4c9d6':'#4b5563'); },
              get bg(){ return darkMode?'#16181d':'#ffffff'; } };
 
+// ═══════════════════════════════════════════════════════════════════
+// MOBILE MATHLIVE-TASTATUR (Bildschirmtastatur der math-field-Felder)
+// ═══════════════════════════════════════════════════════════════════
+// MathLive zeigt standardmässig 4 Tastaturen an (123/Symbole/abc/griechisch)
+// mit einer riesigen Menge an Zeichen (Mengenlehre, griechisches Alphabet,
+// beliebige Buchstaben, …) — für diese App komplett überdimensioniert.
+// Ersetzt das durch GENAU EINE eigene Tastatur, die inhaltlich der bereits
+// bestehenden Sidebar-Tastatur (#kbd-body, siehe index.html + kbdInsert() in
+// 03_math.js) entspricht: gleiche Symbole/Funktionen, dazu Ziffern (die die
+// Sidebar-Tastatur nicht hat, da dort meist die physische Tastatur tippt)
+// und Pfeiltasten zur Navigation innerhalb der Formel (links/rechts sowie
+// hoch/runter, z.B. um zwischen Zähler/Nenner eines Bruchs zu wechseln).
+// Als Buchstaben bewusst nur x und n (mehr braucht diese App nicht) — keine
+// griechischen Buchstaben ausser π (das hat die Sidebar-Tastatur auch schon),
+// keine sonstigen Buchstaben, keine Mengenlehre-Symbole.
+// "[left]", "[right]", "[up]", "[down]", "[backspace]", "[undo]", "[redo]",
+// "[hide-keyboard]", "[hr]", "[separator]" sind von MathLive selbst
+// vordefinierte Tasten (siehe KEYCAP_SHORTCUTS in mathlive.js).
+// Die Ziffern stehen bewusst als klassisches 3×3-Ziffernblock rechts (wie ein
+// Taschenrechner: 7 8 9 / 4 5 6 / 1 2 3, darunter 0 und ",") statt als eine
+// lange Zehnerreihe — dafür werden die übrigen Tasten links in 6er-Zeilen
+// aufgeteilt, sodass rechts durchgehend Platz für die 3 Ziffern-Spalten bleibt.
+const _kbdFracLabel =
+  '<span style="display:inline-block;text-align:center;line-height:1.05;font-size:0.8em;">' +
+  '<span style="display:block;">□</span>' +
+  '<span style="display:block;border-top:1.5px solid currentColor;">□</span>' +
+  '</span>';
+try {
+  if (window.mathVirtualKeyboard) {
+    window.mathVirtualKeyboard.layouts = [{
+      label: 'Plotter',
+      rows: [
+        [
+          'x', 'n', '\\pi', 'e', '(', ')',
+          '7', '8', '9'
+        ],
+        [
+          '+', '-', '\\cdot', { latex: '\\frac{#@}{#?}', label: _kbdFracLabel },
+          { latex: '#@^{2}', label: 'x²' }, { latex: '#@^{#?}', label: 'xⁿ' },
+          '4', '5', '6'
+        ],
+        [
+          { latex: 'e^{#?}', label: 'eˣ' }, { latex: '\\sqrt{#?}', label: '√x' },
+          { latex: '\\sqrt[3]{#?}', label: 'ⁿ√x' }, { latex: '\\left|#?\\right|', label: '|x|' },
+          { latex: '\\sin(#?)', label: 'sin' }, { latex: '\\cos(#?)', label: 'cos' },
+          '1', '2', '3'
+        ],
+        [
+          { latex: '\\tan(#?)', label: 'tan' }, { latex: '\\ln(#?)', label: 'ln' },
+          { latex: '\\log_{10}(#?)', label: 'log₁₀' }, { latex: '\\log_{2}(#?)', label: 'logₙ' },
+          '[separator]', '[separator]',
+          { latex: '0', label: '0', width: 2 }, '[.]'
+        ],
+        ['[hr]'],
+        [
+          '[undo]', '[redo]', '[separator]',
+          '[left]', '[right]', '[up]', '[down]',
+          { label: '[backspace]', class: 'action hide-shift' },
+          '[hide-keyboard]'
+        ]
+      ]
+    }];
+  }
+} catch (e) { /* MathLive evtl. noch nicht geladen — Standard-Tastatur bleibt aktiv */ }
+
 let _kbdOpen = false;
 function toggleKbd() {
   _kbdOpen = !_kbdOpen;
@@ -178,6 +243,84 @@ let graphPoints = [];
 // Projizieren auf alle sichtbaren Funktionen: x=Winkel, y=f(Winkel).
 let unitCirclePts = [];
 
+// diffQuot: Differenzenquotient-Applet ("Einstieg ins Thema Differential-
+// rechnung", eigener Menüpunkt). Genau EINE Instanz — kein Array/Map wie bei
+// den anderen Features, da es sich um ein dediziertes Applet handelt. Die
+// Funktion ist FREI wählbar (Eingabefeld #diffquot-fn-input, Fallback x²),
+// beide Punkte A und B sind ziehbar (Nutzerwunsch).
+// Format: { fi: Funktionsindex der aufgeschalteten Funktion,
+//           xA: number (ziehbar), xB: number (ziehbar entlang der Kurve) }
+// h = xB - xA (Δx); m = (f(xB)-f(xA))/h ist der Differenzenquotient — zieht
+// man xA und xB näher zusammen, nähert sich m dem Differentialquotienten
+// f'(xA) an. Siehe diffQuotSetup() (06_ui_functions.js), drawDiffQuot()
+// (08_draw.js) und drag.type==='diffquotpt' (09_events.js).
+let diffQuot = null;
+
+// riemann: Ober-/Untersummen-Applet ("Einstieg in den Integralbegriff",
+// eigener Menüpunkt). Genau EINE Instanz, analog zu diffQuot oben. Die
+// Funktion ist FREI wählbar (Eingabefeld #riemann-fn-input, Fallback x²),
+// die Intervallgrenzen a (xA) und b (xB) sind ziehbar — aber auf der x-Achse
+// (y=0), nicht auf der Kurve wie bei diffQuot, da sie hier ein Intervall
+// markieren statt einen Kurvenpunkt.
+// Format: { fi1: Funktionsindex, xA: number (ziehbar, Intervallgrenze a),
+//           xB: number (ziehbar, Intervallgrenze b), n: number (Anzahl
+//           Teilintervalle), antiderivRaw: string|null (symbolische
+//           Stammfunktion von f als Rohausdruck, EINMALIG in riemannSetup()
+//           berechnet) }
+// IMMER Funktion vs. x-Achse (kein Zwei-Funktionen-Modus mehr — das ist jetzt
+// der eigenständige Menüpunkt "Flächen", siehe flaeche unten; auf
+// ausdrücklichen Nutzerwunsch wieder getrennt). Ober-/Untersumme werden über
+// eine dichte Stichprobe pro Teilintervall numerisch angenähert (echtes
+// Supremum/Infimum) und als Rechtecke dargestellt. Je grösser n, desto näher
+// rücken beide Summen an das exakte Integral heran.
+// Die Sidebar (#riemann-dw) zeigt den exakten Integralwert bevorzugt als
+// geschlossenen symbolischen Ausdruck (antiderivRaw, ausgewertet an den
+// aktuellen Grenzen — siehe _riemannSymbolicIntegral(), 08_draw.js), mit
+// Fallback auf die numerische Simpson-Näherung (computeSignedIntegral(),
+// 04_analysis.js), falls keine elementare Stammfunktion gefunden wurde.
+// Siehe riemannSetup() (06_ui_functions.js).
+let riemann = null;
+
+// flaeche: "Flächen"-Applet (eigener Menüpunkt, September 2026 wieder von den
+// Ober-/Untersummen getrennt — Nutzerwunsch). Genau EINE Instanz. Funktion f
+// FREI wählbar (#flaeche-fn-input), plus GENAU EINE der drei Randarten:
+//   axis === 'x': Fläche zwischen f und der x-Achse (g(x)=0).
+//   axis === 'y': Fläche zwischen f und der y-Achse.
+//   axis === 'g': Fläche zwischen f und einer zweiten Funktion g
+//                 (#flaeche-fn2-input, fi2 gesetzt).
+// Format: { fi1, fi2: Funktionsindex der 2. Funktion ODER null (nur bei
+//           axis==='g' gesetzt), axis: 'x'|'y'|'g', a: number, b: number
+//           (ziehbare Grenzen — bei axis 'x'/'g' auf der x-Achse, bei axis
+//           'y' AUF DER Y-ACHSE, siehe unten), antiderivRaw: string|null }
+// axis 'x' und 'g' laufen technisch über denselben Code (g wird bei axis='x'
+// einfach als der Ausdruck "0" behandelt) — Schnittpunkte von f und g (bzw.
+// f und der x-Achse) bestimmen dabei das Startintervall und das Snap-
+// Verhalten beim Ziehen (_riemannPickIsectInterval()/_riemannSnapX(),
+// 06_ui_functions.js, wiederverwendet aus dem alten Zwei-Funktionen-Modus),
+// damit im Intervall (a,b) kein Vorzeichenwechsel von f−g auftritt. a/b sind
+// dabei x-Werte.
+// axis 'y' ist konzeptionell anders: a und b sind y-WERTE (Grenzen AUF der
+// y-Achse, Standard-Schulkonzept "Fläche zwischen Kurve, y-Achse, y=a, y=b"
+// — x wird dabei als Funktion von y betrachtet). Da x(y) im Allgemeinen
+// nicht symbolisch vorliegt, wird die Fläche hier rein NUMERISCH über
+// wiederholte Nullstellensuche (dieselbe Bisektion wie
+// _riemannFindIntersections(), aber gegen die Konstante y statt gegen g)
+// plus Trapezregel angenähert — kein symbolischer Ausdruck in diesem Modus.
+// WICHTIG: x(y) wird dabei kontinuierlich (auf den Vorgänger verankert)
+// verfolgt statt bei jedem y-Wert neu global gesucht (_flaecheYInvertNear(),
+// 06_ui_functions.js) — sowohl aus Performance-Gründen als auch, weil bei
+// NICHT injektiven Funktionen wie x² sonst zwischen den beiden Ästen (±√y)
+// hin- und hergesprungen würde. drawFlaeche() (08_draw.js) berechnet die
+// Fläche direkt über dieselben Stützpunkte, die auch gezeichnet werden.
+// Kein Schnittpunkt-Snapping (es gibt keine "zweite Kurve", an der man
+// snappen könnte) — a/b sind bei axis 'y' also immer frei ziehbar/eingebbar.
+// In JEDEM Modus können a/b zusätzlich direkt in Zahlenfeldern eingegeben
+// werden (#flaeche-a-input/#flaeche-b-input) — das übernimmt den Wert IMMER
+// frei, ohne Snapping (siehe flaecheSetBound(), 06_ui_functions.js).
+// Siehe flaecheSetup() (06_ui_functions.js), drawFlaeche() (08_draw.js) und
+// drag.type==='flaechept' (09_events.js).
+let flaeche = null;
+
 // line2ptPicking: true wenn "Im Plot klicken"-Modus aktiv ist
 // line2ptPts: zwischengespeicherte Punkt-Indizes während dem Picking [{idx}]
 let line2ptPicking = false, line2ptPts = [];
@@ -214,9 +357,6 @@ let pointerMode = false, pointerPos = null;
 // precision: Anzahl Nachkommastellen für Koordinaten-Anzeige
 // Geändert durch setPrecision() via Dropdown
 let precision = 1;
-
-// showArea: true wenn Flächen-Visualisierung aktiv
-let showArea = false;
 
 // lastW/lastH: Canvas-Grösse vom letzten Frame.
 // Wird für Resize-Erkennung gebraucht (Punkt 12: mehr sehen, nicht strecken).

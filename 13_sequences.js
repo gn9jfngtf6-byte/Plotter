@@ -162,6 +162,9 @@ function renderSeqList() {
 
     row.append(head, settings, preview);
     el.appendChild(row);
+    // Fokus-Warm-up (siehe mlPrewarmFocus(), 14_mathinput.js) — verhindert
+    // Zeichenverlust beim allerersten Fokussieren dieser frisch erzeugten Zeile.
+    mlPrewarmFocus(inp);
     updateSeqTermsList(i);
   });
 }

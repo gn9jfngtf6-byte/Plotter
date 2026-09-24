@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
 // MODUL: analysis — Spezielle Punkte & Flächenberechnung
 // Enthält:  computeSpecials(), renderSpecialList()
-//           toggleArea(), setAreaFromIsects(), computeArea()
+//           computeArea(), computeSignedIntegral()
 // Ändern:  Suchgenauigkeit → SPECIAL_STEPS / AREA_STEPS Konstanten
 // ═══════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════
@@ -40,6 +40,8 @@ function cancelComputeSpecials() {
 function gcdInt(a, b) { a=Math.abs(Math.round(a)); b=Math.abs(Math.round(b)); while(b){const t=b;b=a%b;a=t;} return a||1; }
 
 // Zerlegt D in p²·q (q quadratfrei): gibt {coef:p, radicand:q} zurück
+// Eigene, nachweislich korrekte Ganzzahl-Faktorisierung — dient als Fallback
+// für simplifyRadicalCAS() unten.
 function simplifyRadical(D) {
   if (D <= 0) return null;
   let p = 1, q = Math.round(D);
@@ -47,6 +49,113 @@ function simplifyRadical(D) {
     while (q % (k*k) === 0) { q = q/(k*k); p *= k; }
   }
   return { coef: p, radicand: q };
+}
+
+// Vereinfacht √D mit dem externen CAS (Nerdamer): liefert {coef, radicand}
+// mit coef·√radicand = √D und radicand quadratfrei (insb. radicand=1, wenn D
+// eine Quadratzahl ist — dann ist √D schlicht die ganze Zahl coef).
+// Nerdamers Ergebnis wird IMMER numerisch gegen √D geprüft (gleiches Prinzip
+// wie calcDiff() in 16_calculus.js: CAS nur zur Politur, mit Sicherheitsnetz);
+// bei jeder Abweichung, einem unerwarteten Ergebnisformat oder falls Nerdamer
+// nicht geladen ist, Fallback auf die eigene simplifyRadical()-Faktorisierung.
+function simplifyRadicalCAS(D) {
+  const fallback = simplifyRadical(D);
+  if (typeof nerdamer === 'undefined') return fallback;
+  const Di = Math.round(D);
+  if (Di <= 0) return fallback;
+  try {
+    const str = nerdamer('sqrt(' + Di + ')').toString().replace(/\s+/g, '');
+    let coef, radicand;
+    let m = str.match(/^(\d+)\*?sqrt\((\d+)\)$/);
+    if (m) {
+      coef = parseInt(m[1], 10); radicand = parseInt(m[2], 10);
+    } else if ((m = str.match(/^sqrt\((\d+)\)$/))) {
+      coef = 1; radicand = parseInt(m[1], 10);
+    } else if (/^\d+$/.test(str)) {
+      coef = parseInt(str, 10); radicand = 1;
+    } else {
+      return fallback; // unerwartetes Format → nicht riskieren
+    }
+    if (!Number.isFinite(coef) || !Number.isFinite(radicand)) return fallback;
+    if (coef * coef * radicand !== Di) return fallback; // Sicherheitsnetz: exakte Gegenprobe
+    return { coef, radicand };
+  } catch (e) {
+    return fallback;
+  }
+}
+
+// Vereinfacht √D mit dem externen CAS — auch für NICHT-ganzzahliges D korrekt.
+// simplifyRadicalCAS() oben rundet D intern (Math.round), was bei einer echten
+// Bruch-Diskriminante wie D=17/4 STILLSCHWEIGEND ein falsches Ergebnis liefert
+// (√4 statt √17/2). Diese Funktion rekonstruiert D stattdessen als exakten
+// Bruch p/q (gleiche Nenner-Suche wie asSimpleFrac()/numToFrac()) und nutzt die
+// Rationalisierung √(p/q) = √(p·q)/q, um den Zähler-Radikanden korrekt über
+// simplifyRadicalCAS() zu vereinfachen. Liefert {coef, radicand, den} mit
+// coef·√radicand/den = √D (radicand quadratfrei, coef/den vollständig gekürzt),
+// oder null, falls D sich nicht als Bruch mit kleinem Nenner rekonstruieren lässt.
+function simplifyRadicalCASFrac(D) {
+  if (!(D > 0) || !isFinite(D)) return null;
+  // Numerisches Rauschen glätten: D wird oft aus Koeffizienten berechnet, die
+  // per finite-difference-Ableitung geschätzt wurden (z.B. getQuadCoeffs()),
+  // was bei D=b²−4ac leicht ~1e-5 Abweichung vom "wahren" Wert erzeugt (z.B.
+  // 11.999984 statt exakt 12). Auf 4 Nachkommastellen runden killt dieses
+  // Rauschen, ohne echte Bruch-Diskriminanten wie 17/4=4.25 zu verfälschen.
+  const Dc = Math.round(D * 1e4) / 1e4;
+  // Fall 1: D ist (nahezu) ganzzahlig → einfacher Fall, direkt delegieren.
+  if (Math.abs(Dc - Math.round(Dc)) < 1e-3) {
+    const r = simplifyRadicalCAS(Math.round(Dc));
+    return r ? { coef: r.coef, radicand: r.radicand, den: 1 } : null;
+  }
+  // Fall 2: D als exakten Bruch p/q rekonstruieren.
+  let bestP = null, bestQ = null;
+  for (const q of [2,3,4,5,6,7,8,9,10,12,16,20,25,32,40,50,64,100,1000,10000]) {
+    const p = Math.round(Dc * q);
+    if (p > 0 && Math.abs(p / q - Dc) < 1e-4) { bestP = p; bestQ = q; break; }
+  }
+  if (bestP === null) return null;
+  const g0 = gcdInt(bestP, bestQ);
+  const p = bestP / g0, q = bestQ / g0;
+  // √(p/q) = √(p·q)/q  (Erweitern mit q: p/q = p·q/q²)
+  const inner = simplifyRadicalCAS(p * q);
+  if (!inner) return null;
+  const g1 = gcdInt(inner.coef, q);
+  const coef = inner.coef / g1, den = q / g1;
+  // Sicherheitsnetz: numerische Gegenprobe gegen das (leicht verrauschte) D —
+  // Toleranz analog zur Rauschglättung oben, nicht die strenge 1e-6-Grenze von
+  // simplifyRadicalCAS()'s eigener Gegenprobe auf bereits exakten Ganzzahlen.
+  const check = (coef * coef * inner.radicand) / (den * den);
+  if (Math.abs(check - D) > Math.max(1e-3, Math.abs(D) * 1e-3)) return null;
+  return { coef, radicand: inner.radicand, den };
+}
+
+// Formatiert das Ergebnis von simplifyRadicalCASFrac() als Text ("2√3/4", "√5",
+// "3", …) oder — mit asHTML=true — als gestapelter Bruch (.mfrac, siehe
+// 03_math.js) für den Nenner, passend zur rr()/fracHTML()-Darstellung.
+function fmtRadicalFrac(sr, asHTML) {
+  if (!sr) return null;
+  const { coef, radicand, den } = sr;
+  let numStr;
+  if (radicand === 1) numStr = String(coef);
+  else if (coef === 1) numStr = `√${radicand}`;
+  else numStr = `${coef}√${radicand}`;
+  if (den === 1) return numStr;
+  if (asHTML) return `<span class="mfrac"><span class="mfrac-num">${numStr}</span><span class="mfrac-den">${den}</span></span>`;
+  return `${numStr}/${den}`;
+}
+
+// LaTeX-Variante von fmtRadicalFrac() — liefert reines LaTeX ("2\sqrt{3}",
+// "\frac{\sqrt{17}}{2}", …), gedacht zum Rendern über latexToMathLiveHtml()
+// (siehe rr() in generateSolveSteps(), 04_analysis.js), damit ein Wurzel-
+// ausdruck GENAUSO aussieht wie im Eingabefeld statt als Unicode-Annäherung.
+function radicalToLatex(sr) {
+  if (!sr) return null;
+  const { coef, radicand, den } = sr;
+  let numTex;
+  if (radicand === 1) numTex = String(coef);
+  else if (coef === 1) numTex = `\\sqrt{${radicand}}`;
+  else numTex = `${coef}\\sqrt{${radicand}}`;
+  if (den === 1) return numTex;
+  return `\\frac{${numTex}}{${den}}`;
 }
 
 // Bruch als Text: 3/2 → "3/2", 2/1 → "2"
@@ -57,6 +166,157 @@ function fmtExact(num, den) {
   if (d === 1) return String(n);
   if (d < 0) return `${-n}/${-d}`;
   return `${n}/${d}`;
+}
+
+// Sucht eine RATIONALE Nullstelle eines kubischen Polynoms a·x³+b·x²+c·x+d via
+// Rationale-Nullstellen-Satz — die im Unterricht übliche "Rateverfahren"-Methode:
+// Kandidaten sind Teiler des Absolutglieds über Teiler des Leitkoeffizienten.
+// Skaliert a,b,c,d zunächst auf ganze Zahlen (gleiches Prinzip wie
+// tryAnalyticalZerosEx() oben), damit auch Dezimal-Koeffizienten (z.B. aus
+// numerisch geschätzten Ableitungen) erfasst werden, und prüft jeden Kandidaten
+// p/q per EXAKTER Ganzzahl-Gegenprobe (A·p³+B·p²·q+C·p·q²+D·q³ = 0 — kein
+// Rundungsfehler möglich). Gibt {p, q, intCoeffs:[A,B,C,D]} zurück (Nullstelle
+// = p/q, vollständig gekürzt) oder null, wenn kein rationaler Kandidat in den
+// Suchgrenzen gefunden wird (dann bleibt nur der numerische Fallback).
+function findRationalRootCubic(a, b, c, d) {
+  const scales = [1,2,4,5,8,10,16,20,25,40,50,100,200,250,500,1000];
+  let best = null;
+  const isI = v => Math.abs(v - Math.round(v)) < 1e-3;
+  for (const scale of scales) {
+    const A = a*scale, B = b*scale, C = c*scale, D = d*scale;
+    if (isI(A) && isI(B) && isI(C) && isI(D) && Math.abs(Math.round(A)) >= 1) {
+      best = [Math.round(A), Math.round(B), Math.round(C), Math.round(D)];
+      break;
+    }
+  }
+  if (!best) return null;
+  let [A, B, C, D] = best;
+  if (A < 0) { A = -A; B = -B; C = -C; D = -D; } // Leitkoeffizient positiv normieren
+  if (D === 0) return { p: 0, q: 1, intCoeffs: [A, B, C, D] }; // x = 0 ist Nullstelle
+  const divisorsOf = (n) => {
+    n = Math.abs(Math.round(n)); const res = [];
+    for (let k = 1; k <= n && k <= 1000; k++) if (n % k === 0) res.push(k);
+    return res;
+  };
+  const pDivs = divisorsOf(D), qDivs = divisorsOf(A);
+  for (const q of qDivs) {
+    for (const pAbs of pDivs) {
+      for (const sign of [1, -1]) {
+        const p = pAbs * sign;
+        // Exakte Ganzzahl-Gegenprobe (keine Gleitkomma-Unsicherheit):
+        const check = A*p*p*p + B*p*p*q + C*p*q*q + D*q*q*q;
+        if (check === 0) {
+          const g = gcdInt(Math.abs(p), q);
+          return { p: p/g, q: q/g, intCoeffs: [A, B, C, D] };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// Synthetische Division von A·x³+B·x²+C·x+D durch (x − p/q) — liefert die
+// Koeffizienten {A, B, C} des quadratischen Quotienten A·x²+B·x+C (Rest ist
+// exakt 0, da p/q laut findRationalRootCubic() eine exakte Nullstelle ist).
+function polyDivideByRoot3(A, B, C, D, p, q) {
+  const r = p / q;
+  const b1 = B + A * r;
+  const b2 = C + b1 * r;
+  return { A, B: b1, C: b2 };
+}
+
+// ── Generische Polynom-Hilfsfunktionen (für "hebbare Lücke", s.u.) ────
+// Erkennt einen beliebigen Ausdrucksstring s als Polynom bis Grad 3 (linear,
+// quadratisch oder kubisch — niedrigster passender Grad zuerst) über dieselbe
+// numerische Fit-Methode wie getLinCoeffs/getQuadCoeffs/getCubicCoeffs (finite
+// Differenzen + Verifikation an mehreren Stichproben), nur nicht an den
+// jeweils aktuellen Funktionsausdruck gebunden, sondern an EINEN BELIEBIGEN
+// Teilausdruck (z.B. Zähler oder Nenner eines Bruchs). Gibt die Koeffizienten
+// [c_n, …, c0] (höchster Grad zuerst) zurück, oder null (z.B. bei Wurzel/trig
+// im Teilausdruck, oder Grad > 3).
+function fitPolyStr(s) {
+  const b0 = safeEval(s, 0), a1 = deriv1(s, 0), a2 = deriv2(s, 0);
+  if (isFinite(a1) && isFinite(b0) && Math.abs(a2) < 0.01) {
+    let ok = true;
+    for (const x of [1, 2, -1, -2, 3]) {
+      const act = safeEval(s, x);
+      if (!isFinite(act) || Math.abs(a1*x + b0 - act) > Math.abs(act)*0.02 + 0.05) { ok = false; break; }
+    }
+    if (ok) return [parseFloat(a1.toFixed(6)), parseFloat(b0.toFixed(6))];
+  }
+  if (isFinite(a2) && Math.abs(a2) >= 1e-6) {
+    const A = a2/2, B = deriv1(s, 0), C = safeEval(s, 0);
+    let ok = isFinite(A) && isFinite(B) && isFinite(C);
+    if (ok) for (const x of [1, 2, -1, -2, 3, 5]) {
+      const act = safeEval(s, x);
+      if (!isFinite(act)) { ok = false; break; }
+      if (Math.abs(A*x*x + B*x + C - act) > Math.abs(act)*0.02 + 0.05) { ok = false; break; }
+    }
+    if (ok) return [parseFloat(A.toFixed(6)), parseFloat(B.toFixed(6)), parseFloat(C.toFixed(6))];
+  }
+  const H = 0.1;
+  const d3 = (safeEval(s,3*H) - 3*safeEval(s,H) + 3*safeEval(s,-H) - safeEval(s,-3*H)) / (8*H*H*H);
+  const A3 = d3/6;
+  if (isFinite(A3) && Math.abs(A3) >= 1e-5) {
+    const d4 = (safeEval(s,2*H) - 4*safeEval(s,H) + 6*safeEval(s,0) - 4*safeEval(s,-H) + safeEval(s,-2*H)) / (H*H*H*H);
+    if (Math.abs(d4) <= 2 + 3*Math.abs(A3)) {
+      const B3 = deriv2(s, 0)/2, C3 = deriv1(s, 0), D3 = safeEval(s, 0);
+      let ok = isFinite(B3) && isFinite(C3) && isFinite(D3);
+      if (ok) for (const x of [1, 2, -1, -2, 1.5]) {
+        const act = safeEval(s, x);
+        const pred = A3*x*x*x + B3*x*x + C3*x + D3;
+        if (!isFinite(act) || Math.abs(pred - act) > 0.05*(Math.abs(act)+1)) { ok = false; break; }
+      }
+      if (ok) return [parseFloat(A3.toFixed(6)), parseFloat(B3.toFixed(6)), parseFloat(C3.toFixed(6)), parseFloat(D3.toFixed(6))];
+    }
+  }
+  return null;
+}
+// Horner-Schema: exakte Polynomdivision von coeffs ([c_n,…,c0]) durch (x−r).
+// Liefert Quotient (Grad n−1) und Rest (0, wenn r wirklich Nullstelle ist).
+function polyDivideByLinearRoot(coeffs, r) {
+  const b = [coeffs[0]];
+  for (let i = 1; i < coeffs.length; i++) b.push(coeffs[i] + b[i-1]*r);
+  return { quotient: b.slice(0, -1), remainder: b[b.length - 1] };
+}
+function evalPolyCoeffs(coeffs, x) {
+  return coeffs.reduce((acc, c) => acc*x + c, 0);
+}
+// Findet reelle Nullstellen eines bis Grad 3 erkannten Polynoms — EXAKT über
+// die Mitternachtsformel (Grad 2) bzw. das Rateverfahren via
+// findRationalRootCubic() (Grad 3, nur falls eine rationale Nullstelle
+// existiert — sonst ehrlich keine gefunden, kein numerisches Raten). Wird für
+// die Nenner-Nullstellen bei der Suche nach hebbaren Lücken gebraucht (s.u.).
+function findRealRootsOfPoly(coeffs) {
+  const deg = coeffs.length - 1;
+  if (deg === 1) {
+    const [a, b] = coeffs;
+    if (Math.abs(a) < 1e-9) return [];
+    return [-b/a];
+  }
+  if (deg === 2) {
+    const [a, b, c] = coeffs;
+    if (Math.abs(a) < 1e-9) return Math.abs(b) < 1e-9 ? [] : [-c/b];
+    const D = b*b - 4*a*c;
+    if (D < -1e-6) return [];
+    if (Math.abs(D) < 1e-6) return [-b/(2*a)];
+    const sq = Math.sqrt(D);
+    return [(-b+sq)/(2*a), (-b-sq)/(2*a)];
+  }
+  if (deg === 3) {
+    const [a, b, c, d] = coeffs;
+    const root = findRationalRootCubic(a, b, c, d);
+    if (!root) return []; // keine rationale Nullstelle -> nicht abgedeckt (ehrlicher Verzicht)
+    const x0 = root.p / root.q;
+    const quad = polyDivideByRoot3(...root.intCoeffs, root.p, root.q);
+    // intCoeffs sind ganzzahlig SKALIERT (siehe findRationalRootCubic) — für
+    // die eigentlichen (unskalierten) Koeffizienten der Restquadratik zählt
+    // hier nur die reelle Nullstellenmenge, der Skalierungsfaktor kürzt sich
+    // beim Lösen der Mitternachtsformel ohnehin heraus.
+    const rest = findRealRootsOfPoly([quad.A, quad.B, quad.C]);
+    return [x0, ...rest];
+  }
+  return [];
 }
 
 // Versucht analytische Nullstellen für quadratische Ausdrücke (auch mit Dezimal-Koeffizienten).
@@ -116,7 +376,7 @@ function tryAnalyticalZerosEx(fi_idx, expr) {
     return [z];
   }
 
-  const sr = simplifyRadical(DInt);
+  const sr = simplifyRadicalCAS(DInt);
   if (!sr) return [];
 
   // x = (−bI ± sr.coef·√sr.radicand) / (2·aI) — gemeinsam kürzen
@@ -128,12 +388,34 @@ function tryAnalyticalZerosEx(fi_idx, expr) {
   // Nenner immer positiv (damit Bruchdarstellung eindeutig ist)
   if (d < 0) { nc = -nc; nr = -nr; d = -d; }
 
+  // Diskriminante ist eine Quadratzahl (radicand=1 nach Vereinfachung durchs CAS)
+  // → √D ist selbst ganzzahlig, beide Nullstellen sind schlicht rational.
+  // Dann NICHT als "a ± b" stehen lassen (das wäre unausgerechnet, z.B. "2 ± 1"
+  // statt 1 und 3) — stattdessen sauber zur fertigen Zahl zusammenrechnen.
+  if (sr.radicand === 1) {
+    const xPlusStr  = fmtExact(nc + nr, d);
+    const xMinusStr = fmtExact(nc - nr, d);
+    const z1 = { kind:'zero', fi:fi_idx, x:(-bI + Math.sqrt(DInt)) / den, y:0, col };
+    const z2 = { kind:'zero', fi:fi_idx, x:(-bI - Math.sqrt(DInt)) / den, y:0, col };
+    z1.exactLabel = z1.textLabel = `(${xPlusStr} | 0)`;
+    z2.exactLabel = z2.textLabel = `(${xMinusStr} | 0)`;
+    return [z1, z2];
+  }
+
+  // WICHTIG: nr kann hier (nach der "Nenner immer positiv"-Normalisierung
+  // oben, Zeile 389) selbst negativ sein — x = nc + nr·√radicand ist dann
+  // bereits die vollständige, korrekt vorzeichenbehaftete Formel für DIESE
+  // eine Nullstelle. radHtml/radText dürfen daher nur den BETRAG von nr
+  // zeigen (den Rest übernimmt das pm-Vorzeichen in mkLbl/mkTxt unten) —
+  // sonst würde das Vorzeichen doppelt angewendet, z.B. "1 − -1√3" statt
+  // "1 − √3" bei einer nach unten geöffneten Parabel wie -x²+2x+2.
+  const nrAbs = Math.abs(nr);
   const constStr = fmtExact(nc, d);           // konstanter Anteil als Bruch-Text
-  const radHtml  = fmtRadFrac(nr, sr.radicand, d);  // Wurzel-Anteil als HTML (Sidebar)
+  const radHtml  = fmtRadFrac(nrAbs, sr.radicand, d);  // Wurzel-Anteil als HTML (Sidebar)
   // Reintext-Version für Canvas (kein HTML):
   const radText  = d === 1
-    ? (nr === 1 ? `√${sr.radicand}` : `${nr}√${sr.radicand}`)
-    : (nr === 1 ? `√${sr.radicand}/${d}` : `${nr}√${sr.radicand}/${d}`);
+    ? (nrAbs === 1 ? `√${sr.radicand}` : `${nrAbs}√${sr.radicand}`)
+    : (nrAbs === 1 ? `√${sr.radicand}/${d}` : `${nrAbs}√${sr.radicand}/${d}`);
 
   const xPlus  = (-bI + Math.sqrt(DInt)) / den;
   const xMinus = (-bI - Math.sqrt(DInt)) / den;
@@ -151,7 +433,12 @@ function tryAnalyticalZerosEx(fi_idx, expr) {
     return `(${constStr} ${pm > 0 ? '+' : '-'} ${radText} | 0)`;
   };
 
-  const pm1 = den > 0 ? +1 : -1;
+  // z1 = xPlus = (nc + nr·√radicand)/d — das Vorzeichen des nr-Terms für
+  // DIESE Nullstelle ist also schlicht das (bereits normalisierte) Vorzeichen
+  // von nr selbst, NICHT das des ursprünglichen (unnormalisierten) Nenners
+  // `den` — die frühere Herleitung aus `den` duplizierte das Vorzeichen, das
+  // die Nenner-Normalisierung oben bereits in nr gespeichert hatte.
+  const pm1 = nr >= 0 ? +1 : -1;
   z1.exactLabel = mkLbl(pm1);   z1.textLabel = mkTxt(pm1);
   z2.exactLabel = mkLbl(-pm1);  z2.textLabel = mkTxt(-pm1);
   return [z1, z2];
@@ -359,6 +646,26 @@ async function computeSpecials(myToken) {
     }
 
     { const _yp = yieldIfNeeded(); if (_yp) { await _yp; if (cancelled()) return; } }
+  }
+
+  // ── Schnittpunkte zusätzlich gegen den Definitionsbereich der ZWEITEN
+  // beteiligten Funktion filtern. Der Filter oben ("Filtere Sonderpunkte
+  // ausserhalb des Definitionsbereichs") lief nur INNERHALB der fi_idx-
+  // Schleife und prüfte einen Punkt daher ausschliesslich gegen
+  // functions[pt.fi] — ein Schnittpunkt wird aber immer mit pt.fi < pt.fj
+  // gespeichert (s. Schnittpunkte-Suche oben, fj_idx = fi_idx+1…), sodass
+  // functions[pt.fj]s Bereichseinschränkung dort NIE geprüft wurde. Ohne
+  // diesen separaten Durchlauf würde z.B. bei f1(x)=x (unbeschränkt) und
+  // f2(x)=-x mit domainMin=1 der algebraische Schnittpunkt bei x=0
+  // trotzdem angezeigt, obwohl f2 dort gar nicht definiert/gezeichnet ist.
+  for (let j = acc.length - 1; j >= 0; j--) {
+    const pt = acc[j];
+    if (pt.kind !== 'isect') continue;
+    const fj_obj = functions[pt.fj];
+    if (!fj_obj) continue;
+    const dMinJ = fj_obj.domainMin != null ? fj_obj.domainMin : -Infinity;
+    const dMaxJ = fj_obj.domainMax != null ? fj_obj.domainMax : Infinity;
+    if (pt.x < dMinJ - 1e-9 || pt.x > dMaxJ + 1e-9) acc.splice(j, 1);
   }
 
   // ── Asymptoten & Pole ─────────────────────────────────────────────
@@ -645,6 +952,86 @@ async function computeSpecials(myToken) {
     const tol = Math.max(Math.abs(holeValue), 1) * 0.05 + 0.05;
     return Math.abs(fL - holeValue) < tol && Math.abs(fR - holeValue) < tol;
   };
+
+  // ── Hebbare Lücken: unabhängiger, rein algebraischer Erkennungs-Durchlauf ──
+  // Der obige numerische Pol-Scanner (probeDivergence-Heuristik weiter oben)
+  // erkennt nur Stellen, an denen |f| tatsächlich DIVERGIERT — eine hebbare
+  // Lücke divergiert per Definition NICHT (f konvergiert von beiden Seiten
+  // gegen einen endlichen Wert), taucht als Scan-Kandidat also so gut wie nie
+  // auf und wird von der Pol-vs-Lücke-Umwandlung oben (die nur BESTEHENDE
+  // Pol-Kandidaten via Nerdamer umwandelt) folglich auch nie erreicht.
+  // Dieser Durchlauf sucht daher unabhängig davon UND rein algebraisch: für
+  // jede Funktion, deren Ausdruck strukturell (auf oberster Ebene) ein Bruch
+  // N(x)/D(x) ist, werden Zähler und Nenner als Polynome bis Grad 3 gefittet
+  // (fitPolyStr, s.o.), alle reellen Nennernullstellen exakt bestimmt
+  // (findRealRootsOfPoly, s.o.) und für jede geprüft, ob der Zähler dort
+  // ebenfalls verschwindet — die klassische Schulmethode "Zähler/Nenner
+  // faktorisieren, gemeinsamen Faktor kürzen, einsetzen" (siehe auch
+  // getRationalHoleCancel() weiter unten, das denselben Ansatz für die
+  // Lösungsweg-Anzeige eines bereits gefundenen 'hole'-Punkts nutzt).
+  for (let fi_idx = 0; fi_idx < functions.length; fi_idx++) {
+    const fi_obj = functions[fi_idx];
+    if (!fi_obj.expr.trim() || fi_obj.visible === false) continue;
+    // WICHTIG: hier bewusst KEIN isLinearFunc()-Ausschluss (anders als beim
+    // numerischen Pol-Scanner oben) — isLinearFunc() samplet f''(x) nur an
+    // einer festen Stichprobenmenge (u.a. x=-2,-1,0,1,2,...) und übersieht
+    // dabei praktisch IMMER die isolierte Lücken-Stelle selbst (Mass 0).
+    // Genau der klassische Fall (x²-4)/(x-2) sieht dadurch numerisch exakt
+    // wie die Gerade x+2 aus und würde von isLinearFunc() fälschlich als
+    // "linear" eingestuft — obwohl er strukturell ein echter Bruch mit
+    // hebbarer Lücke ist. Die algebraische AST-Prüfung unten (nur "div" auf
+    // oberster Ebene) ist präzise genug, ein zusätzlicher Linearitäts-Filter
+    // würde hier nur den häufigsten Lehrbuch-Fall unterdrücken.
+    const col = fi_obj.color;
+    const dMin = fi_obj.domainMin != null ? fi_obj.domainMin : -Infinity;
+    const dMax = fi_obj.domainMax != null ? fi_obj.domainMax : Infinity;
+
+    let ast;
+    try { ast = miParseRaw(fi_obj.expr); } catch (e) { continue; }
+    if (!ast || ast.type !== 'div') continue; // nur "N(x)/D(x)" als GESAMTE Funktion
+
+    let numRaw, denRaw;
+    try { numRaw = miToRaw(ast.a, 0); denRaw = miToRaw(ast.b, 0); } catch (e) { continue; }
+
+    const numCoeffs = fitPolyStr(numRaw);
+    const denCoeffs = fitPolyStr(denRaw);
+    if (!numCoeffs || !denCoeffs || denCoeffs.length < 2) continue;
+
+    let roots;
+    try { roots = findRealRootsOfPoly(denCoeffs); } catch (e) { continue; }
+    if (!roots || !roots.length) continue;
+
+    for (const x0 of roots) {
+      if (!isFinite(x0)) continue;
+      if (x0 < dMin - 1e-9 || x0 > dMax + 1e-9) continue;
+
+      const numAtX0 = evalPolyCoeffs(numCoeffs, x0);
+      const denScale = Math.max(1, Math.abs(evalPolyCoeffs(denCoeffs, x0 + 1)));
+      if (Math.abs(numAtX0) > denScale * 1e-3) continue; // Zähler verschwindet NICHT -> echter Pol, keine Lücke
+
+      const dn = polyDivideByLinearRoot(numCoeffs, x0);
+      const dd = polyDivideByLinearRoot(denCoeffs, x0);
+      if (!dd.quotient.length) continue; // Nenner war nur linear -> nach Kürzung konstant, unten weiter geprüft
+      const qDVal = evalPolyCoeffs(dd.quotient, x0);
+      if (Math.abs(qDVal) < 1e-6) continue; // Nenner hat dort eine MEHRFACHE Nullstelle -> bleibt (unbehandelter) Pol
+      const qNVal = dn.quotient.length ? evalPolyCoeffs(dn.quotient, x0) : evalPolyCoeffs(numCoeffs, x0);
+      const holeVal = qNVal / qDVal;
+      if (!isFinite(holeVal)) continue;
+
+      // Numerische Gegenprobe: f muss sich von BEIDEN Seiten tatsächlich holeVal nähern
+      if (!verifyHoleND(fi_obj.expr, x0, holeVal)) continue;
+
+      // Ggf. bestehenden Pol- oder Duplikat-Lücken-Eintrag an (fast) derselben
+      // Stelle entfernen (z.B. wenn der numerische Scanner die Stelle durch
+      // Zufall trotzdem als Pol-Kandidat aufgenommen hatte).
+      for (let j = acc.length - 1; j >= 0; j--) {
+        const p = acc[j];
+        if (p.fi === fi_idx && (p.kind === 'pole' || p.kind === 'hole') && Math.abs(p.x - x0) < 1e-3) acc.splice(j, 1);
+      }
+      acc.push({ kind:'hole', fi:fi_idx, x:x0, y:holeVal, col });
+    }
+  }
+
   if (typeof ndEvalAsync === 'function') {
     for (let fi_idx = 0; fi_idx < functions.length; fi_idx++) {
       if (cancelled()) return;
@@ -662,8 +1049,14 @@ async function computeSpecials(myToken) {
         if (niceX === null) continue; // irrationale/periodische Stelle -> Nerdamer nicht befragen (s.o.)
         const verdict = await ndPoleOrHole(fi_obj.expr, niceX);
         if (verdict && verdict.isPole === false && verifyHoleND(fi_obj.expr, p.x, verdict.holeValue)) {
-          const idx = acc.indexOf(p);
-          if (idx !== -1) acc.splice(idx, 1); // hebbare Lücke -> kein Pol-Marker
+          // Hebbare Lücke (kein Pol): der Punkt bleibt erhalten, wird aber vom
+          // (nicht existenten) Pol zu einem eigenen 'hole'-Sonderpunkt mit dem
+          // exakten CAS-Grenzwert als y-Wert umgewandelt — statt (wie zuvor)
+          // einfach gelöscht zu werden. So bekommt der/die Nutzer:in dafür
+          // einen Smart-Button samt Lösungsweg statt dass die Lücke stillschweigend
+          // verschwindet (siehe generateSolveSteps(), pt.kind === 'hole').
+          p.kind = 'hole';
+          p.y = verdict.holeValue;
         }
       }
 
@@ -812,22 +1205,73 @@ function generateSolveSteps(pt) {
 
   // Hilfsfunktionen
   function r(v, d=2) { return parseFloat(v.toFixed(d)).toString(); }
-  function rr(v) { return niceCoeff(v, Math.max(precision, 2)); }
+  // numLatex(v): liefert das LaTeX für eine Zahl EXAKT wie im Eingabefeld —
+  // dieselben Erkennungs-Bausteine wie niceNum() (π-Vielfache, Wurzelformen
+  // via asSurd(), echte Brüche via asSimpleFrac()), aber mit einem Dezimal-
+  // Fallback, der IMMER mindestens 2 Nachkommastellen zeigt (Math.max(precision,2),
+  // wie zuvor bei fracHTML()) — unabhängig von der globalen Achsen-Präzisions-
+  // Einstellung (Standard: 1 Nachkommastelle), die hier sonst z.B. "2.7" statt
+  // "2.73" anzeigen würde.
+  function numLatex(v) {
+    if (!isFinite(v)) return '\\text{--}';
+    if (Math.abs(v) < 1e-9) return '0';
+    if (typeof usePiMode === 'function' && usePiMode()) {
+      const pf = asPiFraction(v); if (pf) return formatPiLatex(pf.p, pf.q);
+    }
+    const sr = asSurd(v, true); if (sr) return sr;
+    const fr = asSimpleFrac(v, true); if (fr) return fr;
+    return parseFloat(v.toFixed(Math.max(precision, 2))).toString();
+  }
+  // rr(): rendert eine Zahl EXAKT wie im Eingabefeld — über dieselbe Engine
+  // (MathLive.convertLatexToMarkup via latexToMathLiveHtml(), siehe 07_export.js)
+  // statt einer eigenen Unicode/CSS-Nachbau-Schreibweise, mit numLatex() (s.o.)
+  // als Quelle des LaTeX. Dadurch ist die Darstellung hier ununterscheidbar von
+  // der im Eingabefeld/den Koordinatenbeschriftungen.
+  function rr(v) { return latexToMathLiveHtml(numLatex(v)); }
   function rrSign(v) { return v >= 0 ? `+ ${rr(v)}` : `- ${rr(Math.abs(v))}`; }
   // Format a factor (number being multiplied): negative gets parentheses
   function rrFactor(v) { return v < 0 ? `(${rr(v)})` : rr(v); }
+  // rrRad(sr, D): rendert einen (evtl. per simplifyRadicalCASFrac(D) bereits
+  // vereinfachten) Wurzelausdruck √D exakt wie im Eingabefeld. sr === null
+  // (CAS-Vereinfachung griff nicht) → Ersatz ist die LaTeX-Wurzel \sqrt{D}
+  // direkt (NICHT ein eigener Unicode-"√" + separat gerenderte Zahl), damit der
+  // Wurzelstrich wie im Eingabefeld über den ganzen Radikanden reicht.
+  // rrPi(v): wie rr(), aber erkennt π-Vielfache IMMER (unabhängig vom globalen
+  // π-Anzeigemodus-Toggle, genau wie rr()/asSimpleFrac() Brüche immer erkennen)
+  // — für trigonometrische Nullstellen/Extrema, deren x-Wert exakt ein
+  // π-Bruch ist (z.B. π/3), damit dort "x = π/3" statt einer Dezimalzahl
+  // erscheint, wo immer ein exakter Tabellenwert gefunden wurde.
+  function rrPi(v) {
+    const pf = (typeof asPiFraction === 'function') ? asPiFraction(v) : null;
+    if (pf) return latexToMathLiveHtml(formatPiLatex(pf.p, pf.q));
+    return rr(v);
+  }
+  function rrRad(sr, D) {
+    const latex = sr ? radicalToLatex(sr) : `\\sqrt{${numLatex(D)}}`;
+    return latexToMathLiveHtml(latex);
+  }
+  // Zeigt f(x) EXAKT wie im Eingabefeld — über denselben Weg wie die Legende/
+  // Kurven-Beschriftung (miParseRaw → miToLatex → MathLive-Rendering, siehe
+  // exprToMathLiveHtml() in 07_export.js) — statt die Formel aus den intern
+  // erkannten Koeffizienten (a,b,c,…) neu zusammenzusetzen. Das vermeidet u.a.
+  // einen unnötigen Faktor "1" (z.B. "1x²" statt "x²") und zeigt bei Termen mit
+  // mehreren Summanden (z.B. gebrochenrationale Funktionen) exakt die vom
+  // Nutzer gewählte Reihenfolge statt einer intern rekonstruierten.
+  function exprML(e) { return (typeof exprToMathLiveHtml === 'function') ? exprToMathLiveHtml(e) : _mlEscapeHtmlLocal(e); }
+  function _mlEscapeHtmlLocal(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   // Räumt doppelte Vorzeichen auf, die beim Einsetzen negativer Werte entstehen
   // (z.B. "b - x" mit x=-2 → "b - -2" statt "b + 2"). Erkennt sowohl Bindestrich
   // "-" als auch das an anderen Stellen verwendete echte Minuszeichen "−" (z.B.
   // aus fmtObliqueAsymLabel) und beliebige Folgezeichen (Ziffer, Buchstabe,
-  // Klammer, LaTeX-Backslash) statt nur einzelner Ziffern — vorher wurden z.B.
-  // "- -(x+1)" oder "+ -√2" nicht erkannt. Mehrfach angewendet, da eine
-  // Ersetzung ein weiteres Doppel-Vorzeichen freilegen kann.
+  // Klammer, LaTeX-Backslash, öffnendes HTML-Tag — Letzteres seit rr() gestapelte
+  // Brüche als "<span class=…>…" statt reinem Text liefert) statt nur einzelner
+  // Ziffern — vorher wurden z.B. "- -(x+1)" oder "+ -√2" nicht erkannt. Mehrfach
+  // angewendet, da eine Ersetzung ein weiteres Doppel-Vorzeichen freilegen kann.
   function fixMM(s) {
     for (let i = 0; i < 2; i++) {
       const before = s;
-      s = s.replace(/\+\s*[-−]\s*(?=[\d(a-zA-Z\\√π])/g, '- ')
-           .replace(/[-−]\s*[-−]\s*(?=[\d(a-zA-Z\\√π])/g, '+ ')
+      s = s.replace(/\+\s*[-−]\s*(?=[\d(a-zA-Z\\√π<])/g, '- ')
+           .replace(/[-−]\s*[-−]\s*(?=[\d(a-zA-Z\\√π<])/g, '+ ')
            .replace(/\+\s*\+\s*/g, '+ ');
       if (s === before) break;
     }
@@ -930,8 +1374,59 @@ function generateSolveSteps(pt) {
              c: parseFloat(c.toFixed(5)), d: parseFloat(d.toFixed(5)) };
   }
 
+  // Bestimmt das tatsächlich im Ausdruck GESCHRIEBENE Vorzeichen des
+  // Koeffizienten vor dem sin/cos/tan-Aufruf. WICHTIG: rein numerisches
+  // Sampling (wie die Amplitude a=(max−min)/2 unten) kann dieses Vorzeichen
+  // NIE zuverlässig liefern — a·trig(·) mit a<0 ist graphisch identisch mit
+  // |a|·trig(·+π) (Phasenverschiebung um π), die beiden Fälle sind vom
+  // reinen Kurvenverlauf her nicht unterscheidbar. Was tatsächlich gemeint
+  // ist, steht nur im AST des Ausdrucks — hier strukturell ausgelesen
+  // (analog zu den anderen AST-Detektoren in dieser Datei), damit die
+  // Lösungsweg-Gleichung ("a·trig(·) = −d") zum darüber gezeigten f(x)
+  // passt, statt bei negativem Koeffizienten (z.B. "−sin(x)+d") ein
+  // falsches, sich selbst widersprechendes Zwischenergebnis zu zeigen.
+  function _trigNumLit(node) {
+    if (!node) return null;
+    if (node.type === 'num') { const v = parseFloat(node.v); return isFinite(v) ? v : null; }
+    if (node.type === 'neg') { const v = _trigNumLit(node.x); return v == null ? null : -v; }
+    if (node.type === 'id' && typeof params !== 'undefined' && params[node.v] && isFinite(params[node.v].val))
+      return params[node.v].val;
+    return null;
+  }
+  function findTrigSign(node, kind, sign) {
+    if (!node || typeof node !== 'object') return null;
+    switch (node.type) {
+      case 'call':
+        return node.name === kind ? sign : null;
+      case 'neg':
+        return findTrigSign(node.x, kind, -sign);
+      case 'add': {
+        const r1 = findTrigSign(node.a, kind, sign);
+        return r1 != null ? r1 : findTrigSign(node.b, kind, sign);
+      }
+      case 'sub': {
+        const r1 = findTrigSign(node.a, kind, sign);
+        return r1 != null ? r1 : findTrigSign(node.b, kind, -sign);
+      }
+      case 'mul': {
+        const litA = _trigNumLit(node.a), litB = _trigNumLit(node.b);
+        if (litA != null) return findTrigSign(node.b, kind, sign * (litA < 0 ? -1 : 1));
+        if (litB != null) return findTrigSign(node.a, kind, sign * (litB < 0 ? -1 : 1));
+        const r1 = findTrigSign(node.a, kind, sign);
+        return r1 != null ? r1 : findTrigSign(node.b, kind, sign);
+      }
+      case 'div':
+        return findTrigSign(node.a, kind, sign);
+      default:
+        return null;
+    }
+  }
+
   // ── Trigonometrische Funktion charakterisieren ───────────────────────
-  // Gibt zurück: { kind:'sin'|'cos'|'tan', mixed, ok, a(Amplitude), d(Offset), period }
+  // Gibt zurück: { kind:'sin'|'cos'|'tan', mixed, ok, a(Amplitude), d(Offset), period, sign }
+  // sign: das tatsächlich geschriebene Vorzeichen des Koeffizienten vor
+  // trig(·) (+1 oder −1, per AST-Analyse — s.o.); a bleibt bewusst die
+  // (immer positive) Amplitude, wie in der Fachsprache üblich.
   function getTrigInfo() {
     const hasSin = /\bsin\s*\(/.test(expr);
     const hasCos = /\bcos\s*\(/.test(expr);
@@ -971,7 +1466,13 @@ function generateSolveSteps(pt) {
       const med = diffs[Math.floor(diffs.length/2)];
       if (asPiFraction(med)) period = med;
     }
-    return { kind, mixed, ok: true, a, d, period };
+    let sign = 1;
+    try {
+      const _ast = miParseRaw(expr);
+      const _s = findTrigSign(_ast, kind, 1);
+      if (_s != null) sign = _s;
+    } catch (e) {}
+    return { kind, mixed, ok: true, a, d, period, sign };
   }
 
   // ── Zerlegung f(x) = m·x + b + R/(x−h) erkennen (Pol + schräge Asymptote) ──
@@ -1013,12 +1514,161 @@ function generateSolveSteps(pt) {
     return { a: parseFloat(a.toFixed(5)), h: parseFloat(h.toFixed(5)), k: parseFloat(k.toFixed(5)) };
   }
 
+  // ── Wurzelterm ± linearer Term erkennen (z.B. √(x²+1) − x) ──────────
+  // Erkennt f(x) = s·√(Px²+Qx+R) + (Dx+E) — die klassische "∞ − ∞"-Form bei
+  // horizontalen Asymptoten von Wurzelfunktionen, die durch Erweitern mit dem
+  // KONJUGIERTEN Ausdruck (3. binomische Formel (a+b)(a−b)=a²−b²) exakt gelöst
+  // wird, statt nur numerisch zu approximieren. Arbeitet strukturell auf dem
+  // AST (miParseRaw) — nicht auf einem numerischen Kurvenfit wie die übrigen
+  // get*Coeffs()-Helfer — weil die Zerlegung in "Wurzel-Teil" und "linearer
+  // Teil" eine strukturelle (keine numerische) Eigenschaft des Terms ist.
+  function getSqrtLinearAsymp() {
+    let ast;
+    try { ast = miParseRaw(expr); } catch (e) { return null; }
+    if (ast.type !== 'add' && ast.type !== 'sub') return null;
+    const topSub = ast.type === 'sub';
+
+    // Erkennt (evtl. negiertes/skaliertes) sqrt(...) → {coef, inner}
+    function asSqrtTerm(node) {
+      if (node.type === 'neg') {
+        const r = asSqrtTerm(node.x);
+        return r ? { coef: -r.coef, inner: r.inner } : null;
+      }
+      if (node.type === 'call' && node.name === 'sqrt' && node.args.length === 1) {
+        return { coef: 1, inner: node.args[0] };
+      }
+      if (node.type === 'mul') {
+        if (node.a.type === 'num') {
+          const r = asSqrtTerm(node.b);
+          return r ? { coef: parseFloat(node.a.v) * r.coef, inner: r.inner } : null;
+        }
+        if (node.b.type === 'num') {
+          const r = asSqrtTerm(node.a);
+          return r ? { coef: parseFloat(node.b.v) * r.coef, inner: r.inner } : null;
+        }
+      }
+      return null;
+    }
+
+    const sqA = asSqrtTerm(ast.a);
+    const sqB = asSqrtTerm(ast.b);
+    if (!sqA && !sqB) return null;
+    if (sqA && sqB) return null; // beide Seiten Wurzeln -> nicht dieser Fall
+
+    let sqrtCoef, innerNode, otherNode, otherSign;
+    if (sqA) {
+      sqrtCoef = sqA.coef; innerNode = sqA.inner;
+      otherNode = ast.b; otherSign = topSub ? -1 : 1;
+    } else {
+      sqrtCoef = topSub ? -sqB.coef : sqB.coef; innerNode = sqB.inner;
+      otherNode = ast.a; otherSign = 1;
+    }
+    if (Math.abs(sqrtCoef) < 1e-9) return null;
+
+    // Radikand als quadratisches Polynom Px²+Qx+R erkennen (numerischer Fit
+    // auf dem Teilausdruck — miToRaw macht den Sub-AST wieder zu einem für
+    // deriv1/deriv2/safeEval auswertbaren Rohtext).
+    const innerRaw = miToRaw(innerNode, 0);
+    const a2 = deriv2(innerRaw, 0);
+    if (!isFinite(a2) || Math.abs(a2) < 1e-6) return null; // muss echt quadratisch sein
+    // Rundung entfernt Fließkomma-/Ableitungsrauschen (deriv1/deriv2 sind
+    // numerische Näherungen, keine exakten Werte) — sonst würde z.B. P=1
+    // fälschlich als "0.9999998" statt als ganzzahliger Koeffizient "1"
+    // erkannt und in polyStr3() unten explizit (statt weggelassen) angezeigt.
+    const P = parseFloat((a2 / 2).toFixed(6)), Q = parseFloat(deriv1(innerRaw, 0).toFixed(6)), R = parseFloat(safeEval(innerRaw, 0).toFixed(6));
+    if (!isFinite(P) || !isFinite(Q) || !isFinite(R) || P <= 0) return null;
+    for (const x of [1, 2, -1, -2, 3]) {
+      const act = safeEval(innerRaw, x);
+      if (!isFinite(act)) return null;
+      const pred = P*x*x + Q*x + R;
+      if (Math.abs(pred - act) > Math.abs(act)*0.02 + 0.05) return null;
+    }
+
+    // Linearer "anderer" Teil D·x+E
+    const otherRaw = miToRaw(otherNode, 0);
+    const o0 = safeEval(otherRaw, 0), o1 = safeEval(otherRaw, 1), om1 = safeEval(otherRaw, -1);
+    if (!isFinite(o0) || !isFinite(o1) || !isFinite(om1)) return null;
+    const rawD = (o1 - om1) / 2, rawE = o0;
+    const o2 = safeEval(otherRaw, 2);
+    if (isFinite(o2) && Math.abs((rawD*2+rawE) - o2) > Math.abs(o2)*0.02 + 0.05) return null;
+    const D = parseFloat((otherSign * rawD).toFixed(6)), E = parseFloat((otherSign * rawE).toFixed(6));
+    if (Math.abs(D) < 1e-9) return null; // ohne linearen Anteil kein "∞−∞"-Fall
+
+    // Gesamt-Verifikation gegen die tatsächliche Funktion
+    for (const x of [1, 2, -1, 3, 5]) {
+      const inVal = P*x*x + Q*x + R;
+      if (inVal < 0) continue;
+      const pred = sqrtCoef * Math.sqrt(inVal) + D*x + E;
+      const act = safeEval(expr, x);
+      if (!isFinite(act)) continue;
+      if (Math.abs(pred - act) > Math.abs(act)*0.02 + 0.05) return null;
+    }
+
+    // Kürzungsbedingung für das x²-Glied nach dem Erweitern (muss gelten,
+    // sonst gäbe es hier gar keinen endlichen Grenzwert — pt kam aber bereits
+    // als bestätigte Asymptote herein)
+    const s2 = sqrtCoef * sqrtCoef;
+    if (Math.abs(s2*P - D*D) > 1e-4 * Math.max(1, s2*P, D*D)) return null;
+
+    const K = parseFloat((s2*Q - 2*D*E).toFixed(6));
+    const L = parseFloat((s2*R - E*E).toFixed(6));
+    const sgn = pt.dir === '+∞' ? 1 : -1;
+    const denomLead = sqrtCoef * sgn * Math.sqrt(P) - D;
+    if (Math.abs(denomLead) < 1e-6) return null; // höhere Ordnung nötig -> nicht dieser Fall
+
+    const limVal = Math.abs(K) < 1e-9 ? 0 : K / denomLead;
+    if (!isFinite(limVal)) return null;
+    // Muss mit dem bereits (numerisch/CAS) bestätigten Grenzwert pt.y übereinstimmen
+    if (Math.abs(limVal - pt.y) > Math.abs(pt.y)*0.02 + 0.02) return null;
+
+    return { sqrtCoef, P, Q, R, D, E, K, L, denomLead, limVal };
+  }
+
+  // ── Hebbare Lücke: Zähler/Nenner-Polynom exakt durch (x−x0) kürzen ──
+  // Erkennt f(x) = N(x)/D(x) (Bruch als äusserste Struktur) und versucht,
+  // N und D je als Polynom bis Grad 3 zu erkennen (dieselbe numerische
+  // Fit-Methode wie getLinCoeffs/getQuadCoeffs/getCubicCoeffs, nur auf einem
+  // beliebigen Teilausdruck statt auf dem gesamten expr). Sind beide bei x0
+  // Nullstellen, wird EXAKT per Horner-Schema durch (x−x0) dividiert (nicht
+  // numerisch angenähert) — das ist die Standard-Schulmethode für "hebbare
+  // Lücken": Zähler und Nenner faktorisieren, gemeinsamen Faktor kürzen,
+  // Ergebnis bei x0 einsetzen.
+  function getRationalHoleCancel(x0) {
+    let ast;
+    try { ast = miParseRaw(expr); } catch (e) { return null; }
+    if (ast.type !== 'div') return null; // nur "N(x)/D(x)" als GESAMTE Funktion
+
+    // Fit als Polynom bis Grad 3 (liefert Koeffizienten [c_n,...,c0], höchster
+    // Grad zuerst, oder null wenn s an keiner der Formen passt) sowie die
+    // exakte Polynomdivision durch den Linearfaktor (x−x0, Horner-Schema) —
+    // beides die TOP-LEVEL-Versionen (siehe fitPolyStr()/polyDivideByLinearRoot()/
+    // evalPolyCoeffs() weiter oben in dieser Datei), die auch vom unabhängigen
+    // Lücken-Erkennungs-Durchlauf in computeSpecials() verwendet werden — so
+    // bleiben Erkennung und Lösungsweg-Anzeige garantiert konsistent.
+    const numRaw = miToRaw(ast.a, 0), denRaw = miToRaw(ast.b, 0);
+    const numCoeffs = fitPolyStr(numRaw), denCoeffs = fitPolyStr(denRaw);
+    if (!numCoeffs || !denCoeffs) return null;
+
+    const dn = polyDivideByLinearRoot(numCoeffs, x0), dd = polyDivideByLinearRoot(denCoeffs, x0);
+    const tolN = Math.max(1, Math.abs(evalPolyCoeffs(numCoeffs, x0+1))) * 1e-3;
+    const tolD = Math.max(1, Math.abs(evalPolyCoeffs(denCoeffs, x0+1))) * 1e-3;
+    if (Math.abs(dn.remainder) > tolN || Math.abs(dd.remainder) > tolD) return null; // x0 kürzt nicht sauber
+    if (!dn.quotient.length || !dd.quotient.length) return null; // konstant/konstant — kein sinnvoller Fall
+    const qDVal = evalPolyCoeffs(dd.quotient, x0);
+    if (Math.abs(qDVal) < 1e-6) return null; // Nenner nach EINER Kürzung immer noch 0 -> höhere Vielfachheit, nicht abgedeckt
+    const qNVal = evalPolyCoeffs(dn.quotient, x0);
+    const exactVal = qNVal / qDVal;
+    if (Math.abs(exactVal - pt.y) > Math.abs(pt.y)*0.02 + 0.02) return null; // Gegenprobe zum gespeicherten y-Wert
+
+    return { numCoeffs, denCoeffs, quotN: dn.quotient, quotD: dd.quotient, exactVal };
+  }
+
   // ── Lösungswinkel für sin(θ)=k (π-Bruch wenn Tabellenwert) ──────────
   function sinAngle(k) {
     if (!isFinite(k) || Math.abs(k) > 1+1e-6) return null;
     const arc = Math.asin(Math.max(-1, Math.min(1, k)));
     const pf  = asPiFraction(arc);
-    const arcStr  = pf ? formatPi(pf.p, pf.q) : `arcsin(${nn(k)})`;
+    const arcStr  = pf ? formatPi(pf.p, pf.q) : `arcsin(${rr(k)})`;
     const suppl   = PI - arc;
     const pfS     = asPiFraction(suppl);
     const suppStr = pfS ? formatPi(pfS.p, pfS.q) : `π − ${arcStr}`;
@@ -1029,7 +1679,7 @@ function generateSolveSteps(pt) {
     if (!isFinite(k) || Math.abs(k) > 1+1e-6) return null;
     const arc = Math.acos(Math.max(-1, Math.min(1, k)));
     const pf  = asPiFraction(arc);
-    const arcStr = pf ? formatPi(pf.p, pf.q) : `arccos(${nn(k)})`;
+    const arcStr = pf ? formatPi(pf.p, pf.q) : `arccos(${rr(k)})`;
     return { arc, arcStr, isTable: !!pf };
   }
 
@@ -1057,6 +1707,51 @@ function generateSolveSteps(pt) {
     steps += `${t('solve_limit_beh')}:\n`;
     steps += `  lim f(x) für x → ${rr(pt.x)}⁻:  ${!isFinite(yL) ? '±∞' : yL < 0 ? '−∞' : '+∞'}\n`;
     steps += `  lim f(x) für x → ${rr(pt.x)}⁺:  ${!isFinite(yR) ? '±∞' : yR < 0 ? '−∞' : '+∞'}`;
+
+  } else if (pt.kind === 'hole') {
+    // ── Hebbare Lücke: Grenzwert im Endlichen ─────────────────────────
+    steps += `<b>Hebbare Lücke von ${fLabel}</b>\n\n`;
+    steps += `f(x) ist an der Stelle x = ${rr(pt.x)} nicht definiert (Zähler und Nenner werden dort beide 0) — der Grenzwert existiert dort aber.\n\n`;
+
+    const cancel = getRationalHoleCancel(pt.x);
+    if (cancel) {
+      function polyToStr(coeffs) {
+        const deg = coeffs.length - 1;
+        const parts = [];
+        coeffs.forEach((c, i) => {
+          if (Math.abs(c) < 1e-4) return;
+          const p = deg - i;
+          const unit = p === 0 ? '' : p === 1 ? 'x' : `x${p === 2 ? '²' : p === 3 ? '³' : '^' + p}`;
+          parts.push([c, unit]);
+        });
+        if (!parts.length) return '0';
+        return parts.map(([v, unit], idx) => {
+          const mag = (unit && Math.abs(Math.abs(v) - 1) < 1e-4) ? unit : `${rr(Math.abs(v))}${unit}`;
+          if (idx === 0) return (v < 0 ? '-' : '') + mag;
+          return (v < 0 ? '- ' : '+ ') + mag;
+        }).join(' ');
+      }
+      const { numCoeffs, denCoeffs, quotN, quotD, exactVal } = cancel;
+      const hSign = pt.x >= 0 ? `x − ${rr(pt.x)}` : `x + ${rr(-pt.x)}`;
+      steps += `f(x) = [${polyToStr(numCoeffs)}] / [${polyToStr(denCoeffs)}]\n\n`;
+      steps += `<u>x = ${rr(pt.x)} ist Nullstelle von Zähler UND Nenner</u> → (${hSign}) kürzt sich heraus:\n\n`;
+      steps += `Polynomdivision:\n`;
+      steps += `  [${polyToStr(numCoeffs)}] : (${hSign}) = ${polyToStr(quotN)}\n`;
+      steps += `  [${polyToStr(denCoeffs)}] : (${hSign}) = ${polyToStr(quotD)}\n\n`;
+      steps += `Gekürzt (für x ≠ ${rr(pt.x)}):  f(x) = [${polyToStr(quotN)}] / [${polyToStr(quotD)}]\n\n`;
+      steps += `x = ${rr(pt.x)} einsetzen:\n`;
+      steps += `  lim(x → ${rr(pt.x)}) f(x) = <b>${rr(exactVal)}</b>\n\n`;
+      steps += `→ <b>Hebbare Lücke bei (${rr(pt.x)} | ${rr(exactVal)})</b>`;
+    } else {
+      const yL = safeEval(expr, pt.x - 0.001);
+      const yR = safeEval(expr, pt.x + 0.001);
+      steps += `${t('solve_limit_beh')}:\n`;
+      steps += `  lim f(x) für x → ${rr(pt.x)}⁻:  ${isFinite(yL) ? rr(yL) : '?'}\n`;
+      steps += `  lim f(x) für x → ${rr(pt.x)}⁺:  ${isFinite(yR) ? rr(yR) : '?'}\n\n`;
+      steps += `Beide einseitigen Grenzwerte stimmen überein (CAS-bestätigt):\n`;
+      steps += `  lim(x → ${rr(pt.x)}) f(x) = <b>${rr(pt.y)}</b>\n\n`;
+      steps += `→ <b>Hebbare Lücke bei (${rr(pt.x)} | ${rr(pt.y)})</b>`;
+    }
 
   } else if (pt.kind === 'asymp') {
     const exp = getExpCoeffs();
@@ -1094,6 +1789,7 @@ function generateSolveSteps(pt) {
     } else {
       // ── Horizontale Asymptote ────────────────────────────────────────
       steps += `<b>${t('solve_asymp')} von ${fLabel}</b>\n\n`;
+      const sqrtLin = (!exp && !rat) ? getSqrtLinearAsymp() : null;
       if (exp) {
         const { a, b } = exp;
         steps += `Funktionstyp: f(x) = ${rr(a)}·${rr(b)}ˣ\n\n`;
@@ -1112,7 +1808,7 @@ function generateSolveSteps(pt) {
       } else if (rat) {
         const { a: rA, h: rH, k: rK } = rat;
         const hSign = Math.abs(rH)<1e-5?'x':(rH<0?`x + ${rr(-rH)}`:`x − ${rr(rH)}`);
-        steps += `f(x) = ${rr(rA)}/(${hSign}) + ${rr(rK)}\n\n`;
+        steps += `f(x) = ${exprML(expr)}\n\n`;
         steps += `<u>Grenzwert für x → ±∞:</u>\n`;
         steps += `  lim(x → ±∞) ${rr(rA)}/(${hSign}) = 0\n`;
         steps += `  (Zähler konstant, Nenner → ∞)\n\n`;
@@ -1120,6 +1816,71 @@ function generateSolveSteps(pt) {
         steps += `→ <b>Horizontale Asymptote: y = ${rr(rK)}</b>\n\n`;
         const yFar = safeEval(expr, 10000);
         steps += `${t('solve_control')}: f(10000) = ${rr(yFar)} ≈ ${rr(rK)} ✓`;
+      } else if (sqrtLin) {
+        // ── Wurzelterm ± linearer Term: Erweitern mit dem konjugierten Ausdruck ──
+        const { sqrtCoef: s, P, Q, R, D, E, K, L, denomLead, limVal } = sqrtLin;
+        const s2 = s * s;
+
+        // Baut "±c·x^k" - Terme ohne überflüssige Koeffizienten (1x² → x²) und
+        // lässt Glieder mit Koeffizient 0 ganz weg (0x → nichts).
+        function polyStr3(p, q, rc) {
+          const terms = [];
+          if (Math.abs(p) > 1e-9) terms.push([p, 'x²']);
+          if (Math.abs(q) > 1e-9) terms.push([q, 'x']);
+          if (Math.abs(rc) > 1e-9) terms.push([rc, '']);
+          if (!terms.length) return '0';
+          // Toleranz 1e-4 statt 1e-9: P/Q stammen z.T. aus deriv2()/deriv1()
+          // (finite Differenzen) — bei P insbesondere kann durch Auslöschung
+          // bei der Division durch 12H² (H=1e-5) ein Rundungsrauschen von
+          // einigen 1e-6 entstehen (bestätigt: 0.999998 statt exakt 1 bei
+          // sqrt(x²+4x+5)). Ohne diese Toleranz würde "x²" fälschlich als
+          // "0.999998x²" statt als "x²" angezeigt.
+          return terms.map(([v, unit], i) => {
+            const mag = (unit && Math.abs(Math.abs(v) - 1) < 1e-4) ? unit : `${rr(Math.abs(v))}${unit}`;
+            if (i === 0) return (v < 0 ? '-' : '') + mag;
+            return (v < 0 ? '- ' : '+ ') + mag;
+          }).join(' ');
+        }
+        // "natürliche" Darstellung von d·x+e (führendes Vorzeichen nur wenn negativ) —
+        // zum Einsetzen als eigenständiger, in Klammern stehender Term (z.B. beim Quadrieren).
+        function linNatural(d, e) { return polyStr3(0, d, e); }
+        // wie linNatural, aber IMMER mit führendem "+ "/"- " — zum Anhängen an einen
+        // bereits vorhandenen Term (z.B. hinter dem Wurzelausdruck).
+        function linForceSign(d, e) {
+          const nat = linNatural(d, e);
+          return nat.startsWith('-') ? nat.replace(/^-/, '- ') : `+ ${nat}`;
+        }
+        function sqrtDispStr(sc, p, q, rc) {
+          const core = `√(${polyStr3(p, q, rc)})`;
+          if (Math.abs(sc - 1) < 1e-9) return core;
+          if (Math.abs(sc + 1) < 1e-9) return `-${core}`;
+          return `${rrFactor(sc)}·${core}`;
+        }
+
+        const sqrtDisp = sqrtDispStr(s, P, Q, R);
+        const origSuffix = linForceSign(D, E);
+        const conjSuffix = linForceSign(-D, -E);
+
+        steps += `f(x) = ${exprML(expr)}\n\n`;
+        steps += `<u>Grenzwert für x → ${pt.dir}:</u>  Typ „∞ − ∞" (Wurzelterm und linearer Term laufen gegenläufig gegen ∞)\n\n`;
+        steps += `<u>Methode: Erweitern mit dem konjugierten Ausdruck</u> (3. binomische Formel: (a+b)(a−b) = a² − b²)\n\n`;
+        steps += `Konjugierter Ausdruck: ${sqrtDisp} ${conjSuffix}\n\n`;
+        steps += `f(x) = [(${sqrtDisp})² − (${linNatural(D, E)})²] / [${sqrtDisp} ${conjSuffix}]\n\n`;
+        steps += `<u>Zähler (a² − b²):</u>\n`;
+        steps += `  (${sqrtDisp})² = ${polyStr3(s2*P, s2*Q, s2*R)}\n`;
+        steps += `  (${linNatural(D, E)})² = ${polyStr3(D*D, 2*D*E, E*E)}\n`;
+        steps += `  Differenz: ${polyStr3(0, K, L)}  (x² kürzt sich!)\n\n`;
+        steps += `f(x) = [${polyStr3(0, K, L)}] / [${sqrtDisp} ${conjSuffix}]\n\n`;
+        if (Math.abs(K) < 1e-9) {
+          steps += `Für x → ${pt.dir}: Zähler bleibt konstant (${rr(L)}), Nenner wächst über alle Grenzen (Wurzelterm dominiert)\n\n`;
+          steps += `lim(x → ${pt.dir}) f(x) = ${rr(L)}/∞ = <b>0</b>\n\n`;
+        } else {
+          steps += `Für x → ${pt.dir}: Zähler und Nenner wachsen beide linear in x — das Verhältnis der Leitkoeffizienten ergibt den Grenzwert:\n\n`;
+          steps += `lim(x → ${pt.dir}) f(x) = ${rr(K)} / ${rr(denomLead)} = <b>${rr(limVal)}</b>\n\n`;
+        }
+        steps += `→ <b>Horizontale Asymptote: y = ${rr(limVal)}</b>\n\n`;
+        const xFar = pt.dir === '+∞' ? 10000 : -10000;
+        steps += `${t('solve_control')}: f(${xFar}) = ${rr(safeEval(expr, xFar))} ≈ ${rr(limVal)} ✓`;
       } else {
         steps += `<u>Grenzwert für x → ${pt.dir}:</u>\n\n`;
         steps += `  lim f(x) ≈ <b>${rr(pt.y)}</b>\n\n`;
@@ -1136,23 +1897,23 @@ function generateSolveSteps(pt) {
     const exp = getExpCoeffs();
     if (lin) {
       const { a, b } = lin;
-      steps += `f(x) = ${rr(a)}x ${rrSign(b)}\n\n`;
+      steps += `f(x) = ${exprML(expr)}\n\n`;
       steps += `f(0) = ${rr(a)}·0 ${rrSign(b)}\n`;
       steps += `f(0) = <b>${rr(b)}</b>\n\n`;
       steps += `${t('solve_yaxis_intersect')}: S = (0 | <b>${rr(b)}</b>)`;
     } else if (quad) {
       const { a, b, c } = quad;
-      steps += `f(x) = ${rr(a)}x² ${rrSign(b)}x ${rrSign(c)}\n\n`;
+      steps += `f(x) = ${exprML(expr)}\n\n`;
       steps += `f(0) = ${rr(a)}·0² ${rrSign(b)}·0 ${rrSign(c)}\n`;
       steps += `f(0) = <b>${rr(c)}</b>\n\n`;
       steps += `${t('solve_yaxis_intersect')}: S = (0 | <b>${rr(c)}</b>)`;
     } else if (exp) {
       const { a, b } = exp;
-      steps += `f(x) = ${rr(a)}·${rr(b)}ˣ\n\n`;
+      steps += `f(x) = ${exprML(expr)}\n\n`;
       steps += `f(0) = ${rr(a)}·${rr(b)}⁰ = ${rr(a)}·1 = <b>${rr(a)}</b>\n\n`;
       steps += `${t('solve_yaxis_intersect')}: S = (0 | <b>${rr(a)}</b>)`;
     } else {
-      steps += `f(0) = <b>${r(pt.y, 3)}</b>`;
+      steps += `f(0) = <b>${rr(pt.y)}</b>`;
     }
 
   } else if (pt.kind === 'zero') {
@@ -1165,7 +1926,7 @@ function generateSolveSteps(pt) {
 
     if (lin) {
       const { a, b } = lin;
-      steps += `f(x) = ${rr(a)}x ${rrSign(b)} = 0\n`;
+      steps += `f(x) = ${exprML(expr)} = 0\n`;
       if (Math.abs(a) < 1e-8) {
         steps += Math.abs(b) < 1e-8 ? t('solve_all_x_zero') : t('solve_no_zero_const');
       } else {
@@ -1174,13 +1935,13 @@ function generateSolveSteps(pt) {
       }
     } else if (exp) {
       const { a, b } = exp;
-      steps += `f(x) = ${rr(a)}·${rr(b)}ˣ = 0\n\n`;
+      steps += `f(x) = ${exprML(expr)} = 0\n\n`;
       steps += `Da ${rr(b)} > 0 ist ${rr(b)}ˣ > 0 für alle x.\n`;
       steps += `Da a = ${rr(a)} ≠ 0, gilt f(x) ≠ 0 für alle x.\n`;
       steps += `→ <b>${t('solve_no_zero_exp')}</b>`;
     } else if (quad) {
       const { a, b, c } = quad;
-      steps += `f(x) = ${rr(a)}x² ${rrSign(b)}x ${rrSign(c)} = 0\n\n`;
+      steps += `f(x) = ${exprML(expr)} = 0\n\n`;
       const D = b*b - 4*a*c;
       steps += `${t('solve_disc')}: D = b² − 4ac\n`;
       steps += `  D = (${rr(b)})² − 4·(${rr(a)})·(${rr(c)})\n`;
@@ -1195,15 +1956,21 @@ function generateSolveSteps(pt) {
       } else {
         const sqD = Math.sqrt(D);
         const x1 = (-b + sqD) / (2*a), x2 = (-b - sqD) / (2*a);
-        const DI2 = Math.round(D); const srM = simplifyRadical(DI2);
-        const sqStr2 = srM && srM.radicand > 1
-          ? (srM.coef>1 ? `${srM.coef}√${srM.radicand}` : `√${srM.radicand}`)
-          : `√${rr(D)}`;
+        // simplifyRadicalCASFrac() statt simplifyRadicalCAS(Math.round(D)):
+        // bei echten Bruch-Diskriminanten (z.B. D=17/4 aus nicht-ganzzahligen
+        // Koeffizienten) rundete Math.round(D) den Radikanden VOR der CAS-
+        // Vereinfachung und lieferte so ein falsches √D (Bugfix, siehe
+        // simplifyRadicalCASFrac() weiter oben).
+        const srM = simplifyRadicalCASFrac(D);
+        const sqStr2 = rrRad(srM, D);
         // Vieta: ganzzahlige oder einfache Wurzeln
         const _xSr = rr(Math.min(x1,x2)), _xLr = rr(Math.max(x1,x2));
-        const _aF = Math.abs(a-1)<1e-5 ? "" : (Math.abs(a+1)<1e-5 ? "-" : rr(a)+"·");
-        const _fp1 = `(x${-Math.min(x1,x2)<0?" + "+rr(Math.abs(Math.min(x1,x2))):" − "+rr(Math.abs(Math.min(x1,x2)))})`;
-        const _fp2 = `(x${-Math.max(x1,x2)<0?" + "+rr(Math.abs(Math.max(x1,x2))):" − "+rr(Math.abs(Math.max(x1,x2)))})`;
+        const _aF = Math.abs(a-1)<1e-5 ? "" : (Math.abs(a+1)<1e-5 ? latexToMathLiveHtml("-") : rr(a)+"·");
+        // Faktor zu Nullstelle r ist (x − r): bei positivem r also "x − r",
+        // bei negativem r "x + |r|" (vorher stand hier fälschlich das
+        // umgekehrte Vorzeichen, z.B. "(x + 1)" statt "(x − 1)" für r=1).
+        const _fp1 = `(x${-Math.min(x1,x2)<0?" − "+rr(Math.abs(Math.min(x1,x2))):" + "+rr(Math.abs(Math.min(x1,x2)))})`;
+        const _fp2 = `(x${-Math.max(x1,x2)<0?" − "+rr(Math.abs(Math.max(x1,x2))):" + "+rr(Math.abs(Math.max(x1,x2)))})`;
         const isInt = v => Math.abs(v - Math.round(v)) < 0.01;
         if (isInt(x1) && isInt(x2)) {
           steps += `<u>Faktorisierung (Vieta):</u>\n\n`;
@@ -1230,50 +1997,54 @@ function generateSolveSteps(pt) {
         const m = Math.abs(n); // Betrag des Exponenten
         // Formatierung des Koeffizienten a als Bruch/Ganzzahl
         const aNum = niceNum(a);
+        // Wurzelzeichen (auch höhere Wurzeln ∛, ⁴√, …) als echtes LaTeX \sqrt[k]{}
+        // gerendert (statt Unicode "∛"/"⁴√") — sieht dann wie im Eingabefeld aus.
+        const rootLatex = (k, radicandLatex) => (k === 2 ? `\\sqrt{${radicandLatex}}` : `\\sqrt[${k}]{${radicandLatex}}`);
+        const rootML = (k, val) => latexToMathLiveHtml(rootLatex(k, numLatex(val)));
         if (n < 0) {
           // ─── Bruchform: f(x) = a/x^m + c = 0 ───────────────────
           const aDisp = aNum.includes('/') ? `(${aNum})` : aNum;
-          steps += `f(x) = ${aDisp}/x${nSup(m)} ${rrSign(c)} = 0\n\n`;
+          steps += `f(x) = ${exprML(expr)} = 0\n\n`;
           steps += `<u>Schritt 1: Konstante auf die andere Seite</u>\n`;
           steps += `  ${aDisp}/x${nSup(m)} = ${rr(-c)}\n\n`;
           steps += `<u>Schritt 2: x${nSup(m)} berechnen</u>\n`;
           steps += `  Beide Seiten · x${nSup(m)} (x ≠ 0):\n`;
           steps += `  ${aNum} = ${rr(-c)}·x${nSup(m)}\n`;
           const val = a / (-c);
-          steps += `  x${nSup(m)} = ${aNum} / ${rr(-c)} = <b>${niceNum(val)}</b>\n\n`;
+          steps += `  x${nSup(m)} = ${aNum} / ${rr(-c)} = <b>${rr(val)}</b>\n\n`;
           steps += `<u>Schritt 3: ${m === 2 ? 'Quadrat' : m + '. Potenz'}wurzel ziehen</u>\n`;
           if (val < 0 && m % 2 === 0) {
-            steps += `  x${nSup(m)} = ${niceNum(val)} < 0\n`;
+            steps += `  x${nSup(m)} = ${rr(val)} < 0\n`;
             steps += `  → <b>Keine reelle Nullstelle</b> (gerade Potenz)`;
           } else if (m % 2 === 0) {
             const xVal = Math.pow(val, 1 / m);
-            steps += `  x = ±√(${niceNum(val)})\n\n`;
-            steps += `  x₁ = +<b>${niceNum(xVal)}</b>\n`;
-            steps += `  x₂ = −<b>${niceNum(xVal)}</b>`;
+            steps += `  x = ±${rootML(m, val)}\n\n`;
+            steps += `  x₁ = +<b>${rr(xVal)}</b>\n`;
+            steps += `  x₂ = −<b>${rr(xVal)}</b>`;
           } else {
             const xVal = Math.pow(Math.abs(val), 1 / m) * Math.sign(val);
-            steps += `  x = ${m === 3 ? '∛' : `${nSup(m)}√`}(${niceNum(val)}) = <b>${niceNum(xVal)}</b>`;
+            steps += `  x = ${rootML(m, val)} = <b>${rr(xVal)}</b>`;
           }
         } else {
           // ─── Potenzform: f(x) = a·x^n + c = 0 ──────────────────
           const aPrefix = Math.abs(a) === 1 ? (a < 0 ? '−' : '') : `${aNum}·`;
-          steps += `f(x) = ${aPrefix}x${nSup(n)} ${rrSign(c)} = 0\n\n`;
+          steps += `f(x) = ${exprML(expr)} = 0\n\n`;
           steps += `<u>Schritt 1: x${nSup(n)} isolieren</u>\n`;
           steps += `  ${aPrefix}x${nSup(n)} = ${rr(-c)}\n`;
           const val = -c / a;
-          steps += `  x${nSup(n)} = ${rr(-c)} / ${rr(a)} = <b>${niceNum(val)}</b>\n\n`;
+          steps += `  x${nSup(n)} = ${rr(-c)} / ${rr(a)} = <b>${rr(val)}</b>\n\n`;
           steps += `<u>Schritt 2: ${n === 2 ? 'Quadrat' : n + '. Potenz'}wurzel ziehen</u>\n`;
           if (val < 0 && n % 2 === 0) {
-            steps += `  x${nSup(n)} = ${niceNum(val)} < 0\n`;
+            steps += `  x${nSup(n)} = ${rr(val)} < 0\n`;
             steps += `  → <b>Keine reelle Nullstelle</b> (gerade Potenz)`;
           } else if (n % 2 === 0) {
             const xVal = Math.pow(val, 1 / n);
-            steps += `  x = ±√(${niceNum(val)})\n\n`;
-            steps += `  x₁ = +<b>${niceNum(xVal)}</b>\n`;
-            steps += `  x₂ = −<b>${niceNum(xVal)}</b>`;
+            steps += `  x = ±${rootML(n, val)}\n\n`;
+            steps += `  x₁ = +<b>${rr(xVal)}</b>\n`;
+            steps += `  x₂ = −<b>${rr(xVal)}</b>`;
           } else {
             const xVal = Math.pow(Math.abs(val), 1 / n) * Math.sign(val);
-            steps += `  x = ${n === 3 ? '∛' : `${nSup(n)}√`}(${niceNum(val)}) = <b>${niceNum(xVal)}</b>`;
+            steps += `  x = ${rootML(n, val)} = <b>${rr(xVal)}</b>`;
           }
         }
       } else {
@@ -1281,14 +2052,18 @@ function generateSolveSteps(pt) {
         const trig = getTrigInfo();
         const rat  = ratEarly; // bereits oben berechnet (vor quad)
         if (trig && !trig.mixed && trig.ok && Math.abs(trig.a) > 1e-6) {
-          const { kind, a, d } = trig;
-          const k    = -d / a;                       // trig(·) = k
-          const kStr = nn(k);
+          const { kind, a, d, sign } = trig;
+          // aSigned: das tatsächlich vor trig(·) stehende (auch negative)
+          // Vorzeichen berücksichtigen (s. findTrigSign oben) — a selbst
+          // bleibt die (stets positive) Amplitude.
+          const aSigned = a * sign;
+          const k    = -d / aSigned;                  // trig(·) = k
+          const kStr = rr(k);
           const kindDE = kind === 'sin' ? 'Sinus' : kind === 'cos' ? 'Kosinus' : 'Tangens';
           steps += `<b>Methode: ${kindDE}-Gleichung</b>\n\n`;
-          if (Math.abs(a - 1) > 0.01 || Math.abs(d) > 1e-4) {
+          if (Math.abs(aSigned - 1) > 0.01 || Math.abs(d) > 1e-4) {
             steps += `${fLabel} = 0  →  ${kind}(·) isolieren:\n`;
-            if (Math.abs(d) > 1e-4) steps += `  ${nn(a)}·${kind}(·) = ${nn(-d)}\n`;
+            if (Math.abs(d) > 1e-4) steps += `  ${rr(aSigned)}·${kind}(·) = ${rr(-d)}\n`;
             steps += `  ${kind}(·) = ${kStr}\n\n`;
           } else {
             steps += `${kind}(·) = ${kStr}\n\n`;
@@ -1304,18 +2079,18 @@ function generateSolveSteps(pt) {
               steps += `<u>Tabellenwert:</u> tan(${arcStr}) = ${kStr}\n`;
               steps += `  →  · = ${arcStr} + k·π  (k ∈ ℤ)\n\n`;
             }
-            steps += `Hier: x = <b>${nn(pt.x)}</b>`;
+            steps += `Hier: x = <b>${rrPi(pt.x)}</b>`;
 
           } else if (kind === 'sin') {
             if (Math.abs(k) > 1+1e-6) {
               steps += `|${kStr}| > 1  →  <b>Keine reelle Nullstelle</b>`;
             } else if (Math.abs(k) < 1e-6) {
               steps += `<u>Tabellenwert:</u> sin(k·π) = 0\n  →  · = k·π  (k ∈ ℤ)\n\n`;
-              steps += `Hier: x = <b>${nn(pt.x)}</b>`;
+              steps += `Hier: x = <b>${rrPi(pt.x)}</b>`;
             } else if (Math.abs(Math.abs(k)-1) < 1e-6) {
               const aStr = k > 0 ? 'π/2' : '−π/2';
               steps += `<u>Tabellenwert:</u> sin(${aStr}) = ${kStr}\n  →  · = ${aStr} + 2k·π  (k ∈ ℤ)\n\n`;
-              steps += `Hier: x = <b>${nn(pt.x)}</b>`;
+              steps += `Hier: x = <b>${rrPi(pt.x)}</b>`;
             } else {
               const info = sinAngle(k);
               if (info && info.isTable) {
@@ -1332,7 +2107,7 @@ function generateSolveSteps(pt) {
                 steps += `  · = arcsin(${kStr}) + 2k·π\n`;
                 steps += `  · = π − arcsin(${kStr}) + 2k·π\n\n`;
               }
-              steps += `Hier: x = <b>${nn(pt.x)}</b>`;
+              steps += `Hier: x = <b>${rrPi(pt.x)}</b>`;
             }
 
           } else { // cos
@@ -1340,11 +2115,11 @@ function generateSolveSteps(pt) {
               steps += `|${kStr}| > 1  →  <b>Keine reelle Nullstelle</b>`;
             } else if (Math.abs(k) < 1e-6) {
               steps += `<u>Tabellenwert:</u> cos(π/2) = 0\n  →  · = π/2 + k·π  (k ∈ ℤ)\n\n`;
-              steps += `Hier: x = <b>${nn(pt.x)}</b>`;
+              steps += `Hier: x = <b>${rrPi(pt.x)}</b>`;
             } else if (Math.abs(Math.abs(k)-1) < 1e-6) {
               const aStr = k > 0 ? '0 (bzw. 2π)' : 'π';
               steps += `<u>Tabellenwert:</u> cos(${aStr}) = ${kStr}\n  →  · = ${k>0?'':'π + '}2k·π  (k ∈ ℤ)\n\n`;
-              steps += `Hier: x = <b>${nn(pt.x)}</b>`;
+              steps += `Hier: x = <b>${rrPi(pt.x)}</b>`;
             } else {
               const info = cosAngle(k);
               if (info && info.isTable) {
@@ -1354,24 +2129,24 @@ function generateSolveSteps(pt) {
                 steps += `Kein exakter Tabellenwert  →  numerisch:\n`;
                 steps += `  · = ±arccos(${kStr}) + 2k·π\n\n`;
               }
-              steps += `Hier: x = <b>${nn(pt.x)}</b>`;
+              steps += `Hier: x = <b>${rrPi(pt.x)}</b>`;
             }
           }
 
         } else if (rat) {
           const { a: rA, h: rH, k: rK } = rat;
-          const hS = Math.abs(rH)<1e-5?'x':(rH<0?`x + ${nn(-rH)}`:`x − ${nn(rH)}`);
+          const hS = Math.abs(rH)<1e-5?'x':(rH<0?`x + ${rr(-rH)}`:`x − ${rr(rH)}`);
           steps += `<b>Nullstelle der gebrochenrationalen Funktion:</b>\n\n`;
-          steps += `f(x) = ${nn(rA)}/(${hS}) ${rK >= 0 ? '+' : '−'} ${nn(Math.abs(rK))} = 0\n\n`;
+          steps += `f(x) = ${exprML(expr)} = 0\n\n`;
           steps += `<u>Schritt 1:</u>  Bruchterm auf die andere Seite\n`;
-          steps += `  ${nn(rA)}/(${hS}) = ${nn(-rK)}\n\n`;
+          steps += `  ${rr(rA)}/(${hS}) = ${rr(-rK)}\n\n`;
           steps += `<u>Schritt 2:</u>  Gleichung auflösen  (×(${hS}))\n`;
-          steps += `  ${nn(rA)} = ${nn(-rK)}·(${hS})\n`;
+          steps += `  ${rr(rA)} = ${rr(-rK)}·(${hS})\n`;
           if (Math.abs(rK) > 1e-6) {
-            steps += `  ${hS} = ${nn(rA)}/(${nn(-rK)}) = ${nn(rA/(-rK))}\n`;
-            steps += `  x = <b>${nn(pt.x)}</b>`;
+            steps += `  ${hS} = ${rr(rA)}/(${rr(-rK)}) = ${rr(rA/(-rK))}\n`;
+            steps += `  x = <b>${rr(pt.x)}</b>`;
           } else {
-            steps += `  Zähler ${nn(rA)} ≠ 0  →  <b>Keine Nullstelle</b>`;
+            steps += `  Zähler ${rr(rA)} ≠ 0  →  <b>Keine Nullstelle</b>`;
           }
         } else {
           const decZ = getRationalDecomposition();
@@ -1382,7 +2157,7 @@ function generateSolveSteps(pt) {
             const hSign = Math.abs(h)<1e-5?'x':(h<0?`x + ${rr(-h)}`:`x − ${rr(h)}`);
             // Mult. by (x-h): m·x(x-h)+b(x-h)+R=0 → A·x²+B·x+C=0
             const A = m, B = bD - m*h, C = -bD*h + R;
-            steps += `<b>Nullstelle: f(x) = ${sS}${bS} + ${rr(R)}/(${hSign}) = 0</b>\n\n`;
+            steps += `<b>Nullstelle: f(x) = ${exprML(expr)} = 0</b>\n\n`;
             steps += `<u>Schritt 1:</u>  Beide Seiten × (${hSign})\n`;
             steps += `  (${sS}${bS})·(${hSign}) + ${rr(R)} = 0\n\n`;
             steps += `<u>Schritt 2:</u>  Ausmultiplizieren → quadratische Gleichung\n`;
@@ -1399,14 +2174,70 @@ function generateSolveSteps(pt) {
             } else {
               const sq = Math.sqrt(D);
               const x1 = (-B+sq)/(2*A), x2 = (-B-sq)/(2*A);
-              const srZ = simplifyRadical(Math.round(D*1e4)/1e4);
-              const sqStr = srZ&&srZ.radicand>1?(srZ.coef>1?`${srZ.coef}√${srZ.radicand}`:`√${srZ.radicand}`):`√${rr(D)}`;
+              const srZ = simplifyRadicalCASFrac(D);
+              const sqStr = rrRad(srZ, D);
               steps += `  D = ${rr(D)}\n`;
               steps += `  x₁ = (${rr(-B)} + ${sqStr}) / ${rr(2*A)} = <b>${rr(x1)}</b>\n`;
               steps += `  x₂ = (${rr(-B)} − ${sqStr}) / ${rr(2*A)} = <b>${rr(x2)}</b>`;
             }
           } else {
-            steps += `f(x) = 0\nNumerisch: x ≈ <b>${nn(pt.x)}</b>`;
+            // Allgemeine kubische (oder höhergradige, per getCubicCoeffs() erkannte)
+            // Funktion ohne einfache Bruchzerlegung: Rateverfahren (Satz von der
+            // rationalen Nullstelle) + Polynomdivision + Mitternachtsformel für den
+            // Rest — die im Unterricht übliche Methode, statt direkt numerisch
+            // aufzugeben (siehe findRationalRootCubic()/polyDivideByRoot3() oben).
+            const cubicZ = getCubicCoeffs();
+            const rootInfo = cubicZ ? findRationalRootCubic(cubicZ.a, cubicZ.b, cubicZ.c, cubicZ.d) : null;
+            if (cubicZ && rootInfo) {
+              const { p, q, intCoeffs } = rootInfo;
+              const [A, B, C, D] = intCoeffs;
+              const r0 = p / q;
+              steps += `<b>Nullstelle: f(x) = ${exprML(expr)} = 0</b>\n\n`;
+              steps += `<u>Schritt 1: Rateverfahren (Satz von der rationalen Nullstelle)</u>\n`;
+              steps += `  Kandidat x = ${rr(r0)} testen:  f(${rr(r0)}) = <b>0</b> ✓\n\n`;
+              const hSignC = r0 >= 0 ? `x − ${rr(r0)}` : `x + ${rr(-r0)}`;
+              steps += `<u>Schritt 2: Polynomdivision durch (${hSignC})</u>\n`;
+              const quot = polyDivideByRoot3(A, B, C, D, p, q);
+              // A,B,C,D sind ganzzahlig SKALIERT (s. findRationalRootCubic —
+              // sucht den kleinsten Faktor, der alle vier Koeffizienten zu
+              // Ganzzahlen macht). Für die ANZEIGE auf die tatsächlichen,
+              // unskalierten Koeffizienten von f(x) zurückrechnen — sonst
+              // zeigt "Schritt 2" das Ergebnis der Division des SKALIERTEN
+              // Polynoms, das nicht mehr zum direkt darüber angezeigten f(x)
+              // passt (z.B. f(x)=0.5x³−1.5x²−2x+6 : (x−2) würde als
+              // "x²−x−6" statt korrekt "0.5x²−0.5x−3" erscheinen). Die
+              // WURZELN der Restgleichung sind skalierungsinvariant (hängen
+              // nur von den Verhältnissen B/A, C/A ab) — nur die Anzeige
+              // ändert sich.
+              const cubicScale = A / cubicZ.a;
+              const quotA = quot.A / cubicScale, quotB = quot.B / cubicScale, quotC = quot.C / cubicScale;
+              steps += `  → ${rr(quotA)}x² ${rrSign(quotB)}x ${rrSign(quotC)} = 0\n\n`;
+              const Dq = quotB*quotB - 4*quotA*quotC;
+              let otherRoots = [];
+              steps += `<u>Schritt 3: Restgleichung lösen</u>\n`;
+              if (Math.abs(Dq) < 1e-6) {
+                const x0 = -quotB/(2*quotA);
+                steps += `  D = 0  →  Doppelte Nullstelle: x = <b>${rr(x0)}</b>\n\n`;
+                otherRoots = [x0];
+              } else if (Dq < 0) {
+                steps += `  D = ${rr(Dq)} < 0  →  Keine weiteren reellen Nullstellen\n\n`;
+              } else {
+                const sqDq = Math.sqrt(Dq);
+                const qx1 = (-quotB+sqDq)/(2*quotA), qx2 = (-quotB-sqDq)/(2*quotA);
+                const srQ = simplifyRadicalCASFrac(Dq);
+                const sqStrQ = rrRad(srQ, Dq);
+                steps += `  D = ${rr(Dq)}  →  √D = ${sqStrQ}\n`;
+                steps += `  x = (${rr(-quotB)} ± ${sqStrQ}) / ${rr(2*quotA)}\n\n`;
+                otherRoots = [qx1, qx2];
+              }
+              const allRoots = [r0, ...otherRoots].sort((x,y) => x-y);
+              const subs = ['₁','₂','₃'];
+              steps += `<u>Alle Nullstellen:</u>\n`;
+              steps += '  ' + allRoots.map((rv,i) => `x${subs[i]||i+1} = <b>${rr(rv)}</b>`).join(',  ') + '\n\n';
+              steps += `Hier: x = <b>${rr(pt.x)}</b>`;
+            } else {
+              steps += `f(x) = 0\nNumerisch: x ≈ <b>${rr(pt.x)}</b>`;
+            }
           }
         }
       }
@@ -1417,7 +2248,7 @@ function generateSolveSteps(pt) {
     const quad = getQuadCoeffs();
     if (quad) {
       const { a, b, c } = quad;
-      steps += `f(x) = ${rr(a)}x² ${rrSign(b)}x ${rrSign(c)}\n\n`;
+      steps += `f(x) = ${exprML(expr)}\n\n`;
       steps += `<u>Methode: Scheitelpunktformel</u>\n`;
       steps += `  xₛ = −b/(2a) = −(${rr(b)}) / (2·${rr(a)})\n`;
       steps += `  xₛ = ${rr(-b)} / ${rr(2*a)} = <b>${rr(pt.x)}</b>\n`;
@@ -1438,50 +2269,58 @@ function generateSolveSteps(pt) {
       if (cubic) {
         const { a, b, c, d } = cubic;
         steps += `<b>${kindStr}: Ableitung der kubischen Funktion</b>\n\n`;
-        steps += `f(x) = ${rr(a)}x³ ${rrSign(b)}x² ${rrSign(c)}x ${rrSign(d)}\n\n`;
+        steps += `f(x) = ${exprML(expr)}\n\n`;
         steps += `<u>1. Ableitung:</u>\n  f'(x) = ${rr(3*a)}x² ${rrSign(2*b)}x ${rrSign(c)}\n\n`;
         steps += `<u>Extremum: f'(x) = 0</u>\n`;
         const A = 3*a, B = 2*b, C = c;
         const D = B*B - 4*A*C;
         steps += `  ${rr(A)}x² ${rrSign(B)}x ${rrSign(C)} = 0\n`;
-        steps += `  D = (${rr(B)})² − 4·${rr(A)}·${rr(C)} = ${rr(B*B)} − ${rr(4*A*C)} = ${nn(D)}\n\n`;
+        steps += `  D = (${rr(B)})² − 4·${rr(A)}·${rr(C)} = ${rr(B*B)} − ${rr(4*A*C)} = ${rr(D)}\n\n`;
         if (D < -1e-8) {
           steps += `  D < 0  →  <b>Kein reelles Extremum</b>`;
         } else if (Math.abs(D) < 1e-8) {
           const xs = -B/(2*A);
-          steps += `  D = 0  →  Sattelstelle (kein echtes Extremum): x = ${nn(xs)}`;
+          steps += `  D = 0  →  Sattelstelle (kein echtes Extremum): x = ${rr(xs)}`;
         } else {
           const sqD = Math.sqrt(D);
           const x1 = (-B+sqD)/(2*A), x2 = (-B-sqD)/(2*A);
-          const srD = simplifyRadical(Math.round(D * 1e4)/1e4);
-          const sqStr = srD && srD.radicand > 1
-            ? (srD.coef > 1 ? `${srD.coef}√${srD.radicand}` : `√${srD.radicand}`)
-            : `√${nn(D)}`;
+          const srD = simplifyRadicalCASFrac(D);
+          const sqStr = rrRad(srD, D);
           steps += `  x = (−(${rr(B)}) ± ${sqStr}) / (2·${rr(A)})\n`;
-          steps += `  x₁ = ${nn(x1)},  x₂ = ${nn(x2)}\n\n`;
+          steps += `  x₁ = ${rr(x1)},  x₂ = ${rr(x2)}\n\n`;
           steps += `<u>2. Ableitung (bestimmt Hoch/Tiefpunkt):</u>\n`;
           steps += `  f''(x) = ${rr(6*a)}x ${rrSign(2*b)}\n`;
           const thisX = Math.abs(x1 - pt.x) < Math.abs(x2 - pt.x) ? x1 : x2;
           const d2at  = 6*a*thisX + 2*b;
-          steps += `  f''(${nn(thisX)}) ≈ ${rr(d2at)} ${d2at < 0 ? '< 0  → Hochpunkt ✓' : '> 0  → Tiefpunkt ✓'}\n\n`;
-          steps += `Extremum: (${nn(pt.x)} | <b>${nn(pt.y)}</b>)`;
+          steps += `  f''(${rr(thisX)}) ≈ ${rr(d2at)} ${d2at < 0 ? '< 0  → Hochpunkt ✓' : '> 0  → Tiefpunkt ✓'}\n\n`;
+          steps += `Extremum: (${rr(pt.x)} | <b>${rr(pt.y)}</b>)`;
         }
 
       } else if (trig && !trig.mixed && trig.ok && trig.kind !== 'tan') {
-        const { kind, a, d } = trig;
+        const { kind, a, d, sign } = trig;
         const kindDE  = kind === 'sin' ? 'Sinus' : 'Kosinus';
-        const condStr = pt.kind === 'max' ? '1' : '−1';
-        const angleStr = pt.kind === 'max'
+        // f(x) = sign·a·trig(·) + d (a = Amplitude, stets positiv). Der
+        // WERT des Extremums ist unabhängig vom Vorzeichen immer d+a (Max)
+        // bzw. d−a (Min) — aber WELCHER trig(·)-Wert (+1 oder −1) dorthin
+        // führt, hängt vom tatsächlichen Vorzeichen ab: bei negativem
+        // Koeffizienten (sign=−1) liefert trig(·)=−1 den Hochpunkt und
+        // trig(·)=+1 den Tiefpunkt (vertauscht gegenüber sign=+1). Ohne
+        // diese Unterscheidung würde z.B. bei f(x)=−sin(x) der Hochpunkt
+        // fälschlich bei "· = π/2" (statt der tatsächlichen Stelle −π/2)
+        // behauptet.
+        const wantsPlusOne = (pt.kind === 'max') === (sign > 0);
+        const condStr = wantsPlusOne ? '1' : '−1';
+        const angleStr = wantsPlusOne
           ? (kind === 'sin' ? 'π/2' : '0 (bzw. 2π)')
           : (kind === 'sin' ? '3π/2 (bzw. −π/2)' : 'π');
         const extremVal = pt.kind === 'max' ? (a + d) : (-a + d);
         steps += `<b>${kindStr}: ${kindDE}-funktion</b>\n\n`;
-        steps += `<u>Amplitude:</u> a ≈ ${nn(a)},  <u>Mittellinie:</u> d ≈ ${nn(d)}\n\n`;
+        steps += `<u>Amplitude:</u> a ≈ ${rr(a)},  <u>Mittellinie:</u> d ≈ ${rr(d)}\n\n`;
         steps += `${kindStr} wenn ${kind}(·) = ${condStr}:\n`;
         steps += `  ·  = ${angleStr} + 2k·π  (k ∈ ℤ)\n\n`;
         steps += `${pt.kind === 'max' ? 'Maximaler' : 'Minimaler'} Wert:\n`;
-        steps += `  f = ${pt.kind === 'max' ? '+' : '−'}${nn(a)} + ${nn(d)} = <b>${nn(extremVal)}</b>\n\n`;
-        steps += `Hier: (${nn(pt.x)} | <b>${nn(pt.y)}</b>)`;
+        steps += `  f = ${pt.kind === 'max' ? '+' : '−'}${rr(a)} + ${rr(d)} = <b>${rr(extremVal)}</b>\n\n`;
+        steps += `Hier: (${rrPi(pt.x)} | <b>${rr(pt.y)}</b>)`;
 
       } else {
         const decE = getRationalDecomposition();
@@ -1490,7 +2329,7 @@ function generateSolveSteps(pt) {
           const sS = Math.abs(m-1)<1e-5?'x':(Math.abs(m+1)<1e-5?'−x':`${rr(m)}x`);
           const bS = Math.abs(bD)<1e-6?'':(bD>0?` + ${rr(bD)}`:` − ${rr(-bD)}`);
           const hSign = Math.abs(h)<1e-5?'x':(h<0?`x + ${rr(-h)}`:`x − ${rr(h)}`);
-          steps += `<u>Methode: Ableitung der Zerlegung f(x) = ${sS}${bS} + ${rr(R)}/(${hSign})</u>\n\n`;
+          steps += `<u>Methode: Ableitung der Zerlegung f(x) = ${exprML(expr)}</u>\n\n`;
           steps += `f'(x) = ${rr(m)} − ${rr(R)}/(${hSign})²\n\n`;
           steps += `<u>Extremum: f'(x) = 0</u>\n`;
           steps += `  ${rr(m)} = ${rr(R)}/(${hSign})²\n`;
@@ -1499,9 +2338,12 @@ function generateSolveSteps(pt) {
             steps += `  ${rr(R/m)} < 0  →  <b>Keine reelle Lösung</b>`;
           } else {
             const sq = Math.sqrt(Math.max(0, R/m));
-            const sqRound = Math.round(sq*1e6)/1e6;
-            const isIntSq = Math.abs(sqRound - Math.round(sqRound)) < 1e-4;
-            const sqStr = isIntSq ? String(Math.round(sqRound)) : `√${rr(R/m)}`;
+            // Wie bei den anderen Wurzelausdrücken in diesem Lösungsweg (Nullstellen,
+            // Schnittpunkte): √(R/m) mit dem externen CAS vereinfachen statt nur auf
+            // Ganzzahligkeit zu prüfen — sonst bliebe ein nicht-perfektes Quadrat wie
+            // R/m=8 als unschönes "√8" statt als "2√2" stehen.
+            const srE = simplifyRadicalCASFrac(R/m);
+            const sqStr = rrRad(srE, R/m);
             steps += `  ${hSign} = ±${sqStr}\n`;
             const x1 = h + sq, x2 = h - sq;
             steps += `  x₁ = ${rr(h)} + ${sqStr} = <b>${rr(x1)}</b>\n`;
@@ -1517,11 +2359,11 @@ function generateSolveSteps(pt) {
           }
         } else {
           steps += `<u>f'(x) = 0 setzen  (numerisch):</u>\n\n`;
-          steps += `  x ≈ <b>${nn(pt.x)}</b>\n`;
-          steps += `  f(${nn(pt.x)}) = <b>${nn(pt.y)}</b>\n\n`;
+          steps += `  x ≈ <b>${rr(pt.x)}</b>\n`;
+          steps += `  f(${rr(pt.x)}) = <b>${rr(pt.y)}</b>\n\n`;
           const d2 = deriv2(expr, pt.x);
           steps += `<u>2. Ableitung (Nachweis):</u>\n`;
-          steps += `  f''(${nn(pt.x)}) ≈ ${r(d2,3)} ${d2<0?'< 0  → Hochpunkt':'> 0  → Tiefpunkt'}`;
+          steps += `  f''(${rr(pt.x)}) ≈ ${r(d2,3)} ${d2<0?'< 0  → Hochpunkt':'> 0  → Tiefpunkt'}`;
         }
       }
     }
@@ -1546,11 +2388,40 @@ function generateSolveSteps(pt) {
       if (Math.abs(a+b+c - safeEval(expr2,1)) > 0.01) return null;
       return { a: parseFloat(a.toFixed(6)), b: parseFloat(b.toFixed(6)), c: parseFloat(c.toFixed(6)) };
     })();
+    // Kubische Koeffizienten für BEIDE Funktionen (getCubicCoeffs() oben arbeitet
+    // nur auf der äusseren `expr`/fi — hier dieselbe Erkennung für expr2/fj
+    // nachgebaut) — ermöglicht das Rateverfahren (s.u.) auch für Schnittpunkte,
+    // bei denen mind. eine Seite kubisch ist (sonst würde direkt numerisch
+    // aufgegeben, obwohl f1(x)−f2(x) ein Polynom bis Grad 3 ist).
+    const cubic1 = getCubicCoeffs();
+    const cubic2 = (() => {
+      const H = 0.1;
+      const d3 = (safeEval(expr2,3*H)-3*safeEval(expr2,H)+3*safeEval(expr2,-H)-safeEval(expr2,-3*H))/(8*H*H*H);
+      const a = d3/6;
+      if (!isFinite(a) || Math.abs(a) < 1e-5) return null;
+      const d4 = (safeEval(expr2,2*H)-4*safeEval(expr2,H)+6*safeEval(expr2,0)-4*safeEval(expr2,-H)+safeEval(expr2,-2*H))/(H*H*H*H);
+      if (Math.abs(d4) > 2 + 3*Math.abs(a)) return null;
+      const b = deriv2(expr2, 0)/2, c = deriv1(expr2, 0), d = safeEval(expr2, 0);
+      if (!isFinite(b) || !isFinite(c) || !isFinite(d)) return null;
+      for (const x of [1, 2, -1, -2, 1.5]) {
+        const pred = a*x*x*x + b*x*x + c*x + d, act = safeEval(expr2, x);
+        if (!isFinite(act) || Math.abs(pred - act) > 0.05*(Math.abs(act)+1)) return null;
+      }
+      return { a: parseFloat(a.toFixed(5)), b: parseFloat(b.toFixed(5)), c: parseFloat(c.toFixed(5)), d: parseFloat(d.toFixed(5)) };
+    })();
+    // Bringt zwei Polynom-Koeffizientensätze (linear {a,b} / quadratisch {a,b,c} /
+    // kubisch {a,b,c,d}, höchster Grad zuerst) auf gemeinsame Form {a,b,c,d} und
+    // bildet die Differenz — Basis für das Rateverfahren bei f1(x) − f2(x) = 0.
+    function diffPoly3(p1, p2) {
+      const norm = (p) => p.d !== undefined ? p : (p.c !== undefined ? { a: 0, b: p.a, c: p.b, d: p.c } : { a: 0, b: 0, c: p.a, d: p.b });
+      const n1 = norm(p1), n2 = norm(p2);
+      return { a: n1.a-n2.a, b: n1.b-n2.b, c: n1.c-n2.c, d: n1.d-n2.d };
+    }
 
     if (lin1 && lin2) {
       const { a: a1, b: b1 } = lin1, { a: a2, b: b2 } = lin2;
-      steps += `f${fi+1}(x) = ${rr(a1)}x ${rrSign(b1)}\n`;
-      steps += `f${fj+1}(x) = ${rr(a2)}x ${rrSign(b2)}\n\n`;
+      steps += `f${fi+1}(x) = ${exprML(expr)}\n`;
+      steps += `f${fj+1}(x) = ${exprML(expr2)}\n\n`;
       steps += `Gleichsetzen:\n`;
       steps += `  ${rr(a1)}x ${rrSign(b1)} = ${rr(a2)}x ${rrSign(b2)}\n`;
       const da = a1 - a2, db = b2 - b1;
@@ -1582,8 +2453,12 @@ function generateSolveSteps(pt) {
         const sqD = Math.sqrt(D);
         const x1 = (-B+sqD)/(2*A), x2 = (-B-sqD)/(2*A);
         const y1 = a1*x1+b1, y2 = a1*x2+b1;
-        steps += `  x₁ = (${rr(-B)} + √${rr(D)}) / ${rr(2*A)} = <b>${rr(x1)}</b>\n`;
-        steps += `  x₂ = (${rr(-B)} − √${rr(D)}) / ${rr(2*A)} = <b>${rr(x2)}</b>\n\n`;
+        // √D wie bei den Nullstellen mit dem externen CAS vereinfachen (statt
+        // unvereinfacht als "√12" stehen zu lassen).
+        const srI1 = simplifyRadicalCASFrac(D);
+        const sqStrI1 = rrRad(srI1, D);
+        steps += `  x₁ = (${rr(-B)} + ${sqStrI1}) / ${rr(2*A)} = <b>${rr(x1)}</b>\n`;
+        steps += `  x₂ = (${rr(-B)} − ${sqStrI1}) / ${rr(2*A)} = <b>${rr(x2)}</b>\n\n`;
         steps += `  S₁ = (<b>${rr(x1)}</b> | <b>${rr(y1)}</b>),  S₂ = (<b>${rr(x2)}</b> | <b>${rr(y2)}</b>)`;
       }
     } else if (quad1 && quad2) {
@@ -1614,16 +2489,75 @@ function generateSolveSteps(pt) {
           const sq=Math.sqrt(D);
           const x1=(-B+sq)/(2*A), x2=(-B-sq)/(2*A);
           const y1=safeEval(expr,x1), y2=safeEval(expr,x2);
-          steps += `  x₁ = (${rr(-B)} + √${rr(D)}) / ${rr(2*A)} = <b>${rr(x1)}</b>\n`;
-          steps += `  x₂ = (${rr(-B)} − √${rr(D)}) / ${rr(2*A)} = <b>${rr(x2)}</b>\n\n`;
+          // √D wie bei den Nullstellen mit dem externen CAS vereinfachen.
+          const srI2 = simplifyRadicalCASFrac(D);
+          const sqStrI2 = rrRad(srI2, D);
+          steps += `  x₁ = (${rr(-B)} + ${sqStrI2}) / ${rr(2*A)} = <b>${rr(x1)}</b>\n`;
+          steps += `  x₂ = (${rr(-B)} − ${sqStrI2}) / ${rr(2*A)} = <b>${rr(x2)}</b>\n\n`;
           steps += `  y₁ = f${fi+1}(${rr(x1)}) = <b>${rr(y1)}</b>\n`;
           steps += `  y₂ = f${fi+1}(${rr(x2)}) = <b>${rr(y2)}</b>\n\n`;
           steps += `S₁ = (<b>${rr(x1)}</b> | <b>${rr(y1)}</b>),  S₂ = (<b>${rr(x2)}</b> | <b>${rr(y2)}</b>)`;
         }
       }
     } else {
-      steps += `f${fi+1}(x) = f${fj+1}(x)\n(Analytisch nicht allgemein lösbar)\n\n`;
-      steps += `Numerisch: x ≈ <b>${nn(pt.x)}</b>, y ≈ <b>${nn(pt.y)}</b>`;
+      // Mind. eine Seite kubisch (sonst wäre eine der Verzweigungen oben
+      // gegriffen): f1(x) − f2(x) ist ein Polynom bis Grad 3 → dasselbe
+      // Rateverfahren + Polynomdivision wie bei der kubischen Nullstelle oben
+      // versuchen, statt direkt numerisch aufzugeben.
+      const poly1 = cubic1 || quad1 || lin1, poly2 = cubic2 || quad2 || lin2;
+      const diff = (poly1 && poly2) ? diffPoly3(poly1, poly2) : null;
+      const rootInfoI = diff && Math.abs(diff.a) > 1e-6 ? findRationalRootCubic(diff.a, diff.b, diff.c, diff.d) : null;
+      if (rootInfoI) {
+        const { p, q, intCoeffs } = rootInfoI;
+        const [A, B, C, D] = intCoeffs;
+        const r0 = p / q;
+        steps += `f${fi+1}(x) = ${exprML(expr)}\n`;
+        steps += `f${fj+1}(x) = ${exprML(expr2)}\n\n`;
+        steps += `Gleichsetzen  →  f${fi+1}(x) − f${fj+1}(x) = 0:\n`;
+        steps += `  ${rr(diff.a)}x³ ${rrSign(diff.b)}x² ${rrSign(diff.c)}x ${rrSign(diff.d)} = 0\n\n`;
+        steps += `<u>Schritt 1: Rateverfahren (Satz von der rationalen Nullstelle)</u>\n`;
+        steps += `  Kandidat x = ${rr(r0)} testen:  ✓\n\n`;
+        const hSignC = r0 >= 0 ? `x − ${rr(r0)}` : `x + ${rr(-r0)}`;
+        steps += `<u>Schritt 2: Polynomdivision durch (${hSignC})</u>\n`;
+        const quot = polyDivideByRoot3(A, B, C, D, p, q);
+        // A,B,C,D sind ganzzahlig skaliert (s. findRationalRootCubic) — für
+        // die Anzeige auf die unskalierten Koeffizienten von diff (das
+        // direkt darüber gezeigte "a x³+b x²+c x+d = 0") zurückrechnen, s.
+        // ausführlicher Kommentar bei der analogen Nullstellen-Berechnung
+        // oben (pt.kind === 'zero', kubischer Fall).
+        const cubicScale = A / diff.a;
+        const quotA = quot.A / cubicScale, quotB = quot.B / cubicScale, quotC = quot.C / cubicScale;
+        steps += `  → ${rr(quotA)}x² ${rrSign(quotB)}x ${rrSign(quotC)} = 0\n\n`;
+        const Dq = quotB*quotB - 4*quotA*quotC;
+        let otherRoots = [];
+        steps += `<u>Schritt 3: Restgleichung lösen</u>\n`;
+        if (Math.abs(Dq) < 1e-6) {
+          const x0 = -quotB/(2*quotA);
+          steps += `  D = 0  →  Doppelte Lösung: x = <b>${rr(x0)}</b>\n\n`;
+          otherRoots = [x0];
+        } else if (Dq < 0) {
+          steps += `  D = ${rr(Dq)} < 0  →  Keine weiteren reellen Lösungen\n\n`;
+        } else {
+          const sqDq = Math.sqrt(Dq);
+          const qx1 = (-quotB+sqDq)/(2*quotA), qx2 = (-quotB-sqDq)/(2*quotA);
+          const srQ = simplifyRadicalCASFrac(Dq);
+          const sqStrQ = rrRad(srQ, Dq);
+          steps += `  D = ${rr(Dq)}  →  √D = ${sqStrQ}\n`;
+          steps += `  x = (${rr(-quotB)} ± ${sqStrQ}) / ${rr(2*quotA)}\n\n`;
+          otherRoots = [qx1, qx2];
+        }
+        const allRoots = [r0, ...otherRoots].sort((x,y) => x-y);
+        const subs = ['₁','₂','₃'];
+        steps += `<u>Alle Schnittstellen:</u>\n`;
+        steps += '  ' + allRoots.map((rv,i) => {
+          const yv = safeEval(expr, rv);
+          return `x${subs[i]||i+1} = <b>${rr(rv)}</b> (y = <b>${rr(yv)}</b>)`;
+        }).join(',  ') + '\n\n';
+        steps += `Hier: S = (<b>${rr(pt.x)}</b> | <b>${rr(pt.y)}</b>)`;
+      } else {
+        steps += `f${fi+1}(x) = f${fj+1}(x)\n(Analytisch nicht allgemein lösbar)\n\n`;
+        steps += `Numerisch: x ≈ <b>${rr(pt.x)}</b>, y ≈ <b>${rr(pt.y)}</b>`;
+      }
     }
 
   } else if (pt.kind === 'inf') {
@@ -1634,27 +2568,27 @@ function generateSolveSteps(pt) {
 
     if (quad && !cubic) {
       // Parabel hat keinen Wendepunkt
-      steps += `f(x) = ${rr(quad.a)}x² ${rrSign(quad.b)}x ${rrSign(quad.c)}\n\n`;
+      steps += `f(x) = ${exprML(expr)}\n\n`;
       steps += `<u>2. Ableitung:</u>\n  f''(x) = ${rr(2*quad.a)}\n\n`;
       steps += `f''(x) ist konstant  →  <b>Kein Wendepunkt</b>\n`;
       steps += `(Parabeln sind überall konvex oder überall konkav.)`;
 
     } else if (cubic) {
       const { a, b, c, d } = cubic;
-      steps += `f(x) = ${rr(a)}x³ ${rrSign(b)}x² ${rrSign(c)}x ${rrSign(d)}\n\n`;
+      steps += `f(x) = ${exprML(expr)}\n\n`;
       steps += `<u>1. Ableitung:</u>\n  f'(x) = ${rr(3*a)}x² ${rrSign(2*b)}x ${rrSign(c)}\n\n`;
       steps += `<u>2. Ableitung:</u>\n  f''(x) = ${rr(6*a)}x ${rrSign(2*b)}\n\n`;
       steps += `<u>Wendepunkt: f''(x) = 0</u>\n`;
       steps += `  ${rr(6*a)}x ${rrSign(2*b)} = 0\n`;
       steps += `  ${rr(6*a)}x = ${rr(-2*b)}\n`;
       const xW = -b/(3*a);
-      steps += `  x = ${rr(-2*b)} / ${rr(6*a)} = <b>${nn(xW)}</b>\n\n`;
+      steps += `  x = ${rr(-2*b)} / ${rr(6*a)} = <b>${rr(xW)}</b>\n\n`;
       steps += `<u>Vorzeichentest (Krümmung wechselt):</u>\n`;
       const d2L = deriv2(expr, xW - 0.1), d2R = deriv2(expr, xW + 0.1);
       steps += `  f''(x − ε) ≈ ${r(d2L,3)} ${d2L<0?'< 0  (konkav)':'> 0  (konvex)'}\n`;
       steps += `  f''(x + ε) ≈ ${r(d2R,3)} ${d2R<0?'< 0  (konkav)':'> 0  (konvex)'}\n`;
       steps += `  → Vorzeichenwechsel ✓\n\n`;
-      steps += `Wendepunkt: W = (<b>${nn(pt.x)}</b> | <b>${nn(pt.y)}</b>)`;
+      steps += `Wendepunkt: W = (<b>${rr(pt.x)}</b> | <b>${rr(pt.y)}</b>)`;
 
     } else if (trig && !trig.mixed && trig.ok && trig.kind !== 'tan') {
       const { kind, a, d, period } = trig;
@@ -1662,9 +2596,9 @@ function generateSolveSteps(pt) {
       const kindDE  = kind === 'sin' ? 'Sinus' : 'Kosinus';
       steps += `${fLabel} ist eine ${kindDE}-funktion.\n\n`;
       steps += `<u>Ableitungsregeln:</u>\n`;
-      steps += `  f(x) ≈ ${nn(a)}·${kind}(b·x) + ${nn(d)}\n`;
-      steps += `  f'(x) ≈ ${nn(a)}·b·${derKind}(b·x)\n`;
-      steps += `  f''(x) ≈ −${nn(a)}·b²·${kind}(b·x)\n\n`;
+      steps += `  f(x) ≈ ${rr(a)}·${kind}(b·x) + ${rr(d)}\n`;
+      steps += `  f'(x) ≈ ${rr(a)}·b·${derKind}(b·x)\n`;
+      steps += `  f''(x) ≈ −${rr(a)}·b²·${kind}(b·x)\n\n`;
       steps += `<u>Wendepunkt: f''(x) = 0</u>\n`;
       steps += `  ${kind}(b·x) = 0\n`;
       steps += `  <u>Tabellenwert:</u> ${kind}(k·π) = 0  →  b·x = k·π  (k ∈ ℤ)\n\n`;
@@ -1676,27 +2610,27 @@ function generateSolveSteps(pt) {
         steps += `Periode T = ${perStr}  →  Wendepunkte im Abstand ${halfStr}\n\n`;
       }
       steps += `<u>Funktionswert am Wendepunkt:</u>\n`;
-      steps += `  ${kind}(b·x) = 0  →  f(x) = ${nn(a)}·0 + ${nn(d)} = <b>${nn(d)}</b>\n\n`;
+      steps += `  ${kind}(b·x) = 0  →  f(x) = ${rr(a)}·0 + ${rr(d)} = <b>${rr(d)}</b>\n\n`;
       const d2L = deriv2(expr, pt.x - 0.05), d2R = deriv2(expr, pt.x + 0.05);
       steps += `<u>Vorzeichenkontrolle (f''):</u>\n`;
       steps += `  f''(x − ε) ≈ ${r(d2L,3)} ${d2L<0?'< 0':'> 0'}\n`;
       steps += `  f''(x + ε) ≈ ${r(d2R,3)} ${d2R<0?'< 0':'> 0'}  → Vorzeichenwechsel ✓\n\n`;
-      steps += `W = (<b>${nn(pt.x)}</b> | <b>${nn(pt.y)}</b>)`;
+      steps += `W = (<b>${rr(pt.x)}</b> | <b>${rr(pt.y)}</b>)`;
 
     } else {
       // Allgemeiner numerischer Fall
       steps += `<u>Bedingung: f''(x) = 0 mit Vorzeichenwechsel</u>\n\n`;
-      steps += `Numerisch: x ≈ <b>${nn(pt.x)}</b>\n`;
-      steps += `f(${nn(pt.x)}) ≈ <b>${nn(pt.y)}</b>\n\n`;
+      steps += `Numerisch: x ≈ <b>${rr(pt.x)}</b>\n`;
+      steps += `f(${rr(pt.x)}) ≈ <b>${rr(pt.y)}</b>\n\n`;
       const d2L = deriv2(expr, pt.x - 0.1), d2R = deriv2(expr, pt.x + 0.1);
       steps += `<u>Vorzeichentest:</u>\n`;
       steps += `  f''(x − ε) ≈ ${r(d2L,3)} ${d2L<0?'< 0  (konkav)':'> 0  (konvex)'}\n`;
       steps += `  f''(x + ε) ≈ ${r(d2R,3)} ${d2R<0?'< 0  (konkav)':'> 0  (konvex)'}\n`;
       steps += `  → Vorzeichenwechsel: ${Math.sign(d2L) !== Math.sign(d2R) ? '✓  Wendepunkt bestätigt' : '— kein echter Wendepunkt'}\n\n`;
-      steps += `W = (<b>${nn(pt.x)}</b> | <b>${nn(pt.y)}</b>)`;
+      steps += `W = (<b>${rr(pt.x)}</b> | <b>${rr(pt.y)}</b>)`;
     }
   }
-  return fixMM(steps) || `Numerisch: x ≈ ${nn(pt.x)}, y ≈ ${nn(pt.y)}`;
+  return fixMM(steps) || `Numerisch: x ≈ ${rr(pt.x)}, y ≈ ${rr(pt.y)}`;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1721,47 +2655,24 @@ function computeArea(expr1, expr2, x1, x2) {
   return sum * hh / 3;
 }
 
-// Gibt den Funktionsausdruck für einen Flächen-Select-Wert zurück.
-// '__axis' → x-Achse (y=0)
-function getAreaExpr(val) {
-  if (val === '__axis') return '0';
-  const i = parseInt(val);
-  return (functions[i] && functions[i].expr) ? functions[i].expr : '0';
+// Berechnet das VORZEICHENBEHAFTETE bestimmte Integral einer einzelnen
+// Funktion im Intervall [x1, x2] — im Unterschied zu computeArea() OHNE
+// Betragsbildung, also der tatsächliche Wert ∫ f(x) dx (kann negativ werden
+// bzw. sich teilweise aufheben, wenn die Funktion im Intervall unter die
+// x-Achse fällt). Gleicher Algorithmus (Simpson-Regel, n=2000) wie
+// computeArea() — siehe dort. Wird u.a. vom Ober-/Untersummen-Applet
+// (drawRiemann() in 08_draw.js) als Referenzwert genutzt, gegen den die
+// Riemannsummen konvergieren.
+function computeSignedIntegral(expr, x1, x2) {
+  const n = 2000, hh = (x2 - x1) / n;
+  let sum = 0;
+  for (let i = 0; i <= n; i++) {
+    const x = x1 + i * hh;
+    const y = safeEval(expr, x);
+    if (!isFinite(y)) continue;
+    const w = (i === 0 || i === n) ? 1 : (i % 2 === 0 ? 2 : 4);
+    sum += w * y;
+  }
+  return sum * hh / 3;
 }
-
-// Schaltet Flächen-Anzeige an/aus
-function toggleArea() {
-  showArea = !showArea;
-  const btn = document.getElementById('area-toggle-btn');
-  btn.classList.toggle('active-btn', showArea);
-  btn.textContent = showArea ? t('btn_area_hide') : t('btn_area');
-  if (showArea) updateAreaResult();
-  scheduleDraw();
-}
-
-// Berechnet und zeigt die Fläche an
-function updateAreaResult() {
-  const f1v = document.getElementById('area-f1').value, f2v = document.getElementById('area-f2').value;
-  const x1 = parseFloat(document.getElementById('area-x1').value), x2 = parseFloat(document.getElementById('area-x2').value);
-  if (isNaN(x1) || isNaN(x2) || x1 >= x2) { document.getElementById('area-result').textContent = ''; return; }
-  document.getElementById('area-result').textContent = `Fläche ≈ ${computeArea(getAreaExpr(f1v), getAreaExpr(f2v), x1, x2).toFixed(precision)}`;
-}
-
-// Befüllt die Dropdowns für Flächen-Auswahl mit aktuellen Funktionen
-function syncAreaSelects() {
-  const s1 = document.getElementById('area-f1'), s2 = document.getElementById('area-f2');
-  const v1 = s1.value, v2 = s2.value; s1.innerHTML = ''; s2.innerHTML = '';
-  functions.forEach((fn, i) => {
-    [s1, s2].forEach(s => { const o = document.createElement('option'); o.value = i; o.textContent = `f${i+1}`; s.appendChild(o); });
-  });
-  [s1, s2].forEach(s => { const o = document.createElement('option'); o.value = '__axis'; o.textContent = t('lbl_xaxis'); s.appendChild(o); });
-  try { s1.value = v1; } catch(e) {}
-  try { s2.value = v2; } catch(e) {}
-  if (!s2.value) s2.value = '__axis';
-}
-
-// Neuberechnung der Fläche wenn Grenzen oder Funktionen geändert werden
-['area-x1','area-x2','area-f1','area-f2'].forEach(id => {
-  document.getElementById(id).addEventListener('change', () => { if (showArea) { updateAreaResult(); scheduleDraw(); } });
-});
 

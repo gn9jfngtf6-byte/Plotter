@@ -74,7 +74,7 @@ function _applyDetectedDomain(fn, domainToggle, vonInp, bisInp, rangeSpan) {
   domainToggle.textContent = _domainLabel(fn);
   vonInp.value = fn.domainMin != null ? fn.domainMin : '';
   bisInp.value = fn.domainMax != null ? fn.domainMax : '';
-  if (rangeSpan) _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, fn.domainExcluded, fn.domainGaps, rangeSpan);
+  if (rangeSpan) _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, fn.domainExcluded, fn.domainGaps, rangeSpan, fn.domainMinOpen, fn.domainMaxOpen);
   clearEvalCache(); scheduleComputeSpecials(); scheduleDraw();
 }
 
@@ -103,9 +103,9 @@ function _rangeLabel(rangeMin, rangeMax, rangeExcluded) {
 }
 
 // Aktualisiert das rangeSpan-Element mit der berechneten Wertemenge
-function _updateRangeSpan(expr, domainMin, domainMax, domainExcluded, domainGaps, rangeSpan) {
+function _updateRangeSpan(expr, domainMin, domainMax, domainExcluded, domainGaps, rangeSpan, domainMinOpen, domainMaxOpen) {
   if (!expr || !expr.trim()) { rangeSpan.textContent = ''; return; }
-  const { rangeMin, rangeMax, rangeExcluded } = computeRange(expr, domainMin, domainMax, domainExcluded || [], domainGaps || []);
+  const { rangeMin, rangeMax, rangeExcluded } = computeRange(expr, domainMin, domainMax, domainExcluded || [], domainGaps || [], domainMinOpen, domainMaxOpen);
   rangeSpan.textContent = _rangeLabel(rangeMin, rangeMax, rangeExcluded);
 }
 
@@ -142,7 +142,7 @@ function _panelDomainRangeFor(fn) {
     if (fn.domainMax != null && (domainMax == null || fn.domainMax < domainMax)) { domainMax = fn.domainMax; domainMaxOpen = false; }
   }
   let rng;
-  try { rng = computeRange(fn.expr, domainMin, domainMax, excluded, gaps); }
+  try { rng = computeRange(fn.expr, domainMin, domainMax, excluded, gaps, domainMinOpen, domainMaxOpen); }
   catch (e) { rng = { rangeMin: null, rangeMax: null, rangeExcluded: [] }; }
   return {
     domainMin, domainMax, domainMinOpen, domainMaxOpen, domainExcluded: excluded, domainGaps: gaps,
@@ -166,6 +166,23 @@ function _setPanelDW(elId, fn) {
   el.textContent = fn ? _panelDWText(fn) : '';
 }
 
+// Schreibt (oder leert) die "explizite Formel" eines Panel-Elements — bei
+// Funktionen mit Schiebereglern (z.B. y=mx+q) werden die Parameter durch
+// ihre AKTUELLEN Schieberwerte ersetzt (exprWithValues(), 03_math.js) und
+// hübsch gerendert (exprToMathLiveHtml(), 07_export.js), z.B. "f(x) = 2x+1"
+// statt der symbolischen Form "m·x+q". Wird wie _setPanelDW() zentral aus
+// updatePanelDomainRanges() aufgerufen, aktualisiert sich also live bei
+// jeder Schieber-Bewegung.
+function _setPanelFormula(elId, fn) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!fn) { el.textContent = ''; return; }
+  el.style.color = '#1D9E75';
+  const substituted = typeof exprWithValues === 'function' ? exprWithValues(fn.expr) : fn.expr;
+  const html = typeof exprToMathLiveHtml === 'function' ? exprToMathLiveHtml(substituted) : substituted;
+  el.innerHTML = '✓ f(x) = ' + html;
+}
+
 // Findet die (erste sichtbare) Funktion, deren normalisierter Ausdruck exakt
 // einem gegebenen Muster entspricht — dieselbe Zuordnungslogik, die die
 // "Aufschalten"-Knöpfe selbst benutzen (siehe linAddSlopeForm()/
@@ -186,12 +203,19 @@ function updatePanelDomainRanges() {
   // Lineare Funktionen: entweder die Steigungsform y=mx+q (mit Schiebern,
   // eigenes Anzeige-Element) oder das letzte "Berechnen"-Ergebnis aus 2
   // Punkten (kein Schieberegler, aber ebenfalls anzeigenswert).
+  _setPanelFormula('lin-slopeform-result', _findByPattern('m*x+q'));
   _setPanelDW('lin-slopeform-dw', _findByPattern('m*x+q'));
   const linFitFn = (typeof linPanelDef !== 'undefined' && linPanelDef && linPanelDef.lastFi != null)
     ? functions[linPanelDef.lastFi] : null;
   _setPanelDW('lin-dw', linFitFn && linFitFn.visible !== false ? linFitFn : null);
 
-  // Quadratische Funktionen: letztes "Berechnen"-Ergebnis (kein Schieberegler)
+  // Quadratische Funktionen: Standardform + Scheitelpunktsform mit Schiebern
+  // (analog zur Steigungsform bei linearen Funktionen), plus letztes
+  // "Berechnen"-Ergebnis aus Punkten (kein Schieberegler).
+  _setPanelFormula('quad-standardform-result', _findByPattern('a*x^2+b*x+c'));
+  _setPanelDW('quad-standardform-dw', _findByPattern('a*x^2+b*x+c'));
+  _setPanelFormula('quad-vertexform-result', _findByPattern('a*(x-v)^2+h'));
+  _setPanelDW('quad-vertexform-dw', _findByPattern('a*(x-v)^2+h'));
   const quadFitFn = (typeof quadPanelDef !== 'undefined' && quadPanelDef && quadPanelDef.lastFi != null)
     ? functions[quadPanelDef.lastFi] : null;
   _setPanelDW('quad-dw', quadFitFn && quadFitFn.visible !== false ? quadFitFn : null);
@@ -223,12 +247,26 @@ function updatePanelDomainRanges() {
     });
     trigEl.innerHTML = lines.join('');
   }
+
+  // Trigonometrische Funktionen, allgemeine Form y = a·sin(b(x−c))+d (bzw.
+  // cos/tan) — analog zur allgemeinen Form bei Exponential-/Log-/Potenz-
+  // funktionen oben, aber abhängig vom gewählten Typ (Dropdown
+  // #trig-gen-subtype), da sin/cos/tan jeweils einen eigenen Ausdrucks-String
+  // ergeben (siehe trigAddGeneralForm(), 11_fitting.js).
+  if (typeof TRIG_GENERAL_FNAMES !== 'undefined') {
+    const subtypeT = document.getElementById('trig-gen-subtype')?.value || 'sin';
+    const fnameT = TRIG_GENERAL_FNAMES[subtypeT] || 'sin';
+    const exprT = `a*${fnameT}(b*(x-c))+d`;
+    const fnT = _findByPattern(exprT);
+    _setPanelFormula('trig-generalform-result', fnT);
+    _setPanelDW('trig-generalform-dw', fnT);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // MODUL: ui_functions — Funktionsliste in der Sidebar
 // Enthält:  renderFuncList(), addFunction(), removeFunction()
-//           syncAreaSelects(), renderPreview(), setActiveInput()
+//           renderPreview(), setActiveInput()
 // Ändern:  Standardausdruck neuer Funktionen → addFunction()
 // ═══════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════
@@ -312,6 +350,7 @@ function renderFuncList() {
       try { latex = (raw && raw.trim()) ? rawToLatex(raw) : ''; } catch (ex) { latex = ''; }
       inp.setAttribute('data-raw', raw || '');
       inp.value = latex;
+      _mlMoveCursorToEnd(inp); // siehe 14_mathinput.js — Cursor-nach-setValue()-Fix
     }
     mlSetFromRaw(fn.expr);
     inp._mlSetFromRaw = mlSetFromRaw;
@@ -338,8 +377,8 @@ function renderFuncList() {
       }
       inp.setAttribute('data-raw', raw);
       fn.expr = raw;
-      clearEvalCache(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
-      if (showArea) updateAreaResult(); syncLinearExtra(); scheduleDraw();
+      clearEvalCache(); syncParams(); scheduleComputeSpecials();
+       syncLinearExtra(); scheduleDraw();
       // Definitionsbereich bei Ausdrucksänderung neu erkennen (wenn nicht manuell gesetzt)
       const _ds = _domSt(fn);
       _ds.userSet = false;
@@ -367,7 +406,7 @@ function renderFuncList() {
     // Auge-Button
     const eye = document.createElement('button'); eye.className = 'del-btn';
     eye.innerHTML = fn.visible ? '&#128065;' : '&#x1F648;'; eye.title = fn.visible ? t('btn_hide_fn') : t('btn_show_fn');
-    eye.onclick = () => { fn.visible = !fn.visible; renderFuncList(); scheduleComputeSpecials(); if (showArea) updateAreaResult(); scheduleDraw(); };
+    eye.onclick = () => { fn.visible = !fn.visible; renderFuncList(); scheduleComputeSpecials();  scheduleDraw(); };
 
     // Löschen-Button — bereinigt auch zugehörige Graph-Punkte
     const del = document.createElement('button'); del.className = 'del-btn'; del.textContent = '✕';
@@ -376,11 +415,32 @@ function renderFuncList() {
       graphPoints = graphPoints.filter(gp => gp.fi !== i);
       // Indizes der Graph-Punkte auf höheren Funktionen anpassen
       graphPoints.forEach(gp => { if (gp.fi > i) gp.fi--; });
+      // Differenzenquotient-Applet: beendet sich, falls seine Funktion
+      // gelöscht wird; Index anpassen, falls eine frühere Funktion entfernt wurde.
+      if (diffQuot) { if (diffQuot.fi === i) diffQuot = null; else if (diffQuot.fi > i) diffQuot.fi--; }
+      // Ober-/Untersummen-Applet: beendet sich, falls fi1 gelöscht wird;
+      // Index anpassen, falls eine frühere Funktion entfernt wurde.
+      if (riemann) {
+        if (riemann.fi1 === i) riemann = null;
+        else if (riemann.fi1 > i) riemann.fi1--;
+      }
+      // Flächen-Applet (evtl. mit zwei Funktionen fi1/fi2, siehe flaeche
+      // oben in 02_core.js): beendet sich, falls fi1 gelöscht wird oder fi2
+      // (sofern gesetzt, axis==='g') gelöscht wird; Indizes anpassen, falls
+      // eine frühere Funktion entfernt wurde.
+      if (flaeche) {
+        if (flaeche.fi1 === i || flaeche.fi2 === i) {
+          flaeche = null;
+        } else {
+          if (flaeche.fi1 > i) flaeche.fi1--;
+          if (flaeche.fi2 !== null && flaeche.fi2 > i) flaeche.fi2--;
+        }
+      }
       functions.splice(i, 1);
       linkedLines = linkedLines.filter(ll => ll.fi !== i);
       linkedLines.forEach(ll => { if (ll.fi > i) ll.fi--; });
       if (activeInput?.fi === i) activeInput = null;
-      clearEvalCache(); renderFuncList(); syncParams(); syncAreaSelects(); scheduleComputeSpecials(); if (showArea) updateAreaResult();
+      clearEvalCache(); renderFuncList(); syncParams(); scheduleComputeSpecials(); 
       pushHistory(); scheduleDraw();
     };
     // Menü-Knopf ("☰") — MathLive zeigt diesen normalerweise selbst rechts
@@ -465,7 +525,7 @@ function renderFuncList() {
       // Wertemenge nach kurzer Pause neu berechnen (rechenintensiv)
       clearTimeout(rangeSpan._rangeTimer);
       rangeSpan._rangeTimer = setTimeout(() =>
-        _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, fn.domainExcluded, fn.domainGaps, rangeSpan), 300);
+        _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, fn.domainExcluded, fn.domainGaps, rangeSpan, fn.domainMinOpen, fn.domainMaxOpen), 300);
       clearEvalCache(); scheduleComputeSpecials();
       if (!historyPaused) { clearTimeout(_histDebounce); _histDebounce = setTimeout(pushHistory, 400); }
       scheduleDraw();
@@ -492,7 +552,7 @@ function renderFuncList() {
       }, 200);
     } else if (fn.expr.trim()) {
       // Domain bereits bekannt (z.B. nach manuellem Setzen oder Laden): Wertemenge sofort berechnen
-      setTimeout(() => _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, fn.domainExcluded, fn.domainGaps, rangeSpan), 50);
+      setTimeout(() => _updateRangeSpan(fn.expr, fn.domainMin, fn.domainMax, fn.domainExcluded, fn.domainGaps, rangeSpan, fn.domainMinOpen, fn.domainMaxOpen), 50);
     }
 
     const funcItem = document.createElement('div');
@@ -500,9 +560,23 @@ function renderFuncList() {
     el.appendChild(funcItem);
     // 3-Strich-Kontextmenü auf sinnvolle Einträge reduzieren (siehe 14_mathinput.js) --
     // das math-field "mountet" sich intern erst asynchron nach dem Einhängen
-    // ins DOM (nicht synchron danach) -- deshalb per Microtask verzoegern,
-    // sonst greift die Zuweisung ins Leere bzw. wirft einen Fehler.
-    queueMicrotask(() => { inp.menuItems = mlFilterMenuItems(inp.menuItems); });
+    // ins DOM (nicht synchron danach). Ein einzelner Microtask reicht dafür
+    // NICHT zuverlässig aus -- das führte (erst sichtbar geworden, nachdem das
+    // g(x)-Aufschalten-Problem behoben war und dieser Codepfad dadurch
+    // tatsächlich zuverlässig erreicht wird) zu vereinzelten "Mathfield not
+    // mounted"-Fehlern. Wie bei mlPrewarmFocus() (14_mathinput.js) daher über
+    // zwei requestAnimationFrame-Ticks verzögern; try/catch als zusätzliches
+    // Sicherheitsnetz, falls der Mount ausnahmsweise selbst dann noch nicht
+    // fertig ist (das Kontextmenü behält dann einfach die Standardeinträge --
+    // kein funktionaler Schaden).
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      try { inp.menuItems = mlFilterMenuItems(inp.menuItems); } catch (ex) { /* siehe Kommentar oben */ }
+    }));
+    // Fokus-Warm-up (siehe mlPrewarmFocus(), 14_mathinput.js) — ohne das gehen
+    // beim allerersten Fokussieren dieser frisch erzeugten Zeile die ersten
+    // eingetippten Zeichen verloren/werden verstümmelt, falls sofort nach dem
+    // Anklicken weitergetippt wird.
+    mlPrewarmFocus(inp);
   });
   // Steigungsdreieck-Sektion anzeigen wenn lineare Funktion vorhanden
   const le = document.getElementById('linear-extra');
@@ -565,7 +639,7 @@ document.addEventListener('click', e => {
 // Neue leere Funktion hinzufügen und Eingabefeld fokussieren
 function addFunction() {
   functions.push({ expr: '', color: COLORS[functions.length % COLORS.length], visible: true });
-  renderFuncList(); syncParams(); syncAreaSelects();
+  renderFuncList(); syncParams();
   document.getElementById('func-list').lastChild?.querySelector('input')?.focus();
 }
 
@@ -574,8 +648,8 @@ function addFunction() {
 // dem Eingabefeld aufgerufen (siehe appendCalculusButtons()).
 function addDerivedFunction(rawExpr) {
   functions.push({ expr: rawExpr, color: COLORS[functions.length % COLORS.length], visible: true });
-  clearEvalCache(); renderFuncList(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
-  if (showArea) updateAreaResult();
+  clearEvalCache(); renderFuncList(); syncParams(); scheduleComputeSpecials();
+  
   pushHistory(); scheduleDraw();
 }
 
@@ -607,7 +681,7 @@ function trigAddFunction(kind) {
   if (fi === -1) {
     functions.push({ expr, color: COLORS[functions.length % COLORS.length], visible: true });
     fi = functions.length - 1;
-    clearEvalCache(); renderFuncList(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
+    clearEvalCache(); renderFuncList(); syncParams(); scheduleComputeSpecials();
   } else if (functions[fi].visible === false) {
     functions[fi].visible = true; // versteckte Funktion wieder einblenden
     renderFuncList(); scheduleComputeSpecials();
@@ -623,14 +697,794 @@ function trigAddFunction(kind) {
   scheduleDraw();
 }
 
+// ── Differenzenquotient-Applet: "Einstieg ins Thema Differentialrechnung" ──
+// Aufschalten-Knopf im Panel "Differenzenquotient" (siehe index.html): liest
+// die im math-field #diffquot-fn-input eingegebene Funktion (Fallback x²,
+// falls das Feld leer ist) und legt den State für Punkt A und Punkt B an —
+// analog zu trigAddFunction()/linAddSlopeForm(). BEIDE Punkte sind ziehbar
+// (Nutzerwunsch) — anders als in einer früheren Version, in der A fix war.
+// Erneutes Klicken (z.B. nach dem Ziehen von A/B, oder mit geänderter
+// Funktion im Eingabefeld) setzt A/B auf sinnvolle, für die jeweilige
+// Funktion gültige Startpunkte zurück (_dqPickStartPoints()) und passt den
+// View entsprechend an (_dqFitView()). Ist der eingegebene Ausdruck ungültig
+// oder an keiner sinnvollen Stelle definiert, wird das Eingabefeld rot
+// gerahmt (gleiche Konvention wie loSetObjective(), 17_linopt.js) und NICHT
+// aufgeschaltet — der bisherige Zustand bleibt unverändert erhalten.
+function diffQuotSetup() {
+  const inp = document.getElementById('diffquot-fn-input');
+  const raw = inp ? (inp.getAttribute('data-raw') || '').trim() : '';
+  const expr = raw || 'x^2';
+
+  const pts = _dqPickStartPoints(expr);
+  if (!pts) {
+    if (inp) inp.style.borderColor = '#e24b4a';
+    return;
+  }
+  if (inp) inp.style.borderColor = '';
+
+  const norm = e => e.replace(/\s+/g, '');
+  let fi = functions.findIndex(fn => norm(fn.expr) === norm(expr));
+  if (fi === -1) {
+    fi = _fillEmptyOrNewFnSlot(expr);
+    clearEvalCache(); renderFuncList(); syncParams(); scheduleComputeSpecials();
+  } else if (functions[fi].visible === false) {
+    functions[fi].visible = true; // versteckte Funktion wieder einblenden
+    renderFuncList(); scheduleComputeSpecials();
+  } else if (norm(functions[fi].expr) !== norm(expr)) {
+    // Gleiche Stelle im Array, aber leicht abweichende (wenn auch äquivalente)
+    // Schreibweise — Ausdruck aktualisieren, damit er exakt dem entspricht,
+    // was im Eingabefeld steht.
+    functions[fi].expr = expr;
+    clearEvalCache(); renderFuncList(); scheduleComputeSpecials();
+  }
+
+  diffQuot = { fi, xA: pts.xA, xB: pts.xB };
+
+  // View so anpassen, dass A und B (samt etwas Rand) bequem sichtbar sind —
+  // generisch statt des früheren, auf x² zugeschnittenen festen Views. Nur
+  // einmalig beim Aufschalten (nicht bei jedem Draw), damit spätere
+  // Verschiebungen/Zoom durch den Nutzer erhalten bleiben.
+  _dqFitView(pts.xA, pts.xB, expr);
+  syncInputs();
+
+  pushHistory();
+  scheduleComputeSpecials();
+  scheduleDraw();
+}
+
+// Sucht ein Paar Startpunkte (xA, xB) für eine beliebige Funktion, an denen
+// beide Werte definiert (endlich) sind — nötig, da die früheren festen
+// Defaults (xA=1, xB=3, eigentlich für x² gedacht) bei einer anderen Funktion
+// z.B. an einer Definitionslücke (1/(x-1)) oder einem eingeschränkten
+// Definitionsbereich (sqrt(x-5)) fehlschlagen können. Probiert zunächst eine
+// Reihe plausibler Kandidatenpaare durch, dann als letzten Versuch ein
+// grobes Raster über einen weiten Bereich. Gibt {xA, xB} zurück, oder null
+// wenn KEIN Paar funktioniert (Ausdruck vermutlich leer/ungültig oder nirgends
+// definiert).
+function _dqPickStartPoints(expr) {
+  if (!expr || !expr.trim()) return null;
+  const candidates = [
+    [1, 3], [0.5, 2], [-1, 1], [0.5, 1.5], [1, 2],
+    [2, 4], [-2, -1], [0.1, 1], [-3, -1], [0.2, 0.5]
+  ];
+  for (const [a, b] of candidates) {
+    const ya = safeEval(expr, a), yb = safeEval(expr, b);
+    if (isFinite(ya) && isFinite(yb)) return { xA: a, xB: b };
+  }
+  // Letzter Versuch: grobes Raster über einen weiten Bereich absuchen —
+  // deckt auch exotischere Definitionsbereiche ab.
+  const found = [];
+  for (let x = -20; x <= 20 && found.length < 2; x += 0.5) {
+    if (isFinite(safeEval(expr, x))) found.push(x);
+  }
+  if (found.length >= 2) return { xA: found[0], xB: found[1] };
+  return null;
+}
+
+// Passt den View so an, dass A und B (samt Rand) sichtbar sind — generische
+// Ersetzung für den früheren festen View (der auf A(1|1)/B(3|9) bei f(x)=x²
+// zugeschnitten war). Tastet zusätzlich ein paar Zwischenstellen um A/B ab,
+// damit der sichtbare Kurvenverlauf zwischen den Punkten nicht durch den
+// y-Bereich abgeschnitten wird.
+function _dqFitView(xA, xB, expr) {
+  const xLo = Math.min(xA, xB), xHi = Math.max(xA, xB);
+  const xSpan = Math.max(xHi - xLo, 0.5);
+  const sampleLo = xLo - xSpan, sampleHi = xHi + xSpan;
+  const ys = [];
+  for (let i = 0; i <= 10; i++) {
+    const x = sampleLo + (sampleHi - sampleLo) * (i / 10);
+    const y = safeEval(expr, x);
+    if (isFinite(y)) ys.push(y);
+  }
+  const yA = safeEval(expr, xA), yB = safeEval(expr, xB);
+  if (isFinite(yA)) ys.push(yA);
+  if (isFinite(yB)) ys.push(yB);
+  if (!ys.length) ys.push(0, 1);
+  const ymin = Math.min(...ys), ymax = Math.max(...ys);
+  const xPad = Math.max(xSpan * 0.8, 1);
+  const yPad = Math.max((ymax - ymin) * 0.35, 1);
+  view = { xmin: xLo - xPad, xmax: xHi + xPad, ymin: ymin - yPad, ymax: ymax + yPad };
+}
+
+// Richtet das Funktions-Eingabefeld (#diffquot-fn-input, math-field) einmalig
+// ein — analog zu loSetupObjectiveField() (17_linopt.js) bzw. dem Aufbau
+// eines Funktionsfelds in renderFuncList() weiter oben in dieser Datei.
+// Wird einmalig beim Start aufgerufen (siehe DOMContentLoaded in index.html).
+function diffQuotSetupField() {
+  const inp = document.getElementById('diffquot-fn-input');
+  if (!inp || inp._dqSetup) return;
+  inp._dqSetup = true;
+  inp.mathVirtualKeyboardPolicy = 'manual';
+  if (inp.shadowRoot) {
+    const selFix = document.createElement('style');
+    selFix.textContent = '.ML__selection{background:var(--_selection-background-color, rgba(55,138,221,0.25)) !important;}';
+    inp.shadowRoot.appendChild(selFix);
+  }
+  function mlSetFromRaw(raw) {
+    let latex = '';
+    try { latex = (raw && raw.trim()) ? rawToLatex(raw) : ''; } catch (ex) { latex = ''; }
+    inp.setAttribute('data-raw', raw || '');
+    inp.value = latex;
+    _mlMoveCursorToEnd(inp); // siehe 14_mathinput.js — Cursor-nach-setValue()-Fix
+  }
+  inp._mlSetFromRaw = mlSetFromRaw;
+  // Bewusst leer statt mit "x^2" vorbelegt (frühere Version) -- Nutzer-Meldung:
+  // Vorbelegte Felder lassen den Cursor beim Klicken+Sofort-Weitertippen an
+  // einer für MathLive "falschen" Stelle stehen (siehe _mlMoveCursorToEnd(),
+  // 14_mathinput.js -- der dortige Fix half nicht zuverlässig genug). Ein
+  // leeres Feld umgeht das Problem komplett, da dann normal getippt wird
+  // (genau wie beim ohnehin schon leeren ersten Funktionsfeld f1).
+  mlSetFromRaw('');
+  mlPrewarmFocus(inp); // siehe 14_mathinput.js — Fokus-Warm-up
+  inp.addEventListener('focusin', () => { inp.style.borderColor = '#378ADD'; setActiveInput(inp, -1); });
+  inp.addEventListener('focusout', () => { inp.style.borderColor = ''; });
+  inp.addEventListener('input', () => {
+    let raw;
+    try { raw = asciiMathToRaw(inp.getValue('ascii-math')); }
+    catch (ex) { return; } // unvollständiger Zwischenzustand — bisherigen Rohausdruck behalten
+    inp.setAttribute('data-raw', raw);
+    inp.style.borderColor = '';
+  });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+}
+
+// ── Ober-/Untersummen-Applet: "Einstieg in den Integralbegriff" ──
+// Eigenständiger Menüpunkt (September 2026 wieder von "Fläche" getrennt,
+// Nutzerwunsch). EIN Eingabefeld f(x) (#riemann-fn-input, Fallback x² falls
+// leer). Der Aufschalten-Knopf legt den State für die Intervallgrenzen a und
+// b an — analog zu diffQuotSetup() oben. Anders als beim Differenzenquotient
+// liegen a und b auf der x-Achse (y=0), nicht auf der Kurve, da sie ein
+// Intervall markieren statt eine Kurvenstelle. Erneutes Klicken (z.B. nach
+// geänderter Funktion) setzt a/b neu. Ungültiger/nirgends definierter
+// Ausdruck für f: Eingabefeld rot rahmen (gleiche Konvention wie
+// diffQuotSetup()), NICHT aufschalten.
+function riemannSetup() {
+  const inp = document.getElementById('riemann-fn-input');
+  const raw = inp ? (inp.getAttribute('data-raw') || '').trim() : '';
+  const expr = raw || 'x^2';
+
+  const iv = _riemannPickInterval(expr);
+  if (!iv) {
+    if (inp) inp.style.borderColor = '#e24b4a';
+    return;
+  }
+  if (inp) inp.style.borderColor = '';
+
+  const fi1 = _ensurePlottedFn(expr);
+
+  const nSlider = document.getElementById('riemann-n-slider');
+  const n = nSlider ? (parseInt(nSlider.value, 10) || 10) : 10;
+
+  riemann = { fi1, xA: iv.xA, xB: iv.xB, n };
+
+  // Symbolische Stammfunktion EINMALIG hier berechnen (nicht bei jedem
+  // Neuzeichnen — calcIntegrate()/nerdamer.integrate() sind vergleichsweise
+  // teuer) — siehe _riemannComputeAntideriv() unten. drawRiemann()
+  // (08_draw.js) liest riemann.antiderivRaw nur noch aus und wertet ihn
+  // numerisch an den aktuellen Grenzen a/b aus (billig).
+  riemann.antiderivRaw = _riemannComputeAntideriv(expr);
+
+  // View so anpassen, dass das Intervall samt Rand sichtbar ist — analog zu
+  // _dqFitView() beim Differenzenquotient-Applet.
+  _riemannFitView(iv.xA, iv.xB, expr);
+  syncInputs();
+
+  pushHistory();
+  scheduleComputeSpecials();
+  scheduleDraw();
+}
+
+// Füllt beim Anlegen einer neuen Funktion (aus Differenzenquotient/Ober- und
+// Untersummen/Flächen — überall dort, wo der Nutzer eine Funktion NICHT direkt
+// in der Funktionsliste, sondern über das eigene Eingabefeld eines Applets
+// erzeugt) zuerst eine vorhandene LEERE Zeile (f_1, f_2, ...) auf, statt immer
+// eine neue ans Ende anzuhängen. Nutzer-Meldung: "wird die oben automatisch zu
+// f_2 zugewiesen auch wenn f_1 leer ist" — f_1 bleibt sonst dauerhaft leer,
+// obwohl dort Platz wäre. Reihenfolge bleibt dabei unangetastet: die erste
+// leere Zeile (per Array-Index) gewinnt, nicht zwingend f_1 im Speziellen.
+// Behält die Farbe der wiederverwendeten Zeile bei (die hatte sie schon als
+// leere Zeile), statt sie neu zuzuweisen.
+function _fillEmptyOrNewFnSlot(exprStr) {
+  const emptyIdx = functions.findIndex(fn => !fn.expr || !fn.expr.trim());
+  if (emptyIdx !== -1) {
+    functions[emptyIdx].expr = exprStr;
+    functions[emptyIdx].visible = true;
+    return emptyIdx;
+  }
+  functions.push({ expr: exprStr, color: COLORS[functions.length % COLORS.length], visible: true });
+  return functions.length - 1;
+}
+
+// Sucht eine bestehende Funktion mit äquivalentem Ausdruck (bis auf
+// Whitespace) und liefert deren Index, oder legt sie neu an — gemeinsamer
+// Helfer für riemannSetup()/flaecheSetup() (gleiches "finde oder erstelle"-
+// Muster wie an mehreren Stellen in diesem File, hier aber geteilt, da
+// flaecheSetup() ihn für BIS ZU ZWEI Funktionen f/g braucht).
+function _ensurePlottedFn(exprStr) {
+  const norm = e => e.replace(/\s+/g, '');
+  let fi = functions.findIndex(fn => norm(fn.expr) === norm(exprStr));
+  if (fi === -1) {
+    fi = _fillEmptyOrNewFnSlot(exprStr);
+    clearEvalCache(); renderFuncList(); syncParams(); scheduleComputeSpecials();
+  } else if (functions[fi].visible === false) {
+    functions[fi].visible = true; // versteckte Funktion wieder einblenden
+    renderFuncList(); scheduleComputeSpecials();
+  } else if (norm(functions[fi].expr) !== norm(exprStr)) {
+    // Gleiche Stelle im Array, aber leicht abweichende (wenn auch äquivalente)
+    // Schreibweise — Ausdruck aktualisieren, damit er exakt dem entspricht,
+    // was im Eingabefeld steht.
+    functions[fi].expr = exprStr;
+    clearEvalCache(); renderFuncList(); scheduleComputeSpecials();
+  }
+  return fi;
+}
+
+// ── Flächen-Applet ── siehe die ausführliche Dokumentation bei "let flaeche"
+// (02_core.js) für die drei Randarten (axis 'x'/'y'/'g') und das Zahlenfeld-
+// vs-Ziehen-Snapping-Verhalten. flaecheSetMode() schaltet zwischen den drei
+// Randarten um (zeigt/versteckt #flaeche-fn2-input entsprechend). Aufschalten
+// (Knopf, ruft flaecheSetup()) berechnet jeweils ein sinnvolles Startintervall
+// und füllt DANACH die Zahlenfelder #flaeche-a-input/#flaeche-b-input mit den
+// gefundenen Werten (Nutzer kann sie danach frei überschreiben).
+function flaecheGetMode() {
+  const sel = document.getElementById('flaeche-mode');
+  return sel ? sel.value : 'x';
+}
+
+function flaecheSetMode() {
+  const mode = flaecheGetMode();
+  const row2 = document.getElementById('flaeche-fn2-row');
+  if (row2) row2.style.display = mode === 'g' ? '' : 'none';
+  const lblA = document.getElementById('flaeche-a-label');
+  const lblB = document.getElementById('flaeche-b-label');
+  if (lblA) lblA.textContent = mode === 'y' ? 'a (y) =' : 'a (x) =';
+  if (lblB) lblB.textContent = mode === 'y' ? 'b (y) =' : 'b (x) =';
+}
+
+function flaecheSetup() {
+  const inp = document.getElementById('flaeche-fn-input');
+  const raw = inp ? (inp.getAttribute('data-raw') || '').trim() : '';
+  const expr = raw || 'x^2';
+  const mode = flaecheGetMode();
+
+  const inp2 = document.getElementById('flaeche-fn2-input');
+  const raw2 = inp2 ? (inp2.getAttribute('data-raw') || '').trim() : '';
+  const gExpr = mode === 'g' ? (raw2 || null) : '0';
+
+  if (mode === 'g' && !gExpr) {
+    if (inp2) inp2.style.borderColor = '#e24b4a';
+    return;
+  }
+  if (inp2) inp2.style.borderColor = '';
+
+  let fi1, fi2 = null, a, b, antiderivRaw = null;
+
+  if (mode === 'x' || mode === 'g') {
+    const iv = _flaechePickXInterval(expr, gExpr);
+    if (!iv) {
+      if (inp) inp.style.borderColor = '#e24b4a';
+      if (mode === 'g' && inp2) inp2.style.borderColor = '#e24b4a';
+      return;
+    }
+    if (inp) inp.style.borderColor = '';
+    fi1 = _ensurePlottedFn(expr);
+    if (mode === 'g') fi2 = _ensurePlottedFn(gExpr);
+    a = iv.xA; b = iv.xB;
+    antiderivRaw = _riemannComputeAntiderivDiff(expr, gExpr);
+    _riemannFitView(a, b, mode === 'g' ? [expr, gExpr] : expr);
+  } else {
+    // axis === 'y': Startintervall auf der y-Achse — die beiden y-Werte am
+    // linken/rechten Rand der aktuellen View (siehe _flaechePickYInterval()
+    // unten), kein Schnittpunkt-Snapping (keine zweite Kurve involviert).
+    const iv = _flaechePickYInterval(expr);
+    if (!iv) {
+      if (inp) inp.style.borderColor = '#e24b4a';
+      return;
+    }
+    if (inp) inp.style.borderColor = '';
+    fi1 = _ensurePlottedFn(expr);
+    a = iv.yA; b = iv.yB;
+    // Keine symbolische Stammfunktion in diesem Modus (x(y) liegt i.A. nicht
+    // symbolisch vor) — drawFlaeche() (08_draw.js) berechnet hier direkt eine
+    // numerische Flächennäherung (Trapezregel über x(y), kontinuierlich
+    // verfolgt per _flaecheYInvertNear() oben).
+    _flaecheFitViewY(a, b, expr);
+  }
+
+  flaeche = { fi1, fi2, axis: mode, a, b, antiderivRaw };
+
+  const aInp = document.getElementById('flaeche-a-input');
+  const bInp = document.getElementById('flaeche-b-input');
+  if (aInp) aInp.value = niceNumDec(a);
+  if (bInp) bInp.value = niceNumDec(b);
+
+  syncInputs();
+  pushHistory();
+  scheduleComputeSpecials();
+  scheduleDraw();
+}
+
+// Wird von den Zahlenfeldern #flaeche-a-input/#flaeche-b-input bei jeder
+// Änderung aufgerufen (oninput) — übernimmt den getippten Wert IMMER frei,
+// OHNE Schnittpunkt-Snapping (Nutzerwunsch: Zahlen-Eingabe = freie Werte,
+// nur das Ziehen im Graphen soll weiterhin snappen, siehe drag.type===
+// 'flaechept' in 09_events.js). Ungültige/leere Eingabe wird ignoriert (alter
+// Wert bleibt bestehen), bis eine gültige Zahl eingegeben wird.
+function flaecheSetBound(which, val) {
+  if (!flaeche) return;
+  const n = parseFloat(val);
+  if (!isFinite(n)) return;
+  if (which === 'a') flaeche.a = n; else flaeche.b = n;
+  scheduleDraw();
+}
+
+// Sucht ein sinnvolles Start-y-Intervall für den axis==='y'-Modus: der
+// sichtbare y-Wertebereich von f über die aktuelle View (Minimum und Maximum
+// der abgetasteten Werte) — analog im Geiste zu _riemannPickInterval(), aber
+// für y-Grenzen statt x-Grenzen. WICHTIG: bewusst Minimum/Maximum statt der
+// Werte an den beiden Rändern (x=xmin/x=xmax) — bei achsensymmetrischen
+// Funktionen wie x^2 sind Rand-Werte oft IDENTISCH (f(-10)=f(10)=100), was
+// ein degeneriertes Nullintervall ergäbe, obwohl die Kurve sichtbar einen
+// grossen y-Bereich überstreicht. Gibt null zurück, wenn f im gesamten
+// Suchbereich nirgends endlich ist oder (nahezu) konstant ist (kein
+// sinnvolles Intervall).
+function _flaechePickYInterval(expr) {
+  const xLo = view.xmin, xHi = view.xmax;
+  const steps = 60;
+  let yMin = null, yMax = null;
+  for (let i = 0; i <= steps; i++) {
+    const x = xLo + (xHi - xLo) * (i / steps);
+    const y = safeEval(expr, x);
+    if (!isFinite(y)) continue;
+    if (yMin === null || y < yMin) yMin = y;
+    if (yMax === null || y > yMax) yMax = y;
+  }
+  if (yMin === null || yMax === null || Math.abs(yMax - yMin) < 1e-9) return null;
+  return { yA: yMin, yB: yMax };
+}
+
+// Passt den View für den axis==='y'-Modus an: schliesst das y-Intervall
+// [yA, yB] (samt Rand) UND die y-Achse (x=0) sowie die zugehörigen x(y)-Werte
+// ein — analog im Geiste zu _riemannFitView(), aber für ein y- statt ein
+// x-Intervall. Sucht x(y) an mehreren Stützstellen zwischen yA und yB (über
+// den bisherigen View-x-Bereich als Suchraum, mit Rand — siehe
+// _riemannIsectSearchRange()) und spannt den View so auf, dass Kurve,
+// y-Achse und beide Grenzlinien y=yA/y=yB sichtbar sind.
+function _flaecheFitViewY(yA, yB, expr) {
+  const yLo = Math.min(yA, yB), yHi = Math.max(yA, yB);
+  const [xSearchLo, xSearchHi] = _riemannIsectSearchRange();
+  const xs = [0]; // y-Achse immer einschliessen
+  const steps = 12;
+  for (let i = 0; i <= steps; i++) {
+    const y = yLo + (yHi - yLo) * (i / steps);
+    const x = _flaecheYInvert(expr, y, xSearchLo, xSearchHi);
+    if (x !== null) xs.push(x);
+  }
+  if (xs.length === 1) xs.push(1); // Fallback: keine Inversion gefunden
+  const xmin = Math.min(...xs), xmax = Math.max(...xs);
+  const ySpan = Math.max(yHi - yLo, 0.5);
+  const xSpan = Math.max(xmax - xmin, 0.5);
+  const yPad = Math.max(ySpan * 0.4, 1);
+  const xPad = Math.max(xSpan * 0.3, 1);
+  view = { xmin: xmin - xPad, xmax: xmax + xPad, ymin: yLo - yPad, ymax: yHi + yPad };
+}
+
+// Invertiert y=f(x) numerisch für ein gegebenes y — sucht ALLE x mit f(x)=y
+// im Bereich [xLo, xHi] (Wiederverwendung von _riemannFindIntersections()
+// gegen die KONSTANTE y, exakt dasselbe Bisektionsverfahren wie beim
+// Schnittpunkte-Suchen zwischen zwei Funktionen) und liefert die Lösung mit
+// dem kleinsten Abstand zur y-Achse (bei mehrdeutigen/nicht-monotonen
+// Funktionen die "innerste" Lösung — bei den in der Schule üblichen
+// monotonen Abschnitten gibt es ohnehin nur eine). null, wenn f den Wert y
+// im Suchbereich nirgends annimmt.
+function _flaecheYInvert(expr, y, xLo, xHi) {
+  const roots = _riemannFindIntersections(expr, String(y), xLo, xHi);
+  if (!roots.length) return null;
+  roots.sort((r1, r2) => Math.abs(r1) - Math.abs(r2));
+  return roots[0];
+}
+
+// Wie _flaecheYInvert(), aber verankert auf einen bekannten Nachbarwert
+// xNear statt global "die Lösung am nächsten zur y-Achse" zu suchen — dafür
+// aus zwei Gründen nötig: (1) PERFORMANCE — _flaecheYInvert() macht pro
+// Aufruf eine globale, 4000 Stützstellen dichte Suche; drawFlaeche()
+// (08_draw.js) ruft die Inversion aber für JEDEN Pixel-/Stützstellen-Schritt
+// entlang der Kurve auf, was bei tausenden Aufrufen pro Neuzeichnung
+// (insbesondere während des Ziehens) extrem langsam wird. Die lokale Suche
+// hier nutzt nur "steps" (klein) Stützstellen in einem schmalen Fenster um
+// xNear. (2) KORREKTHEIT — bei NICHT
+// injektiven Funktionen wie x² gibt es zu einem y i.A. MEHRERE x-Lösungen
+// (z.B. +2 und −2 für y=4); die globale "am nächsten zur y-Achse"-Regel kann
+// zwischen den beiden Ästen hin- und herspringen, sobald beide (nahezu)
+// gleich weit entfernt sind — das erzeugte den Zickzack-/Streifen-Fülleffekt
+// beim Zeichnen. Mit einer auf den VORHERIGEN Punkt verankerten Suche bleibt
+// die Kurve durchgehend auf demselben Ast. Fällt auf die globale Suche
+// zurück, wenn im lokalen Fenster nichts gefunden wird (z.B. Rand des
+// Definitionsbereichs oder ein senkrechter Kurvenabschnitt, wo x(y) im
+// Fenster keine Lösung hat).
+function _flaecheYInvertNear(expr, y, xNear, radius, xSearchLo, xSearchHi) {
+  const lo = Math.max(xNear - radius, xSearchLo);
+  const hi = Math.min(xNear + radius, xSearchHi);
+  if (hi > lo) {
+    const roots = _riemannFindIntersections(expr, String(y), lo, hi, 100);
+    if (roots.length) {
+      let best = roots[0], bestD = Math.abs(roots[0] - xNear);
+      for (const r of roots) { const d = Math.abs(r - xNear); if (d < bestD) { bestD = d; best = r; } }
+      return best;
+    }
+  }
+  return _flaecheYInvert(expr, y, xSearchLo, xSearchHi);
+}
+
+// Berechnet den x-Suchbereich für Schnittpunkt-Suche (_riemannFindIntersections)
+// relativ zur aktuellen View — ein View breit auf jeder Seite zusätzlich, damit
+// auch knapp ausserhalb des sichtbaren Bereichs liegende Schnittpunkte beim
+// Ziehen erreichbar sind, aber die Suche nicht beliebig weit (und langsam)
+// über den für den Nutzer relevanten Bereich hinausgeht.
+function _riemannIsectSearchRange() {
+  const vw = Math.max(view.xmax - view.xmin, 1);
+  return [view.xmin - vw, view.xmax + vw];
+}
+
+// Sucht ALLE Schnittpunkte (x-Werte mit f(x)=g(x)) im Bereich [xLo, xHi] —
+// Vorzeichenwechsel von f−g abtasten (dense sampling) + Bisektion, exakt das
+// gleiche numerische Verfahren wie die "Schnittpunkte zwischen Funktionen"-
+// Suche in computeSpecials() (04_analysis.js), aber über einen fest
+// vorgegebenen Bereich statt der aktuellen View (wird u.a. beim initialen
+// Aufschalten VOR dem View-Fit gebraucht) und OHNE spätere Nerdamer-
+// Verfeinerung (hier reicht die numerische Genauigkeit für Snapping völlig).
+// steps (optional, Default 4000): Anzahl Stichproben — von
+// _flaecheYInvertNear() bewusst KLEIN gewählt für eine schnelle lokale Suche
+// (siehe dort), alle anderen Aufrufer lassen den Default stehen.
+function _riemannFindIntersections(expr1, expr2, xLo, xHi, steps) {
+  steps = steps || 4000;
+  const dx = (xHi - xLo) / steps;
+  const roots = [];
+  // Toleranz für "trifft eine Stichprobe direkt (fast) exakt" — siehe unten.
+  const EPS = 1e-6;
+  const pushRoot = x => { if (!roots.some(r => Math.abs(r - x) < 1e-6)) roots.push(x); };
+  let pd = null, ppx = null;
+  for (let s = 0; s <= steps; s++) {
+    const x = xLo + s * dx;
+    const y1 = safeEval(expr1, x), y2 = safeEval(expr2, x);
+    if (!isFinite(y1) || !isFinite(y2)) { pd = null; continue; }
+    const d = y1 - y2;
+    if (pd === null) {
+      // Direkt nach einer Definitionslücke (oder ganz am Anfang des Bereichs)
+      // neu gestartet — es gibt kein voriges Vorzeichen zum Vergleichen, die
+      // übliche Vorzeichenwechsel-Erkennung unten greift hier also nicht.
+      // Liegt der Schnittpunkt aber GENAU auf dieser ersten gültigen
+      // Stichprobe (Beispiel: sqrt(x) vs. x^2 — deren einzige Definitions-
+      // lücke bei x<0 endet exakt bei x=0, wo beide Funktionen ausserdem
+      // übereinstimmen), würde dieser Schnittpunkt sonst NIE erkannt.
+      // Deshalb separat auf "praktisch Null" prüfen.
+      if (Math.abs(d) < EPS) pushRoot(x);
+    } else if (Math.sign(d) !== Math.sign(pd) && pd !== 0) {
+      let lo = ppx, hi = x;
+      for (let it = 0; it < 40; it++) {
+        const m = (lo + hi) / 2;
+        const dm = safeEval(expr1, m) - safeEval(expr2, m);
+        if (Math.sign(dm) === Math.sign(pd)) lo = m; else hi = m;
+      }
+      pushRoot((lo + hi) / 2);
+    }
+    pd = d; ppx = x;
+  }
+  return roots;
+}
+
+// Wählt ein Startintervall [xA, xB] für den Zwei-Funktionen-Modus: die beiden
+// Schnittpunkte von f und g, die x=0 einschliessen (bzw. — falls keine dies
+// tun, oder x=0 selbst ausserhalb liegt — die beiden Schnittpunkte mit dem
+// kleinsten Abstand zu 0). Sucht zunächst im (View±1 View)-Bereich
+// (_riemannIsectSearchRange()), bei weniger als 2 Treffern zusätzlich in
+// einem grosszügigen festen Bereich — deckt auch den Fall ab, dass die
+// aktuelle View zufällig in einen schnittpunktfreien Ausschnitt gezoomt ist.
+// Gibt null zurück, wenn insgesamt weniger als 2 Schnittpunkte gefunden
+// wurden (kein sinnvolles Flächenintervall möglich).
+function _riemannPickIsectInterval(expr1, expr2) {
+  const [vlo, vhi] = _riemannIsectSearchRange();
+  let roots = _riemannFindIntersections(expr1, expr2, vlo, vhi);
+  if (roots.length < 2) {
+    const wide = _riemannFindIntersections(expr1, expr2, -100, 100);
+    if (wide.length > roots.length) roots = wide;
+  }
+  if (roots.length < 2) return null;
+  roots.sort((a, b) => a - b);
+  // Grösster Schnittpunkt <= 0 und kleinster Schnittpunkt > 0 (NICHT >= 0 --
+  // liegt ein Schnittpunkt exakt bei x=0 selbst, wie z.B. bei sqrt(x) vs.
+  // x^2, würde er sonst in BEIDEN Filtern landen und below/above zeigten auf
+  // denselben Eintrag statt auf sein Nachbarpaar, sodass xA=xB=0 ein
+  // entartetes Nullintervall ergäbe statt des eigentlichen [0, nächster
+  // positiver Schnittpunkt]).
+  let belowIdx = -1, aboveIdx = -1;
+  for (let i = 0; i < roots.length; i++) if (roots[i] <= 0) belowIdx = i;
+  for (let i = 0; i < roots.length; i++) if (roots[i] > 0) { aboveIdx = i; break; }
+  if (belowIdx !== -1 && aboveIdx !== -1) {
+    return { xA: roots[belowIdx], xB: roots[aboveIdx] };
+  }
+  const sorted = roots.slice().sort((a, b) => Math.abs(a) - Math.abs(b));
+  const two = [sorted[0], sorted[1]].sort((a, b) => a - b);
+  return { xA: two[0], xB: two[1] };
+}
+
+// Snapt eine gezogene x-Position auf den nächstgelegenen Schnittpunkt aus
+// isects, aber NUR wenn dieser nah genug ist (innerhalb snapDist, siehe
+// Aufrufer für die Umrechnung von Bildschirm-Pixeln in Daten-Einheiten,
+// gleiche SNAP_PX-Konvention wie z.B. bei graphpt/loobj in 09_events.js) —
+// Nutzerwunsch: "sie sollten an den Schnittpunkten snappen, aber diese auch
+// wieder verlassen, wenn ich den Punkt weiterziehe". Ist kein Schnittpunkt
+// nah genug, wird stattdessen die freie Mausposition übernommen.
+// WICHTIG: KEIN "darf den anderen Punkt nicht überspringen"-Constraint mehr
+// (frühere Version hatte das analog zu diffquotpt/riemannpt) — a und b
+// dürfen sich beim Ziehen frei überholen. Grund: dieser Constraint erzeugte
+// einen Deadlock, sobald a und b sich berührten — die beim Antippen des
+// verschmolzenen Punkts EINMALIG festgelegte Seite ("a≥b" oder "a≤b") liess
+// sich dann nur noch in EINER Richtung verlassen, die andere Richtung blieb
+// für immer gesperrt (gemeldeter Fehler: "wenn sich a und b treffen,
+// verschwinden sie beide und ich kann sie nicht mehr auseinanderziehen").
+// drawFlaeche()/die Flächenberechnung nutzen ohnehin überall lo=min(a,b)/
+// hi=max(a,b), ein Vertauschen von a und b ist also technisch unbedenklich.
+function _riemannSnapX(rawX, isects, snapDist) {
+  if (!isects || !isects.length) return rawX;
+  let best = isects[0], bestD = Math.abs(isects[0] - rawX);
+  for (const x of isects) { const d = Math.abs(x - rawX); if (d < bestD) { bestD = d; best = x; } }
+  return (snapDist != null && bestD >= snapDist) ? rawX : best;
+}
+
+// Symbolische Stammfunktion F von f (nach x), als Rohausdruck-String (miToRaw)
+// — nutzt calcIntegrate() (16_calculus.js: bevorzugt nerdamer.integrate(),
+// numerisch gegengeprüft, mit Fallback auf die eigene bereichsbeschränkte
+// Engine). Gibt null zurück, wenn keine elementare Stammfunktion gefunden
+// wurde (drawRiemann() zeigt dann die bisherige rein numerische Näherung).
+function _riemannComputeAntideriv(expr) {
+  try {
+    const ast = miParseRaw(expr);
+    const iAst = calcIntegrate(ast, 'x');
+    if (!iAst) return null;
+    return miToRaw(iAst, 0);
+  } catch (ex) { return null; }
+}
+
+// Wie _riemannComputeAntideriv(), aber für die Differenz f−g (Stammfunktion
+// von f−g liefert direkt das bestimmte Integral ∫(f−g)dx = F(b)−F(a); da a/b
+// im Zwei-Funktionen-Modus stets zwischen zwei Schnittpunkten liegen, ändert
+// f−g dort das Vorzeichen nicht, und |F(b)−F(a)| entspricht daher der Fläche
+// zwischen f und g im Intervall — siehe drawRiemann(), 08_draw.js).
+function _riemannComputeAntiderivDiff(expr1, expr2) {
+  try {
+    const ast1 = miParseRaw(expr1), ast2 = miParseRaw(expr2);
+    const iAst = calcIntegrate({ type: 'sub', a: ast1, b: ast2 }, 'x');
+    if (!iAst) return null;
+    return miToRaw(iAst, 0);
+  } catch (ex) { return null; }
+}
+
+// Sucht ein Start-x-Intervall für den Flächen-Modus 'x'/'g': bevorzugt über
+// Schnittpunkte von f und g (bzw. f und der x-Achse) ein natürlich
+// begrenztes Intervall (_riemannPickIsectInterval()) — ideal, wenn eine
+// solche Fläche existiert (z.B. zwei sich schneidende Parabeln, oder eine
+// Funktion mit zwei Nullstellen). WICHTIG: viele im Unterricht übliche
+// Funktionen haben aber KEIN solches Schnittpunkt-Paar — z.B. berührt x^2
+// die x-Achse nur einmal (bei x=0), oder f und g schneiden sich gar nicht
+// (z.B. f=x^2+5 gegenüber g=x). "Aufschalten" darf in diesen Fällen NICHT
+// einfach nichts tun (Nutzer-Beschwerde: "passiert gar nichts") — stattdessen
+// Fallback auf _riemannPickInterval(expr) (dasselbe generische "wo ist f
+// überwiegend definiert"-Intervall wie beim Ober-/Untersummen-Panel), das
+// der Nutzer danach über die Zahlenfelder oder per Ziehen frei anpassen kann.
+function _flaechePickXInterval(expr, gExpr) {
+  const iv = _riemannPickIsectInterval(expr, gExpr);
+  if (iv) return iv;
+  return _riemannPickInterval(expr);
+}
+
+// Sucht ein sinnvolles Startintervall [xA, xB] für eine beliebige Funktion, in
+// dem sie überwiegend definiert ist — analog zu _dqPickStartPoints() oben,
+// aber für ein ganzes Intervall statt zwei Einzelpunkte (die Grenzen selbst
+// liegen auf der x-Achse und sind daher immer "definiert"; entscheidend ist,
+// dass die Funktion IM Intervall an genügend Stellen einen endlichen Wert
+// hat, sonst wären keine sinnvollen Rechtecke zu sehen). Gibt {xA, xB}
+// zurück, oder null, wenn der Ausdruck nirgends brauchbar definiert ist.
+function _riemannPickInterval(expr) {
+  if (!expr || !expr.trim()) return null;
+  const candidates = [
+    [0, 2], [0, 1], [-1, 1], [1, 3], [0.5, 2.5],
+    [-2, 2], [0.1, 2], [-3, -1], [2, 4], [0.2, 1.5]
+  ];
+  const enoughDefined = (a, b) => {
+    let ok = 0;
+    for (let i = 0; i <= 10; i++) {
+      const x = a + (b - a) * (i / 10);
+      if (isFinite(safeEval(expr, x))) ok++;
+    }
+    return ok >= 8; // mind. 8 von 11 Stichproben endlich
+  };
+  for (const [a, b] of candidates) {
+    if (enoughDefined(a, b)) return { xA: a, xB: b };
+  }
+  // Letzter Versuch: grobes Raster über einen weiten Bereich absuchen, um
+  // einen zusammenhängenden definierten Abschnitt zu finden.
+  const defined = [];
+  for (let x = -20; x <= 20; x += 0.25) {
+    defined.push(isFinite(safeEval(expr, x)) ? x : null);
+  }
+  let bestStart = -1, bestLen = 0, curStart = -1, curLen = 0;
+  for (let i = 0; i < defined.length; i++) {
+    if (defined[i] !== null) {
+      if (curStart === -1) curStart = i;
+      curLen++;
+      if (curLen > bestLen) { bestLen = curLen; bestStart = curStart; }
+    } else {
+      curStart = -1; curLen = 0;
+    }
+  }
+  if (bestLen >= 4) {
+    const xA = defined[bestStart];
+    const xB = defined[bestStart + bestLen - 1];
+    if (xB > xA) return { xA, xB };
+  }
+  return null;
+}
+
+// Passt den View so an, dass das Intervall [xA, xB] samt Rand sichtbar ist —
+// analog zu _dqFitView() beim Differenzenquotient-Applet, aber die x-Achse
+// (y=0) wird immer eingeschlossen, da die Rechtecke dort beginnen.
+// exprOrExprs: ein einzelner Ausdruck (String) ODER ein Array von Ausdrücken
+// (im Zwei-Funktionen-Modus, damit BEIDE Kurven beim Einpassen berücksichtigt
+// werden).
+function _riemannFitView(xA, xB, exprOrExprs) {
+  const exprs = Array.isArray(exprOrExprs) ? exprOrExprs : [exprOrExprs];
+  const xLo = Math.min(xA, xB), xHi = Math.max(xA, xB);
+  const xSpan = Math.max(xHi - xLo, 0.5);
+  const sampleLo = xLo - xSpan * 0.3, sampleHi = xHi + xSpan * 0.3;
+  const ys = [0]; // x-Achse immer einschliessen
+  for (let i = 0; i <= 20; i++) {
+    const x = sampleLo + (sampleHi - sampleLo) * (i / 20);
+    exprs.forEach(expr => {
+      const y = safeEval(expr, x);
+      if (isFinite(y)) ys.push(y);
+    });
+  }
+  if (ys.length === 1) ys.push(1);
+  const ymin = Math.min(...ys), ymax = Math.max(...ys);
+  const xPad = Math.max(xSpan * 0.6, 1);
+  const yPad = Math.max((ymax - ymin) * 0.25, 1);
+  view = { xmin: xLo - xPad, xmax: xHi + xPad, ymin: ymin - yPad, ymax: ymax + yPad };
+}
+
+// Richtet das Funktions-Eingabefeld des Panels ein (#riemann-fn-input) —
+// exakt analog zu diffQuotSetupField() oben. Wird einmalig beim Start
+// aufgerufen (siehe DOMContentLoaded in index.html).
+function riemannSetupField() {
+  function setupOne(inp, defaultRaw) {
+    if (!inp || inp._riemannSetup) return;
+    inp._riemannSetup = true;
+    inp.mathVirtualKeyboardPolicy = 'manual';
+    if (inp.shadowRoot) {
+      const selFix = document.createElement('style');
+      selFix.textContent = '.ML__selection{background:var(--_selection-background-color, rgba(55,138,221,0.25)) !important;}';
+      inp.shadowRoot.appendChild(selFix);
+    }
+    function mlSetFromRaw(raw) {
+      let latex = '';
+      try { latex = (raw && raw.trim()) ? rawToLatex(raw) : ''; } catch (ex) { latex = ''; }
+      inp.setAttribute('data-raw', raw || '');
+      inp.value = latex;
+      _mlMoveCursorToEnd(inp); // siehe 14_mathinput.js — Cursor-nach-setValue()-Fix
+    }
+    inp._mlSetFromRaw = mlSetFromRaw;
+    mlSetFromRaw(defaultRaw);
+    // Fokus-"Warm-up" (siehe mlPrewarmFocus(), 14_mathinput.js).
+    mlPrewarmFocus(inp);
+    inp.addEventListener('focusin', () => { inp.style.borderColor = '#378ADD'; setActiveInput(inp, -1); });
+    inp.addEventListener('focusout', () => { inp.style.borderColor = ''; });
+    inp.addEventListener('input', () => {
+      let raw;
+      try { raw = asciiMathToRaw(inp.getValue('ascii-math')); }
+      catch (ex) { return; }
+      inp.setAttribute('data-raw', raw);
+      inp.style.borderColor = '';
+    });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+  }
+  setupOne(document.getElementById('riemann-fn-input'), ''); // leer statt "x^2" -- siehe diffQuotSetupField() oben
+}
+
+// Richtet BEIDE Funktions-Eingabefelder des Flächen-Panels ein
+// (#flaeche-fn-input für f, #flaeche-fn2-input für das nur bei
+// axis==='g' sichtbare g) — exakt dasselbe Muster wie riemannSetupField()
+// oben (bewusst dupliziert statt geteilt, analog zur bestehenden Konvention
+// in diesem File, jedes Applet richtet seine eigenen Felder selbst ein).
+// Wird einmalig beim Start aufgerufen (siehe DOMContentLoaded in index.html).
+function flaecheSetupField() {
+  function setupOne(inp, defaultRaw) {
+    if (!inp || inp._riemannSetup) return;
+    inp._riemannSetup = true;
+    inp.mathVirtualKeyboardPolicy = 'manual';
+    if (inp.shadowRoot) {
+      const selFix = document.createElement('style');
+      selFix.textContent = '.ML__selection{background:var(--_selection-background-color, rgba(55,138,221,0.25)) !important;}';
+      inp.shadowRoot.appendChild(selFix);
+    }
+    function mlSetFromRaw(raw) {
+      let latex = '';
+      try { latex = (raw && raw.trim()) ? rawToLatex(raw) : ''; } catch (ex) { latex = ''; }
+      inp.setAttribute('data-raw', raw || '');
+      inp.value = latex;
+      _mlMoveCursorToEnd(inp); // siehe 14_mathinput.js — Cursor-nach-setValue()-Fix
+    }
+    inp._mlSetFromRaw = mlSetFromRaw;
+    // WICHTIG: immer aufrufen, auch mit defaultRaw='' (g-Feld) — analog zum
+    // etablierten Muster bei den einzelnen Funktions-Zeilen (mlSetFromRaw(fn.expr)
+    // weiter oben, unconditional) — setzt explizit inp.value = '' und
+    // data-raw = '' statt das Attribut ganz wegzulassen (Konsistenz).
+    mlSetFromRaw(defaultRaw);
+    // Fokus-"Warm-up" (siehe mlPrewarmFocus(), 14_mathinput.js) — behebt den
+    // eigentlichen Grund für "g(x) wird beim Aufschalten ignoriert": ohne
+    // diesen Warm-up gehen die ersten Zeichen verloren/werden verstümmelt,
+    // wenn man das Feld anklickt und SOFORT weitertippt (typischer Ablauf
+    // beim erstmaligen Ausfüllen von g(x)).
+    mlPrewarmFocus(inp);
+    inp.addEventListener('focusin', () => { inp.style.borderColor = '#378ADD'; setActiveInput(inp, -1); });
+    inp.addEventListener('focusout', () => { inp.style.borderColor = ''; });
+    inp.addEventListener('input', () => {
+      let raw;
+      try { raw = asciiMathToRaw(inp.getValue('ascii-math')); }
+      catch (ex) { return; }
+      inp.setAttribute('data-raw', raw);
+      inp.style.borderColor = '';
+    });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+  }
+  setupOne(document.getElementById('flaeche-fn-input'), ''); // leer statt "x^2" -- siehe diffQuotSetupField() oben
+  setupOne(document.getElementById('flaeche-fn2-input'), '');
+}
+
+// Wird vom n-Schieberegler (#riemann-n-slider, siehe index.html) bei jeder
+// Bewegung aufgerufen — passt nur riemann.n an (kein Neuaufbau der
+// Intervallgrenzen/des Views nötig) und aktualisiert die Zahl daneben
+// (#riemann-n-val). Kein pushHistory() hier (würde bei jeder Zwischenposition
+// des Schiebereglers die Historie zumüllen) — analog zum Verhalten der
+// generischen Parameter-Schieberegler (syncParams(), 03_math.js).
+function riemannSetN(val) {
+  const n = Math.max(1, parseInt(val, 10) || 1);
+  const valSpan = document.getElementById('riemann-n-val');
+  if (valSpan) valSpan.textContent = String(n);
+  if (riemann) {
+    riemann.n = n;
+    scheduleDraw();
+  }
+}
+
 // Alles löschen (Funktionen, Punkte, Geraden, Einheitskreis-Punkte, Graph-Punkte)
 function clearAll() {
   functions = []; params = {}; points = []; specials = []; graphPoints = []; unitCirclePts = []; linkedLines = [];
-  line2ptPicking = false; line2ptPts = []; slopeTriPts = []; slopeTriPtsMap = {}; showArea = false; clearEvalCache();
+  line2ptPicking = false; line2ptPts = []; slopeTriPts = []; slopeTriPtsMap = {}; diffQuot = null; riemann = null; flaeche = null; clearEvalCache();
   // Senkrechte/Mittelsenkrechte-Referenzen zurücksetzen (siehe 11_fitting.js) —
   // sonst würden nach dem Löschen alte fi-Indizes auf neue, unabhängige
   // Funktionen zeigen und drawPerpMarkers() falsche Marker zeichnen.
   perpMeta = {}; linActiveFi = -1; linPerpFi = -1; linBisectorFi = -1;
+  if (typeof _perpFlowStop === 'function') _perpFlowStop(); // laufenden Senkrechte/Mittelsenkrechte-Klickablauf abbrechen
   const perpRes = document.getElementById('lin-perp-result'); if (perpRes) perpRes.textContent = '';
   // Lineare Optimierung zurücksetzen (siehe 17_linopt.js)
   if (typeof loConstraints !== 'undefined') {
@@ -653,10 +1507,7 @@ function clearAll() {
     sequences = [];
     if (typeof renderSeqList === 'function') renderSeqList();
   }
-  document.getElementById('area-toggle-btn').classList.remove('active-btn');
-  document.getElementById('area-toggle-btn').textContent = t('btn_area');
-  document.getElementById('area-result').textContent = '';
-  renderFuncList(); renderPointList(); syncParams(); syncAreaSelects(); renderSpecialList(); scheduleDraw();
+  renderFuncList(); renderPointList(); syncParams(); renderSpecialList(); scheduleDraw();
 }
 
 // View auf Standardbereich zurücksetzen
@@ -668,7 +1519,7 @@ function applyRange() {
   view.xmax = parseFloat(document.getElementById('xmax').value) || view.xmax;
   view.ymin = parseFloat(document.getElementById('ymin').value) || view.ymin;
   view.ymax = parseFloat(document.getElementById('ymax').value) || view.ymax;
-  scheduleComputeSpecials(); if (showArea) updateAreaResult(); scheduleDraw();
+  scheduleComputeSpecials();  scheduleDraw();
 }
 
 // Schreibt den aktuellen View in die Eingabefelder
@@ -686,7 +1537,7 @@ function zoomBy(factor) {
   const cx = (view.xmin + view.xmax) / 2, cy = (view.ymin + view.ymax) / 2;
   const hw = (view.xmax - view.xmin) / 2 * factor, hh = (view.ymax - view.ymin) / 2 * factor;
   view.xmin = cx - hw; view.xmax = cx + hw; view.ymin = cy - hh; view.ymax = cy + hh;
-  syncInputs(); scheduleComputeSpecials(); if (showArea) updateAreaResult(); scheduleDraw();
+  syncInputs(); scheduleComputeSpecials();  scheduleDraw();
 }
 
 // Wird aufgerufen wenn isometrische Checkbox geändert wird
@@ -769,8 +1620,8 @@ function tryDeleteAt(mx, my) {
     linkedLines = linkedLines.filter(ll => ll.fi !== bestFi);
     linkedLines.forEach(ll => { if (ll.fi > bestFi) ll.fi--; });
     if (activeInput?.fi === bestFi) activeInput = null;
-    clearEvalCache(); renderFuncList(); syncParams(); syncAreaSelects(); scheduleComputeSpecials();
-    if (showArea) updateAreaResult(); pushHistory(); scheduleDraw(); return true;
+    clearEvalCache(); renderFuncList(); syncParams(); scheduleComputeSpecials();
+     pushHistory(); scheduleDraw(); return true;
   }
   return false;
 }
@@ -779,7 +1630,7 @@ function tryDeleteAt(mx, my) {
 function setPrecision() { precision = parseInt(document.getElementById('precision-sel').value); rerender(); }
 
 // Alles neu berechnen und zeichnen (z.B. nach Einstellungsänderung)
-function rerender() { scheduleComputeSpecials(); if (showArea) updateAreaResult(); scheduleDraw(); }
+function rerender() { scheduleComputeSpecials();  scheduleDraw(); }
 
 // Gibt zurück welcher Label-Modus aktiv ist: 'all', 'none', 'hover'
 function getLabelMode() { return document.getElementById('label-mode').value; }
@@ -817,8 +1668,14 @@ const SMART_BTN_CONFIG = {
   inf:   { label: 'WP',   full: 'Wendepunkt',    color: '#7F77DD', checkId: 'show-inf'   },
   asymp: { label: 'Asym', full: 'Asymptoten',    color: '#f59e0b', checkId: 'show-asymp' },
   isect: { label: 'SP',   full: 'Schnittpunkt',  color: '#378ADD', checkId: 'show-isect' },
+  // Hebbare Lücke: Grenzwert im Endlichen (Gegenstück zu 'asymp', das nur
+  // Grenzwerte im UNENDLICHEN + Polstellen abdeckt). Wird von computeSpecials()
+  // erzeugt, wenn eine ursprünglich als Pol erkannte Stelle sich per CAS
+  // (ndPoleOrHole(), 18_nerdamer_limits.js) als hebbare Lücke mit endlichem
+  // Grenzwert herausstellt (siehe 04_analysis.js).
+  hole:  { label: 'Lücke', full: 'Hebbare Lücke', color: '#6B7280', checkId: 'show-hole' },
 };
-const SMART_BTN_ORDER = ['zero', 'yaxis', 'max', 'min', 'inf', 'asymp', 'isect'];
+const SMART_BTN_ORDER = ['zero', 'yaxis', 'max', 'min', 'inf', 'asymp', 'hole', 'isect'];
 
 // Aktualisiert die Smart-Buttons für alle Funktionen basierend auf dem specials-Array.
 // Wird nach computeSpecials() / renderSpecialList() und nach renderFuncList() aufgerufen.
@@ -990,8 +1847,15 @@ function appendCalculusButtons(container, fn, i) {
 }
 
 // Zeigt lim x→−∞ und lim x→+∞ von f_i im bestehenden Lösungsweg-Tooltip an
-// (informativ, legt keine neue Funktion an). Nutzt die bereits vorhandene
-// Grenzwert-Erkennung aus 15_domain_range.js (daBoundaryLimit).
+// (informativ, legt keine neue Funktion an).
+// Bevorzugt die bereits mit dem externen CAS (Nerdamer) verfeinerten Werte aus
+// `specials` (computeSpecials() Phase 2 "Nerdamer-Verfeinerung", 04_analysis.js
+// / 18_nerdamer_limits.js) — dieselbe Quelle, die auch der "Asymptoten"-Smart-
+// Button und die Koordinaten-Beschriftungen im Graph verwenden. So zeigt dieser
+// Knopf für horizontale Asymptoten denselben, exakten Wert statt einer eigenen,
+// rein numerischen Schätzung, die geringfügig abweichen könnte. Nur wenn (noch)
+// kein CAS-Ergebnis vorliegt, wird auf die numerische Grenzwert-Schätzung aus
+// 15_domain_range.js (daBoundaryLimit) zurückgegriffen.
 function showLimitsInfinityTooltip(fi) {
   const fn = functions[fi];
   const tooltip = document.getElementById('solve-tooltip');
@@ -999,8 +1863,18 @@ function showLimitsInfinityTooltip(fi) {
   const content = document.getElementById('solve-tooltip-content');
   if (!tooltip || !titleEl || !content || !fn) return;
 
-  const lm = daBoundaryLimit(fn.expr, -Infinity, 1);
-  const lp = daBoundaryLimit(fn.expr, Infinity, -1);
+  function limitFor(dirLabel, x0, dir) {
+    const asympEntry = (typeof specials !== 'undefined' ? specials : []).find(
+      sp => sp.kind === 'asymp' && sp.fi === fi && sp.dir === dirLabel && !sp.oblique
+    );
+    // pt wird mitgegeben (nicht nur der Wert) — damit unten bei Bedarf derselbe
+    // vollständige Lösungsweg wie beim "Asymptoten"-Smart-Button erzeugt werden
+    // kann (generateSolveSteps(pt)), statt nur den nackten Grenzwert zu zeigen.
+    if (asympEntry) return { kind: 'value', v: asympEntry.y, pt: asympEntry };
+    return daBoundaryLimit(fn.expr, x0, dir);
+  }
+  const lm = limitFor('-∞', -Infinity, 1);
+  const lp = limitFor('+∞', Infinity, -1);
   const fmt = res => {
     if (!res) return '?';
     if (res.kind === 'inf') return res.sign > 0 ? '+∞' : '−∞';
@@ -1010,9 +1884,55 @@ function showLimitsInfinityTooltip(fi) {
 
   titleEl.innerHTML = `f<sub>${fi+1}</sub>&thinsp;Grenzwerte im Unendlichen`;
   titleEl.style.color = fn.color || '';
-  content.innerHTML =
-    `<div style="margin-bottom:4px;">lim<sub>x→−∞</sub>&thinsp;f<sub>${fi+1}</sub>(x) = ${fmt(lm)}</div>` +
-    `<div>lim<sub>x→+∞</sub>&thinsp;f<sub>${fi+1}</sub>(x) = ${fmt(lp)}</div>`;
+
+  // Für Richtungen mit einem bestätigten endlichen Grenzwert (asympEntry
+  // vorhanden) denselben vollständigen, exakten Lösungsweg zeigen wie beim
+  // "Asymptoten"-Smart-Button (generateSolveSteps()) — inkl. Erweitern mit dem
+  // konjugierten Ausdruck bei Wurzel±linear-Termen usw. — statt nur den
+  // fertigen Wert. Der generische Kopf ("Asymptote / Grenzwert von f…(x)")
+  // wird dabei entfernt, da der Tooltip-Titel hier bereits "Grenzwerte im
+  // Unendlichen" zeigt.
+  function stepsFor(res) {
+    if (!res || res.kind !== 'value' || !res.pt || typeof generateSolveSteps !== 'function') return null;
+    try {
+      const full = generateSolveSteps(res.pt);
+      // Nicht-gierig bis zum ERSTEN schliessenden </b> — der Kopf selbst
+      // enthält verschachteltes Markup (z.B. "f<sub>1</sub>(x)"), [^<]* würde
+      // dort also fälschlich gar nicht matchen und der Kopf bliebe stehen.
+      return full.replace(/^<b>[\s\S]*?<\/b>\s*\n*/, '').trim();
+    } catch (e) { return null; }
+  }
+  const stepsM = stepsFor(lm);
+  const stepsP = stepsFor(lp);
+  // Manche Herleitungen (gebrochenrational, exponentiell) beschreiben BEIDE
+  // Richtungen bereits selbst in einem Text ("x → ±∞" bzw. explizit sowohl
+  // "x → +∞" als auch "x → −∞"), auch wenn nur EINE Richtung einen endlichen
+  // Grenzwert (und damit einen asympEntry/pt) hat — die andere divergiert dort
+  // z.B. gegen +∞. In dem Fall wäre eine "x → +∞:"-Beschriftung über dem Block
+  // irreführend, da der Text selbst schon beide Richtungen behandelt.
+  const isBidirectional = s => !!s && (/±∞/.test(s) || (/x → −∞/.test(s) && /x → \+∞/.test(s)));
+
+  if (stepsM && stepsP && stepsM === stepsP) {
+    // Dieselbe Herleitung deckt beide Richtungen ab (z.B. gebrochenrationale
+    // oder exponentielle Asymptote — dort ist der Text nicht richtungsabhängig).
+    content.innerHTML = stepsM;
+  } else if (stepsM && !stepsP && isBidirectional(stepsM)) {
+    content.innerHTML = stepsM;
+  } else if (stepsP && !stepsM && isBidirectional(stepsP)) {
+    content.innerHTML = stepsP;
+  } else if (stepsM || stepsP) {
+    const blocks = [];
+    const divider = `<div style="border-top:1px solid var(--border);margin:6px 0 4px;"></div>`;
+    if (stepsM) blocks.push(`<div style="opacity:0.7;font-style:italic;margin-bottom:4px;">x → −∞:</div>${stepsM}`);
+    else blocks.push(`<div>lim<sub>x→−∞</sub>&thinsp;f<sub>${fi+1}</sub>(x) = ${fmt(lm)}</div>`);
+    if (stepsP) blocks.push(`<div style="opacity:0.7;font-style:italic;margin-bottom:4px;">x → +∞:</div>${stepsP}`);
+    else blocks.push(`<div>lim<sub>x→+∞</sub>&thinsp;f<sub>${fi+1}</sub>(x) = ${fmt(lp)}</div>`);
+    content.innerHTML = blocks.join(divider);
+  } else {
+    content.innerHTML =
+      `<div style="margin-bottom:4px;">lim<sub>x→−∞</sub>&thinsp;f<sub>${fi+1}</sub>(x) = ${fmt(lm)}</div>` +
+      `<div>lim<sub>x→+∞</sub>&thinsp;f<sub>${fi+1}</sub>(x) = ${fmt(lp)}</div>`;
+  }
 
   window._activeTooltipPt = { fi, kind: 'liminf' };
   tooltip.style.display = 'block';
@@ -1052,7 +1972,11 @@ function showSolveTooltip(pts) {
   const kindNames = {
     max: t('solve_max'), min: t('solve_min'), inf: t('solve_inf'),
     zero: t('solve_zero'), yaxis: t('solve_yaxis_sect'),
-    isect: t('solve_isect'), asymp: t('solve_asymp'), pole: t('solve_pole')
+    isect: t('solve_isect'), asymp: t('solve_asymp'), pole: t('solve_pole'),
+    // 'hole' folgt hier (wie SMART_BTN_CONFIG oben) dem Präzedenzfall neuerer
+    // Ergänzungen, fest auf Deutsch statt über t()/01_i18n.js — konsistent mit
+    // den anderen kürzlich hinzugefügten Lösungsweg-Texten dieser Datei.
+    hole: 'Hebbare Lücke'
   };
 
   // Titel: bei mehreren Punkten nur Art + Funktionsnummer, ohne Koordinate

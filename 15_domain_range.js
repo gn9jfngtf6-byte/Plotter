@@ -64,6 +64,28 @@ function daNumLiteral(node) {
   if (node.type === 'neg') { const v = daNumLiteral(node.x); return v == null ? null : -v; }
   if (node.type === 'id' && typeof params !== 'undefined' && params[node.v] && isFinite(params[node.v].val))
     return params[node.v].val;
+  // Konstante Teilausdrücke (z.B. der sehr natürliche Fall "x^(1/2)" statt
+  // "x^0.5") rekursiv zu einer Zahl zusammenfalten — löst sich automatisch
+  // wieder in null auf, sobald irgendwo x (oder ein unbekannter Bezeichner)
+  // vorkommt, weil dann ein 'id'-Blatt keine params[...]-Auflösung findet.
+  // Ohne das wurde z.B. bei "x^(1/2)" der Exponent NICHT als 0.5 erkannt,
+  // die ge0-Bedingung (Basis≥0) komplett übersprungen, und die Domain fiel
+  // auf das grobe numerische Sicherheitsnetz zurück, das die willkürliche
+  // Suchfenstergrenze als "Lücke" anzeigte (siehe Kommentar oben).
+  if (node.type === 'add' || node.type === 'sub' || node.type === 'mul' || node.type === 'div') {
+    const va = daNumLiteral(node.a), vb = daNumLiteral(node.b);
+    if (va == null || vb == null) return null;
+    if (node.type === 'add') return va + vb;
+    if (node.type === 'sub') return va - vb;
+    if (node.type === 'mul') return va * vb;
+    return vb !== 0 ? va / vb : null;
+  }
+  if (node.type === 'pow') {
+    const va = daNumLiteral(node.a), vb = daNumLiteral(node.b);
+    if (va == null || vb == null) return null;
+    const r = Math.pow(va, vb);
+    return isFinite(r) ? r : null;
+  }
   return null;
 }
 
@@ -386,7 +408,7 @@ function daSafetyNetGaps(expr) {
 
 // Baut die Liste der zusammenhängenden Definitionsbereich-Teilstücke als
 // [{lo, hi, loOpen, hiOpen}] — lo/hi können ±Infinity sein.
-function daDomainPieces(domainMin, domainMax, excluded, gaps) {
+function daDomainPieces(domainMin, domainMax, excluded, gaps, domainMinOpen, domainMaxOpen) {
   const lo0 = domainMin != null ? domainMin : -Infinity;
   const hi0 = domainMax != null ? domainMax : Infinity;
   // Alle "Schnitte" (Punkte UND Lücken) sortiert sammeln
@@ -396,7 +418,14 @@ function daDomainPieces(domainMin, domainMax, excluded, gaps) {
   cuts.sort((a, b) => a.at - b.at);
 
   const pieces = [];
-  let curLo = lo0, curLoOpen = domainMin != null ? false : true;
+  // WICHTIG: eine gesetzte domainMin/domainMax-Grenze ist NICHT automatisch
+  // geschlossen — z.B. bei log(x) ist domainMin=0 aus einer STRIKTEN
+  // Bedingung (Argument>0) hergeleitet, log(0) ist nicht definiert. Die
+  // Offenheit wird daher vom Aufrufer übergeben (siehe computeDomain()s
+  // domainMinOpen/domainMaxOpen); ohne sie explizit zu übergeben, wird
+  // konservativ auf "offen" zurückgefallen (nie fälschlich als geschlossen/
+  // erreicht angezeigt).
+  let curLo = lo0, curLoOpen = domainMin != null ? !!domainMinOpen : true;
   cuts.forEach(c => {
     if (c.width === 0) {
       // isolierter Punkt: Teilstück endet offen davor, neues beginnt offen danach
@@ -407,7 +436,7 @@ function daDomainPieces(domainMin, domainMax, excluded, gaps) {
       curLo = c.hi; curLoOpen = true;
     }
   });
-  pieces.push({ lo: curLo, hi: hi0, loOpen: curLoOpen, hiOpen: domainMax != null ? false : true });
+  pieces.push({ lo: curLo, hi: hi0, loOpen: curLoOpen, hiOpen: domainMax != null ? !!domainMaxOpen : true });
   // Entartete/leere Teilstücke (lo>=hi, ausser beide unendlich) verwerfen
   return pieces.filter(p => p.hi - p.lo > 1e-9 || !isFinite(p.hi - p.lo));
 }
@@ -476,6 +505,25 @@ function daBoundaryLimit(expr, x0, dir) {
         // Konvergenz (z.B. exp(x)→0 für x→-∞, unterläuft Gleitkomma-Genauigkeit
         // schon ab x≈-745) über Stichproben "erreichter" Wert fälschlich mit
         // dieser (dann tatsächlich NICHT erreichten) Grenze verwechselt.
+        // Plausibilitätsprüfung gegen falsch-positive "Konvergenz": bei
+        // beschränkten OSZILLIERENDEN Funktionen (z.B. cos(x)) können die drei
+        // weit auseinanderliegenden Stichproben (1e4/1e6/1e8) durch reinen
+        // Zufall wie eine schrumpfende Differenz aussehen, obwohl gar keine
+        // Konvergenz vorliegt — der obige Test würde dann einen sinnlosen
+        // Aitken-extrapolierten "Grenzwert" liefern. Zur Kontrolle wird ein
+        // VIERTER, noch weiter entfernter Stichpunkt (1e10) ausgewertet: bei
+        // echter (auch sehr langsamer, potenzartiger) Konvergenz muss sich der
+        // Funktionswert dort dem extrapolierten Grenzwert mindestens so weit
+        // genähert haben wie bei x=±1e8 (der Abstand zum Grenzwert darf nicht
+        // wachsen) — bei einer oszillierenden Funktion ist der Abstand dort
+        // hingegen im Wesentlichen unabhängig vom vorherigen und typischerweise
+        // NICHT kleiner.
+        const farX = x0 < 0 ? -1e10 : 1e10;
+        const farY = safeEval(expr, farX);
+        const distNear = Math.abs(ys[2] - limV);
+        const floor = 1e-6 * Math.max(1, Math.abs(limV));
+        const plausible = isFinite(farY) && Math.abs(farY - limV) <= Math.max(distNear, floor) * 1.05 + floor;
+        if (!plausible) return { kind: 'unknown' };
         const nearX = x0 < 0 ? -10 : 10;
         const nearY = safeEval(expr, nearX);
         const achieved = isFinite(nearY) && Math.abs(nearY - limV) < 1e-6 * Math.max(1, Math.abs(limV));
@@ -496,7 +544,24 @@ function daBoundaryLimit(expr, x0, dir) {
   // Unbeschränktheit statt als echter Wert gewertet.
   const direct = safeEval(expr, x0);
   if (isFinite(direct)) {
-    if (Math.abs(direct) > 1e6) return { kind: 'inf', sign: direct > 0 ? 1 : -1 };
+    if (Math.abs(direct) > 1e6) {
+      // Ein Bisektions-Artefakt einer echten (aber nur numerisch angenäherten)
+      // Polstelle von einem echten, grossen aber STABILEN Funktionswert an
+      // einer legitimen Bereichsgrenze unterscheiden (z.B. x³ mit
+      // domainMax=150 → f(150)=3 375 000, ein ganz normaler, tatsächlich
+      // angenommener Randwert — kein Pol!). Unterscheidungskriterium: bei
+      // einer echten Polstelle wächst/schwankt |f| noch STARK, sobald man
+      // den (nur numerisch angenäherten) Rand auch nur minimal in Richtung
+      // Definitionsbereich verlässt (weil man sich dabei relativ gesehen
+      // weiter von der WAHREN, exakten Polstelle entfernt/annähert als vom
+      // hier verwendeten x0); bei einem echten, stetigen Randwert ändert
+      // sich |f| dort dagegen kaum. Ohne diese Prüfung würde ein völlig
+      // legitimer grosser Wert fälschlich als "unbeschränkt" ausgegeben.
+      const step = Math.max(Math.abs(x0), 1) * 1e-6;
+      const near = safeEval(expr, x0 + dir * step);
+      const stable = isFinite(near) && Math.abs(near) > Math.abs(direct) * 0.5 && Math.abs(near) < Math.abs(direct) * 2;
+      if (!stable) return { kind: 'inf', sign: direct > 0 ? 1 : -1 };
+    }
     return { kind: 'value', v: direct, achieved: true };
   }
   // Offener Rand: einseitigen Grenzwert über schrumpfende Epsilon-Folge schätzen.
@@ -539,10 +604,10 @@ function daCriticalPoints(expr, lo, hi) {
 // Definitionsbereich. Gibt {rangeMin, rangeMax, rangeExcluded} zurück —
 // gleiche Form wie zuvor detectRange(), damit _updateRangeSpan() unverändert
 // weiterfunktioniert.
-function computeRange(expr, domainMin, domainMax, excluded, gaps) {
+function computeRange(expr, domainMin, domainMax, excluded, gaps, domainMinOpen, domainMaxOpen) {
   if (!expr || !expr.trim()) return { rangeMin: null, rangeMax: null, rangeExcluded: [] };
 
-  const pieces = daDomainPieces(domainMin, domainMax, excluded, gaps);
+  const pieces = daDomainPieces(domainMin, domainMax, excluded, gaps, domainMinOpen, domainMaxOpen);
   if (!pieces.length) return { rangeMin: null, rangeMax: null, rangeExcluded: [] };
 
   // min/max werden als {v, achieved} getrackt: achieved=true → Wert wird von
@@ -585,6 +650,16 @@ function computeRange(expr, domainMin, domainMax, excluded, gaps) {
     const span = Math.max(H - L, 1e-6);
     const steps = Math.min(3000, Math.max(300, Math.round(span * 15)));
     for (let i = 0; i <= steps; i++) {
+      // Exakt am RAND des Teilstücks nicht mitsampeln, wenn dieser Rand offen
+      // ist (ausgeschlossen) — sonst kann JS-Arithmetik mit ±Infinity dort
+      // einen scheinbar wohldefinierten endlichen Wert liefern (z.B.
+      // 1/(log(x²−4)²+1) wird bei x=2 exakt zu 1/(Infinity+1)=0), der dann
+      // fälschlich als "erreicht" gälte, obwohl x=2 mathematisch gar nicht
+      // zum Definitionsbereich gehört. Die eigentliche Rand-/Grenzwert-
+      // Bestimmung (inkl. korrekter achieved-Zuordnung) übernimmt weiter
+      // unten ausschliesslich der "Ränder auswerten"-Block.
+      if (i === 0 && p.loOpen) continue;
+      if (i === steps && p.hiOpen) continue;
       const x = L + (span * i) / steps;
       const y = safeEval(expr, x);
       if (isFinite(y)) { considerMin(y, true); considerMax(y, true); }

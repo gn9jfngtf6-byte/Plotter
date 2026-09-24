@@ -79,10 +79,7 @@ function drawGraphPoints() {
 // ═══════════════════════════════════════════════════════════════════
 
 // Gibt die Canvas-Koordinaten des Kreismittelpunkts und den Radius zurück.
-// Mittelpunkt liegt bei (-1, 0) damit cos(x)-Graph direkt ausgerichtet ist:
-// Der Punkt auf dem Kreis bei Winkel a hat x-Koordinate cosA-1, y-Koordinate sinA.
-// Auf dem cos-Graphen liegt der Punkt bei (a, cosA) → senkrechte Verbindungslinie.
-// Für sin(x) bleibt die waagrechte Verbindung korrekt (sinA = y-Wert).
+// Mittelpunkt liegt bei (0, 0), Radius 1 (Standard-Einheitskreis).
 function getCircleParams() {
   const { cx: ox, cy: oy } = toCanvas(0, 0);   // Mittelpunkt bei (0, 0)
   const { cx: rx } = toCanvas(1, 0);            // Radius = Abstand von (0,0) zu (1,0) = 1 Einheit
@@ -397,6 +394,636 @@ function drawSlopeTri(w, h) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// DIFFERENZENQUOTIENT-APPLET (Einstieg ins Thema Differentialrechnung)
+// ═══════════════════════════════════════════════════════════════════
+// Eigener Menüpunkt (Nutzerwunsch): FREI wählbare Funktion (Eingabefeld
+// #diffquot-fn-input, Fallback x²) mit ZWEI ziehbaren Punkten A und B —
+// siehe diffQuotSetup() (06_ui_functions.js) für den State
+// (diffQuot = {fi, xA, xB}) und drag.type==='diffquotpt' (09_events.js) für
+// das Ziehen von A/B. Alle Anzeigen dieses Applets (Punkt-Koordinaten,
+// Katheten-Längen, Sidebar-Bruchkette) sind bewusst DEZIMAL-ONLY (niceNumDec()
+// statt niceNum()/fracHTML()) — kein Wechsel zwischen Dezimalzahlen und
+// Brüchen (Nutzerwunsch).
+
+// Mindestabstand |h|, unterhalb dessen die Anzeige den Differenzenquotienten
+// explizit als Annäherung an den Differentialquotienten (die Ableitung) framt.
+const DIFFQUOT_NEAR_H = 0.25;
+
+// Farbe für Sekante (Verbindungsgerade) und Steigungsdreieck (inkl. Katheten-
+// Beschriftung) — bewusst NICHT die Funktionsfarbe (Nutzerwunsch: diese
+// Konstruktion soll sich klar vom Funktionsgraphen abheben). Punkte A/B und
+// deren Koordinaten-Labels bleiben bewusst in der Funktionsfarbe (Nutzerwunsch:
+// "nur" Sekante+Dreieck sollen die Farbe wechseln, "sonst passt es gut").
+// Wiederverwendung der bereits bestehenden neutralen Annotations-Farbe C.anno
+// (02_core.js) — dadurch automatisch hell-/dunkel-/beamer-modus-tauglich,
+// ohne einen weiteren eigenen Farbton einzuführen.
+function dqConstrColor() { return C.anno; }
+
+// Sucht den nähergelegenen Punkt (A ODER B, beide sind ziehbar) des
+// Differenzenquotient-Applets zu einer Canvas-Position. Gibt 'A' oder 'B'
+// zurück (je nachdem, welcher Punkt näher ist, falls beide in Trefferreichweite
+// liegen — relevant wenn A und B nahe beieinander/zusammenfallen), sonst null.
+function findNearDiffQuotHit(mx, my) {
+  if (!diffQuot) return null;
+  const fn = functions[diffQuot.fi]; if (!fn || fn.visible === false) return null;
+  const HIT = ('ontouchstart' in window) ? 22 : 14;
+  const yA = safeEval(fn.expr, diffQuot.xA), yB = safeEval(fn.expr, diffQuot.xB);
+  let best = null, bestDist = Infinity;
+  if (isFinite(yA)) {
+    const { cx, cy } = toCanvas(diffQuot.xA, yA);
+    const d = Math.hypot(cx - mx, cy - my);
+    if (d < HIT && d < bestDist) { bestDist = d; best = 'A'; }
+  }
+  if (isFinite(yB)) {
+    const { cx, cy } = toCanvas(diffQuot.xB, yB);
+    const d = Math.hypot(cx - mx, cy - my);
+    if (d < HIT && d < bestDist) { bestDist = d; best = 'B'; }
+  }
+  return best;
+}
+
+// Baut "(v)" bei negativem v, sonst nur "v" — DEZIMAL (niceNumDec(), kein
+// Bruch-Umschalten). Für die Nenner-Zeile der ausgeschriebenen
+// Differenzenquotient-Formel unten, z.B. "3 − (−1)" statt des
+// missverständlichen "3 − -1".
+function _dqParenDec(v) { const s = niceNumDec(v); return v < 0 ? `(${s})` : s; }
+
+// Zeichnet das Differenzenquotient-Applet: Sekante durch A und B, Steigungs-
+// dreieck (gestrichelt, MIT Katheten-Längenbeschriftung — Nutzerwunsch) sowie
+// beide Punkte A und B im gleichen, ziehbaren Stil (kein Unterschied mehr
+// zwischen "fix" und "beweglich"). Die Werte h/Δy/m erscheinen zusätzlich als
+// EIN ausgeschriebener Bruchterm in der Sidebar (Schritt 5). Liegen A und B
+// nahe genug beieinander, wird zusätzlich die Tangente in A eingeblendet und
+// die Sidebar-Anzeige (#diffquot-dw) framt m explizit als Annäherung an den
+// Differentialquotienten f'(xA) — siehe DIFFQUOT_NEAR_H oben.
+function drawDiffQuot(w, h) {
+  const dwEl = document.getElementById('diffquot-dw');
+  if (!diffQuot) { if (dwEl) dwEl.innerHTML = ''; return; }
+  const fn = functions[diffQuot.fi];
+  if (!fn || fn.visible === false) { if (dwEl) dwEl.innerHTML = ''; return; }
+
+  const v = isoView || view;
+  const xA = diffQuot.xA, xB = diffQuot.xB;
+  const yA = safeEval(fn.expr, xA), yB = safeEval(fn.expr, xB);
+  if (!isFinite(yA) || !isFinite(yB)) return;
+  const hVal = xB - xA;               // h = Δx
+  const derivA = deriv1(fn.expr, xA); // wahrer Differentialquotient f'(xA)
+  // Der gezogene Punkt darf den jeweils anderen nicht überspringen (siehe
+  // 09_events.js: newX wird auf drag.side geklemmt) und darf exakt mit ihm
+  // zusammenfallen (h=0). In dem Fall ist der Differenzenquotient
+  // (yB−yA)/hVal ein 0/0-Ausdruck — die Sekante IST dann per Definition die
+  // Tangente, daher wird m in diesem Grenzfall direkt auf den wahren
+  // Differentialquotienten f'(xA) gesetzt (keine Division durch 0).
+  const isCoincident = Math.abs(hVal) < 1e-9;
+  const m = isCoincident ? derivA : (yB - yA) / hVal; // Differenzenquotient
+  const isNear = Math.abs(hVal) < DIFFQUOT_NEAR_H;
+
+  // ── 1. Sekante durch A und B, über den sichtbaren Bereich hinaus ─────
+  {
+    const { cx: sx0, cy: sy0 } = toCanvas(v.xmin, yA + m * (v.xmin - xA));
+    const { cx: sx1, cy: sy1 } = toCanvas(v.xmax, yA + m * (v.xmax - xA));
+    ctx.save();
+    ctx.strokeStyle = dqConstrColor(); ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(sx0, sy0); ctx.lineTo(sx1, sy1); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── 2. Tangente in A — nur eingeblendet, wenn A und B nahe genug beieinander
+  //      liegen. Bei isCoincident IST die (oben gezeichnete) Sekante bereits
+  //      exakt die Tangente (m=derivA) — ein zusätzlicher, optisch identischer
+  //      Overlay wäre nur redundant, daher hier ausgelassen. ───────────────
+  if (isNear && !isCoincident) {
+    const { cx: tx0, cy: ty0 } = toCanvas(v.xmin, yA + derivA * (v.xmin - xA));
+    const { cx: tx1, cy: ty1 } = toCanvas(v.xmax, yA + derivA * (v.xmax - xA));
+    ctx.save();
+    ctx.strokeStyle = '#7F27CE'; ctx.lineWidth = 1.6; ctx.setLineDash([2, 4]);
+    ctx.beginPath(); ctx.moveTo(tx0, ty0); ctx.lineTo(tx1, ty1); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── 3. Steigungsdreieck — gestrichelte Katheten MIT Längenbeschriftung
+  //      (Nutzerwunsch), immer DEZIMAL (niceNumDec, kein Bruch-Umschalten).
+  //      Die Werte erscheinen ZUSÄTZLICH als EIN ausgeschriebener Bruchterm
+  //      in der Sidebar (Schritt 5, auf früheren Nutzerwunsch: "h und m nicht
+  //      separat anzeigen, sondern als Differenzenquotient ausgeschrieben")
+  //      — die Katheten-Beschriftung hier ist die geometrische Ergänzung
+  //      dazu, direkt am Dreieck selbst. ──────────────────────────────────
+  const xLeft = Math.min(xA, xB), xRight = Math.max(xA, xB);
+  const yLeft = safeEval(fn.expr, xLeft), yRight = safeEval(fn.expr, xRight);
+  const { cx: px0, cy: py0 } = toCanvas(xLeft, yLeft);
+  const { cx: px1, cy: py1 } = toCanvas(xRight, yRight);
+  const { cx: px2, cy: py2 } = toCanvas(xRight, yLeft);
+
+  ctx.save();
+  ctx.strokeStyle = dqConstrColor(); ctx.lineWidth = 1.5; ctx.setLineDash([5, 3]);
+  ctx.beginPath(); ctx.moveTo(px0, py0); ctx.lineTo(px2, py2); ctx.lineTo(px1, py1); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  const legH = Math.abs(xRight - xLeft), legV = Math.abs(yRight - yLeft);
+  const dySigned = yB - yA;
+  ctx.save();
+  ctx.font = '10px system-ui'; ctx.fillStyle = dqConstrColor();
+  if (legH > 1e-9) {
+    // Waagrechte Kathete (Länge |Δx|): zentriert unter/über der Grundlinie —
+    // "unter" wenn das Dreieck nach oben zeigt (dy>=0), sonst "über" (analog
+    // zu drawSlopeTri()'s Δx-Label weiter oben in dieser Datei).
+    const belowY = dySigned >= 0 ? py2 + 9 : py2 - 9;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(niceNumDec(legH), (px0 + px2) / 2, belowY);
+  }
+  if (legV > 1e-9) {
+    // Senkrechte Kathete (Länge |Δy|): rechts neben der Vertikalen, vertikal zentriert
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(niceNumDec(legV), px2 + 6, (py1 + py2) / 2);
+  }
+  ctx.restore();
+
+  // ── 4. Punkte A und B — BEIDE ziehbar, gleicher visueller Stil (Stil wie
+  //      graphPoints; früher hatte A einen "fixiert"-Doppelring, das entfällt
+  //      jetzt, Nutzerwunsch). Bei isCoincident fällt B optisch exakt mit A
+  //      zusammen — ein zweiter, identisch überlagerter Kreis wäre nur
+  //      redundant, daher wird dann nur EIN Punkt mit kombiniertem Label
+  //      gezeichnet. ──────────────────────────────────────────────────────
+  const { cx: cxA, cy: cyA } = toCanvas(xA, yA);
+  const { cx: cxB, cy: cyB } = toCanvas(xB, yB);
+  const draggingA = drag && drag.type === 'diffquotpt' && drag.which === 'A';
+  const draggingB = drag && drag.type === 'diffquotpt' && drag.which === 'B';
+
+  function drawDQPoint(cx, cy, dragging) {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, dragging ? 10 : 8, 0, 2 * PI); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+    ctx.strokeStyle = fn.color; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, 3, 0, 2 * PI); ctx.fillStyle = fn.color; ctx.fill();
+    ctx.restore();
+  }
+  drawDQPoint(cxA, cyA, draggingA);
+  if (!isCoincident) drawDQPoint(cxB, cyB, draggingB);
+
+  ctx.save();
+  ctx.font = 'bold 11px system-ui'; ctx.fillStyle = fn.color; ctx.textBaseline = 'middle';
+  if (isCoincident) {
+    // Kombiniertes Label "A=B(...)" statt zwei sich überlagernder Labels —
+    // Seite (links/rechts) grob nach Position im Canvas gewählt (w = Canvas-Breite).
+    const onLeftHalf = cxA < w / 2;
+    ctx.textAlign = onLeftHalf ? 'left' : 'right';
+    ctx.fillText(`A=B(${niceNumDec(xA)}|${niceNumDec(yA)})`, cxA + (onLeftHalf ? 13 : -13), cyA - 13);
+  } else {
+    ctx.textAlign = cxA <= cxB ? 'right' : 'left';
+    ctx.fillText(`A(${niceNumDec(xA)}|${niceNumDec(yA)})`, cxA + (cxA <= cxB ? -13 : 13), cyA - 11);
+    ctx.textAlign = cxB < cxA ? 'right' : 'left';
+    ctx.fillText(`B(${niceNumDec(xB)}|${niceNumDec(yB)})`, cxB + (cxB < cxA ? -13 : 13), cyB + 13);
+  }
+  ctx.restore();
+
+  // ── 5. Sidebar-Anzeige (#diffquot-dw): Differenzenquotient EINMAL
+  //      AUSGESCHRIEBEN als Bruchkette (statt h und m getrennt anzuzeigen),
+  //      z.B. m = (f(3)−f(1))/(3−1) = 8/2 = 4 — über das im Projekt bereits
+  //      bestehende "Rechentool" .mfrac (03_math.js, dieselbe Bruch-
+  //      Darstellung wie in den Lösungsweg-Boxen, siehe showLoesungsweg() in
+  //      11_fitting.js), aber mit generischer f(x)-Schreibweise (statt der
+  //      früheren, nur für x² gültigen Exponenten-Schreibweise x²) und
+  //      IMMER dezimal (niceNumDec statt fracHTML) — Nutzerwunsch: kein
+  //      Wechsel zwischen Dezimalzahlen und Brüchen.
+  if (dwEl) {
+    const dStr = niceNumDec(derivA), xAStr = niceNumDec(xA);
+    let html = `<div>Differenzenquotient:</div>`;
+    if (isCoincident) {
+      // Grenzfall h=0: A und B liegen genau übereinander — kein 0/0-Bruch
+      // anzeigen, sondern explizit den Übergang Sekante→Tangente benennen.
+      html += `<div style="margin:4px 0;">A und B liegen jetzt genau übereinander (h = 0) — die Sekante ist zur Tangente geworden.</div>` +
+              `<div style="color:#1D9E75;font-weight:600;">Differentialquotient: f'(${xAStr}) = <b>${dStr}</b></div>`;
+    } else {
+      const xAStr2 = niceNumDec(xA), xBStr = niceNumDec(xB);
+      const denXA = _dqParenDec(xA); // vermeidet "3 − -1" in der Nenner-Zeile
+      const frac0 = `<span class="mfrac"><span class="mfrac-num">f(${xBStr}) − f(${xAStr2})</span><span class="mfrac-den">${xBStr} − ${denXA}</span></span>`;
+      const frac1 = `<span class="mfrac"><span class="mfrac-num">${niceNumDec(dySigned)}</span><span class="mfrac-den">${niceNumDec(hVal)}</span></span>`;
+      html += `<div style="margin:4px 0;">m = ${frac0} = ${frac1} = <b>${niceNumDec(m)}</b></div>`;
+      if (isNear) {
+        html += `<div style="color:#1D9E75;font-weight:600;margin-top:3px;">→ A und B liegen nahe beieinander: m nähert sich dem Differentialquotienten f'(${xAStr}) = ${dStr}!</div>`;
+      } else {
+        html += `<div style="margin-top:3px;">Ziehe A und B näher zusammen, um zu sehen, wie m sich dem Differentialquotienten (f'(${xAStr}) = ${dStr}) annähert.</div>`;
+      }
+    }
+    dwEl.innerHTML = html;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// OBER-/UNTERSUMMEN-APPLET: "Einstieg in den Integralbegriff"
+// ═══════════════════════════════════════════════════════════════════
+// Anzahl Stichproben je Teilintervall, um dessen (echtes) Supremum/Infimum
+// numerisch anzunähern — bewusst NICHT nur die beiden Randwerte des
+// Teilintervalls verwendet, da bei nicht-monotonen Funktionen (z.B. x² über
+// ein Teilintervall wie [−0.1, 0.2]) das wahre Extremum in der MITTE liegen
+// kann (hier: Minimum bei x=0), nicht an einem Rand — mit nur Randwerten
+// wäre die berechnete Ober-/Untersumme mathematisch falsch.
+const RIEMANN_SAMPLES_PER_STRIP = 24;
+
+// Sucht den nähergelegenen Punkt (a ODER b, beide sind ziehbar) des
+// Ober-/Untersummen-Applets zu einer Canvas-Position — analog zu
+// findNearDiffQuotHit() oben, aber die Punkte liegen auf der x-Achse (y=0)
+// statt auf der Kurve, da sie eine Intervallgrenze markieren.
+function findNearRiemannHit(mx, my) {
+  if (!riemann) return null;
+  const fn = functions[riemann.fi1]; if (!fn || fn.visible === false) return null;
+  const HIT = ('ontouchstart' in window) ? 22 : 14;
+  let best = null, bestDist = Infinity;
+  {
+    const { cx, cy } = toCanvas(riemann.xA, 0);
+    const d = Math.hypot(cx - mx, cy - my);
+    if (d < HIT && d < bestDist) { bestDist = d; best = 'A'; }
+  }
+  {
+    const { cx, cy } = toCanvas(riemann.xB, 0);
+    const d = Math.hypot(cx - mx, cy - my);
+    if (d < HIT && d < bestDist) { bestDist = d; best = 'B'; }
+  }
+  return best;
+}
+
+// Zeichnet das Ober-/Untersummen-Applet: n Rechtecke für Obersumme (orange)
+// und n Rechtecke für Untersumme (teal), zwischen den ziehbaren
+// Intervallgrenzen a und b. Beide Rechteck-Serien starten an der x-Achse
+// (y=0) — bei positiver Funktion liegt die Untersumme-Fläche dadurch
+// vollständig INNERHALB der Obersumme-Fläche (Untersumme wird NACH der
+// Obersumme gezeichnet, also oben drauf), sodass als sichtbarer Orange-
+// Streifen genau die Differenz Obersumme−Untersumme ("die Unschärfe" je
+// Teilintervall) übrig bleibt — mit wachsendem n wird dieser Streifen immer
+// dünner. Das Zwei-Kurven-Flächen-Applet ist ein eigener Menüpunkt, siehe
+// drawFlaeche() weiter unten.
+// Wird VOR den Funktionsgraphen gezeichnet (siehe draw(), Schritt 6), damit
+// die Kurve(n) selbst oben drauf liegen. Intervallgrenzen-Marker und -Labels
+// in der neutralen Farbe C.anno (Konstruktionselement, keine Funktionsfarbe
+// — siehe dqConstrColor()-Konvention beim Differenzenquotient-Applet oben).
+// Wertet die (einmalig in riemannSetup(), 06_ui_functions.js, symbolisch
+// berechnete) Stammfunktion riemann.antiderivRaw an den aktuellen Grenzen
+// xLeft/xRight numerisch aus und liefert deren LaTeX-Darstellung dazu — die
+// eigentliche symbolische Integration (calcIntegrate()/nerdamer) passiert NUR
+// einmal beim Aufschalten, hier (bei JEDEM Neuzeichnen, auch während des
+// Ziehens) nur eine günstige safeEval()-Auswertung plus rawToLatex(). Gibt
+// null zurück, wenn keine Stammfunktion vorliegt oder sie an einer der beiden
+// Grenzen nicht auswertbar ist (z.B. Definitionslücke) — der Aufrufer fällt
+// dann auf die rein numerische Näherung zurück.
+function _riemannSymbolicIntegral(antiderivRaw, xLeft, xRight) {
+  if (!antiderivRaw) return null;
+  try {
+    const Fa = safeEval(antiderivRaw, xLeft);
+    const Fb = safeEval(antiderivRaw, xRight);
+    if (!isFinite(Fa) || !isFinite(Fb)) return null;
+    const FxLatex = rawToLatex(antiderivRaw);
+    return { Fa, Fb, value: Fb - Fa, FxLatex };
+  } catch (ex) { return null; }
+}
+
+function drawRiemann(w, h) {
+  const dwEl = document.getElementById('riemann-dw');
+  if (!riemann) { if (dwEl) dwEl.innerHTML = ''; return; }
+  const fn1 = functions[riemann.fi1];
+  if (!fn1 || fn1.visible === false) { if (dwEl) dwEl.innerHTML = ''; return; }
+
+  const xA = riemann.xA, xB = riemann.xB;
+  const xLeft = Math.min(xA, xB), xRight = Math.max(xA, xB);
+  const n = Math.max(1, riemann.n || 10);
+  const width = xRight - xLeft;
+
+  // ── Intervallgrenzen a und b: ziehbare Markerpunkte auf der x-Achse ──
+  // (gemeinsam für beide Modi verwendet, siehe unten).
+  function drawBoundsMarkers() {
+    const { cx: cxA, cy: cyAx } = toCanvas(xA, 0);
+    const { cx: cxB } = toCanvas(xB, 0);
+    const draggingA = drag && drag.type === 'riemannpt' && drag.which === 'A';
+    const draggingB = drag && drag.type === 'riemannpt' && drag.which === 'B';
+    function drawRPoint(cx, cy, dragging) {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, dragging ? 10 : 8, 0, 2 * PI); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+      ctx.strokeStyle = C.anno; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, 3, 0, 2 * PI); ctx.fillStyle = C.anno; ctx.fill();
+      ctx.restore();
+    }
+    const isCoincident = Math.abs(xB - xA) < 1e-9;
+    drawRPoint(cxA, cyAx, draggingA);
+    if (!isCoincident) drawRPoint(cxB, cyAx, draggingB);
+
+    ctx.save();
+    ctx.font = 'bold 11px system-ui'; ctx.fillStyle = C.anno; ctx.textBaseline = 'middle';
+    if (isCoincident) {
+      ctx.textAlign = cxA < w / 2 ? 'left' : 'right';
+      ctx.fillText(`a=b(${niceNumDec(xA)})`, cxA + (cxA < w / 2 ? 13 : -13), cyAx - 13);
+    } else {
+      ctx.textAlign = cxA <= cxB ? 'right' : 'left';
+      ctx.fillText(`a(${niceNumDec(xA)})`, cxA + (cxA <= cxB ? -13 : 13), cyAx - 13);
+      ctx.textAlign = cxB < cxA ? 'right' : 'left';
+      ctx.fillText(`b(${niceNumDec(xB)})`, cxB + (cxB < cxA ? -13 : 13), cyAx - 13);
+    }
+    ctx.restore();
+  }
+
+  if (width < 1e-9) {
+    if (dwEl) dwEl.innerHTML = '<div>Die Intervallgrenzen a und b liegen genau übereinander — kein Intervall.</div>';
+    return;
+  }
+
+  // ── Ober-/Untersummen zwischen Funktion und x-Achse ──
+  const stripW = width / n;
+  let obersumme = 0, untersumme = 0;
+  const OBER_FILL = 'rgba(216,90,48,0.30)', OBER_STROKE = 'rgba(216,90,48,0.85)';
+  const UNTER_FILL = 'rgba(29,158,117,0.45)', UNTER_STROKE = 'rgba(29,158,117,0.9)';
+
+  // Je Teilintervall dichte Stichprobe → echtes (angenähertes) Supremum/
+  // Infimum statt nur der beiden Randwerte (siehe RIEMANN_SAMPLES_PER_STRIP
+  // oben für die Begründung).
+  const strips = [];
+  for (let k = 0; k < n; k++) {
+    const sxL = xLeft + k * stripW, sxR = xLeft + (k + 1) * stripW;
+    let sup = -Infinity, inf = Infinity;
+    for (let s = 0; s <= RIEMANN_SAMPLES_PER_STRIP; s++) {
+      const x = sxL + (sxR - sxL) * (s / RIEMANN_SAMPLES_PER_STRIP);
+      const y = safeEval(fn1.expr, x);
+      if (!isFinite(y)) continue;
+      if (y > sup) sup = y;
+      if (y < inf) inf = y;
+    }
+    if (sup === -Infinity || inf === Infinity) continue; // Funktion hier nirgends definiert
+    strips.push({ sxL, sxR, sup, inf });
+    obersumme += sup * stripW;
+    untersumme += inf * stripW;
+  }
+
+  function fillRect(sxL, sxR, yVal, fillCol, strokeCol) {
+    const { cx: cxL, cy: cyBase } = toCanvas(sxL, 0);
+    const { cx: cxR, cy: cyTop } = toCanvas(sxR, yVal);
+    ctx.save();
+    ctx.fillStyle = fillCol;
+    ctx.fillRect(cxL, Math.min(cyBase, cyTop), cxR - cxL, Math.abs(cyBase - cyTop));
+    ctx.strokeStyle = strokeCol; ctx.lineWidth = 1;
+    ctx.strokeRect(cxL, Math.min(cyBase, cyTop), cxR - cxL, Math.abs(cyBase - cyTop));
+    ctx.restore();
+  }
+
+  // Obersumme zuerst (liegt bei positiver Funktion "aussen"), Untersumme
+  // danach darüber (liegt "innen") — siehe Erklärung in der Funktions-
+  // dokumentation oben.
+  strips.forEach(({ sxL, sxR, sup }) => fillRect(sxL, sxR, sup, OBER_FILL, OBER_STROKE));
+  strips.forEach(({ sxL, sxR, inf }) => fillRect(sxL, sxR, inf, UNTER_FILL, UNTER_STROKE));
+
+  drawBoundsMarkers();
+
+  // ── Sidebar-Anzeige (#riemann-dw): Obersumme, Untersumme, Differenz und
+  //    das exakte Integral als Referenzwert (computeSignedIntegral(),
+  //    04_analysis.js) — je grösser n, desto näher rücken alle drei Werte
+  //    zusammen. ────────────────────────────────────────────────────
+  if (dwEl) {
+    const diff = obersumme - untersumme;
+    let html = `<div>n = ${n} Teilintervalle</div>`;
+    html += `<div style="margin-top:4px;color:#D85A30;font-weight:600;">Obersumme O = ${niceNumDec(obersumme)}</div>`;
+    html += `<div style="color:#1D9E75;font-weight:600;">Untersumme U = ${niceNumDec(untersumme)}</div>`;
+    html += `<div style="margin-top:3px;">O − U = ${niceNumDec(diff)}</div>`;
+    const sym = _riemannSymbolicIntegral(riemann.antiderivRaw, xLeft, xRight);
+    if (sym) {
+      // Symbolische Stammfunktion vorhanden — echter geschlossener Ausdruck
+      // statt einer numerischen Simpson-Näherung (Nutzerwunsch: "einen
+      // symbolischen Ausdruck für das Integral").
+      const aL = latexNum(xLeft), bL = latexNum(xRight);
+      const latex = `\\int_{${aL}}^{${bL}} f(x)\\,dx = \\Big[${sym.FxLatex}\\Big]_{${aL}}^{${bL}} = ${latexNum(sym.value)}`;
+      html += `<div style="margin-top:4px;">Exaktes Integral (symbolisch):</div>`;
+      html += `<div style="margin:2px 0 4px;">${latexToMathLiveHtml(latex)}</div>`;
+    } else {
+      const exact = (typeof computeSignedIntegral === 'function') ? computeSignedIntegral(fn1.expr, xLeft, xRight) : NaN;
+      if (isFinite(exact)) {
+        html += `<div style="margin-top:4px;">Exaktes Integral: <b>${niceNumDec(exact)}</b></div>`;
+      }
+    }
+    if (n < 40) {
+      html += `<div style="margin-top:3px;">Erhöhe n — O und U rücken näher an das exakte Integral heran.</div>`;
+    } else {
+      html += `<div style="margin-top:3px;color:#1D9E75;">O und U liegen jetzt sehr nahe beieinander!</div>`;
+    }
+    dwEl.innerHTML = html;
+  }
+}
+
+// Trefferpunkt-Test für die ziehbaren Grenzmarker des Flächen-Applets —
+// analog zu findNearRiemannHit() oben, aber die Marker sitzen je nach
+// flaeche.axis auf unterschiedlichen Achsen: axis 'x'/'g' auf der x-Achse
+// (a,0)/(b,0) wie beim Ober-/Untersummen-Applet, axis 'y' dagegen auf der
+// y-Achse (0,a)/(0,b) — siehe drawFlaeche() unten.
+function findNearFlaecheHit(mx, my) {
+  if (!flaeche) return null;
+  const fn = functions[flaeche.fi1]; if (!fn || fn.visible === false) return null;
+  const HIT = ('ontouchstart' in window) ? 22 : 14;
+  let best = null, bestDist = Infinity;
+  const ptA = flaeche.axis === 'y' ? toCanvas(0, flaeche.a) : toCanvas(flaeche.a, 0);
+  const ptB = flaeche.axis === 'y' ? toCanvas(0, flaeche.b) : toCanvas(flaeche.b, 0);
+  {
+    const d = Math.hypot(ptA.cx - mx, ptA.cy - my);
+    if (d < HIT && d < bestDist) { bestDist = d; best = 'A'; }
+  }
+  {
+    const d = Math.hypot(ptB.cx - mx, ptB.cy - my);
+    if (d < HIT && d < bestDist) { bestDist = d; best = 'B'; }
+  }
+  return best;
+}
+
+// Zeichnet das Flächen-Applet — siehe die ausführliche Doku bei "let flaeche"
+// (02_core.js) für die drei Randarten. axis 'x'/'g' laufen über denselben
+// Zeichencode (g wird bei axis='x' einfach als Ausdruck "0" behandelt):
+// schraffierte Fläche zwischen f und g, plus exaktem Wert (symbolisch wenn
+// möglich, sonst computeArea(), 04_analysis.js). axis 'y' zeichnet
+// stattdessen die Fläche zwischen der Kurve und der y-Achse (horizontale
+// Grenzlinien bei y=a/y=b statt vertikale); x(y) wird dafür kontinuierlich
+// verfolgt (_flaecheYInvertNear(), 06_ui_functions.js — wichtig für
+// Performance UND Korrektheit bei nicht injektiven Funktionen wie x², siehe
+// dortige Dokumentation) und zeigt eine rein NUMERISCHE Flächennäherung
+// (Trapezregel über genau dieselben Stützpunkte, die auch gezeichnet
+// werden — damit Anzeige und Zeichnung immer exakt übereinstimmen).
+function drawFlaeche(w, h) {
+  const dwEl = document.getElementById('flaeche-dw');
+  if (!flaeche) { if (dwEl) dwEl.innerHTML = ''; return; }
+  const fn1 = functions[flaeche.fi1];
+  if (!fn1 || fn1.visible === false) { if (dwEl) dwEl.innerHTML = ''; return; }
+  const hasG = flaeche.axis === 'g';
+  const fn2 = hasG ? functions[flaeche.fi2] : null;
+  if (hasG && (!fn2 || fn2.visible === false)) { if (dwEl) dwEl.innerHTML = ''; return; }
+
+  const a = flaeche.a, b = flaeche.b;
+  const lo = Math.min(a, b), hi = Math.max(a, b);
+  if (hi - lo < 1e-9) {
+    if (dwEl) dwEl.innerHTML = '<div>Die Grenzen a und b liegen genau übereinander — kein Intervall.</div>';
+    return;
+  }
+
+  if (flaeche.axis === 'x' || flaeche.axis === 'g') {
+    const expr2 = hasG ? fn2.expr : '0';
+    const xLeft = lo, xRight = hi;
+
+    function drawBoundsMarkersX() {
+      const { cx: cxA, cy: cyAx } = toCanvas(a, 0);
+      const { cx: cxB } = toCanvas(b, 0);
+      const draggingA = drag && drag.type === 'flaechept' && drag.which === 'A';
+      const draggingB = drag && drag.type === 'flaechept' && drag.which === 'B';
+      function drawRPoint(cx, cy, dragging) {
+        ctx.save();
+        ctx.beginPath(); ctx.arc(cx, cy, dragging ? 10 : 8, 0, 2 * PI); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+        ctx.strokeStyle = C.anno; ctx.lineWidth = 2.5; ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, 3, 0, 2 * PI); ctx.fillStyle = C.anno; ctx.fill();
+        ctx.restore();
+      }
+      const isCoincident = Math.abs(b - a) < 1e-9;
+      drawRPoint(cxA, cyAx, draggingA);
+      if (!isCoincident) drawRPoint(cxB, cyAx, draggingB);
+      ctx.save();
+      ctx.font = 'bold 11px system-ui'; ctx.fillStyle = C.anno; ctx.textBaseline = 'middle';
+      if (isCoincident) {
+        ctx.textAlign = cxA < w / 2 ? 'left' : 'right';
+        ctx.fillText(`a=b(${niceNumDec(a)})`, cxA + (cxA < w / 2 ? 13 : -13), cyAx - 13);
+      } else {
+        ctx.textAlign = cxA <= cxB ? 'right' : 'left';
+        ctx.fillText(`a(${niceNumDec(a)})`, cxA + (cxA <= cxB ? -13 : 13), cyAx - 13);
+        ctx.textAlign = cxB < cxA ? 'right' : 'left';
+        ctx.fillText(`b(${niceNumDec(b)})`, cxB + (cxB < cxA ? -13 : 13), cyAx - 13);
+      }
+      ctx.restore();
+    }
+
+    const aCol = AREA_ALPHAS[flaeche.fi1 % AREA_ALPHAS.length];
+    const width = xRight - xLeft;
+    const steps = Math.round(w * 2), xs = [], y1s = [], y2s = [];
+    for (let i = 0; i <= steps; i++) {
+      const x = xLeft + (i / steps) * width, ya = safeEval(fn1.expr, x), yb = safeEval(expr2, x);
+      if (isFinite(ya) && isFinite(yb)) { xs.push(x); y1s.push(ya); y2s.push(yb); }
+    }
+    if (xs.length > 1) {
+      ctx.beginPath();
+      xs.forEach((x, i) => { const { cx, cy } = toCanvas(x, y1s[i]); i === 0 ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy); });
+      for (let i = xs.length - 1; i >= 0; i--) { const { cx, cy } = toCanvas(xs[i], y2s[i]); ctx.lineTo(cx, cy); }
+      ctx.closePath(); ctx.fillStyle = aCol; ctx.fill();
+      const edgeCol = fn1.color + '88';
+      ctx.strokeStyle = edgeCol; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+      const { cx: lx1 } = toCanvas(xLeft, 0), { cx: lx2 } = toCanvas(xRight, 0);
+      ctx.beginPath(); ctx.moveTo(lx1, 0); ctx.lineTo(lx1, h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(lx2, 0); ctx.lineTo(lx2, h); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    drawBoundsMarkersX();
+
+    if (dwEl) {
+      const gLabel = hasG ? 'g' : 'der x-Achse';
+      let html = `<div>Fläche zwischen f und ${gLabel} im Intervall [${niceNumDec(xLeft)}, ${niceNumDec(xRight)}]</div>`;
+      const sym = _riemannSymbolicIntegral(flaeche.antiderivRaw, xLeft, xRight);
+      if (sym) {
+        const aL = latexNum(xLeft), bL = latexNum(xRight);
+        const areaVal = Math.abs(sym.value);
+        const gTex = hasG ? 'g(x)' : '0';
+        let latex = `\\int_{${aL}}^{${bL}} \\big(f(x)-${gTex}\\big)\\,dx = \\Big[${sym.FxLatex}\\Big]_{${aL}}^{${bL}} = ${latexNum(sym.value)}`;
+        html += `<div style="margin-top:4px;">Fläche (symbolisch):</div>`;
+        html += `<div style="margin:2px 0 4px;">${latexToMathLiveHtml(latex)}</div>`;
+        if (sym.value < 0) {
+          html += `<div>Fläche = <b>${latexToMathLiveHtml('\\left|' + latexNum(sym.value) + '\\right| = ' + latexNum(areaVal))}</b></div>`;
+        }
+      } else {
+        const exact = (typeof computeArea === 'function') ? computeArea(fn1.expr, expr2, xLeft, xRight) : NaN;
+        if (isFinite(exact)) {
+          html += `<div style="margin-top:4px;">Fläche ≈ <b>${niceNumDec(exact)}</b></div>`;
+        }
+      }
+      dwEl.innerHTML = html;
+    }
+    return;
+  }
+
+  // ── axis === 'y': Fläche zwischen Kurve und y-Achse ──
+  // WICHTIG (Performance + Korrektheit): x(y) wird hier NICHT mehr für jeden
+  // Schritt global neu gesucht (_flaecheYInvert(), 4000 Stützstellen pro
+  // Aufruf — bei h*1.5 Schritten macht das mehrere Millionen Auswertungen
+  // PRO Neuzeichnung, spürbar beim Ziehen). Stattdessen wird die Kurve
+  // kontinuierlich verfolgt: einmalig ein Startpunkt per globaler Suche,
+  // danach jeder weitere Punkt per lokaler, auf den Vorgänger verankerter
+  // Suche (_flaecheYInvertNear() — siehe dort). Das behebt gleichzeitig den
+  // Zickzack-/Streifen-Fülleffekt bei nicht injektiven Funktionen wie x²
+  // (dort gibt es zu jedem y ZWEI x-Lösungen ±√y; die globale "nächste zur
+  // y-Achse"-Regel sprang unkontrolliert zwischen beiden Ästen).
+  const [xSearchLo, xSearchHi] = _riemannIsectSearchRange();
+  const steps = Math.min(400, Math.max(120, Math.round(h))), ys = [], xsCurve = [];
+  const nearRadius = Math.max((xSearchHi - xSearchLo) * 0.1, 1);
+  {
+    let prevX = null;
+    for (let i = 0; i <= steps; i++) {
+      const y = lo + (i / steps) * (hi - lo);
+      const x = prevX === null
+        ? _flaecheYInvert(fn1.expr, y, xSearchLo, xSearchHi)
+        : _flaecheYInvertNear(fn1.expr, y, prevX, nearRadius, xSearchLo, xSearchHi);
+      if (x !== null) { ys.push(y); xsCurve.push(x); prevX = x; } else { prevX = null; }
+    }
+  }
+  const aCol = AREA_ALPHAS[flaeche.fi1 % AREA_ALPHAS.length];
+  if (xsCurve.length > 1) {
+    ctx.beginPath();
+    xsCurve.forEach((x, i) => { const { cx, cy } = toCanvas(x, ys[i]); i === 0 ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy); });
+    for (let i = ys.length - 1; i >= 0; i--) { const { cx, cy } = toCanvas(0, ys[i]); ctx.lineTo(cx, cy); }
+    ctx.closePath(); ctx.fillStyle = aCol; ctx.fill();
+    const edgeCol = fn1.color + '88';
+    ctx.strokeStyle = edgeCol; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+    const { cy: ly1 } = toCanvas(0, lo), { cy: ly2 } = toCanvas(0, hi);
+    ctx.beginPath(); ctx.moveTo(0, ly1); ctx.lineTo(w, ly1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, ly2); ctx.lineTo(w, ly2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Grenzmarker AUF der y-Achse (x=0) statt auf der x-Achse.
+  {
+    const { cx: cxAx, cy: cyA } = toCanvas(0, a);
+    const { cy: cyB } = toCanvas(0, b);
+    const draggingA = drag && drag.type === 'flaechept' && drag.which === 'A';
+    const draggingB = drag && drag.type === 'flaechept' && drag.which === 'B';
+    function drawRPointY(cy, dragging) {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cxAx, cy, dragging ? 10 : 8, 0, 2 * PI); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+      ctx.strokeStyle = C.anno; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(cxAx, cy, 3, 0, 2 * PI); ctx.fillStyle = C.anno; ctx.fill();
+      ctx.restore();
+    }
+    const isCoincident = Math.abs(b - a) < 1e-9;
+    drawRPointY(cyA, draggingA);
+    if (!isCoincident) drawRPointY(cyB, draggingB);
+    ctx.save();
+    ctx.font = 'bold 11px system-ui'; ctx.fillStyle = C.anno; ctx.textBaseline = 'middle';
+    ctx.textAlign = cxAx < w / 2 ? 'left' : 'right';
+    if (isCoincident) {
+      ctx.fillText(`a=b(${niceNumDec(a)})`, cxAx + (cxAx < w / 2 ? 13 : -13), cyA);
+    } else {
+      ctx.fillText(`a(${niceNumDec(a)})`, cxAx + (cxAx < w / 2 ? 13 : -13), cyA);
+      ctx.fillText(`b(${niceNumDec(b)})`, cxAx + (cxAx < w / 2 ? 13 : -13), cyB);
+    }
+    ctx.restore();
+  }
+
+  if (dwEl) {
+    let html = `<div>Fläche zwischen f und der y-Achse im Intervall [${niceNumDec(lo)}, ${niceNumDec(hi)}] (y-Werte)</div>`;
+    // Trapezregel über GENAU dieselben Stützpunkte (xsCurve/ys), die auch
+    // gezeichnet wurden — statt einer separaten Berechnung (die z.B. bei
+    // nicht injektiven Funktionen auf einem anderen Ast landen könnte als
+    // die gezeichnete Fläche). So stimmen Anzeige und Zeichnung immer exakt
+    // überein (auch relevant für den LaTeX-Export, siehe 07_export.js).
+    let exact = NaN;
+    if (xsCurve.length > 1) {
+      exact = 0;
+      for (let i = 1; i < xsCurve.length; i++) {
+        exact += (Math.abs(xsCurve[i]) + Math.abs(xsCurve[i - 1])) / 2 * (ys[i] - ys[i - 1]);
+      }
+    }
+    if (isFinite(exact)) {
+      html += `<div style="margin-top:4px;">Fläche ≈ <b>${niceNumDec(exact)}</b> <span style="color:var(--text-muted);font-weight:400;">(numerische Näherung)</span></div>`;
+    } else {
+      html += `<div style="margin-top:4px;color:var(--text-muted);">Fläche konnte nicht berechnet werden — f ist im Intervall evtl. nicht (umkehrbar) definiert.</div>`;
+    }
+    dwEl.innerHTML = html;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // SENKRECHTE & MITTELSENKRECHTE: KONSTRUKTIONSMARKER
 // ═══════════════════════════════════════════════════════════════════
 // Zeichnet für jede über linAddPerp()/linAddBisector() erzeugte Funktion
@@ -463,10 +1090,21 @@ function drawPerpMarkers() {
 // - Standard-Winkelmarkierungen (0, π/6, π/4, ...)
 // - Nutzerdefinierten Punkten mit:
 //   - Radialer Linie vom Ursprung
-//   - sin/cos-Projektionslinien
-//   - cos-Punkt auf x-Achse (grün), sin-Punkt auf y-Achse (orange)
-//   - Gestrichelte Verbindungslinien zu allen sichtbaren Graphen
-//     (Winkel a auf x-Achse, f(a) auf y-Achse)
+//   - sin/cos-Projektionslinien (gestrichelt, auf x-/y-Achse) — zeigen den
+//     Wert bereits direkt am Kreis, wie im Lehrbuch üblich
+//   - Tangenskonstruktion (nur wenn eine tan-artige Funktion sichtbar ist):
+//     die durch Ursprung und Kreispunkt verlängerte Gerade schneidet die
+//     Tangente x=1 exakt bei y=tan(a) — die klassische, namensgebende
+//     Herleitung, direkt am Kreis sichtbar.
+//   - Punkt auf jedem sichtbaren sin/cos/tan-Graphen, dargestellt wie jede
+//     andere Funktion auch (senkrechter Balken von der x-Achse) — OHNE
+//     Verbindungslinie zum Kreispunkt (recherchiert an gängigen Schulbuch-/
+//     GeoGebra-Standarddarstellungen: dort verbindet nie eine Linie den
+//     Kreispunkt direkt mit dem Graphpunkt; die Zuordnung geschieht allein
+//     über Farbe + synchrone Bewegung). x_graph: sin/tan → a (Fenster
+//     0…2π), cos → a−π/2 (Fenster -π/2…3π/2) — cos wird damit strukturell
+//     zu einem phasenverschobenen sin (cos(a−π/2)=sin(a)): bei Kreispunkt
+//     (0,1) [a=π/2] liegt der Graphpunkt ebenfalls bei (0,1).
 function drawUnitCircle(w, h) {
   const { ox, oy, r } = getCircleParams(); if (r < 2) return; // zu klein zum Zeichnen
   const v = isoView || view;
@@ -508,22 +1146,10 @@ function drawUnitCircle(w, h) {
     ctx.strokeStyle = '#D85A3055'; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
     ctx.beginPath(); ctx.moveTo(px, oy); ctx.lineTo(px, py); ctx.stroke();
 
-    // Horizontale Projektionslinie: Punkt → y-Achse (zeigt cosA+(-1) = x-Koordinate relativ zu Mitte)
+    // Horizontale Projektionslinie: Punkt → y-Achse (zeigt cosA als x-Koordinate)
     ctx.strokeStyle = '#1D9E7555'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(ox, py); ctx.lineTo(px, py); ctx.stroke();
     ctx.setLineDash([]);
-
-    // sin-Marker auf y-Achse (x=0) als orange Punkt bei (0, sinA)
-    const { cx: yAxisX } = toCanvas(0, 0);
-    const { cy: sinYc } = toCanvas(0, sinA);
-    ctx.beginPath(); ctx.arc(yAxisX, sinYc, 4, 0, 2*PI); ctx.fillStyle = '#D85A30'; ctx.fill();
-
-    // cos-Marker: cosA liegt auf x-Achse bei x=cosA-1 (relativ zum Mittelpunkt),
-    // aber auf dem Graph bei y=cosA → Marker auf y-Achse bei (0, cosA)
-    const { cy: cosYc } = toCanvas(0, cosA);
-    ctx.beginPath(); ctx.arc(yAxisX, cosYc, 4, 0, 2*PI);
-    ctx.fillStyle = '#fff'; ctx.fill();
-    ctx.strokeStyle = '#1D9E75'; ctx.lineWidth = 1.5; ctx.stroke();
 
     // Haupt-Punkt auf dem Kreis
     ctx.beginPath(); ctx.arc(px, py, 9, 0, 2*PI); ctx.fillStyle = 'rgba(55,138,221,0.12)'; ctx.fill();
@@ -540,14 +1166,61 @@ function drawUnitCircle(w, h) {
     ctx.fillStyle = '#1D9E75'; ctx.fillText(`cos=${niceNum(cosA)}`, lx, ly + 12);
     ctx.fillStyle = '#D85A30'; ctx.fillText(`sin=${niceNum(sinA)}`, lx, ly + 22);
 
+    // Tangenskonstruktion (klassisch, namensgebend): die durch Ursprung und
+    // Kreispunkt verlängerte Gerade schneidet die senkrechte Tangente x=1
+    // exakt bei y = tan(a) — unabhängig vom Quadranten (bei Punkten in der
+    // linken Kreishälfte verläuft die Verlängerung durch den Ursprung
+    // hindurch, ergibt aber weiterhin exakt tan(a), siehe 09_events.js/
+    // 07_export.js für dieselbe Formel). Wird nur gezeichnet, wenn eine
+    // sichtbare tan-artige Funktion existiert — macht den Tangens-Wert
+    // direkt am Kreis "graphisch ersichtlich", statt ihn nur auf dem
+    // Graphen als Balken zu zeigen.
+    const hasVisibleTan = functions.some(fn => {
+      if (!fn.expr.trim() || fn.visible === false) return false;
+      const e = fn.expr.trim();
+      return /\btan\s*\(/.test(e) && !/\bsin\s*\(/.test(e) && !/\bcos\s*\(/.test(e);
+    });
+    if (hasVisibleTan && Math.abs(cosA) > 1e-6) {
+      const tanA = sinA / cosA; // == tan(a) exakt, wie unten in der Projektion
+      const { cx: tx, cy: ty } = toCanvas(1, tanA);
+      const { cx: t0x, cy: t0y } = toCanvas(1, 0);
+      ctx.strokeStyle = '#8B5CF6aa'; ctx.lineWidth = 1.3; ctx.setLineDash([]);
+      // Verlängerte Gerade: Kreispunkt → Schnittpunkt auf der Tangente x=1
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(tx, ty); ctx.stroke();
+      // Höhe auf der Tangente selbst (wie cos/sin als Streckenlänge gezeigt)
+      ctx.strokeStyle = '#8B5CF655'; ctx.lineWidth = 2; ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(t0x, t0y); ctx.lineTo(tx, ty); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(tx, ty, 3, 0, 2*PI); ctx.fillStyle = '#8B5CF6'; ctx.fill();
+      ctx.font = '9px system-ui'; ctx.fillStyle = '#8B5CF6'; ctx.textAlign = 'left';
+      ctx.fillText(`tan=${niceNum(tanA)}`, tx + 6, ty + 3);
+    }
+
     // Projektion auf alle sichtbaren Graphen
     // Typ-Erkennung via Ausdrucks-Pattern statt Wert-Vergleich (zuverlässiger):
     //   sin-artig: Ausdruck enthält sin( ohne cos/tan dominierend
     //   cos-artig: Ausdruck enthält cos( ohne sin/tan dominierend
     //   tan-artig: Ausdruck enthält tan(
-    // Für sin: x_graph = a,       Verbindung waagrecht von y-Achse
-    // Für cos: x_graph = a - π/2, Verbindung waagrecht von y-Achse (selbe Höhe da cos(a-π/2)=sin(a))
-    // Für tan: geometrische Tangentenkonstruktion
+    // x_graph je nach Typ (bestimmt, welches x-Fenster der Punkt beim
+    // Herumziehen um den VOLLEN Kreis (Winkel a läuft 0…2π) überstreicht):
+    //   sin/tan: x_graph = a       → Fenster 0…2π (Winkel entspricht direkt
+    //            x; für tan siehe die Tangentenkonstruktion oben, die exakt
+    //            denselben Wert zeigt)
+    //   cos:     x_graph = a - π/2 → Fenster -π/2…3π/2. Macht cos strukturell
+    //            identisch zu sin (der Graphwert entspricht wieder direkt
+    //            der Höhe sinA des Kreispunkts, denn cos(a-π/2)=sin(a)) —
+    //            einfach um π/2 phasenverschoben, wie bei Kreispunkt (0,1)
+    //            (a=π/2): dort ist xG=0 und der Graphpunkt liegt ebenfalls
+    //            bei (0,1).
+    // Darstellung des Graphpunkts: WIE IM LEHRBUCH/GEOGEBRA ÜBLICH — keine
+    // Verbindungslinie zwischen Kreispunkt und Graphpunkt (recherchiert an
+    // mehreren Standard-Applets zu "Sinus/Kosinus am Einheitskreis": der
+    // Kreis zeigt sinA/cosA bereits selbst über seine eigenen senkrechten/
+    // waagrechten Projektionslinien oben, siehe dort; auf dem Graphen selbst
+    // erscheint der Wert unabhängig davon als senkrechter Balken von der
+    // x-Achse — exakt wie bei jeder anderen Funktion auch, siehe "Andere"
+    // unten). Die einzige Verbindung ist die gleiche Farbe + synchrone
+    // Bewegung, keine gezeichnete Linie zwischen den beiden Punkten.
     functions.forEach(fn => {
       if (!fn.expr.trim() || fn.visible === false) return;
 
@@ -555,78 +1228,18 @@ function drawUnitCircle(w, h) {
       const hasSin = /\bsin\s*\(/.test(expr);
       const hasCos = /\bcos\s*\(/.test(expr);
       const hasTan = /\btan\s*\(/.test(expr);
-
-      // Typ bestimmen: primäre Trigo-Funktion
-      const isSinLike = hasSin && !hasCos && !hasTan;
       const isCosLike = hasCos && !hasSin && !hasTan;
-      const isTanLike = hasTan && !hasSin && !hasCos;
 
-      const tanA = sinA / cosA;
-      const { cx: yAx } = toCanvas(0, 0); // x-Position der y-Achse auf Canvas
-
-      if (isSinLike) {
-        // sin: x_graph = a, waagrecht von sin-Marker (y-Achse) → Graph
-        const xG = a, yG = safeEval(fn.expr, xG);
-        if (!isFinite(yG) || xG < v.xmin || xG > v.xmax || yG < v.ymin || yG > v.ymax) return;
-        const { cx: gx, cy: gy } = toCanvas(xG, yG);
-        ctx.setLineDash([4,3]); ctx.strokeStyle = fn.color + '88'; ctx.lineWidth = 1.2;
-        const { cy: sinYc2 } = toCanvas(0, sinA);
-        ctx.beginPath(); ctx.moveTo(yAx, sinYc2); ctx.lineTo(gx, gy); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.beginPath(); ctx.arc(gx, gy, 6, 0, 2*PI); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
-        ctx.strokeStyle = fn.color; ctx.lineWidth = 2; ctx.stroke();
-        ctx.beginPath(); ctx.arc(gx, gy, 2.5, 0, 2*PI); ctx.fillStyle = fn.color; ctx.fill();
-
-      } else if (isCosLike) {
-        // cos: x_graph = a - π/2, y = cos(a - π/2) = sin(a)
-        // Verbindung waagrecht vom sin-Marker (gleiche Höhe = sinA)
-        const xG = a - PI/2, yG = safeEval(fn.expr, xG);
-        if (!isFinite(yG) || xG < v.xmin || xG > v.xmax || yG < v.ymin || yG > v.ymax) return;
-        const { cx: gx, cy: gy } = toCanvas(xG, yG);
-        ctx.setLineDash([4,3]); ctx.strokeStyle = fn.color + '88'; ctx.lineWidth = 1.2;
-        const { cy: sinYcCos } = toCanvas(0, sinA); // sinA = cos(a-π/2) → selbe Höhe
-        ctx.beginPath(); ctx.moveTo(yAx, sinYcCos); ctx.lineTo(gx, gy); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.beginPath(); ctx.arc(gx, gy, 6, 0, 2*PI); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
-        ctx.strokeStyle = fn.color; ctx.lineWidth = 2; ctx.stroke();
-        ctx.beginPath(); ctx.arc(gx, gy, 2.5, 0, 2*PI); ctx.fillStyle = fn.color; ctx.fill();
-
-      } else if (isTanLike) {
-        const yAtA = safeEval(fn.expr, a);
-        if (Math.abs(cosA) < 0.01) return; // nahe an Pol
-        if (!isFinite(tanA) || tanA < v.ymin || tanA > v.ymax) return;
-        const { cy: tanYc } = toCanvas(0, tanA);
-        // Gerade: Kreismittelpunkt → Kreispunkt → y-Achse (verlängert)
-        ctx.setLineDash([4,3]); ctx.strokeStyle = fn.color + '88'; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(px, py); ctx.lineTo(yAx, tanYc); ctx.stroke();
-        ctx.setLineDash([]);
-        // Marker auf y-Achse
-        ctx.beginPath(); ctx.arc(yAx, tanYc, 4, 0, 2*PI);
-        ctx.fillStyle = '#fff'; ctx.fill();
-        ctx.strokeStyle = fn.color; ctx.lineWidth = 1.5; ctx.stroke();
-        // Waagrechte Linie von y-Achse zum Graphpunkt
-        const xG = a, yG = yAtA;
-        if (!isFinite(yG) || xG < v.xmin || xG > v.xmax || yG < v.ymin || yG > v.ymax) return;
-        const { cx: gx, cy: gy } = toCanvas(xG, yG);
-        ctx.setLineDash([4,3]); ctx.strokeStyle = fn.color + '88'; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.moveTo(yAx, tanYc); ctx.lineTo(gx, gy); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.beginPath(); ctx.arc(gx, gy, 6, 0, 2*PI); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
-        ctx.strokeStyle = fn.color; ctx.lineWidth = 2; ctx.stroke();
-        ctx.beginPath(); ctx.arc(gx, gy, 2.5, 0, 2*PI); ctx.fillStyle = fn.color; ctx.fill();
-
-      } else {
-        // Andere: senkrecht von x-Achse → Graphpunkt
-        const xG = a, yG = safeEval(fn.expr, xG);
-        if (!isFinite(yG) || xG < v.xmin || xG > v.xmax || yG < v.ymin || yG > v.ymax) return;
-        const { cx: gx, cy: gy } = toCanvas(xG, yG);
-        ctx.setLineDash([4,3]); ctx.strokeStyle = fn.color + '88'; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.moveTo(gx, oy); ctx.lineTo(gx, gy); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.beginPath(); ctx.arc(gx, gy, 6, 0, 2*PI); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
-        ctx.strokeStyle = fn.color; ctx.lineWidth = 2; ctx.stroke();
-        ctx.beginPath(); ctx.arc(gx, gy, 2.5, 0, 2*PI); ctx.fillStyle = fn.color; ctx.fill();
-      }
+      const xG = isCosLike ? a - PI/2 : a;
+      const yG = safeEval(fn.expr, xG);
+      if (!isFinite(yG) || xG < v.xmin || xG > v.xmax || yG < v.ymin || yG > v.ymax) return;
+      const { cx: gx, cy: gy } = toCanvas(xG, yG);
+      ctx.setLineDash([4,3]); ctx.strokeStyle = fn.color + '88'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(gx, oy); ctx.lineTo(gx, gy); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(gx, gy, 6, 0, 2*PI); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+      ctx.strokeStyle = fn.color; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(gx, gy, 2.5, 0, 2*PI); ctx.fillStyle = fn.color; ctx.fill();
     });
   });
   ctx.restore();
@@ -645,9 +1258,12 @@ function drawUnitCircle(w, h) {
 // braucht es einen Hit-Test für die Graph-seitige Projektion — die
 // Zieh-Logik selbst steht in 09_events.js (drag.type === 'trigproj').
 // Formeln exakt wie in drawUnitCircle(): sin/tan → xG=a, cos → xG=a−π/2.
+// Gibt bei mehreren Treffern den NÄCHSTEN zurück (nicht einfach den ersten),
+// damit findNearCircleOrTrigHit() unten zuverlässig vergleichen kann.
 function findNearTrigProjDot(mx, my) {
   const { ox, oy, r } = getCircleParams(); if (r < 2) return null;
   const HIT = ('ontouchstart' in window) ? 22 : 14;
+  let best = null, bestDist = Infinity;
   for (let i = unitCirclePts.length - 1; i >= 0; i--) {
     const a = unitCirclePts[i].angle;
     for (const fn of functions) {
@@ -666,9 +1282,42 @@ function findNearTrigProjDot(mx, my) {
       const yG = safeEval(fn.expr, xG);
       if (!isFinite(yG)) continue;
       const { cx: gx, cy: gy } = toCanvas(xG, yG);
-      if (Math.hypot(gx - mx, gy - my) < HIT) return { ucpIdx: i, kind };
+      const d = Math.hypot(gx - mx, gy - my);
+      if (d < HIT && d < bestDist) { bestDist = d; best = { ucpIdx: i, kind, dist: d }; }
     }
   }
+  return best;
+}
+
+// Kombinierter Hit-Test für mousedown/touchstart: prüft sowohl den
+// Kreis-Punkt selbst als auch seine Projektion auf einen sichtbaren
+// sin/cos/tan-Graphen, und gibt IMMER das Ziel zurück, dem die Maus/der
+// Finger tatsächlich am nächsten ist ({type:'circlept',idx} oder
+// {type:'trigproj',ucpIdx,kind}, sonst null).
+// WICHTIG: Seit x_graph für cos direkt = a ist (kein −π/2-Versatz mehr),
+// kann die Graph-Projektion bei manchen Winkeln (z.B. nahe der
+// "Dottie-Zahl" a≈cos(a)≈0.739 rad, nicht weit vom Standard-Startwinkel
+// π/4) fast exakt auf dem Kreis-Punkt selbst liegen. Ein simples "zuerst
+// den einen Typ prüfen, dann den anderen" (frühere Version) würde dann
+// IMMER denselben Typ greifen, selbst wenn die Maus eindeutig näher am
+// jeweils anderen Punkt ist — für den Kreis-Punkt hiesse das: er lässt
+// sich nicht mehr sauber der Maus folgend ziehen, weil stattdessen die
+// Graph-Projektion mit ihrer ANDEREN Umkehrformel (x-Position statt
+// Winkel-um-Mittelpunkt) den Drag übernimmt. Per Distanzvergleich bekommt
+// zuverlässig das visuell nähere Ziel den Zugriff, unabhängig davon wie
+// nah sich beide Trefferzonen kommen.
+function findNearCircleOrTrigHit(mx, my) {
+  const ci = findNearCirclePt(mx, my);
+  const tp = findNearTrigProjDot(mx, my);
+  let cDist = Infinity;
+  if (ci >= 0) {
+    const { ox, oy, r } = getCircleParams();
+    const a = unitCirclePts[ci].angle;
+    const px = ox + r * Math.cos(a), py = oy - r * Math.sin(a);
+    cDist = Math.hypot(px - mx, py - my);
+  }
+  if (ci >= 0 && (!tp || cDist <= tp.dist)) return { type: 'circlept', idx: ci };
+  if (tp) return { type: 'trigproj', ucpIdx: tp.ucpIdx, kind: tp.kind };
   return null;
 }
 
@@ -880,34 +1529,12 @@ function draw() {
   const _smartAsymp = functions.some((_, i) => activeSpecials.has(`${i}:asymp`));
   if (_smartAsymp) drawAsymptotes(w, h);
 
-  // ── 6. Fläche ─────────────────────────────────────────────────
-  if (showArea) {
-    const f1v = document.getElementById('area-f1').value, f2v = document.getElementById('area-f2').value;
-    const x1 = parseFloat(document.getElementById('area-x1').value), x2 = parseFloat(document.getElementById('area-x2').value);
-    if (!isNaN(x1) && !isNaN(x2) && x1 < x2) {
-      const e1 = getAreaExpr(f1v), e2 = getAreaExpr(f2v), fi = f1v === '__axis' ? -1 : parseInt(f1v);
-      const aCol = fi >= 0 ? AREA_ALPHAS[fi % AREA_ALPHAS.length] : 'rgba(186,117,23,0.15)';
-      const steps = Math.round(w * 2), xs = [], y1s = [], y2s = [];
-      for (let i = 0; i <= steps; i++) {
-        const x = x1 + (i/steps) * (x2-x1), ya = safeEval(e1, x), yb = safeEval(e2, x);
-        if (isFinite(ya) && isFinite(yb)) { xs.push(x); y1s.push(ya); y2s.push(yb); }
-      }
-      if (xs.length > 1) {
-        // Fläche als geschlossener Pfad (oben: f1, unten zurück: f2)
-        ctx.beginPath();
-        xs.forEach((x, i) => { const { cx, cy } = toCanvas(x, y1s[i]); i === 0 ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy); });
-        for (let i = xs.length-1; i >= 0; i--) { const { cx, cy } = toCanvas(xs[i], y2s[i]); ctx.lineTo(cx, cy); }
-        ctx.closePath(); ctx.fillStyle = aCol; ctx.fill();
-        // Gestrichelte Grenzen bei x1 und x2
-        const edgeCol = fi >= 0 ? functions[fi].color + '88' : '#BA751788';
-        ctx.strokeStyle = edgeCol; ctx.lineWidth = 1; ctx.setLineDash([5,4]);
-        const { cx: lx1 } = toCanvas(x1, 0), { cx: lx2 } = toCanvas(x2, 0);
-        ctx.beginPath(); ctx.moveTo(lx1, 0); ctx.lineTo(lx1, h); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(lx2, 0); ctx.lineTo(lx2, h); ctx.stroke();
-        ctx.setLineDash([]);
-      }
-    }
-  }
+  // ── 6. Ober-/Untersummen-Applet UND Flächen-Applet ────────────────
+  // Werden VOR den Funktionsgraphen gezeichnet (siehe drawRiemann()/
+  // drawFlaeche() oben), damit die Kurve(n) selbst oben drauf sichtbar
+  // bleiben.
+  if (typeof drawRiemann === 'function') drawRiemann(w, h);
+  if (typeof drawFlaeche === 'function') drawFlaeche(w, h);
 
   // ── 6b. Lineare Optimierung ───────────────────────────────────
   // Planungspolygon + Zielfunktions-Gerade (siehe 17_linopt.js) — unabhängig
@@ -985,6 +1612,9 @@ function draw() {
   // Senkrechte/Mittelsenkrechte-Marker: unabhängig vom Steigungsdreieck-
   // Kontrollkästchen, da eine eigene Konstruktion (siehe drawPerpMarkers()).
   if (typeof drawPerpMarkers === 'function') drawPerpMarkers();
+  // Differenzenquotient-Applet: eigene, dedizierte Konstruktion (siehe
+  // drawDiffQuot() oben) — unabhängig vom Steigungsdreieck-Kontrollkästchen.
+  if (typeof drawDiffQuot === 'function') drawDiffQuot(w, h);
 
   // ── 9. Funktionsbeschriftungen ────────────────────────────────
   // Wird als HTML-Overlay gerendert (updateFuncLabelsOverlay) — kein Canvas-Text mehr

@@ -113,14 +113,14 @@ const BEGRIFFE = [
   {
     term: 'Konvex (linksgekrümmt)',
     symbol: 'f\'\'(x) > 0',
-    def: 'Ein Graph ist auf einem Intervall konvex (nach unten offen, «Schüssel»), wenn die zweite Ableitung dort positiv ist. Jede Sekante liegt über dem Graphen.',
+    def: 'Ein Graph ist auf einem Intervall konvex (nach oben offen, «Schüssel»), wenn die zweite Ableitung dort positiv ist. Jede Sekante liegt über dem Graphen.',
     example: 'f(x) = x²  ist überall konvex (f\'\'=2 > 0)',
     tags: 'krümmung konvex'
   },
   {
     term: 'Konkav (rechtsgekrümmt)',
     symbol: 'f\'\'(x) < 0',
-    def: 'Ein Graph ist auf einem Intervall konkav (nach oben offen, «Kuppel»), wenn die zweite Ableitung dort negativ ist. Jede Sekante liegt unter dem Graphen.',
+    def: 'Ein Graph ist auf einem Intervall konkav (nach unten offen, «Kuppel»), wenn die zweite Ableitung dort negativ ist. Jede Sekante liegt unter dem Graphen.',
     example: 'f(x) = −x²  ist überall konkav (f\'\'=−2 < 0)',
     tags: 'krümmung konkav'
   },
@@ -348,7 +348,7 @@ const BEGRIFFE = [
     term: 'Phasenverschiebung',
     symbol: 'c  bei  f(x) = sin(x − c)',
     def: 'Horizontale Verschiebung einer Schwingungsfunktion. Positives c verschiebt nach rechts, negatives c nach links.',
-    example: 'f(x) = sin(x − π/2) = cos(x)  →  um π/2 nach rechts verschoben',
+    example: 'f(x) = sin(x − π/2) = −cos(x)  →  um π/2 nach rechts verschoben',
     tags: 'trigonometrie phase phasenverschiebung'
   },
   {

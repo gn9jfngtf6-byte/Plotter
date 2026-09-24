@@ -75,14 +75,19 @@ canvas.addEventListener('mousedown', e => {
     }
   }
 
-  // 0c. Trig-Projektionspunkt auf dem Graphen (sin/cos/tan aufgeschaltet über
-  // trigAddFunction(), siehe 06_ui_functions.js): das ist derselbe Punkt wie
-  // der Einheitskreis-Punkt unten (nicht ein zweiter, unabhängiger Punkt!) —
-  // ziehbar auf BEIDEN Darstellungen. Muss vor dem Einheitskreis-Klick-
-  // Handler geprüft werden, da diese Projektion nahe am Kreis liegen kann.
+  // 0c. Einheitskreis-Punkt selbst ODER seine Projektion auf dem Graphen
+  // (sin/cos/tan aufgeschaltet über trigAddFunction(), siehe
+  // 06_ui_functions.js) — beides derselbe Punkt (nicht zwei unabhängige!),
+  // ziehbar auf BEIDEN Darstellungen. findNearCircleOrTrigHit() (08_draw.js)
+  // entscheidet per Distanzvergleich, welches der beiden Ziele der Maus
+  // tatsächlich näher liegt — WICHTIG, weil die Graph-Projektion (z.B. bei
+  // cos nahe der "Dottie-Zahl" ≈0.739 rad) fast exakt auf dem Kreis-Punkt
+  // liegen kann; ein einfaches "zuerst prüfen" würde dann immer denselben
+  // Typ greifen, selbst wenn die Maus klar näher am anderen Punkt ist.
   if (document.getElementById('chk-unitcircle').checked) {
-    const tp0 = findNearTrigProjDot(m.x, m.y);
-    if (tp0) { drag = { type:'trigproj', ucpIdx: tp0.ucpIdx, kind: tp0.kind }; canvas.style.cursor = 'grabbing'; return; }
+    const hit0 = findNearCircleOrTrigHit(m.x, m.y);
+    if (hit0 && hit0.type === 'circlept') { drag = { type:'circlept', idx: hit0.idx }; canvas.style.cursor = 'grabbing'; return; }
+    if (hit0 && hit0.type === 'trigproj') { drag = { type:'trigproj', ucpIdx: hit0.ucpIdx, kind: hit0.kind }; canvas.style.cursor = 'grabbing'; return; }
   }
 
   // 0d. Zielfunktions-Griff der linearen Optimierung immer ziehbar (siehe
@@ -92,11 +97,9 @@ canvas.addEventListener('mousedown', e => {
     drag = { type:'loobj' }; canvas.style.cursor = 'grabbing'; return;
   }
 
-  // 1. Einheitskreis-Punkt drag starten (höchste Priorität wenn Kreis aktiv)
+  // 1. Einheitskreis: Klick nahe dem Ring, aber auf keinen bestehenden Punkt
+  // (das wurde schon in 0c abgefangen) → neuen Punkt setzen/löschen.
   if (document.getElementById('chk-unitcircle').checked) {
-    const ci = findNearCirclePt(m.x, m.y);
-    if (ci >= 0) { drag = { type:'circlept', idx:ci }; canvas.style.cursor = 'grabbing'; return; }
-    // Klick nahe Kreis: Punkt setzen/löschen (kein Drag)
     if (unitCircleHandleClick(m.x, m.y)) return;
   }
 
@@ -106,8 +109,9 @@ canvas.addEventListener('mousedown', e => {
   // 1c. Steigungsdreieck-Pick-Modus
   if (slopeTriPickMode) { slopeTriPickClick(m.x, m.y); return; }
 
-  // 1d. Senkrechte: Punkt Q im Plot wählen
-  if (perpPickMode) { linPerpPickClick(m.x, m.y); return; }
+  // 1d. Senkrechte/Mittelsenkrechte: 2-Schritt-Klick-Ablauf (Punkt+Gerade
+  // bzw. 2 Punkte), siehe _perpFlowToggle()/perpFlowPickClick() in 11_fitting.js
+  if (perpFlowKind) { perpFlowPickClick(m.x, m.y); return; }
 
   // 2. Gerade-durch-2-Punkte Picking-Modus
   if (line2ptPicking) { line2ptPickClick(m.x, m.y); return; }
@@ -119,6 +123,67 @@ canvas.addEventListener('mousedown', e => {
   {
     const sfi = findNearSlopeTriB(m.x, m.y);
     if (sfi >= 0) { drag = { type:'slopetript', fi: sfi, pi: 1 }; canvas.style.cursor = 'grabbing'; return; }
+  }
+
+  // 2c. Differenzenquotient-Applet: Punkt A ODER B ziehen (siehe
+  // diffQuotSetup() in 06_ui_functions.js / drawDiffQuot() in 08_draw.js).
+  // BEIDE Punkte sind ziehbar (Nutzerwunsch) — findNearDiffQuotHit() gibt
+  // zurück, welcher der beiden (falls überhaupt einer) getroffen wurde.
+  {
+    const dqHit = findNearDiffQuotHit(m.x, m.y);
+    if (dqHit) {
+      // 'side' merkt sich, auf welcher Seite des JEWEILS ANDEREN Punktes
+      // sich der gezogene Punkt beim Start des Ziehens befand — der gezogene
+      // Punkt darf den anderen beim Ziehen nicht überspringen, sondern
+      // bleibt auf dieser Seite (siehe mousemove unten), darf aber exakt mit
+      // ihm zusammenfallen.
+      const otherX = dqHit === 'A' ? diffQuot.xB : diffQuot.xA;
+      const ownX = dqHit === 'A' ? diffQuot.xA : diffQuot.xB;
+      const side = ownX >= otherX ? 1 : -1;
+      drag = { type:'diffquotpt', which: dqHit, side }; canvas.style.cursor = 'grabbing'; return;
+    }
+  }
+
+  // 2d. Ober-/Untersummen-Applet: Intervallgrenze a ODER b ziehen — exakt
+  // gleiches "kann nicht überspringen, darf zusammenfallen"-Muster wie beim
+  // Differenzenquotient-Applet oben (2c), siehe riemannSetup() in
+  // 06_ui_functions.js / drawRiemann() in 08_draw.js. Kein Schnittpunkt-
+  // Snapping hier (nur Funktion vs. x-Achse, kein g mehr — das Snapping lebt
+  // jetzt beim eigenständigen Flächen-Applet, siehe 2e unten).
+  {
+    const rHit = typeof findNearRiemannHit === 'function' ? findNearRiemannHit(m.x, m.y) : null;
+    if (rHit) {
+      const otherX = rHit === 'A' ? riemann.xB : riemann.xA;
+      const ownX = rHit === 'A' ? riemann.xA : riemann.xB;
+      const side = ownX >= otherX ? 1 : -1;
+      drag = { type:'riemannpt', which: rHit, side, isects: null }; canvas.style.cursor = 'grabbing'; return;
+    }
+  }
+
+  // 2e. Flächen-Applet: Grenze a ODER b ziehen — gleiches Muster wie beim
+  // Ober-/Untersummen-Applet (2d), aber bei flaeche.axis==='y' liegen die
+  // Punkte auf der y-Achse statt der x-Achse (siehe findNearFlaecheHit()/
+  // drawFlaeche(), 08_draw.js). Schnittpunkt-Snapping nur bei axis 'x'/'g'
+  // (dort ist "die andere Kurve" f bzw. g bzw. die x-Achse) — bei axis 'y'
+  // gibt es keine zweite Kurve, daher kein Snapping (Nutzerwunsch). KEIN
+  // "darf den anderen Punkt nicht überspringen"-Constraint (anders als bei
+  // diffquotpt/riemannpt) — a und b dürfen sich frei überholen, siehe
+  // _riemannSnapX(), 06_ui_functions.js, für die Begründung (das frühere
+  // side-basierte Constraint blockierte nach dem Zusammentreffen von a und b
+  // dauerhaft eine der beiden Zugrichtungen).
+  {
+    const fHit = typeof findNearFlaecheHit === 'function' ? findNearFlaecheHit(m.x, m.y) : null;
+    if (fHit) {
+      let isects = null;
+      if (flaeche.axis !== 'y' && functions[flaeche.fi1]) {
+        const expr2 = flaeche.axis === 'g' ? (functions[flaeche.fi2] && functions[flaeche.fi2].expr) : '0';
+        if (expr2 !== undefined && expr2 !== null) {
+          const [lo, hi] = _riemannIsectSearchRange();
+          isects = _riemannFindIntersections(functions[flaeche.fi1].expr, expr2, lo, hi);
+        }
+      }
+      drag = { type:'flaechept', which: fHit, isects, axis: flaeche.axis }; canvas.style.cursor = 'grabbing'; return;
+    }
   }
 
   // 3. Graph-Punkt-Modus: Klick auf leere Stelle setzt neuen Punkt auf der
@@ -292,6 +357,86 @@ canvas.addEventListener('mousemove', e => {
         tip.textContent = niceCoord(newX, isFinite(yB) ? yB : NaN);
       }
       scheduleDraw();
+
+    } else if (drag.type === 'diffquotpt') {
+      // Differenzenquotient-Applet: den gezogenen Punkt (A ODER B, siehe
+      // drag.which) entlang der Funktion verschieben — ändert h=Δx. Der
+      // gezogene Punkt darf den jeweils ANDEREN Punkt beim Ziehen NICHT
+      // überspringen — stattdessen fällt er mit ihm zusammen (h=0 exakt
+      // erlaubt, Sekante=Tangente) und bleibt danach auf der Seite, auf der
+      // das Ziehen begonnen hat (drag.side, s. mousedown).
+      if (diffQuot) {
+        let newX = fromCanvas(m.x, m.y).x;
+        const fnD = functions[diffQuot.fi];
+        const which = drag.which || 'B';
+        const otherX = which === 'A' ? diffQuot.xB : diffQuot.xA;
+        newX = drag.side >= 0 ? Math.max(newX, otherX) : Math.min(newX, otherX);
+        if (which === 'A') diffQuot.xA = newX; else diffQuot.xB = newX;
+        if (fnD) {
+          const yNew = safeEval(fnD.expr, newX);
+          const tip = document.getElementById('tooltip');
+          tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
+          tip.textContent = `${which}: ${niceCoord(newX, isFinite(yNew) ? yNew : NaN)}`;
+        }
+      }
+      scheduleDraw();
+
+    } else if (drag.type === 'riemannpt') {
+      // Ober-/Untersummen-Applet: die gezogene Intervallgrenze (a ODER b,
+      // siehe drag.which) auf der x-Achse verschieben — exakt gleiches
+      // "kann nicht überspringen, darf zusammenfallen"-Muster wie bei
+      // diffquotpt oben, aber ohne Kurven-Bezug (die Grenzen liegen auf y=0).
+      // Kein Schnittpunkt-Snapping hier (riemann ist seit dem Auftrennen in
+      // "Ober-/Untersummen" und "Flächen" immer Einzelfunktions-Modus gegen
+      // die x-Achse — die Schnittpunkt-Fläche lebt jetzt im Flächen-Applet,
+      // siehe drag.type==='flaechept' unten).
+      if (riemann) {
+        let newX = fromCanvas(m.x, m.y).x;
+        const which = drag.which || 'B';
+        const otherX = which === 'A' ? riemann.xB : riemann.xA;
+        newX = drag.side >= 0 ? Math.max(newX, otherX) : Math.min(newX, otherX);
+        if (which === 'A') riemann.xA = newX; else riemann.xB = newX;
+        const tip = document.getElementById('tooltip');
+        tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
+        tip.textContent = `${which === 'A' ? 'a' : 'b'} = ${niceNumDec(newX)}`;
+      }
+      scheduleDraw();
+
+    } else if (drag.type === 'flaechept') {
+      // Flächen-Applet: die gezogene Grenze (a ODER b, siehe drag.which)
+      // verschieben — bei axis 'x'/'g' auf der x-Achse (identisches Muster
+      // wie riemannpt oben, inkl. Schnittpunkt-Snapping), bei axis 'y' AUF
+      // DER Y-ACHSE (freie vertikale Bewegung, kein Snapping, siehe
+      // drag.isects oben in mousedown). Das Snapping bei 'x'/'g' greift nur
+      // INNERHALB eines Pixel-Radius um einen Schnittpunkt (SNAP_PX, gleiche
+      // Konvention wie z.B. graphpt oben) — weit genug weggezogen, löst sich
+      // der Punkt wieder vom Schnittpunkt und folgt frei der Maus
+      // (Nutzerwunsch: "snappen, aber auch wieder verlassen können"). a und
+      // b dürfen sich dabei frei überholen (siehe _riemannSnapX(),
+      // 06_ui_functions.js, für die Begründung).
+      if (flaeche) {
+        const which = drag.which || 'B';
+        let newV;
+        if (drag.axis === 'y') {
+          newV = fromCanvas(m.x, m.y).y;
+        } else {
+          newV = fromCanvas(m.x, m.y).x;
+          const SNAP_PX = 20;
+          const v2 = isoView || view;
+          const pxPerUnit = getW() / (v2.xmax - v2.xmin);
+          const snapDist = SNAP_PX / pxPerUnit;
+          newV = _riemannSnapX(newV, drag.isects, snapDist);
+        }
+        if (which === 'A') flaeche.a = newV; else flaeche.b = newV;
+        const aInp = document.getElementById('flaeche-a-input');
+        const bInp = document.getElementById('flaeche-b-input');
+        if (which === 'A' && aInp) aInp.value = niceNumDec(newV);
+        if (which === 'B' && bInp) bInp.value = niceNumDec(newV);
+        const tip = document.getElementById('tooltip');
+        tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
+        tip.textContent = `${which === 'A' ? 'a' : 'b'} = ${niceNumDec(newV)}`;
+      }
+      scheduleDraw();
     }
     return; // kein Hover während Drag
   }
@@ -307,15 +452,18 @@ canvas.addEventListener('mousemove', e => {
   const nearFP = typeof findNearFitPt === 'function' && !!findNearFitPt(m.x, m.y);
   const nearSTB = findNearSlopeTriB(m.x, m.y) >= 0;
   const nearLO = typeof findNearLoHandle === 'function' && findNearLoHandle(m.x, m.y);
+  const nearDQ = !!findNearDiffQuotHit(m.x, m.y);
+  const nearRS = typeof findNearRiemannHit === 'function' && !!findNearRiemannHit(m.x, m.y);
+  const nearFS = typeof findNearFlaecheHit === 'function' && !!findNearFlaecheHit(m.x, m.y);
   // Grab-Cursor wenn Maus über ziehendem Element
-  canvas.style.cursor = (nearPt || nearGP || nearCP || nearTP || nearFP || nearSTB || nearLO) ? 'grab' : 'default';
+  canvas.style.cursor = (nearPt || nearGP || nearCP || nearTP || nearFP || nearSTB || nearLO || nearDQ || nearRS || nearFS) ? 'grab' : 'default';
   scheduleDraw();
 });
 
 // mouseup: Drag beenden, Tooltip verstecken, Cursor zurücksetzen
 canvas.addEventListener('mouseup', e => {
   // Undo-Eintrag nach Drag (Punkt verschieben) — muss VOR drag=null sein
-  if (drag && (drag.type === 'point' || drag.type === 'graphpt' || drag.type === 'fitpt' || drag.type === 'slopetript' || drag.type === 'trigproj' || drag.type === 'loobj')) pushHistory();
+  if (drag && (drag.type === 'point' || drag.type === 'graphpt' || drag.type === 'fitpt' || drag.type === 'slopetript' || drag.type === 'trigproj' || drag.type === 'loobj' || drag.type === 'diffquotpt' || drag.type === 'riemannpt' || drag.type === 'flaechept')) pushHistory();
   // Nach Pan/Zoom: Sonderpunkte jetzt (einmalig) neu berechnen
   const wasPan = drag && drag.type === 'view';
   drag = null;
@@ -344,7 +492,7 @@ canvas.addEventListener('wheel', e => {
   view.xmax = pt.x + (view.xmax - pt.x) * factor;
   view.ymin = pt.y + (view.ymin - pt.y) * factor;
   view.ymax = pt.y + (view.ymax - pt.y) * factor;
-  syncInputs(); cancelComputeSpecials(); scheduleComputeSpecials(); if (showArea) updateAreaResult(); scheduleDraw();
+  syncInputs(); cancelComputeSpecials(); scheduleComputeSpecials();  scheduleDraw();
 }, { passive: false });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -376,11 +524,12 @@ canvas.addEventListener('touchstart', e => {
     const gi0 = findNearGP(m.x, m.y);
     if (gi0 >= 0) { drag = { type:'graphpt', idx:gi0 }; touchState = { type:'drag' }; return; }
 
-    // 0c. Trig-Projektionspunkt (siehe mousedown 0c) — derselbe Punkt wie der
-    // Einheitskreis-Punkt unten, nur auf dem Graphen gegriffen.
+    // 0c. Einheitskreis-Punkt selbst ODER seine Projektion auf dem Graphen
+    // (siehe mousedown 0c) — per Distanzvergleich, welches Ziel näher liegt.
     if (document.getElementById('chk-unitcircle').checked) {
-      const tp0t = findNearTrigProjDot(m.x, m.y);
-      if (tp0t) { drag = { type:'trigproj', ucpIdx: tp0t.ucpIdx, kind: tp0t.kind }; touchState = { type:'drag' }; return; }
+      const hit0t = findNearCircleOrTrigHit(m.x, m.y);
+      if (hit0t && hit0t.type === 'circlept') { drag = { type:'circlept', idx: hit0t.idx }; touchState = { type:'drag' }; return; }
+      if (hit0t && hit0t.type === 'trigproj') { drag = { type:'trigproj', ucpIdx: hit0t.ucpIdx, kind: hit0t.kind }; touchState = { type:'drag' }; return; }
     }
 
     // 0d. Zielfunktions-Griff (siehe mousedown 0d)
@@ -388,10 +537,9 @@ canvas.addEventListener('touchstart', e => {
       drag = { type:'loobj' }; touchState = { type:'drag' }; return;
     }
 
-    // Einheitskreis-Punkt?
+    // Einheitskreis: Klick nahe dem Ring, aber auf keinen bestehenden Punkt
+    // (schon oben abgefangen) → neuen Punkt setzen/löschen.
     if (document.getElementById('chk-unitcircle').checked) {
-      const ci = findNearCirclePt(m.x, m.y);
-      if (ci >= 0) { drag = { type:'circlept', idx:ci }; touchState = { type:'drag' }; return; }
       if (unitCircleHandleClick(m.x, m.y)) return;
     }
 
@@ -401,8 +549,8 @@ canvas.addEventListener('touchstart', e => {
     // 1c. Steigungsdreieck-Pick-Modus
     if (slopeTriPickMode) { slopeTriPickClick(m.x, m.y); return; }
 
-    // 1d. Senkrechte: Punkt Q im Plot wählen
-    if (perpPickMode) { linPerpPickClick(m.x, m.y); return; }
+    // 1d. Senkrechte/Mittelsenkrechte: 2-Schritt-Klick-Ablauf (siehe oben)
+    if (perpFlowKind) { perpFlowPickClick(m.x, m.y); return; }
 
     // 2-Punkt-Picking?
     if (line2ptPicking) { line2ptPickClick(m.x, m.y); return; }
@@ -410,6 +558,45 @@ canvas.addEventListener('touchstart', e => {
     // Steigungsdreieck-Punkt B ziehen? (vor Graph-Punkt-Checks, s. mousedown)
     const sfiT = findNearSlopeTriB(m.x, m.y);
     if (sfiT >= 0) { drag = { type:'slopetript', fi: sfiT, pi: 1 }; touchState = { type:'drag' }; return; }
+
+    // Differenzenquotient-Applet: Punkt A ODER B ziehen (s. mousedown 2c)
+    {
+      const dqHitT = findNearDiffQuotHit(m.x, m.y);
+      if (dqHitT) {
+        const otherXT = dqHitT === 'A' ? diffQuot.xB : diffQuot.xA;
+        const ownXT = dqHitT === 'A' ? diffQuot.xA : diffQuot.xB;
+        const sideT = ownXT >= otherXT ? 1 : -1;
+        drag = { type:'diffquotpt', which: dqHitT, side: sideT }; touchState = { type:'drag' }; return;
+      }
+    }
+
+    // Ober-/Untersummen-Applet: Intervallgrenze a ODER b ziehen (s. mousedown 2d)
+    {
+      const rHitT = typeof findNearRiemannHit === 'function' ? findNearRiemannHit(m.x, m.y) : null;
+      if (rHitT) {
+        const otherXT = rHitT === 'A' ? riemann.xB : riemann.xA;
+        const ownXT = rHitT === 'A' ? riemann.xA : riemann.xB;
+        const sideT = ownXT >= otherXT ? 1 : -1;
+        drag = { type:'riemannpt', which: rHitT, side: sideT, isects: null }; touchState = { type:'drag' }; return;
+      }
+    }
+
+    // Flächen-Applet: Grenze a ODER b ziehen (s. mousedown 2e — kein
+    // "nicht überspringen"-Constraint, a/b dürfen sich frei überholen)
+    {
+      const fHitT = typeof findNearFlaecheHit === 'function' ? findNearFlaecheHit(m.x, m.y) : null;
+      if (fHitT) {
+        let isectsT = null;
+        if (flaeche.axis !== 'y' && functions[flaeche.fi1]) {
+          const expr2T = flaeche.axis === 'g' ? (functions[flaeche.fi2] && functions[flaeche.fi2].expr) : '0';
+          if (expr2T !== undefined && expr2T !== null) {
+            const [loT, hiT] = _riemannIsectSearchRange();
+            isectsT = _riemannFindIntersections(functions[flaeche.fi1].expr, expr2T, loT, hiT);
+          }
+        }
+        drag = { type:'flaechept', which: fHitT, isects: isectsT, axis: flaeche.axis }; touchState = { type:'drag' }; return;
+      }
+    }
 
     // Fit-Punkt ziehen?
     const fpt = typeof findNearFitPt === 'function' ? findNearFitPt(m.x, m.y) : null;
@@ -523,6 +710,52 @@ canvas.addEventListener('touchmove', e => {
         if (Math.abs(newX - xA) < 0.05) newX = xA + (newX >= xA ? 0.05 : -0.05);
         ptsS[1].x = newX;
       }
+    } else if (drag.type === 'diffquotpt') {
+      // Differenzenquotient-Applet: Punkt A ODER B ziehen (s. mousemove-
+      // Handler oben — darf den anderen Punkt nicht überspringen, bleibt auf
+      // drag.side und darf mit ihm zusammenfallen, h=0 exakt erlaubt)
+      if (diffQuot) {
+        let newX = fromCanvas(m.x, m.y).x;
+        const which = drag.which || 'B';
+        const otherX = which === 'A' ? diffQuot.xB : diffQuot.xA;
+        newX = drag.side >= 0 ? Math.max(newX, otherX) : Math.min(newX, otherX);
+        if (which === 'A') diffQuot.xA = newX; else diffQuot.xB = newX;
+      }
+    } else if (drag.type === 'riemannpt') {
+      // Ober-/Untersummen-Applet: Intervallgrenze a ODER b ziehen (s.
+      // mousemove-Handler oben — gleiches Muster wie diffquotpt, aber ohne
+      // Kurven-Bezug, da a/b auf der x-Achse liegen)
+      if (riemann) {
+        let newX = fromCanvas(m.x, m.y).x;
+        const which = drag.which || 'B';
+        const otherX = which === 'A' ? riemann.xB : riemann.xA;
+        newX = drag.side >= 0 ? Math.max(newX, otherX) : Math.min(newX, otherX);
+        if (which === 'A') riemann.xA = newX; else riemann.xB = newX;
+      }
+    } else if (drag.type === 'flaechept') {
+      // Flächen-Applet: Grenze a ODER b ziehen (s. mousemove-Handler oben —
+      // axis 'x'/'g' auf der x-Achse mit Schnittpunkt-Snapping INNERHALB
+      // eines Pixel-Radius (verlässt den Schnittpunkt wieder, wenn man
+      // weiterzieht), axis 'y' auf der y-Achse ohne Snapping)
+      if (flaeche) {
+        const which = drag.which || 'B';
+        let newV;
+        if (drag.axis === 'y') {
+          newV = fromCanvas(m.x, m.y).y;
+        } else {
+          newV = fromCanvas(m.x, m.y).x;
+          const SNAP_PX = 20;
+          const v2 = isoView || view;
+          const pxPerUnit = getW() / (v2.xmax - v2.xmin);
+          const snapDist = SNAP_PX / pxPerUnit;
+          newV = _riemannSnapX(newV, drag.isects, snapDist);
+        }
+        if (which === 'A') flaeche.a = newV; else flaeche.b = newV;
+        const aInp = document.getElementById('flaeche-a-input');
+        const bInp = document.getElementById('flaeche-b-input');
+        if (which === 'A' && aInp) aInp.value = niceNumDec(newV);
+        if (which === 'B' && bInp) bInp.value = niceNumDec(newV);
+      }
     }
     scheduleDraw();
 
@@ -576,7 +809,7 @@ canvas.addEventListener('touchmove', e => {
 
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
-  if (drag && (drag.type === 'point' || drag.type === 'graphpt' || drag.type === 'fitpt' || drag.type === 'slopetript' || drag.type === 'trigproj' || drag.type === 'loobj')) pushHistory();
+  if (drag && (drag.type === 'point' || drag.type === 'graphpt' || drag.type === 'fitpt' || drag.type === 'slopetript' || drag.type === 'trigproj' || drag.type === 'loobj' || drag.type === 'diffquotpt' || drag.type === 'riemannpt' || drag.type === 'flaechept')) pushHistory();
   const wasPanOrPinch = touchState && (touchState.type === 'pan' || touchState.type === 'pinch');
   drag = null; touchState = null;
   document.getElementById('tooltip').style.display = 'none';
@@ -611,7 +844,7 @@ let history = [], historyIdx = -1, historyPaused = false;
 function captureState() {
   return JSON.parse(JSON.stringify({
     functions, params, points, linkedLines,
-    graphPoints, unitCirclePts, showArea,
+    graphPoints, unitCirclePts,
     // Lineare Optimierung (siehe 17_linopt.js) — optional-verkettet, da ältere
     // gespeicherte Zustände (vor Einführung dieses Features) diese Felder
     // nicht kennen; applyState() unten setzt dann einfach die Defaults.
@@ -626,7 +859,7 @@ function applyState(s) {
   const sc = JSON.parse(JSON.stringify(s));
   functions = sc.functions; params = sc.params; points = sc.points;
   linkedLines = sc.linkedLines; graphPoints = sc.graphPoints;
-  unitCirclePts = sc.unitCirclePts; showArea = sc.showArea;
+  unitCirclePts = sc.unitCirclePts;
   // Lineare Optimierung — Defaults falls aus einem älteren Zustand geladen
   // (siehe captureState() oben / 17_linopt.js).
   loConstraints = sc.loConstraints || []; loObjA = sc.loObjA ?? 1; loObjB = sc.loObjB ?? 1;
@@ -653,11 +886,8 @@ function applyState(s) {
   document.getElementById('lo-mode-min')?.classList.toggle('active-btn', loMode === 'min');
   // view wird NICHT wiederhergestellt
   clearEvalCache();
-  renderFuncList(); renderPointList(); syncParams(); syncAreaSelects();
+  renderFuncList(); renderPointList(); syncParams();
   scheduleComputeSpecials();
-  document.getElementById('area-toggle-btn').classList.toggle('active-btn', showArea);
-  document.getElementById('area-toggle-btn').textContent = showArea ? t('btn_area_hide') : t('btn_area');
-  if (showArea) updateAreaResult();
   scheduleDraw();
   // Längere Verzögerung: verzögerte DOM-Events (blur, change) nach renderFuncList
   // sollen nicht in die History schreiben.

@@ -316,6 +316,7 @@ function renderLoConstraints() {
       try { latex = (raw && raw.trim()) ? loRawWithOpToLatex(raw) : ''; } catch (ex) { latex = ''; }
       inp.setAttribute('data-raw', raw || '');
       inp.value = latex;
+      _mlMoveCursorToEnd(inp); // siehe 14_mathinput.js — Cursor-nach-setValue()-Fix
     }
     mlSetFromRawOp(con.raw);
     inp._mlSetFromRaw = mlSetFromRawOp;
@@ -360,6 +361,9 @@ function renderLoConstraints() {
 
     row.append(dot, inp, del);
     el.appendChild(row);
+    // Fokus-Warm-up (siehe mlPrewarmFocus(), 14_mathinput.js) — verhindert
+    // Zeichenverlust beim allerersten Fokussieren dieser frisch erzeugten Zeile.
+    mlPrewarmFocus(inp);
   });
 }
 
@@ -402,8 +406,14 @@ function loSetupObjectiveField() {
     try { latex = (raw && raw.trim()) ? rawToLatex(raw) : ''; } catch (ex) { latex = ''; }
     inp.setAttribute('data-raw', raw || '');
     inp.value = latex;
+    _mlMoveCursorToEnd(inp); // siehe 14_mathinput.js — Cursor-nach-setValue()-Fix
   }
   inp._mlSetFromRaw = mlSetFromRaw;
+  // Immer aufrufen (auch mit '' — kein Standardbeispiel für die Zielfunktion),
+  // analog zum etablierten Muster bei den Funktions-Zeilen/Riemann-Feldern —
+  // initialisiert data-raw explizit als '' statt das Attribut wegzulassen.
+  mlSetFromRaw('');
+  mlPrewarmFocus(inp); // siehe 14_mathinput.js — Fokus-Warm-up
   inp.addEventListener('focusin', () => { inp.style.borderColor = '#378ADD'; setActiveInput(inp, -1); });
   inp.addEventListener('focusout', () => { inp.style.borderColor = ''; });
   inp.addEventListener('input', () => {

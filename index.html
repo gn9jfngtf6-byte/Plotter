@@ -75,19 +75,19 @@ input[type=text] { font-family: 'Cascadia Code','Fira Mono',monospace; font-size
 input[type=text]:focus { border-color: #378ADD; }
 input[type=number] { font-family: 'Segoe UI',system-ui,sans-serif; font-size: 12px; padding: 3px 6px; border: 1px solid var(--border-input); border-radius: 6px; background: var(--bg-input); color: var(--text); outline: none; }
 input[type=range] { accent-color: #378ADD; width: 100%; }
-select { font-family: 'Segoe UI',system-ui,sans-serif; font-size: 12px; padding: 3px 6px; border: 1px solid var(--border-input); border-radius: 6px; background: var(--bg-input); color: var(--text); outline: none; }
+select { font-family: 'Segoe UI',system-ui,sans-serif; font-size: 12px; padding: 3px 6px; border: 1px solid var(--border-input); border-radius: 6px; background: var(--bg-input); color: var(--text); outline: none; min-width: 0; }
 
 .func-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.15); }
 .sp-row { display: flex; align-items: flex-start; gap: 5px; margin-bottom: 5px; font-size: 11px; line-height: 1.5; }
 .add-row { display: flex; gap: 5px; margin-top: 4px; align-items: center; }
-.toolbar { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+.toolbar { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
 
-.hint { font-size: 10px; color: var(--text-label); margin-top: 5px; line-height: 1.4; }
+.hint { font-size: 10px; color: var(--text-label); margin-top: 3px; line-height: 1.4; }
 .hint code { background: var(--btn-hover); padding: 1px 4px; border-radius: 3px; font-size: 10px; }
 
 .del-btn { font-size: 10px; padding: 1px 6px; color: var(--text-muted); flex-shrink: 0; }
-.settings-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 11px; color: var(--text-muted); }
+.settings-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 11px; color: var(--text-muted); }
 .area-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; flex-wrap: wrap; font-size: 11px; color: var(--text-muted); }
 #area-result { font-size: 12px; color: var(--text); margin-top: 5px; font-weight: 500; }
 
@@ -287,13 +287,13 @@ body.beam {
   --text-label:  #000000;
   --text-btn:    #000000;
   --panel-title: #000000;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 /* Funktions-Eingabefeld: deutlich grösser */
 body.beam math-field.func-inp-ce {
-  font-size: 22px !important;
-  min-height: 40px;
+  font-size: 24px !important;
+  min-height: 42px;
   line-height: 1.5;
   padding: 5px 8px;
 }
@@ -301,41 +301,50 @@ body.beam math-field.func-inp-ce {
 /* Brüche im Eingabefeld: mitskalieren */
 body.beam .preview-frac .pf-num,
 body.beam .preview-frac .pf-den {
-  font-size: 20px !important;
+  font-size: 22px !important;
 }
 
 /* Exponenten/Hochgestellte im Eingabefeld: mitskalieren */
 body.beam .preview-sup {
-  font-size: 16px !important;
+  font-size: 17px !important;
 }
 
 /* Math-Tastatur: deutlich grösser */
 body.beam .kbd button {
-  font-size: 17px !important;
+  font-size: 18px !important;
   padding: 7px 11px !important;
-  min-width: 46px;
+  min-width: 44px;
   font-weight: 600;
 }
 
-/* Sidebar breiter */
+/* Sidebar im Beamer-Modus schmaler halten — die Panel-Titel und ggf. lange
+   Button-Beschriftungen dürfen dafür auf 2 Zeilen umbrechen (statt die
+   Leiste künstlich breit zu halten), damit der Graph mehr Platz bekommt. */
 body.beam .sidebar {
-  width: 420px;
-  min-width: 420px;
+  width: 290px;
+  min-width: 290px;
 }
 
-/* Allgemeine Buttons */
+/* Allgemeine Buttons — im Beamer-Modus dürfen lange Beschriftungen auf eine
+   zweite Zeile umbrechen statt die schmalere Leiste zu sprengen. */
 body.beam button {
-  font-size: 15px;
-  padding: 6px 12px;
+  font-size: 16px;
+  padding: 6px 10px;
   font-weight: 600;
+  white-space: normal;
+  line-height: 1.25;
 }
 
-/* Panel-Titel */
+/* Panel-Titel: dürfen im Beamer-Modus zweizeilig umbrechen, damit die
+   Leiste schmaler bleiben kann. */
 body.beam .panel-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
 }
+body.beam .panel-title > *:first-child,
+body.beam .panel-title { white-space: normal; }
 
 /* Smart-Buttons (Nullst., Max., …) */
 body.beam .smart-btn {
@@ -346,15 +355,15 @@ body.beam .smart-btn {
 }
 
 /* Spezielle-Punkte-Liste */
-body.beam .sp-row { font-size: 15px; }
+body.beam .sp-row { font-size: 16px; }
 
 /* Labels */
-body.beam label, body.beam span { font-size: 15px; }
+body.beam label, body.beam span { font-size: 16px; }
 
 /* Eingaben + Selects */
 body.beam input[type="text"],
 body.beam input[type="number"],
-body.beam select { font-size: 16px; }
+body.beam select { font-size: 17px; }
 
 /* Lösungsweg-Boxen */
 .lw-box {
@@ -369,7 +378,12 @@ body.beam select { font-size: 16px; }
 .lw-box .lw-heading { font-weight:600; margin-top:4px; letter-spacing:.02em; }
 
 /* Subpanel-Trennlinie innerhalb eines Panels */
-.subpanel { border-top:1px solid var(--border); margin-top:8px; padding-top:7px; }
+.subpanel { border-top:1px solid var(--border); margin-top:5px; padding-top:5px; }
+
+/* Kleine Abschnitts-Überschrift innerhalb eines Panels (z.B. "Zwei Punkte",
+   "Steigungsform") — hilft, mehrere Methoden/Funktionen innerhalb eines
+   Panels sauber zu gliedern statt sie unstrukturiert aneinanderzureihen. */
+.subpanel-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #378ADD; margin-bottom: 4px; }
 
 /* ═══════════════════════════════════════════════════
    MOBILE / TOUCHSCREEN LAYOUT
@@ -501,62 +515,62 @@ body.beam select { font-size: 16px; }
   <div class="panel" id="linear-panel">
     <div class="panel-title" data-i18n="panel_linear">📏 Lineare Funktionen</div>
 
-    <div id="lin-inputs" style="margin-top:4px;"></div>
+    <!-- 1. Standardform y = m·x + q mit Schiebereglern — Unterrichts-Feature
+         zum Erkunden (statt Berechnen aus Punkten): m/q lassen sich nach dem
+         Aufschalten oben im Panel "Parameter (Schieber)" live verändern (das
+         direkt über diesem Panel erscheint, sobald diese Funktion
+         aufgeschaltet ist — daher bewusst als ERSTER Abschnitt hier). Die
+         Formel unten zeigt live die AKTUELLEN Schieberwerte eingesetzt
+         (siehe _setPanelFormula() in 06_ui_functions.js). Das Steigungs-
+         dreieck gehört inhaltlich zu genau dieser Geraden und steht daher
+         direkt hier mit im selben Abschnitt (kein eigener Unterabschnitt). -->
+    <div class="subpanel-label" data-i18n="lbl_lin_slopeform">Standardform</div>
+    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_slope_form">Gerade aufschalten, dann m und q oben mit den Schiebereglern verändern.</div>
+    <button onclick="linAddSlopeForm()" style="width:100%;" data-mlatex="y=mx+q">y = mx + q</button>
+    <div id="lin-slopeform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
+    <div id="lin-slopeform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
 
-    <div class="toolbar" style="margin-top:5px;">
-      <button id="lin-pick-btn" onclick="linTogglePick()" data-i18n="btn_click">✏ Im Plot klicken</button>
-      <button onclick="linCompute()" data-i18n="btn_calc">Berechnen</button>
+    <div class="settings-row" style="margin-top:4px;">
+      <label><input type="checkbox" id="chk-slopetri" onchange="scheduleDraw()"> <span data-i18n="chk_slopetri">Steigungsdreieck</span></label>
     </div>
-    <div id="lin-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
-    <div id="lin-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
-    <div id="lin-dw" style="font-size:11px;color:var(--text-muted);min-height:14px;"></div>
+    <div class="toolbar" style="margin-top:4px;gap:4px;flex-wrap:wrap;">
+      <button id="slopetri-pick-btn" onclick="slopeTriTogglePick()" data-i18n="btn_pick_tri" data-i18n-title="btn_pick_tri">✏ 2 Pkt. wählen</button>
+      <button onclick="showLoesungsweg()" id="loesungsweg-btn" data-i18n="btn_solution">📋 Lösungsweg</button>
+    </div>
+    <div id="slopetri-pick-status" style="font-size:10px;color:#378ADD;min-height:10px;margin-top:2px;"></div>
+    <div id="loesungsweg-box" class="lw-box"></div>
 
-    <!-- Steigungsform y = m·x + q mit Schiebereglern — Unterrichts-Feature zum
-         Erkunden (statt Berechnen aus Punkten): m/q lassen sich nach dem
-         Aufschalten oben im Panel "Parameter (Schieber)" live verändern,
-         Steigungsdreieck + Beschriftung folgen automatisch. -->
+    <!-- 2. Aus zwei Punkten berechnen -->
     <div class="subpanel">
-      <div class="hint" style="margin-bottom:5px;" data-i18n="hint_slope_form">y = m·x + q live erkunden: Gerade aufschalten, dann m und q oben mit den Schiebereglern verändern.</div>
-      <button onclick="linAddSlopeForm()" style="width:100%;" data-mlatex="y=mx+q">y = mx + q</button>
-      <div id="lin-slopeform-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:16px;"></div>
-      <div id="lin-slopeform-dw" style="font-size:11px;color:var(--text-muted);min-height:14px;"></div>
+      <div class="subpanel-label" data-i18n="lbl_lin_2pt">Aus zwei Punkten</div>
+      <div id="lin-inputs" style="margin-top:2px;"></div>
+
+      <div class="toolbar" style="margin-top:5px;">
+        <button id="lin-pick-btn" onclick="linTogglePick()" data-i18n="btn_click">✏ Im Plot klicken</button>
+        <button onclick="linCompute()" data-i18n="btn_calc">Berechnen</button>
+      </div>
+      <div id="lin-pick-status" style="font-size:11px;color:#378ADD;min-height:11px;margin-top:2px;"></div>
+      <div id="lin-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:14px;"></div>
+      <div id="lin-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
     </div>
 
-    <!-- Steigungsdreieck + Lösungsweg -->
-    <div class="subpanel">
-      <div class="settings-row">
-        <label><input type="checkbox" id="chk-slopetri" onchange="scheduleDraw()"> <span data-i18n="chk_slopetri">Steigungsdreieck</span></label>
-      </div>
-      <div class="toolbar" style="margin-top:4px;gap:4px;flex-wrap:wrap;">
-        <button id="slopetri-pick-btn" onclick="slopeTriTogglePick()" data-i18n="btn_pick_tri" data-i18n-title="btn_pick_tri">✏ 2 Pkt. wählen</button>
-        <button onclick="showLoesungsweg()" id="loesungsweg-btn" data-i18n="btn_solution">📋 Lösungsweg</button>
-      </div>
-      <div id="slopetri-pick-status" style="font-size:10px;color:#378ADD;min-height:12px;margin-top:3px;"></div>
-      <div id="loesungsweg-box" class="lw-box"></div>
-    </div>
-
-    <!-- Senkrechte & Mittelsenkrechte (Unterrichts-Feature) — beziehen sich
-         auf die zuletzt aktive Gerade (linActiveFi in 11_fitting.js), also
-         entweder aus "Berechnen" (2 Punkte) oder aus "y = mx + q". Der
+    <!-- 3. Senkrechte & Mittelsenkrechte (Unterrichts-Feature) — vollständig
+         klick-geführt (siehe _perpFlowToggle()/perpFlowPickClick() in
+         11_fitting.js): "⊥ Senkrechte" startet einen 2-Schritt-Ablauf (Punkt
+         im Plot wählen, dann eine Gerade im Plot anklicken), "⊥ Mittel-
+         senkrechte" ebenfalls 2 Schritte (Punkt 1, dann Punkt 2). Der
          Lösungsweg inkl. Steigungsbeziehung m₁·m₂ = −1 erscheint im selben
-         "📋 Lösungsweg"-Kasten oben (showLoesungsweg() wurde dafür erweitert),
-         kein zweiter Lösungsweg-Knopf nötig. -->
+         "📋 Lösungsweg"-Kasten oben (showLoesungsweg() wurde dafür
+         erweitert), kein zweiter Lösungsweg-Knopf nötig. -->
     <div class="subpanel">
-      <div class="hint" style="margin-bottom:5px;" data-i18n="perp_hint">Senkrechte oder Mittelsenkrechte zur Geraden oben konstruieren — inkl. Lösungsweg und Beziehung der Steigungen (m₁·m₂ = −1).</div>
-      <div class="toolbar" style="margin-top:2px;gap:5px;flex-wrap:wrap;align-items:center;">
-        <span style="font-size:11px;color:var(--text-muted);">Q:</span>
-        <span style="font-size:11px;color:var(--text-muted);">x=</span>
-        <input type="text" id="perp-qx" inputmode="decimal" pattern="-?[0-9]*\.?[0-9]*" style="width:48px;" placeholder="—">
-        <span style="font-size:11px;color:var(--text-muted);">y=</span>
-        <input type="text" id="perp-qy" inputmode="decimal" pattern="-?[0-9]*\.?[0-9]*" style="width:48px;" placeholder="—">
-        <button id="perp-pick-btn" onclick="linPerpTogglePick()" data-i18n="btn_perp_pick" data-i18n-title="btn_perp_pick">🎯 Punkt Q im Plot wählen</button>
+      <div class="subpanel-label" data-i18n="lbl_lin_perp">Senkrechte &amp; Mittelsenkrechte</div>
+      <div class="hint" style="margin-bottom:5px;" data-i18n="perp_hint">Für die Senkrechte: Punkt und Gerade im Plot wählen. Für die Mittelsenkrechte: zwei Punkte wählen. Inkl. Lösungsweg und Beziehung der Steigungen (m₁·m₂ = −1).</div>
+      <div class="toolbar" style="margin-top:0;gap:4px;flex-wrap:wrap;">
+        <button id="perp-pick-btn" onclick="linPerpTogglePick()" style="flex:1;" data-i18n="btn_perp_pick" data-i18n-title="btn_perp_pick">⊥ Senkrechte</button>
+        <button id="bisector-pick-btn" onclick="linBisectorTogglePick()" style="flex:1;" data-i18n="btn_bisector_pick" data-i18n-title="btn_bisector_pick">⊥ Mittelsenkrechte (inkl. M)</button>
       </div>
-      <div id="perp-pick-status" style="font-size:10px;color:#378ADD;min-height:12px;margin-top:3px;"></div>
-      <div class="toolbar" style="margin-top:4px;gap:4px;flex-wrap:wrap;">
-        <button onclick="linAddPerp()" style="flex:1;" data-i18n="btn_perp_add">⊥ Senkrechte durch Q</button>
-        <button onclick="linAddBisector()" style="flex:1;" data-i18n="btn_bisector_add">⊥ Mittelsenkrechte (inkl. M)</button>
-      </div>
-      <div id="lin-perp-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:16px;"></div>
+      <div id="perp-pick-status" style="font-size:10px;color:#378ADD;min-height:10px;margin-top:2px;"></div>
+      <div id="lin-perp-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
     </div>
   </div>
 
@@ -564,24 +578,43 @@ body.beam select { font-size: 16px; }
   <div class="panel" id="quad-panel">
     <div class="panel-title" data-i18n="panel_quadratic">📈 Quadratische Funktionen</div>
 
-    <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
-      <label style="font-size:11px;" data-i18n="lbl_type">Typ:</label>
-      <select id="quad-subtype" onchange="quadUpdateInputs()" style="flex:1;">
-        <option value="quadratic" data-i18n="opt_quad_normal">Normalform  (ax²+bx+c)</option>
-        <option value="vertex" data-i18n="opt_quad_vertex_f">Scheitelpunktsform a·(x−v)²+h</option>
-        <option value="roots" data-i18n="opt_quad_roots_f">Nullstellenform  a·(x−x₁)·(x−x₂)</option>
-      </select>
-    </div>
+    <!-- 1. Standardform y=ax²+bx+c & Scheitelpunktsform y=a(x−v)²+h mit
+         Schiebereglern — Unterrichts-Feature zum Erkunden (analog zu
+         "y = mx + q" im Panel "Lineare Funktionen"): a,b,c bzw. a,v,h lassen
+         sich nach dem Aufschalten oben im Panel "Parameter (Schieber)" live
+         verändern (siehe quadAddStandardForm()/quadAddVertexForm() in
+         11_fitting.js). -->
+    <div class="subpanel-label" data-i18n="lbl_quad_forms">Formen (Schieberegler)</div>
+    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_quad_forms">Form aufschalten, dann a, b, c bzw. a, v, h oben mit den Schiebereglern verändern.</div>
+    <button onclick="quadAddStandardForm()" style="width:100%;" data-mlatex="y=ax^2+bx+c">y = ax² + bx + c</button>
+    <div id="quad-standardform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
+    <div id="quad-standardform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
+    <button onclick="quadAddVertexForm()" style="width:100%;margin-top:6px;" data-mlatex="y=a(x-v)^2+h">y = a(x−v)² + h</button>
+    <div id="quad-vertexform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
+    <div id="quad-vertexform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
 
-    <div id="quad-inputs" style="margin-top:6px;"></div>
+    <!-- 2. Aus Punkten berechnen -->
+    <div class="subpanel">
+      <div class="subpanel-label" data-i18n="lbl_quad_frompoints">Aus Punkten berechnen</div>
+      <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
+        <label style="font-size:11px;" data-i18n="lbl_type">Typ:</label>
+        <select id="quad-subtype" onchange="quadUpdateInputs()" style="flex:1;">
+          <option value="quadratic" data-i18n="opt_quad_normal">Normalform  (ax²+bx+c)</option>
+          <option value="vertex" data-i18n="opt_quad_vertex_f">Scheitelpunktsform a·(x−v)²+h</option>
+          <option value="roots" data-i18n="opt_quad_roots_f">Nullstellenform  a·(x−x₁)·(x−x₂)</option>
+        </select>
+      </div>
 
-    <div class="toolbar" style="margin-top:5px;">
-      <button id="quad-pick-btn" onclick="quadTogglePick()" data-i18n="btn_click">✏ Im Plot klicken</button>
-      <button onclick="quadCompute()" data-i18n="btn_calc">Berechnen</button>
+      <div id="quad-inputs" style="margin-top:6px;"></div>
+
+      <div class="toolbar" style="margin-top:5px;">
+        <button id="quad-pick-btn" onclick="quadTogglePick()" data-i18n="btn_click">✏ Im Plot klicken</button>
+        <button onclick="quadCompute()" data-i18n="btn_calc">Berechnen</button>
+      </div>
+      <div id="quad-pick-status" style="font-size:11px;color:#378ADD;min-height:11px;margin-top:2px;"></div>
+      <div id="quad-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:14px;"></div>
+      <div id="quad-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
     </div>
-    <div id="quad-pick-status" style="font-size:11px;color:#378ADD;min-height:14px;margin-top:3px;"></div>
-    <div id="quad-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:18px;"></div>
-    <div id="quad-dw" style="font-size:11px;color:var(--text-muted);min-height:14px;"></div>
 
     <!-- Lösungsweg: Scheitelpunkt + Nullstellen -->
     <div class="subpanel">
@@ -604,8 +637,45 @@ body.beam select { font-size: 16px; }
     <div class="panel-title" data-i18n="panel_exp_fn">📊 Exponentialfunktionen</div>
     <div class="hint" style="margin-bottom:5px;" data-i18n="hint_exp_form">y = a·bˣ + c live erkunden: Funktion aufschalten, dann a, b und c oben mit den Schiebereglern verändern.</div>
     <button onclick="expAddGeneralForm()" style="width:100%;" data-mlatex="y=ab^x+c">y = a·bˣ + c</button>
-    <div id="exp-generalform-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:16px;"></div>
-    <div id="exp-generalform-dw" style="font-size:11px;color:var(--text-muted);min-height:14px;"></div>
+    <div id="exp-generalform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
+    <div id="exp-generalform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
+
+    <!-- Textaufgaben-Löser: y = a·bˣ mit 4 Zahlenfeldern (Nutzerwunsch, siehe
+         expSolveUpdate() in 11_fitting.js) — genau EIN leeres Feld wird
+         automatisch als "gesucht" erkannt (kein eigener Auswahl-Knopf nötig)
+         und bei jedem input-Event neu berechnet. Ergänzt die obige
+         Schieberegler-Form, ERSETZT sie nicht (Nutzerwunsch: "zusätzlich,
+         beide bleiben"). Plain <input type="number"> statt math-field
+         (bewusst — diese 4 Grössen sind bei Textaufgaben praktisch immer
+         einfache Dezimalzahlen, siehe #flaeche-a-input/#flaeche-b-input für
+         dasselbe Muster; vermeidet zudem jegliche MathLive-Cursor-Thematik).
+         Optionaler "Aufschalten"-Knopf (erscheint erst nach erfolgreichem
+         Lösen) plottet y=a·bˣ mit den konkreten Werten, über denselben
+         Slot-Mechanismus wie überall sonst (_fillEmptyOrNewFnSlot(),
+         06_ui_functions.js) — siehe expSolvePlot(). -->
+    <div class="subpanel">
+      <div class="hint" style="margin-bottom:5px;" data-i18n="hint_exp_solve">Textaufgabe: y = a·bˣ — trage 3 der 4 Grössen ein, das leere Feld wird berechnet.</div>
+      <div class="settings-row" style="gap:6px;align-items:center;margin-bottom:4px;">
+        <label style="font-size:11px;width:135px;flex-shrink:0;" data-i18n="lbl_exp_solve_y">y (Endbestand)</label>
+        <input type="number" id="exp-solve-y" step="any" oninput="expSolveUpdate()" style="flex:1;min-width:0;font-size:12px;padding:2px 6px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);">
+      </div>
+      <div class="settings-row" style="gap:6px;align-items:center;margin-bottom:4px;">
+        <label style="font-size:11px;width:135px;flex-shrink:0;" data-i18n="lbl_exp_solve_a">a (Anfangsbestand)</label>
+        <input type="number" id="exp-solve-a" step="any" oninput="expSolveUpdate()" style="flex:1;min-width:0;font-size:12px;padding:2px 6px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);">
+      </div>
+      <div class="settings-row" style="gap:6px;align-items:center;margin-bottom:4px;">
+        <label style="font-size:11px;width:135px;flex-shrink:0;" data-i18n="lbl_exp_solve_b">b (Wachstums-/Abnahmefaktor)</label>
+        <input type="number" id="exp-solve-b" step="any" oninput="expSolveUpdate()" style="flex:1;min-width:0;font-size:12px;padding:2px 6px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);">
+      </div>
+      <div class="settings-row" style="gap:6px;align-items:center;margin-bottom:6px;">
+        <label style="font-size:11px;width:135px;flex-shrink:0;" data-i18n="lbl_exp_solve_x">x (Zeit)</label>
+        <input type="number" id="exp-solve-x" step="any" oninput="expSolveUpdate()" style="flex:1;min-width:0;font-size:12px;padding:2px 6px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);">
+      </div>
+      <div id="exp-solve-result" style="font-size:12px;font-weight:500;min-height:13px;"></div>
+      <div id="exp-solve-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;line-height:1.8;"></div>
+      <div id="exp-solve-extra" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
+      <button onclick="expSolvePlot()" id="exp-solve-plot-btn" data-i18n="btn_lo_set_objective" style="width:100%;margin-top:4px;display:none;">Aufschalten</button>
+    </div>
   </div>
 
   <!-- PANEL 6: Logarithmusfunktionen — nur noch die allgemeine Form
@@ -618,8 +688,8 @@ body.beam select { font-size: 16px; }
     <div class="panel-title" data-i18n="panel_log_fn">📉 Logarithmusfunktionen</div>
     <div class="hint" style="margin-bottom:5px;" data-i18n="hint_log_form">y = a·log_b(x) live erkunden: Funktion aufschalten, dann a, b und c oben mit den Schiebereglern verändern.</div>
     <button onclick="logAddGeneralForm()" style="width:100%;" data-mlatex="y=a\log_b(x)+c">y = a·log_b(x) + c</button>
-    <div id="log-generalform-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:16px;"></div>
-    <div id="log-generalform-dw" style="font-size:11px;color:var(--text-muted);min-height:14px;"></div>
+    <div id="log-generalform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
+    <div id="log-generalform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
   </div>
 
   <!-- PANEL 7: Potenz- und Wurzelfunktionen — nur noch die allgemeine Form
@@ -646,8 +716,8 @@ body.beam select { font-size: 16px; }
     <div id="power-hint" class="hint" style="margin:4px 0 6px;" data-i18n="hint_power_case_pos_even">z. B. (x−v)², (x−v)⁴, … — achsensymmetrisch zu x = v.</div>
 
     <button onclick="powerAddGeneralForm()" style="width:100%;" data-i18n="btn_power_add">Aufschalten</button>
-    <div id="power-generalform-result" style="margin-top:4px;font-size:12px;font-weight:500;min-height:16px;"></div>
-    <div id="power-generalform-dw" style="font-size:11px;color:var(--text-muted);min-height:14px;"></div>
+    <div id="power-generalform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
+    <div id="power-generalform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
   </div>
 
   <!-- Trigonometrische Funktionen: sin/cos/tan "aufschalten" mit EINEM
@@ -667,26 +737,117 @@ body.beam select { font-size: 16px; }
     </div>
     <div class="settings-row" style="margin-top:6px;"><label><input type="checkbox" id="chk-unitcircle" autocomplete="off" onchange="scheduleDraw()"> <span data-i18n="chk_unitcircle">Einheitskreis</span></label></div>
     <div id="trig-dw" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div>
+
+    <!-- Allgemeine Form y = a·sin(b(x−c)) + d (bzw. cos/tan) mit
+         Schiebereglern — Unterrichts-Feature, exakt dasselbe Muster wie bei
+         den Exponential-/Logarithmus-/Potenzfunktionen (a, b, c, d werden zu
+         normalen Parametern, siehe trigAddGeneralForm() in 11_fitting.js). -->
+    <div class="subpanel">
+      <div class="hint" style="margin-bottom:5px;" data-i18n="hint_trig_general">Form aufschalten, dann a, b, c und d oben mit den Schiebereglern verändern (a = Amplitude, b = Frequenz, c = Phasenverschiebung, d = Verschiebung nach oben/unten).</div>
+      <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
+        <label style="font-size:11px;" data-i18n="lbl_type">Typ:</label>
+        <select id="trig-gen-subtype" style="flex:1;">
+          <option value="sin">sin</option>
+          <option value="cos">cos</option>
+          <option value="tan">tan</option>
+        </select>
+      </div>
+      <button onclick="trigAddGeneralForm()" style="width:100%;margin-top:4px;" data-i18n="btn_lo_set_objective">Aufschalten</button>
+      <div id="trig-generalform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
+      <div id="trig-generalform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
+    </div>
   </div>
 
-  <!-- PANEL 7: Fläche zwischen zwei Funktionen -->
+  <!-- Differenzenquotient-Applet: Einstieg ins Thema Differentialrechnung
+       (Unterrichts-Feature, Nutzerwunsch). Funktion FREI wählbar (Eingabefeld
+       #diffquot-fn-input, Fallback x²), ZWEI ziehbare Punkte A und B entlang
+       der Kurve. Zeigt Sekante durch A/B, Steigungsdreieck (mit Katheten-
+       Längenbeschriftung, dezimal) und den Differenzenquotienten; zieht man
+       A und B nahe zusammen, nähert sich m dem Differentialquotienten f'(xA)
+       an — siehe diffQuotSetup()/diffQuotSetupField() in 06_ui_functions.js,
+       drawDiffQuot() in 08_draw.js und drag.type==='diffquotpt' in
+       09_events.js. -->
   <div class="panel">
-    <div class="panel-title" data-i18n="panel_area">Fläche zwischen Funktionen</div>
-    <div class="area-row">
-      <span data-i18n="lbl_between">Zwischen:</span>
-      <select id="area-f1" style="width:60px;"></select>
-      <span data-i18n="lbl_and">und</span>
-      <select id="area-f2" style="width:70px;"></select>
+    <div class="panel-title" data-i18n="panel_diffquot">🧮 Differenzenquotient</div>
+    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_diffquot">Funktion eingeben und aufschalten: Punkt A und Punkt B sind beide ziehbar. Ziehe A und B nahe zusammen — der Differenzenquotient nähert sich dann dem Differentialquotienten (der Ableitung) an.</div>
+    <div class="toolbar" style="gap:5px;align-items:center;flex-wrap:nowrap;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">f(x) =</span>
+      <math-field id="diffquot-fn-input" class="func-inp-ce" placeholder="z.B. x^2" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button onclick="diffQuotSetup()" data-i18n="btn_lo_set_objective" style="flex-shrink:0;">Aufschalten</button>
     </div>
-    <div class="area-row">
-      <span data-i18n="lbl_x_from">x von</span>
-      <input type="number" id="area-x1" value="-3" step="0.5" style="width:55px;">
-      <span data-i18n="lbl_to">bis</span>
-      <input type="number" id="area-x2" value="3" step="0.5" style="width:55px;">
+    <div id="diffquot-dw" style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.6;"></div>
+  </div>
+
+  <!-- Ober-/Untersummen-Applet: "Einstieg in den Integralbegriff" (Unterrichts-
+       Feature, Nutzerwunsch) — wieder ein eigener, einfunktioniger Menüpunkt
+       (Nutzerwunsch: von "Fläche" wieder getrennt). Funktion frei wählbar
+       (Eingabefeld #riemann-fn-input), Intervallgrenzen a und b ziehbar auf
+       der x-Achse (gleiches Zieh-Muster wie beim Differenzenquotient-Applet),
+       klassische Ober-/Untersumme als ineinander verschachtelte Rechtecke
+       zwischen f und der x-Achse (je grösser n, desto näher rücken sie an
+       das exakte Integral heran, Anzahl Teilintervalle n per Schieberegler).
+       Siehe riemannSetup() in 06_ui_functions.js, drawRiemann() in
+       08_draw.js und drag.type==='riemannpt' in 09_events.js. -->
+  <div class="panel">
+    <div class="panel-title" data-i18n="panel_riemann">📶 Ober- und Untersummen</div>
+    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_riemann">Funktion eingeben und aufschalten: die Intervallgrenzen a und b sind ziehbar. Ober-/Untersumme zwischen f und der x-Achse — erhöhe n, um dich dem exakten Integral anzunähern.</div>
+    <div class="toolbar" style="gap:5px;align-items:center;flex-wrap:nowrap;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">f(x) =</span>
+      <math-field id="riemann-fn-input" class="func-inp-ce" placeholder="z.B. x^2" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button onclick="riemannSetup()" data-i18n="btn_lo_set_objective" style="flex-shrink:0;">Aufschalten</button>
     </div>
-    <div class="toolbar" style="margin-bottom:4px;"><button onclick="setAreaFromIsects()" data-i18n="btn_isect" data-i18n-title="btn_isect" style="font-size:10px;">∩ Schnittpunkte</button></div>
-    <div class="toolbar"><button id="area-toggle-btn" onclick="toggleArea()" data-i18n="btn_area">Fläche anzeigen</button></div>
-    <div id="area-result"></div>
+    <div id="riemann-n-row" class="settings-row" style="margin-top:6px;gap:6px;align-items:center;">
+      <span style="font-size:11px;color:var(--text-muted);flex-shrink:0;">n =</span>
+      <input type="range" id="riemann-n-slider" min="1" max="60" step="1" value="10" oninput="riemannSetN(this.value)" style="flex:1;">
+      <span id="riemann-n-val" style="font-size:11px;min-width:18px;text-align:right;">10</span>
+    </div>
+    <div id="riemann-dw" style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.6;"></div>
+  </div>
+
+  <!-- Flächen-Applet: Fläche zwischen einer Funktion f(x) und wahlweise der
+       x-Achse, der y-Achse oder einer zweiten Funktion g(x) (Nutzerwunsch,
+       eigener Menüpunkt getrennt von "Ober- und Untersummen"). Randart per
+       #flaeche-mode (x/y/g) — bei 'g' wird das g(x)-Feld eingeblendet
+       (#flaeche-fn2-row), die Grenzen a/b snappen dann beim Aufschalten UND
+       beim Ziehen im Graphen automatisch auf die Schnittpunkte von f und g
+       (bzw. bei 'x' auf die Nullstellen von f). Bei 'y' sind a/b y-Werte
+       (Standardkonzept: Fläche zwischen Kurve und y-Achse für y zwischen a
+       und b, x als Funktion von y invertiert) — hier kein Schnittpunkt-
+       Snapping (nur eine Kurve beteiligt), das Ergebnis ist eine numerische
+       Näherung. Die Zahlenfelder #flaeche-a-input/#flaeche-b-input erlauben
+       IMMER freie Werte ohne Snapping (Nutzerwunsch); nur das Ziehen im
+       Graphen snappt weiterhin. Siehe die ausführliche Dokumentation bei
+       "let flaeche" (02_core.js), flaecheSetup()/flaecheSetMode() in
+       06_ui_functions.js, drawFlaeche() in 08_draw.js und
+       drag.type==='flaechept' in 09_events.js. -->
+  <div class="panel">
+    <div class="panel-title" data-i18n="panel_flaeche">🟦 Flächen</div>
+    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_flaeche">Funktion eingeben, Randart wählen und aufschalten: die Intervallgrenzen a und b sind ziehbar (und frei eintippbar).</div>
+    <div class="toolbar" style="gap:5px;align-items:center;flex-wrap:nowrap;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">f(x) =</span>
+      <math-field id="flaeche-fn-input" class="func-inp-ce" placeholder="z.B. x^2" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button onclick="flaecheSetup()" data-i18n="btn_lo_set_objective" style="flex-shrink:0;">Aufschalten</button>
+    </div>
+    <div class="toolbar" style="gap:5px;align-items:center;flex-wrap:nowrap;margin-top:4px;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;" data-i18n="lbl_flaeche_mode">Rand:</span>
+      <select id="flaeche-mode" onchange="flaecheSetMode()" style="flex:1;font-size:12px;padding:3px 6px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);">
+        <option value="x" data-i18n="opt_flaeche_x" selected>x-Achse</option>
+        <option value="y" data-i18n="opt_flaeche_y">y-Achse</option>
+        <option value="g" data-i18n="opt_flaeche_g">2. Funktion g(x)</option>
+      </select>
+    </div>
+    <div id="flaeche-fn2-row" class="toolbar" style="gap:5px;align-items:center;flex-wrap:nowrap;margin-top:4px;display:none;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">g(x) =</span>
+      <math-field id="flaeche-fn2-input" class="func-inp-ce" placeholder="z.B. x" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button onclick="flaecheSetup()" data-i18n="btn_lo_set_objective" style="flex-shrink:0;">Aufschalten</button>
+    </div>
+    <div class="settings-row" style="margin-top:6px;gap:6px;align-items:center;">
+      <span id="flaeche-a-label" style="font-size:11px;color:var(--text-muted);flex-shrink:0;">a (x) =</span>
+      <input type="number" id="flaeche-a-input" step="any" oninput="flaecheSetBound('a', this.value)" style="width:70px;font-size:12px;padding:2px 6px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);">
+      <span id="flaeche-b-label" style="font-size:11px;color:var(--text-muted);flex-shrink:0;margin-left:6px;">b (x) =</span>
+      <input type="number" id="flaeche-b-input" step="any" oninput="flaecheSetBound('b', this.value)" style="width:70px;font-size:12px;padding:2px 6px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);">
+    </div>
+    <div id="flaeche-dw" style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.6;"></div>
   </div>
 
   <!-- Lineare Optimierung: Ungleichungssystem → Planungspolygon (automatisch
@@ -954,12 +1115,17 @@ body.beam select { font-size: 16px; }
     <div class="tooltip" id="tooltip"></div>
     <div id="canvas-label-overlay"></div>
     <div id="func-labels-overlay" style="display:none;"></div>
-    <div id="solve-tooltip" style="display:none;position:absolute;top:8px;left:8px;z-index:50;width:270px;background:var(--bg-panel);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.16);padding:4px 10px 6px;font-size:10.5px;line-height:1.65;font-family:'KaTeX_Main','Cambria Math',Georgia,serif;white-space:pre-wrap;color:var(--text);">
+    <div id="solve-tooltip" style="display:none;position:absolute;top:8px;left:8px;z-index:50;width:300px;max-height:min(80vh, 560px);background:var(--bg-sidebar);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.16);padding:4px 10px 6px;font-size:10.5px;line-height:1.65;font-family:'KaTeX_Main','Cambria Math',Georgia,serif;white-space:pre-wrap;color:var(--text);">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;line-height:1.2;margin-bottom:2px;">
         <span id="solve-tooltip-title" style="font-weight:700;font-size:11px;white-space:nowrap;overflow:visible;"></span>
         <span onclick="hideSolveTooltip()" style="cursor:pointer;font-size:14px;opacity:0.4;flex-shrink:0;font-family:system-ui;line-height:1;" title="Schließen">✕</span>
       </div>
-      <div id="solve-tooltip-content" style="max-height:200px;overflow-y:auto;"></div>
+      <!-- max-height als Sicherheitsnetz für sehr lange Lösungswege (z.B. viele
+           Asymptoten zusammen) — deutlich grosszügiger als zuvor (200px), da die
+           "schön dargestellten" gestapelten Brüche (rr()/fracHTML(), siehe
+           04_analysis.js) mehr vertikalen Platz brauchen als reiner Text und das
+           entscheidende Endergebnis sonst abgeschnitten würde. -->
+      <div id="solve-tooltip-content" style="max-height:min(70vh, 480px);overflow-y:auto;"></div>
     </div>
   </div>
   <div class="color-popup" id="color-popup"></div>
@@ -1091,6 +1257,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // Zielfunktions-Eingabefeld der "Lineare Optimierung" (math-field, siehe
   // loSetupObjectiveField() in 17_linopt.js) einmalig einrichten.
   if (typeof loSetupObjectiveField === 'function') loSetupObjectiveField();
+  // Funktions-Eingabefeld des Differenzenquotient-Applets (math-field, siehe
+  // diffQuotSetupField() in 06_ui_functions.js) einmalig einrichten.
+  if (typeof diffQuotSetupField === 'function') diffQuotSetupField();
+  // Funktions-Eingabefeld des Ober-/Untersummen-Applets (math-field, siehe
+  // riemannSetupField() in 06_ui_functions.js) einmalig einrichten.
+  if (typeof riemannSetupField === 'function') riemannSetupField();
+  // Funktions-Eingabefelder des Flächen-Applets (math-fields, siehe
+  // flaecheSetupField() in 06_ui_functions.js) einmalig einrichten, plus
+  // initiale Sichtbarkeit von g(x)-Zeile/Grenzen-Labels je nach Randart.
+  if (typeof flaecheSetupField === 'function') flaecheSetupField();
+  if (typeof flaecheSetMode === 'function') flaecheSetMode();
 });
 </script>
 </body>

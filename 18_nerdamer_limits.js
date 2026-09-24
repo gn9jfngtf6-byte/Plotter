@@ -185,7 +185,19 @@ async function ndObliqueLimit(expr, dirStr) {
   if (!rm.ok) return { ok: false };
   const m = _ndStrictNumber(rm.dec);
   if (Number.isNaN(m) || !isFinite(m) || Math.abs(m) < 1e-9) return { ok: false };
-  const rb = await ndEvalAsync(`limit(simplify((${ndExpr}) - (${m})*x), x, ${dirStr})`);
+  // WICHTIG: für den zweiten Grenzwert die EXAKTE symbolische Steigung
+  // (rm.raw, z.B. "1/3") einsetzen, nicht die auf 12 Nachkommastellen
+  // gekürzte Dezimalzahl (rm.dec, "0.333333333333"). Bei jeder Steigung
+  // ohne endliche Dezimaldarstellung (jeder Bruch mit anderem Nenner als
+  // reinen 2er-/5er-Potenzen, z.B. 1/3, 1/6, 1/7, 1/9, 2/3, …) würde sonst
+  // im zweiten Limit (f(x) − m·x) ein winziger Rest (wahre Steigung minus
+  // gerundete Steigung) übrig bleiben, der mit x multipliziert für x→±∞
+  // selbst gegen ±∞ läuft — der Achsenabschnitt b käme dann fälschlich als
+  // "nicht bestimmbar" zurück und die exakte Methode entartete unbemerkt
+  // zum ungenaueren numerischen Fallback, obwohl Nerdamer die Steigung
+  // bereits exakt geliefert hatte (das war genau der Rechenfehler, den
+  // diese CAS-Methode laut Kommentar oben eigentlich vermeiden soll).
+  const rb = await ndEvalAsync(`limit(simplify((${ndExpr}) - (${rm.raw})*x), x, ${dirStr})`);
   if (!rb.ok) return { ok: false };
   const b = _ndStrictNumber(rb.dec);
   if (Number.isNaN(b) || !isFinite(b)) return { ok: false };

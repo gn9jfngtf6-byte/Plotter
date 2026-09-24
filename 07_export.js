@@ -111,17 +111,27 @@ function exprToMathLiveHtml(rawExpr) {
 // daher kein miParseRaw/miToLatex-Schritt) — z.B. für die statischen Beschriftungen
 // der Mathe-Tastatur-Tasten (⌨ Tastatur-Panel), damit "x²", "√x", "sin", ... dort
 // in EXAKT derselben Schrift/Größe erscheinen wie im Eingabefeld, statt als
-// Unicode-Annäherung (x², √) im normalen Browser-Font. Kein Cache nötig — wird
-// nur einmal beim Start pro Taste aufgerufen, nicht pro Redraw.
+// Unicode-Annäherung (x², √) im normalen Browser-Font.
+// Gecacht (wie exprToMathLiveHtml oben): ursprünglich nur einmal pro Taste beim
+// Start aufgerufen, seit dem Lösungsweg-Fenster (generateSolveSteps() in
+// 04_analysis.js, rr()) aber pro angezeigtem Zahlenwert bei JEDEM Tooltip-Öffnen
+// — ohne Cache würde MathLive.convertLatexToMarkup() (laut eigenem Kommentar
+// oben "relativ teuer") dort spürbar oft neu aufgerufen.
+const _mlLatexMarkupCache = new Map();
 function latexToMathLiveHtml(latex) {
   if (!latex) return '';
+  if (_mlLatexMarkupCache.has(latex)) return _mlLatexMarkupCache.get(latex);
+  let html;
   try {
-    return (typeof MathLive !== 'undefined' && MathLive.convertLatexToMarkup)
+    html = (typeof MathLive !== 'undefined' && MathLive.convertLatexToMarkup)
       ? MathLive.convertLatexToMarkup(latex)
       : _mlEscapeHtml(latex);
   } catch (ex) {
-    return _mlEscapeHtml(latex);
+    html = _mlEscapeHtml(latex);
   }
+  if (_mlLatexMarkupCache.size > 500) _mlLatexMarkupCache.clear();
+  _mlLatexMarkupCache.set(latex, html);
+  return html;
 }
 
 // Rundet eine View-Grenze auf eine "schöne" Zahl (ganze Zahl oder .5)
@@ -136,31 +146,6 @@ function roundViewBound(val) {
 
 // Generiert pgfplots-LaTeX-Code — Funktionen + beschriftete Punkte
 // Benötigt: \usepackage{pgfplots}  \pgfplotsset{compat=1.18}
-function setAreaFromIsects() {
-  const f1v = document.getElementById('area-f1').value;
-  const f2v = document.getElementById('area-f2').value;
-  const f1idx = f1v === '__axis' ? -1 : parseInt(f1v);
-  const f2idx = f2v === '__axis' ? -1 : parseInt(f2v);
-  const xs = specials
-    .filter(sp => sp.kind === 'isect' &&
-      ((sp.fi === f1idx && sp.fj === f2idx) || (sp.fi === f2idx && sp.fj === f1idx)))
-    .map(sp => sp.x).sort((a, b) => a - b);
-  if (xs.length === 0 && (f2v === '__axis' || f1v === '__axis')) {
-    const fIdx = f2v === '__axis' ? f1idx : f2idx;
-    specials.filter(sp => sp.kind === 'zero' && sp.fi === fIdx).forEach(sp => xs.push(sp.x));
-    xs.sort((a, b) => a - b);
-  }
-  if (xs.length === 0) {
-    const msgEl = document.getElementById('area-result');
-    msgEl.innerHTML = '<span style="color:#e24b4a;">Keine Schnittpunkte gefunden</span>';
-    setTimeout(() => { msgEl.innerHTML = ''; }, 2500);
-    return;
-  }
-  document.getElementById('area-x1').value = parseFloat(xs[0].toFixed(4));
-  document.getElementById('area-x2').value = parseFloat(xs[xs.length - 1].toFixed(4));
-  if (showArea) updateAreaResult();
-  scheduleDraw();
-}
 
 // Konvertiert Zahl zu LaTeX-Bruch \frac{a}{b} wenn möglich, sonst Integer/Dezimal
 function latexNum(v) {
@@ -322,6 +307,56 @@ function generateLatex() {
     return `{rgb,255:red,${r};green,${g};blue,${b}}`;
   }
 
+  // ── Wurzelfunktionen: parametrischer LaTeX-Export ─────────────────
+  // Nutzerwunsch: eine normal (dicht in x) gesampelte Wurzelkurve sieht am
+  // Rand ihres Definitionsbereichs (z.B. bei x=0 für √x) unsauber/gerundet
+  // aus, weil dort die Steigung gegen unendlich geht — pgfplots' übliches
+  // \addplot{f(x)} tastet gleichmässig in x ab, also extrem grob genau dort,
+  // wo die Kurve am steilsten ist. Fix (Nutzervorschlag): dieselbe Kurve
+  // stattdessen PARAMETRISCH über t zeichnen, wobei t die WURZEL selbst ist
+  // (analog zu "mit x² zeichnen und die Achsen/Domains vertauschen") — die
+  // Steigung bzgl. t ist dort überall endlich, das Sampling wird gleichmässig
+  // fein genau dort, wo es nötig ist.
+  //
+  // Erkennt Ausdrücke der Form  y = a·(c·x+k)^(1/n) + h  — also
+  // a·sqrt(...)+h bzw. a·nthroot(...,n)+h, wobei das Innere der Wurzel LINEAR
+  // in x mit Koeffizient ±1 ist (z.B. "x-3", "-x+2", "5-x", "x"). Deckt damit
+  // sowohl die eingebaute "Wurzelfunktion"-Form aus dem Potenz-Panel ab
+  // (POWER_CASES.root: 'a*nthroot(x-v,n)+h', siehe 11_fitting.js) als auch
+  // frei getippte Ausdrücke wie "sqrt(x-2)" in einem beliebigen Funktions-
+  // Feld. Erwartet den Ausdruck NACH Parameter-Substitution (_ltxSub/
+  // exprWithValues), also rein numerisch. Gibt null zurück, wenn die Form
+  // nicht passt (z.B. Wurzel-Inhalt nicht linear, oder mit Koeffizient ≠±1)
+  // — dann greift weiter unten unverändert der normale Export-Pfad.
+  function parseUnitLinearArg(sRaw) {
+    const s = sRaw.replace(/\s+/g, '');
+    if (s === 'x') return { coeff: 1, konst: 0 };
+    if (s === '-x') return { coeff: -1, konst: 0 };
+    let m = /^x([+-]\d+\.?\d*)$/.exec(s);           // x-3, x+2.5
+    if (m) return { coeff: 1, konst: parseFloat(m[1]) };
+    m = /^-x([+-]\d+\.?\d*)$/.exec(s);              // -x+3, -x-1
+    if (m) return { coeff: -1, konst: parseFloat(m[1]) };
+    m = /^([+-]?\d+\.?\d*)([+-])x$/.exec(s);        // 3-x, -2+x, 5+x
+    if (m) return { coeff: (m[2] === '-') ? -1 : 1, konst: parseFloat(m[1]) };
+    return null;
+  }
+  function detectRootForm(numExpr) {
+    const s = (numExpr || '').replace(/\s+/g, '');
+    const m = /^([+-]?[\d.]*)\*?(sqrt|nthroot)\(([^,()]+)(?:,([\d.]+))?\)([+-][\d.]+)?$/.exec(s);
+    if (!m) return null;
+    const [, aStr, fname, argStr, nStr, hStr] = m;
+    let a;
+    if (aStr === '' || aStr === '+') a = 1;
+    else if (aStr === '-') a = -1;
+    else { a = parseFloat(aStr); if (!isFinite(a)) return null; }
+    const n = fname === 'sqrt' ? 2 : parseFloat(nStr);
+    if (!isFinite(n) || n < 2 || Math.round(n) !== n) return null; // nur ganzzahlige Wurzelindizes ≥2
+    const lin = parseUnitLinearArg(argStr);
+    if (!lin) return null;
+    const h = hStr ? parseFloat(hStr) : 0;
+    return { a, n, coeff: lin.coeff, konst: lin.konst, h };
+  }
+
   // Erkennt ob irgendeine sichtbare Funktion Trigo-Charakter hat
   function hasTrig() {
     return functions.some(fn => fn.visible !== false && fn.expr.trim() &&
@@ -479,6 +514,78 @@ function generateLatex() {
     }
   }
 
+  // 0b. Ober-/Untersummen-Applet (riemann, siehe 06_ui_functions.js /
+  // drawRiemann() in 08_draw.js) — eigene Konstruktion ausserhalb von
+  // functions[] (nur die zugrundeliegende Funktion selbst wird weiter unten
+  // automatisch mitexportiert, siehe Abschnitt "1. Funktionsgraphen") —
+  // bisher komplett im Export gefehlt (Nutzerwunsch: "wenn du solche Sachen
+  // neu machst, solltest du auch schauen, dass der Latex-Export auch
+  // funktioniert"). Baut drawRiemann() nach: Obersumme-Rechtecke (orange) +
+  // Untersumme-Rechtecke (teal, DARÜBER — dieselbe Farbreihenfolge wie auf
+  // dem Canvas) + die beiden ziehbaren Intervallgrenzen a/b mit Koordinaten-
+  // Label. VOR den Funktionsgraphen eingefügt, damit die Kurve später über
+  // den Rechtecken liegt (exakt wie auf dem Canvas, Zeichenreihenfolge 6a vor
+  // 7 in draw(), 08_draw.js). Immer Einzelfunktions-Modus (riemann hat seit
+  // dem Auftrennen in "Ober-/Untersummen" und "Flächen" nur noch fi1/xA/xB/n
+  // — die frühere Zwei-Funktionen-Fläche lebt jetzt eigenständig im
+  // Flächen-Applet, siehe Abschnitt "2." unten).
+  if (typeof riemann !== 'undefined' && riemann) {
+    const rFn = functions[riemann.fi1];
+    if (rFn && rFn.visible !== false) {
+      const rxA = riemann.xA, rxB = riemann.xB;
+      const rxLeft = Math.min(rxA, rxB), rxRight = Math.max(rxA, rxB);
+      const rWidth = rxRight - rxLeft;
+      const rn = Math.max(1, riemann.n || 10);
+      if (rWidth > 1e-9) {
+        const stripW = rWidth / rn;
+        // Gleiche Stichprobendichte je Teilintervall wie drawRiemann() (siehe
+        // RIEMANN_SAMPLES_PER_STRIP, 08_draw.js) — echtes Supremum/Infimum
+        // statt nur der Randwerte, sonst bei nicht-monotonen Funktionen falsch.
+        const SAMPLES = (typeof RIEMANN_SAMPLES_PER_STRIP !== 'undefined') ? RIEMANN_SAMPLES_PER_STRIP : 24;
+        const rStrips = [];
+        for (let k = 0; k < rn; k++) {
+          const sxL = rxLeft + k * stripW, sxR = rxLeft + (k + 1) * stripW;
+          let sup = -Infinity, inf = Infinity;
+          for (let s = 0; s <= SAMPLES; s++) {
+            const x = sxL + (sxR - sxL) * (s / SAMPLES);
+            const y = safeEval(rFn.expr, x);
+            if (!isFinite(y)) continue;
+            if (y > sup) sup = y;
+            if (y < inf) inf = y;
+          }
+          if (sup === -Infinity || inf === Infinity) continue; // hier nirgends definiert
+          rStrips.push({ sxL, sxR, sup, inf });
+        }
+        if (rStrips.length) {
+          // Gleiche feste Farben wie auf dem Canvas: COLORS[1]='#D85A30'
+          // (Obersumme, orange) / COLORS[2]='#1D9E75' (Untersumme, teal) —
+          // über hexToPgfColor() (siehe oben) statt eines xcolor-Namens, da
+          // xcolor "teal" ohne zusätzliches Paket nicht garantiert verfügbar ist.
+          const oberCol = hexToPgfColor('#D85A30'), unterCol = hexToPgfColor('#1D9E75');
+          body += `  % Ober-/Untersummen-Applet (n=${rn})\n`;
+          rStrips.forEach(({ sxL, sxR, sup }) => {
+            body += `  \\path[draw=${oberCol}, fill=${oberCol}, fill opacity=0.35] (axis cs:${coord(sxL)},0) rectangle (axis cs:${coord(sxR)},${coord(sup)});\n`;
+          });
+          rStrips.forEach(({ sxL, sxR, inf }) => {
+            body += `  \\path[draw=${unterCol}, fill=${unterCol}, fill opacity=0.55] (axis cs:${coord(sxL)},0) rectangle (axis cs:${coord(sxR)},${coord(inf)});\n`;
+          });
+        }
+        // Intervallgrenzen a und b: neutrale Farbe (schwarz) — analog zu
+        // dqConstrColor() beim Differenzenquotient-Applet (Konstruktions-
+        // element, keine Funktionsfarbe).
+        const rIsCoincident = Math.abs(rxB - rxA) < 1e-9;
+        if (rIsCoincident) {
+          body += `  \\addplot[black, fill=white, only marks, mark=*, mark size=3pt] coordinates {(${coord(rxA)},0)};\n`;
+          body += `  \\node[anchor=south, font=\\small, yshift=2pt] at (axis cs:${coord(rxA)},0) {$a=b=${latexNum(rxA)}$};\n`;
+        } else {
+          body += `  \\addplot[black, fill=white, only marks, mark=*, mark size=3pt] coordinates {(${coord(rxA)},0) (${coord(rxB)},0)};\n`;
+          body += `  \\node[anchor=south, font=\\small, yshift=2pt] at (axis cs:${coord(rxA)},0) {$a=${latexNum(rxA)}$};\n`;
+          body += `  \\node[anchor=south, font=\\small, yshift=2pt] at (axis cs:${coord(rxB)},0) {$b=${latexNum(rxB)}$};\n`;
+        }
+      }
+    }
+  }
+
   // 1. Funktionsgraphen (mit Pol-Erkennung: Domäne aufteilen)
   // WICHTIG: name path muss VOR fill-between definiert werden!
   //
@@ -500,6 +607,51 @@ function generateLatex() {
     const testVals = [0, 1, -1, 2, -2].map(xv => safeEval(fn.expr, xv));
     if (testVals.every(v => !isFinite(v))) return;
     const col = pgfColors[i % pgfColors.length];
+
+    // ── Wurzelfunktionen: parametrischer Plot statt Standard-\addplot ──
+    // (siehe detectRootForm()/parseUnitLinearArg() weiter oben für die
+    // ausführliche Begründung) — vermeidet die unsaubere/gerundete Optik am
+    // Rand des Definitionsbereichs (unendliche Steigung), die beim üblichen
+    // dichten x-Sampling entsteht.
+    const rootForm = detectRootForm(_ltxSub(fn.expr));
+    if (rootForm) {
+      const { a: rA, n: rN, coeff: rC, konst: rK, h: rH } = rootForm;
+      // Sichtbaren x-Bereich ggf. zusätzlich auf einen manuell gesetzten
+      // Definitionsbereich einschränken (fn.domainMin/domainMax — gleiche
+      // Konvention wie draw() in 08_draw.js).
+      let xLoV = xminF, xHiV = xmaxF;
+      if (fn.domainMin != null) xLoV = Math.max(xLoV, fn.domainMin);
+      if (fn.domainMax != null) xHiV = Math.min(xHiV, fn.domainMax);
+      // Bei geradem Wurzelindex (n gerade, z.B. sqrt = nthroot mit n=2) ist
+      // arg(x)=rC·x+rK nur für arg≥0 reell definiert — sichtbaren Bereich auf
+      // die "offene" Seite der Definitionsgrenze zuschneiden. Bei ungeradem n
+      // ist arg(x) für ALLE x reell definiert (auch negativ) — dort geht es
+      // nur um die Optik an der Stelle unendlicher Steigung (arg=0), nicht um
+      // eine echte Einschränkung der Definitionsmenge.
+      if (rN % 2 === 0) {
+        const xEdge = -rK / rC;
+        if (rC > 0) xLoV = Math.max(xLoV, xEdge); else xHiV = Math.min(xHiV, xEdge);
+      }
+      if (xHiV > xLoV + 1e-9) {
+        const argAt = xv => rC * xv + rK;
+        // t = ⁿ√(arg) — bei geradem n nur der nichtnegative Ast (reell
+        // definiert), bei ungeradem n inkl. Vorzeichen (analog zu _nthroot(),
+        // siehe 03_math.js).
+        const tAt = xv => {
+          const av = argAt(xv);
+          if (rN % 2 === 0) return av < 0 ? 0 : Math.pow(av, 1 / rN);
+          return av < 0 ? -Math.pow(-av, 1 / rN) : Math.pow(av, 1 / rN);
+        };
+        const tLo = tAt(xLoV), tHi = tAt(xHiV);
+        // x(t) = (t^n − rK) / rC,  y(t) = rA·t + rH — Umkehrung von
+        // t = ((rC·x+rK))^(1/n): t^n = rC·x+rK ⇔ x = (t^n−rK)/rC.
+        const xExpr = `((\\x)^${rN}-(${coord(rK)}))/(${coord(rC)})`;
+        const yExpr = `(${coord(rA)})*(\\x)+(${coord(rH)})`;
+        body += `  \\addplot[${col}, thick, name path=F${i}, domain=${coord(tLo)}:${coord(tHi)}, samples=100] ({${xExpr}}, {${yExpr}});\n`;
+      }
+      return;
+    }
+
     const pgfExpr = exprToPgf(_ltxSub(fn.expr));
     const doms = getDomains(fn.expr, xminF, xmaxF);
     doms.forEach(([dlo, dhi]) => {
@@ -527,29 +679,78 @@ function generateLatex() {
     });
   }
 
-  // 2. Fläche zwischen Funktionen (NACH den name path Plots, damit fill-between funktioniert)
-  if (showArea) {
-    const f1v = document.getElementById('area-f1').value;
-    const f2v = document.getElementById('area-f2').value;
-    const ax1 = parseFloat(document.getElementById('area-x1').value);
-    const ax2 = parseFloat(document.getElementById('area-x2').value);
-    if (isFinite(ax1) && isFinite(ax2) && ax1 < ax2) {
-      const e1 = getAreaExpr(f1v), e2 = getAreaExpr(f2v);
-      const fillCol = f1v !== '__axis' ? pgfColors[parseInt(f1v) % pgfColors.length] : 'blue';
-      const d1c = coord(ax1), d2c = coord(ax2);
-      if (e2 === '0') {
-        // Fläche zur x-Achse
-        body += `  % Fläche unter f(x) zur x-Achse\n`;
-        body += `  \\addplot[${fillCol}!30, fill opacity=0.5, draw=none, domain=${d1c}:${d2c}, samples=120] {${exprToPgf(_ltxSub(e1))}} \\closedcycle;\n`;
+  // 2. Flächen-Applet (flaeche, siehe 06_ui_functions.js / drawFlaeche() in
+  // 08_draw.js) — bisher wie das Ober-/Untersummen-Applet NICHT im Export
+  // enthalten (Nutzerwunsch: "solche Sachen" sollen auch im Latex-Export
+  // korrekt erscheinen). axis 'x'/'g': schraffierte Fläche zwischen f und g
+  // (bzw. f und der x-Achse) per pgfplots fill-between — braucht die
+  // name path-Plots aus Abschnitt "1." (deshalb HIER, danach platziert;
+  // benötigt \usepgfplotslibrary{fillbetween}). axis 'y': KEIN fill-between
+  // möglich, da x(y) i.A. nicht symbolisch vorliegt (siehe "let flaeche" in
+  // 02_core.js) — stattdessen dieselben numerisch abgetasteten Randpunkte
+  // wie auf dem Canvas (_flaecheYInvertNear(), 06_ui_functions.js — gleiche
+  // Kontinuitäts-Verfolgung, damit z.B. bei x² nicht zwischen den beiden
+  // Ästen ±√y gesprungen wird) als gefülltes Koordinaten-Polygon exportiert,
+  // damit Canvas und Latex-Export exakt dieselbe Fläche zeigen.
+  if (typeof flaeche !== 'undefined' && flaeche) {
+    const fFn1 = functions[flaeche.fi1];
+    const hasG = flaeche.axis === 'g';
+    const fFn2 = hasG ? functions[flaeche.fi2] : null;
+    const finiteAt = fn => fn && fn.visible !== false &&
+      [0, 1, -1, 2, -2].map(xv => safeEval(fn.expr, xv)).some(isFinite);
+    if (finiteAt(fFn1) && (!hasG || finiteAt(fFn2))) {
+      const fA = flaeche.a, fB = flaeche.b;
+      const fLo = Math.min(fA, fB), fHi = Math.max(fA, fB);
+      const fillCol = pgfColors[flaeche.fi1 % pgfColors.length];
+
+      if (flaeche.axis === 'x' || flaeche.axis === 'g') {
+        if (fHi - fLo > 1e-9) {
+          const d1c = coord(fLo), d2c = coord(fHi);
+          let secondPath = `F${flaeche.fi2}`;
+          body += `  % Fläche zwischen f und ${hasG ? 'g' : 'der x-Achse'} (Flächen-Applet)\n`;
+          if (!hasG) {
+            secondPath = 'FLAECHE_XACHSE';
+            body += `  \\addplot[draw=none, name path=${secondPath}] coordinates {(${d1c},0) (${d2c},0)};\n`;
+          }
+          body += `  \\addplot[${fillCol}!30, fill opacity=0.5, draw=none]\n`;
+          body += `    fill between[of=F${flaeche.fi1} and ${secondPath}, soft clip={domain=${d1c}:${d2c}}];\n`;
+          body += `  \\addplot[black, fill=white, only marks, mark=*, mark size=3pt] coordinates {(${coord(fA)},0) (${coord(fB)},0)};\n`;
+          body += `  \\node[anchor=south, font=\\small, yshift=2pt] at (axis cs:${coord(fA)},0) {$a=${latexNum(fA)}$};\n`;
+          body += `  \\node[anchor=south, font=\\small, yshift=2pt] at (axis cs:${coord(fB)},0) {$b=${latexNum(fB)}$};\n`;
+        } else {
+          body += `  \\addplot[black, fill=white, only marks, mark=*, mark size=3pt] coordinates {(${coord(fA)},0)};\n`;
+          body += `  \\node[anchor=south, font=\\small, yshift=2pt] at (axis cs:${coord(fA)},0) {$a=b=${latexNum(fA)}$};\n`;
+        }
       } else {
-        // Fläche zwischen zwei Funktionen (benötigt \usepgfplotslibrary{fillbetween})
-        const fi1 = f1v === '__axis' ? -1 : parseInt(f1v);
-        const fi2 = f2v === '__axis' ? -1 : parseInt(f2v);
-        const np1 = fi1 >= 0 ? `F${fi1}` : 'xaxis';
-        const np2 = fi2 >= 0 ? `F${fi2}` : 'xaxis';
-        body += `  % Fläche zwischen f${fi1+1} und f${fi2+1}\n`;
-        body += `  \\addplot[${fillCol}!30, fill opacity=0.5, draw=none]\n`;
-        body += `    fill between[of=${np1} and ${np2}, soft clip={domain=${d1c}:${d2c}}];\n`;
+        // axis === 'y' — numerisches Randpolygon statt fill-between.
+        if (fHi - fLo > 1e-9) {
+          const [xSearchLo, xSearchHi] = _riemannIsectSearchRange();
+          const steps = 100;
+          const nearRadius = Math.max((xSearchHi - xSearchLo) * 0.1, 1);
+          const pts = [];
+          let prevX = null;
+          for (let i = 0; i <= steps; i++) {
+            const y = fLo + (i / steps) * (fHi - fLo);
+            const x = prevX === null
+              ? _flaecheYInvert(fFn1.expr, y, xSearchLo, xSearchHi)
+              : _flaecheYInvertNear(fFn1.expr, y, prevX, nearRadius, xSearchLo, xSearchHi);
+            if (x !== null) { pts.push({ x, y }); prevX = x; } else { prevX = null; }
+          }
+          if (pts.length > 1) {
+            body += `  % Fläche zwischen f und der y-Achse (Flächen-Applet)\n`;
+            const boundary = pts.map(p => `(axis cs:${coord(p.x)},${coord(p.y)})`)
+              .concat(pts.slice().reverse().map(p => `(axis cs:0,${coord(p.y)})`));
+            body += `  \\path[fill=${fillCol}!30, fill opacity=0.5, draw=none] ${boundary.join(' -- ')} -- cycle;\n`;
+            body += `  \\draw[${fillCol}!60, dashed, thin] (axis cs:${coord(xminF)},${coord(fLo)}) -- (axis cs:${coord(xmaxF)},${coord(fLo)});\n`;
+            body += `  \\draw[${fillCol}!60, dashed, thin] (axis cs:${coord(xminF)},${coord(fHi)}) -- (axis cs:${coord(xmaxF)},${coord(fHi)});\n`;
+          }
+          body += `  \\addplot[black, fill=white, only marks, mark=*, mark size=3pt] coordinates {(0,${coord(fA)}) (0,${coord(fB)})};\n`;
+          body += `  \\node[anchor=west, font=\\small, xshift=2pt] at (axis cs:0,${coord(fA)}) {$a=${latexNum(fA)}$};\n`;
+          body += `  \\node[anchor=west, font=\\small, xshift=2pt] at (axis cs:0,${coord(fB)}) {$b=${latexNum(fB)}$};\n`;
+        } else {
+          body += `  \\addplot[black, fill=white, only marks, mark=*, mark size=3pt] coordinates {(0,${coord(fA)})};\n`;
+          body += `  \\node[anchor=west, font=\\small, xshift=2pt] at (axis cs:0,${coord(fA)}) {$a=b=${latexNum(fA)}$};\n`;
+        }
       }
     }
   }
@@ -635,7 +836,6 @@ function generateLatex() {
       const cosA = Math.cos(a), sinA = Math.sin(a);
       // Standardkreis: Punkt liegt bei (cos(a), sin(a))
       const cpxs = coord(cosA), cpys = coord(sinA);
-      const tanA = Math.abs(cosA) > 0.01 ? sinA/cosA : null;
 
       // 1. Radiallinie: Ursprung (0,0) → Kreispunkt
       body += `  \\addplot[blue!60, thick] coordinates {(0,0) (${cpxs},${cpys})};\n`;
@@ -646,17 +846,11 @@ function generateLatex() {
       // 3. Horizontale Projektionslinie (cos): (0,sin(a)) → Kreispunkt, grün gestrichelt
       body += `  \\addplot[green!60!black!60, thin, dashed] coordinates {(0,${cpys}) (${cpxs},${cpys})};\n`;
 
-      // 4. sin-Marker auf y-Achse bei (0, sinA): oranger Punkt
-      body += `  \\addplot[orange!80, only marks, mark=*, mark size=2.5pt] coordinates {(0,${coord(sinA)})};\n`;
-
-      // 5. cos-Marker auf x-Achse bei (cosA, 0): grüner Punkt
-      body += `  \\addplot[green!60!black, only marks, mark=*, mark size=2.5pt] coordinates {(${coord(cosA)},0)};\n`;
-
-      // 6. Kreispunkt: gefüllter blauer Punkt
+      // 4. Kreispunkt: gefüllter blauer Punkt
       body += `  \\addplot[blue, only marks, mark=*, mark size=4pt] coordinates {(${cpxs},${cpys})};\n`;
       body += `  \\addplot[white, only marks, mark=o, mark size=3pt, line width=1.5pt] coordinates {(${cpxs},${cpys})};\n`;
 
-      // 7. Labels: Winkel (blau, fett), cos= und sin=
+      // 5. Labels: Winkel (blau, fett), cos= und sin=
       const pf = asPiFraction(a);
       const angleTxt = (pf && usePiMode()) ? latexNum(a) : `${parseFloat((a*180/PI).toFixed(1))}^{\\circ}`;
       const lblAnc = cosA >= 0 ? 'south west' : 'south east';
@@ -665,52 +859,43 @@ function generateLatex() {
       body += `  \\node[anchor=${numAnc}, font=\\tiny, green!60!black] at (axis cs:${cpxs},${cpys}) {$\\cos=${latexNum(cosA)}$};\n`;
       body += `  \\node[anchor=${numAnc}, font=\\tiny, orange!80, yshift=-8pt] at (axis cs:${cpxs},${cpys}) {$\\sin=${latexNum(sinA)}$};\n`;
 
-      // 8. Verbindungslinien zu Graphen (exakt wie drawUnitCircle)
+      // 5b. Tangenskonstruktion (klassisch): verlängerte Gerade Ursprung→
+      // Kreispunkt schneidet die Tangente x=1 exakt bei y=tan(a) — nur wenn
+      // eine sichtbare tan-artige Funktion existiert (siehe drawUnitCircle()
+      // in 08_draw.js für dieselbe Formel/Begründung).
+      const hasVisibleTanLtx = functions.some(fn => {
+        if (!fn.expr.trim() || fn.visible === false) return false;
+        const e = fn.expr.trim();
+        return /\btan\s*\(/.test(e) && !/\bsin\s*\(/.test(e) && !/\bcos\s*\(/.test(e);
+      });
+      if (hasVisibleTanLtx && Math.abs(cosA) > 1e-6) {
+        const tanA = sinA / cosA;
+        body += `  \\addplot[violet!70, thin] coordinates {(${cpxs},${cpys}) (1,${coord(tanA)})};\n`;
+        body += `  \\addplot[violet!40, thin, dashed] coordinates {(1,0) (1,${coord(tanA)})};\n`;
+        body += `  \\addplot[violet, only marks, mark=*, mark size=1.5pt] coordinates {(1,${coord(tanA)})};\n`;
+        body += `  \\node[anchor=west, font=\\tiny, violet] at (axis cs:1,${coord(tanA)}) {$\\tan=${latexNum(tanA)}$};\n`;
+      }
+
+      // 6. Punkt auf dem Graphen (exakt wie drawUnitCircle() in 08_draw.js):
+      // KEINE Verbindungslinie zwischen Kreispunkt und Graphpunkt — der Kreis
+      // zeigt sinA/cosA (und, für tan, die Tangentenkonstruktion oben) schon
+      // selbst; auf dem Graphen erscheint der Wert unabhängig davon als
+      // senkrechter Balken von der x-Achse, wie bei jeder anderen Funktion.
+      // x_graph je Typ: sin/tan → a (Fenster 0…2π), cos → a-π/2 (Fenster
+      // -π/2…3π/2) — macht cos strukturell identisch zu sin, nur um π/2
+      // phasenverschoben (cos(a-π/2)=sin(a)).
       functions.forEach((fn, fi) => {
         if (!fn.expr.trim() || fn.visible === false) return;
         const expr = fn.expr.trim();
         const col = pgfColors[fi % pgfColors.length];
-        const hasSin = /\bsin\s*\(/.test(expr) && !/\bcos\s*\(/.test(expr) && !/\btan\s*\(/.test(expr);
         const hasCos = /\bcos\s*\(/.test(expr) && !/\bsin\s*\(/.test(expr) && !/\btan\s*\(/.test(expr);
-        const hasTan = /\btan\s*\(/.test(expr) && !/\bsin\s*\(/.test(expr) && !/\bcos\s*\(/.test(expr);
 
-        if (hasSin) {
-          const xG = a, yG = safeEval(fn.expr, xG);
-          if (!isFinite(yG) || xG < xminF || xG > xmaxF || yG < yminF || yG > ymaxF) return;
-          body += `  \\addplot[${col}!60, thin, dashed] coordinates {(0,${coord(sinA)}) (${coord(xG)},${coord(yG)})};\n`;
-          body += `  \\addplot[${col}, only marks, mark=o, mark size=3pt] coordinates {(${coord(xG)},${coord(yG)})};\n`;
-          body += `  \\addplot[${col}, only marks, mark=*, mark size=1.5pt] coordinates {(${coord(xG)},${coord(yG)})};\n`;
-
-        } else if (hasCos) {
-          const xG = a - PI/2, yG = safeEval(fn.expr, xG);
-          if (!isFinite(yG) || xG < xminF || xG > xmaxF || yG < yminF || yG > ymaxF) return;
-          body += `  \\addplot[${col}!60, thin, dashed] coordinates {(0,${coord(sinA)}) (${coord(xG)},${coord(yG)})};\n`;
-          body += `  \\addplot[${col}, only marks, mark=o, mark size=3pt] coordinates {(${coord(xG)},${coord(yG)})};\n`;
-          body += `  \\addplot[${col}, only marks, mark=*, mark size=1.5pt] coordinates {(${coord(xG)},${coord(yG)})};\n`;
-
-        } else if (hasTan && tanA !== null && isFinite(tanA)) {
-          const yG = safeEval(fn.expr, a);
-          if (!isFinite(tanA) || tanA < yminF || tanA > ymaxF) return;
-          // Tangentengerade: Mittelpunkt (0,0) → Kreispunkt → (0, tanA)
-          // — exakt wie drawUnitCircle() in 08_draw.js (ctx.moveTo(ox,oy), die
-          // Canvas-Position des Ursprungs). Der Kreis liegt IMMER bei (0,0),
-          // "(-1,0)" hier war ein Überbleibsel einer älteren Konvention und
-          // liess die Konstruktionslinie an der falschen Stelle beginnen.
-          body += `  \\addplot[${col}!60, thin, dashed] coordinates {(0,0) (${cpxs},${cpys}) (0,${coord(tanA)})};\n`;
-          // Tan-Marker auf y-Achse
-          body += `  \\addplot[${col}, only marks, mark=o, mark size=2.5pt] coordinates {(0,${coord(tanA)})};\n`;
-          if (isFinite(yG) && a >= xminF && a <= xmaxF && yG >= yminF && yG <= ymaxF) {
-            body += `  \\addplot[${col}!60, thin, dashed] coordinates {(0,${coord(tanA)}) (${coord(a)},${coord(yG)})};\n`;
-            body += `  \\addplot[${col}, only marks, mark=o, mark size=3pt] coordinates {(${coord(a)},${coord(yG)})};\n`;
-            body += `  \\addplot[${col}, only marks, mark=*, mark size=1.5pt] coordinates {(${coord(a)},${coord(yG)})};\n`;
-          }
-        } else {
-          const xG = a, yG = safeEval(fn.expr, xG);
-          if (!isFinite(yG) || xG < xminF || xG > xmaxF || yG < yminF || yG > ymaxF) return;
-          body += `  \\addplot[${col}!60, thin, dashed] coordinates {(${coord(xG)},0) (${coord(xG)},${coord(yG)})};\n`;
-          body += `  \\addplot[${col}, only marks, mark=o, mark size=3pt] coordinates {(${coord(xG)},${coord(yG)})};\n`;
-          body += `  \\addplot[${col}, only marks, mark=*, mark size=1.5pt] coordinates {(${coord(xG)},${coord(yG)})};\n`;
-        }
+        const xG = hasCos ? a - PI/2 : a;
+        const yG = safeEval(fn.expr, xG);
+        if (!isFinite(yG) || xG < xminF || xG > xmaxF || yG < yminF || yG > ymaxF) return;
+        body += `  \\addplot[${col}!60, thin, dashed] coordinates {(${coord(xG)},0) (${coord(xG)},${coord(yG)})};\n`;
+        body += `  \\addplot[${col}, only marks, mark=o, mark size=3pt] coordinates {(${coord(xG)},${coord(yG)})};\n`;
+        body += `  \\addplot[${col}, only marks, mark=*, mark size=1.5pt] coordinates {(${coord(xG)},${coord(yG)})};\n`;
       });
     });
   }
@@ -830,6 +1015,65 @@ function generateLatex() {
       body += `  \\node[anchor=south east, font=\\tiny, ${col}] at (axis cs:${xAf},${yAf}) {$\\left(${xAStr}\\,|\\,${yAStr}\\right)$};\n`;
       body += `  \\node[anchor=south west, font=\\tiny, ${col}] at (axis cs:${xBf},${yBf}) {$\\left(${xBStr}\\,|\\,${yBStr}\\right)$};\n`;
     });
+  }
+
+  // ── Differenzenquotient-Applet im LaTeX ───────────────────────────
+  // Baut drawDiffQuot() (08_draw.js) nach: Sekante durch A/B (+ Tangente in A,
+  // falls A und B nahe genug beieinander liegen), Steigungsdreieck mit
+  // Katheten-Beschriftung, Punkte A/B mit Koordinaten-Label — bisher
+  // komplett im Export gefehlt (gleiche Kategorie Lücke wie beim Ober-/
+  // Untersummen-Applet oben: nur die zugrundeliegende Funktion selbst wurde
+  // automatisch mitexportiert, nicht die Konstruktion). Sekante und Dreieck
+  // bewusst in neutralem Schwarz statt Funktionsfarbe — gleiche Konvention
+  // wie dqConstrColor() auf dem Canvas; Punkte A/B bleiben in der
+  // Funktionsfarbe (Nutzerwunsch, siehe drawDiffQuot()).
+  if (typeof diffQuot !== 'undefined' && diffQuot) {
+    const dFn = functions[diffQuot.fi];
+    if (dFn && dFn.visible !== false) {
+      const dxA = diffQuot.xA, dxB = diffQuot.xB;
+      const dyA = safeEval(dFn.expr, dxA), dyB = safeEval(dFn.expr, dxB);
+      if (isFinite(dyA) && isFinite(dyB)) {
+        const dCol = pgfColors[diffQuot.fi % pgfColors.length];
+        const dIsCoincident = Math.abs(dxB - dxA) < 1e-9;
+        const dDerivA = deriv1(dFn.expr, dxA);
+        const dM = dIsCoincident ? dDerivA : (dyB - dyA) / (dxB - dxA);
+        body += `  % Differenzenquotient-Applet\n`;
+        // Sekante über den gesamten sichtbaren Bereich
+        const secY0 = dyA + dM * (xminF - dxA), secY1 = dyA + dM * (xmaxF - dxA);
+        body += `  \\addplot[black, thick] coordinates {(${coord(xminF)},${coord(secY0)}) (${coord(xmaxF)},${coord(secY1)})};\n`;
+        // Tangente in A: nur wenn A/B nahe beieinander (wie DIFFQUOT_NEAR_H
+        // auf dem Canvas) UND nicht exakt zusammenfallend (dann ist die
+        // Sekante oben bereits identisch mit der Tangente).
+        const _NEAR_H = (typeof DIFFQUOT_NEAR_H !== 'undefined') ? DIFFQUOT_NEAR_H : 0.25;
+        if (!dIsCoincident && Math.abs(dxB - dxA) < _NEAR_H) {
+          const tanY0 = dyA + dDerivA * (xminF - dxA), tanY1 = dyA + dDerivA * (xmaxF - dxA);
+          body += `  \\addplot[violet, thin, dashed] coordinates {(${coord(xminF)},${coord(tanY0)}) (${coord(xmaxF)},${coord(tanY1)})};\n`;
+        }
+        // Steigungsdreieck mit Katheten-Beschriftung (nur wenn A≠B — bei
+        // Koinzidenz gäbe es kein sichtbares Dreieck)
+        const dxLeft = Math.min(dxA, dxB), dxRight = Math.max(dxA, dxB);
+        const dyLeft = safeEval(dFn.expr, dxLeft), dyRight = safeEval(dFn.expr, dxRight);
+        if (!dIsCoincident && isFinite(dyLeft) && isFinite(dyRight)) {
+          body += `  \\addplot[black, dashed, thick] coordinates {(${coord(dxLeft)},${coord(dyLeft)}) (${coord(dxRight)},${coord(dyLeft)}) (${coord(dxRight)},${coord(dyRight)})};\n`;
+          const legHLtx = Math.abs(dxRight - dxLeft), legVLtx = Math.abs(dyRight - dyLeft);
+          if (legHLtx > 1e-9) {
+            body += `  \\node[anchor=north, font=\\tiny] at (axis cs:${coord((dxLeft + dxRight) / 2)},${coord(dyLeft)}) {$${latexNum(legHLtx)}$};\n`;
+          }
+          if (legVLtx > 1e-9) {
+            body += `  \\node[anchor=west, font=\\tiny] at (axis cs:${coord(dxRight)},${coord((dyLeft + dyRight) / 2)}) {$${latexNum(legVLtx)}$};\n`;
+          }
+        }
+        // Punkte A und B in Funktionsfarbe (wie auf dem Canvas)
+        if (dIsCoincident) {
+          body += `  \\addplot[${dCol}, fill=white, only marks, mark=*, mark size=3pt] coordinates {(${coord(dxA)},${coord(dyA)})};\n`;
+          body += `  \\node[anchor=south west, font=\\small, ${dCol}] at (axis cs:${coord(dxA)},${coord(dyA)}) {$A=B\\left(${latexNum(dxA)}\\,|\\,${latexNum(dyA)}\\right)$};\n`;
+        } else {
+          body += `  \\addplot[${dCol}, fill=white, only marks, mark=*, mark size=3pt] coordinates {(${coord(dxA)},${coord(dyA)}) (${coord(dxB)},${coord(dyB)})};\n`;
+          body += `  \\node[anchor=south east, font=\\small, ${dCol}] at (axis cs:${coord(dxA)},${coord(dyA)}) {$A\\left(${latexNum(dxA)}\\,|\\,${latexNum(dyA)}\\right)$};\n`;
+          body += `  \\node[anchor=north west, font=\\small, ${dCol}] at (axis cs:${coord(dxB)},${coord(dyB)}) {$B\\left(${latexNum(dxB)}\\,|\\,${latexNum(dyB)}\\right)$};\n`;
+        }
+      }
+    }
   }
 
   // ── Preamble ─────────────────────────────────────────────────────

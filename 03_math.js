@@ -16,6 +16,11 @@
     .mfrac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 2px;line-height:1.2;}
     .mfrac .mfrac-num{border-bottom:1px solid currentColor;padding:0 3px 1px;text-align:center;min-width:8px;align-self:stretch;box-sizing:border-box;}
     .mfrac .mfrac-den{padding:1px 3px 0;text-align:center;min-width:8px;}
+    .nthroot{display:inline-flex;align-items:flex-start;white-space:nowrap;margin:0 2px;}
+    .nthroot .nthroot-idx{font-size:0.6em;position:relative;top:0.05em;margin-right:-0.35em;}
+    .nthroot .nthroot-body{position:relative;display:inline-flex;align-items:stretch;padding-left:0.6em;margin-left:0.05em;}
+    .nthroot .nthroot-body::before{content:"";position:absolute;left:0;top:0.05em;bottom:0.05em;width:0.55em;border-left:1.4px solid currentColor;border-bottom:1.4px solid currentColor;transform:skewX(-12deg);transform-origin:bottom left;}
+    .nthroot .nthroot-content{display:inline-flex;align-items:flex-end;border-top:1.4px solid currentColor;padding:0.1em 3px 0;}
     #loesungsweg-box{white-space:normal!important;font-family:monospace;}
     #loesungsweg-box .lw-line{display:block;line-height:2.4;padding-left:0;}
     #loesungsweg-box .lw-indent{padding-left:1.5em;}
@@ -127,7 +132,16 @@ function asSimpleFrac(v, latex) {
       const p = Math.round(abs * q);
       if (p > 0 && Math.abs(p / q - abs) < tol) {
         const g = gcd(p, q);
-        return latex ? `${neg}\\frac{${p/g}}{${q/g}}` : `${neg}${p/g}/${q/g}`;
+        const qr = q / g;
+        // Rundungsrauschen (z.B. aus einer numerisch geschätzten Ableitung wie
+        // getQuadCoeffs() in 04_analysis.js) kann eine eigentlich ganze Zahl
+        // (z.B. 1.000001 statt exakt 1) knapp am strengen Ganzzahl-Test oben
+        // vorbeischrammen lassen — dann aber erst über die 5e-5-Toleranz
+        // gefunden werden. Ohne diese Prüfung würde sowas als "1/1" statt als
+        // "1" ausgegeben (analog zum bereits behobenen numToFrac()-Fehler in
+        // 05_points.js).
+        if (qr === 1) return neg + String(p / g);
+        return latex ? `${neg}\\frac{${p/g}}{${qr}}` : `${neg}${p/g}/${qr}`;
       }
     }
   }
@@ -159,6 +173,29 @@ function fracHTML(v) {
     return `<span class="mfrac"><span class="mfrac-num">${num}</span><span class="mfrac-den">${den}</span></span>`;
   }
   return parseFloat(v.toFixed(Math.max(precision, 2))).toString();
+}
+
+// Gibt eine ⁿ√(…)-Wurzel als HTML zurück: <span class="nthroot">…</span> —
+// siehe .nthroot* in injectFracCSS() oben. indexStr und contentHTML sind
+// bereits fertig formatierte Strings (Zahl bzw. HTML-Schnipsel, z.B. auch mit
+// mfrac drin) — genutzt für den Textaufgaben-Löser der Exponentialfunktionen
+// (expSolveUpdate(), 11_fitting.js), damit b = (y/a)^(1/x) als echte x-te
+// Wurzel statt als Bruch-im-Exponenten angezeigt wird.
+//
+// Bewusst KEIN separates "√"-Textzeichen mehr vor dem Radikanden (Bugreport:
+// "steht wie separat und klein vor dem Bruch [...] horizontale Linie [...]
+// ist aber mit dem Wurzelzeichen nicht verbunden") — ein Zeichen-Glyph hat
+// eine feste Höhe und kann sich nicht an einen zweizeiligen Bruch als
+// Radikand anpassen. Stattdessen: Häkchen und Balken sind EIN zusammen-
+// hängendes CSS-Konstrukt auf .nthroot-body (::before mit border-left +
+// border-bottom, per top/bottom ABSOLUT positioniert statt fester Höhe — das
+// lässt das Häkchen automatisch mit der tatsächlichen Höhe des Radikanden
+// mitwachsen, egal ob einzeilige Zahl oder zweizeiliger Bruch) und
+// .nthroot-content (border-top als durchgehender, direkt anschliessender
+// Balken). Per Screenshot-Test verifiziert (sowohl einzeilig als auch mit
+// Bruch als Radikand).
+function rootHTML(indexStr, contentHTML) {
+  return `<span class="nthroot"><sup class="nthroot-idx">${indexStr}</sup><span class="nthroot-body"><span class="nthroot-content">${contentHTML}</span></span></span>`;
 }
 
 // Koordinaten-String, z.B. "(1/3 | 2)". latex=true → LaTeX für drawMathLabel()-Overlays.
@@ -357,8 +394,8 @@ function kbdInsert(before, after, extraArg) {
   el.setSelectionRange(cursorPos, cursorPos);
   if (fi >= 0 && functions[fi]) {
     functions[fi].expr = newVal;
-    syncParams(); syncAreaSelects(); scheduleComputeSpecials();
-    if (showArea) updateAreaResult(); scheduleDraw();
+    syncParams(); scheduleComputeSpecials();
+     scheduleDraw();
   } else {
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
@@ -392,8 +429,8 @@ function kbdFrac() {
   el.setSelectionRange(cursorPos, cursorPos);
   if (fi >= 0 && functions[fi]) {
     functions[fi].expr = newVal;
-    syncParams(); syncAreaSelects(); scheduleComputeSpecials();
-    if (showArea) updateAreaResult(); scheduleDraw();
+    syncParams(); scheduleComputeSpecials();
+     scheduleDraw();
   } else {
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
@@ -433,7 +470,11 @@ function fixNegParenPow(s) {
         let k = j + 1;
         while (k < s.length && s[k] === ' ') k++;
         if (k + 1 < s.length && s[k] === '*' && s[k+1] === '*') {
-          r.push('(-'); r.push(s.slice(i+1, j+1)); r.push(')'); i = j + 1; continue;
+          // WICHTIG: 0-(...)** statt (-(...))** — sonst würde bei geradem
+          // Exponenten das Vorzeichen verschluckt: (-(a))**2 = a², aber
+          // gemeint (und mathematisch korrekt) ist -(a**2) = -a² (siehe
+          // Kommentar bei getEvalFn oben, Schritt 1/3 machen es genauso).
+          r.push('0-'); r.push(s.slice(i+1, j+1)); i = j + 1; continue;
         }
       }
     }
