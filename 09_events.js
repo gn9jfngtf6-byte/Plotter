@@ -238,7 +238,9 @@ canvas.addEventListener('mousemove', e => {
       // Tooltip mit aktuellen Koordinaten zeigen
       const tip = document.getElementById('tooltip');
       tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-      tip.textContent = niceCoord(pt2.x, pt2.y);
+      // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
+      // (kein Bruch-Wechsel, Nutzerwunsch).
+      tip.textContent = niceCoordDec(pt2.x, pt2.y, false, 2);
       scheduleDraw();
 
     } else if (drag.type === 'graphpt') {
@@ -274,7 +276,9 @@ canvas.addEventListener('mousemove', e => {
         const tip = document.getElementById('tooltip');
         const kindLabel = snapKind ? ` [${snapKind}]` : '';
         tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-        tip.textContent = `f${gp.fi+1}: ${niceCoord(gp.x, isFinite(y) ? y : NaN)}${kindLabel}`;
+        // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
+        // (kein Bruch-Wechsel, Nutzerwunsch).
+        tip.textContent = `f${gp.fi+1}: ${niceCoordDec(gp.x, isFinite(y) ? y : NaN, false, 2)}${kindLabel}`;
       }
       scheduleDraw();
 
@@ -290,7 +294,9 @@ canvas.addEventListener('mousemove', e => {
       loUpdateFromDrag(m.x, m.y);
       const tip = document.getElementById('tooltip');
       tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-      tip.textContent = `z = ${niceNum(loObjK)}`;
+      // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
+      // (kein Bruch-Wechsel, Nutzerwunsch).
+      tip.textContent = `z = ${niceNumDec(loObjK, false, 2)}`;
       scheduleDraw();
 
     } else if (drag.type === 'trigproj') {
@@ -329,7 +335,9 @@ canvas.addEventListener('mousemove', e => {
         scheduleComputeSpecials();
         const tip = document.getElementById('tooltip');
         tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-        tip.textContent = niceCoord(pt2.x, pt2.y);
+        // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
+        // (kein Bruch-Wechsel, Nutzerwunsch).
+        tip.textContent = niceCoordDec(pt2.x, pt2.y, false, 2);
         scheduleDraw();
       }
 
@@ -354,7 +362,9 @@ canvas.addEventListener('mousemove', e => {
         const yB = safeEval(fnS.expr, newX);
         const tip = document.getElementById('tooltip');
         tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-        tip.textContent = niceCoord(newX, isFinite(yB) ? yB : NaN);
+        // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
+        // (kein Bruch-Wechsel, Nutzerwunsch).
+        tip.textContent = niceCoordDec(newX, isFinite(yB) ? yB : NaN, false, 2);
       }
       scheduleDraw();
 
@@ -376,7 +386,9 @@ canvas.addEventListener('mousemove', e => {
           const yNew = safeEval(fnD.expr, newX);
           const tip = document.getElementById('tooltip');
           tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-          tip.textContent = `${which}: ${niceCoord(newX, isFinite(yNew) ? yNew : NaN)}`;
+          // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
+          // (kein Bruch-Wechsel, Nutzerwunsch).
+          tip.textContent = `${which}: ${niceCoordDec(newX, isFinite(yNew) ? yNew : NaN, false, 2)}`;
         }
       }
       scheduleDraw();
@@ -642,7 +654,9 @@ canvas.addEventListener('touchmove', e => {
       updateAllLinkedLines(); renderPointList(); scheduleComputeSpecials();
       const tip = document.getElementById('tooltip');
       tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-      tip.textContent = niceCoord(pt2.x, pt2.y);
+      // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
+      // (kein Bruch-Wechsel, Nutzerwunsch).
+      tip.textContent = niceCoordDec(pt2.x, pt2.y, false, 2);
     } else if (drag.type === 'graphpt') {
       let newX = fromCanvas(m.x, m.y).x;
       const gp2t = graphPoints[drag.idx];
@@ -838,12 +852,45 @@ window.addEventListener('resize', () => scheduleDraw()); // Fallback
 // History-Stack: Array von serialisierten Zuständen (JSON-Strings)
 // historyIdx zeigt auf den aktuellen Zustand.
 let history = [], historyIdx = -1, historyPaused = false;
+let _historyPauseTimer = null; // s. applyState() unten
+
+// Normalisiert eine Funktion für die History-Momentaufnahme: die
+// Domain-Autoerkennung (_applyDetectedDomain(), 06_ui_functions.js) läuft
+// ASYNCHRON über einen 200ms/700ms-Timer (renderFuncList() bzw. der
+// input-Handler) und schreibt domainMin/domainMax/domainMinOpen/
+// domainMaxOpen/domainExcluded/domainGaps auf fn — AUCH wenn das Ergebnis
+// "keine Einschränkung" ist (Felder bleiben null/false/[]). Vorher sind
+// diese Felder auf frisch angelegten/gerade erst getippten Funktionen
+// schlicht NICHT vorhanden. captureState() (unten) wird an ganz
+// unterschiedlichen Stellen relativ zu diesem Timer aufgerufen — je nachdem
+// ob er schon gelaufen ist oder nicht, unterscheidet sich die JSON-
+// Repräsentation ein und derselben (für den Nutzer identischen!) Funktion.
+// pushHistory()'s Gleichheitsprüfung ist ein reiner JSON-String-Vergleich
+// (siehe dort) und hält das fälschlich für eine echte Änderung — das
+// erzeugt einen "Phantom"-Eintrag in der History, der historyIdx nach dem
+// nächsten undo()/redo() wieder auf denselben (unveränderten!) Zustand
+// zurückfallen lässt. Ergebnis genau wie berichtet: Vor-/Zurück-Knopf tut
+// scheinbar nichts (ein Klick verpufft am Phantom-Eintrag) bzw. wirkt
+// später sprunghaft (mehrere aufgehäufte Phantom-Einträge). Fix: diese
+// Felder IMMER explizit auf denselben Default normalisieren, unabhängig
+// davon ob der Timer schon gelaufen ist — macht die Momentaufnahme
+// zeitpunkt-unabhängig und damit deterministisch vergleichbar.
+function _normalizeFuncForHistory(fn) {
+  const f = Object.assign({}, fn);
+  if (f.domainMin === undefined) f.domainMin = null;
+  if (f.domainMax === undefined) f.domainMax = null;
+  if (f.domainMinOpen === undefined) f.domainMinOpen = false;
+  if (f.domainMaxOpen === undefined) f.domainMaxOpen = false;
+  if (f.domainExcluded === undefined) f.domainExcluded = [];
+  if (f.domainGaps === undefined) f.domainGaps = [];
+  return f;
+}
 
 // Serialisiert den Plot-INHALT (ohne View/Zoom) für Undo/Redo.
 // View-Änderungen (Pan, Zoom) werden bewusst nicht rückgängig gemacht.
 function captureState() {
   return JSON.parse(JSON.stringify({
-    functions, params, points, linkedLines,
+    functions: functions.map(_normalizeFuncForHistory), params, points, linkedLines,
     graphPoints, unitCirclePts,
     // Lineare Optimierung (siehe 17_linopt.js) — optional-verkettet, da ältere
     // gespeicherte Zustände (vor Einführung dieses Features) diese Felder
@@ -891,7 +938,18 @@ function applyState(s) {
   scheduleDraw();
   // Längere Verzögerung: verzögerte DOM-Events (blur, change) nach renderFuncList
   // sollen nicht in die History schreiben.
-  setTimeout(() => { historyPaused = false; }, 250);
+  // WICHTIG: den vorherigen Pause-Timer löschen, bevor ein neuer gestartet
+  // wird. Bei zwei schnell aufeinanderfolgenden Undo/Redo-Klicks (z.B.
+  // gehaltene Ctrl+Z-Taste, Tastatur-Wiederholung) überlappen sich sonst
+  // zwei unabhängige 250ms-Timer — der ÄLTERE setzt historyPaused=false
+  // vorzeitig zurück, noch während der zweite applyState()-Aufruf gerade
+  // nachwirkende DOM-Events (blur/change/input) absetzt. Diese können dann
+  // unbemerkt eine verspätete pushHistory() auslösen und die History mit
+  // einem weiteren Phantom-Eintrag verunreinigen (dieselbe Symptomatik wie
+  // die Domain-Autoerkennung oben: Vor-/Zurück "tut nichts" bzw. später
+  // "mehrere Schritte auf einmal").
+  clearTimeout(_historyPauseTimer);
+  _historyPauseTimer = setTimeout(() => { historyPaused = false; }, 250);
 }
 
 // Schreibt den aktuellen Zustand in den History-Stack.

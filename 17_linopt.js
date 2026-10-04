@@ -596,8 +596,10 @@ function drawLoObjectiveLine() {
   ctx.strokeStyle = LO_OBJ_COLOR; ctx.lineWidth = 2.5; ctx.stroke();
   ctx.beginPath(); ctx.arc(hc.cx, hc.cy, 3, 0, 2 * PI); ctx.fillStyle = LO_OBJ_COLOR; ctx.fill();
 
+  // Zielfunktions-Wert ändert sich laufend beim Ziehen des Handles → fest
+  // dezimal, 2 Nachkommastellen (kein Bruch-Wechsel, Nutzerwunsch).
   ctx.font = 'bold 11px system-ui,sans-serif'; ctx.fillStyle = LO_OBJ_COLOR; ctx.textAlign = 'left';
-  ctx.fillText(`z = ${niceNum(loObjK)}`, hc.cx + 12, hc.cy - 8);
+  ctx.fillText(`z = ${niceNumDec(loObjK, false, 2)}`, hc.cx + 12, hc.cy - 8);
   ctx.restore();
 }
 
@@ -626,8 +628,13 @@ function drawLinOpt() {
         ctx.beginPath(); ctx.arc(c.cx, c.cy, 4.5, 0, 2 * PI);
         ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fill();
         ctx.strokeStyle = LO_STROKE; ctx.lineWidth = 2; ctx.stroke();
+        // Eckpunkte verschieben sich laufend, wenn eine Nebenbedingung gezogen
+        // wird → fest dezimal, 2 Nachkommastellen (kein Bruch-Wechsel,
+        // Nutzerwunsch). Die Eckpunkte-Liste im Lösungsweg (weiter unten)
+        // bleibt bewusst bei fracHTML()/niceCoord(), da sie ein fertiges,
+        // nicht-bewegliches Ergebnis zeigt.
         ctx.font = '11px system-ui,sans-serif'; ctx.fillStyle = '#1e40af'; ctx.textAlign = 'left';
-        ctx.fillText(niceCoord(p.x, p.y), c.cx + 8, c.cy - 6);
+        ctx.fillText(niceCoordDec(p.x, p.y, false, 2), c.cx + 8, c.cy - 6);
         ctx.restore();
       });
     }

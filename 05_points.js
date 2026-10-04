@@ -60,7 +60,9 @@ function renderPointList() {
     nameInp.oninput = e => { points[i].label = e.target.value || `P${i+1}`; scheduleDraw(); };
 
     const coord = document.createElement('span'); coord.style.cssText = 'flex:1;font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-    coord.textContent = niceCoord(pt.x, pt.y);
+    // Manuelle Punkte sind ziehbar → fest dezimal, 2 Nachkommastellen (kein
+    // Bruch-/Wurzel-Wechsel in der Sidebar-Liste, Nutzerwunsch).
+    coord.textContent = niceCoordDec(pt.x, pt.y, false, 2);
     const del = document.createElement('button'); del.className = 'del-btn'; del.textContent = '✕';
     del.onclick = () => deletePoint(i);
     row.append(dot, nameInp, coord, del); el.appendChild(row);

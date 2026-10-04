@@ -228,12 +228,30 @@ function fmtObliqueAsymLabel(slope, intercept, latex) {
 // Gerundet auf die eingestellte Präzision, keine springenden Brüche.
 // latex=true → LaTeX (nur für π-Vielfache relevant; reine Dezimalzahlen sind in
 // LaTeX und Unicode identisch geschrieben).
-function niceNumDec(v, latex) {
+// fixedDec (optional): feste Nachkommastellenzahl statt der globalen
+// "Nachkommastellen"-Einstellung (precision) — siehe niceCoordDec() unten.
+function niceNumDec(v, latex, fixedDec) {
   if (!isFinite(v)) return '–';
   if (Math.abs(v) < 1e-9) return '0';
   // Pi-Modus: exakte π-Vielfache bleiben (z.B. π/2 im Trig-Kontext)
   if (usePiMode()) { const pf = asPiFraction(v); if (pf) return latex ? formatPiLatex(pf.p, pf.q) : formatPi(pf.p, pf.q); }
-  return parseFloat(v.toFixed(precision)).toString();
+  const dec = (typeof fixedDec === 'number') ? fixedDec : precision;
+  return parseFloat(v.toFixed(dec)).toString();
+}
+
+// Koordinaten-String, IMMER dezimal (kein Bruch-/Wurzel-Wechsel) — für Punkte,
+// deren Wert sich laufend ändert (gezogene Punkte, Live-Hover-Tooltips, …).
+// Nutzerwunsch: "Funktionswerte sollten Dezimalzahlen sein, gerundet auf 2
+// Nachkommastellen ... diese Werte ändern sich, wenn ich Punkte bewege ...
+// Falls etwas fix ist, sollte eine Wurzel/Bruch-Darstellung bevorzugt werden,
+// wie bis jetzt" — d.h. NUR bewegliche/laufend wechselnde Koordinaten (z.B.
+// draggable Punkte, Steigungsdreieck-Ecken, Live-Tooltips) wechseln hier auf
+// feste 2-Dezimalstellen; echte FESTE/analytische Werte (Nullstellen,
+// Extrema, Lösungsweg-Kästen, …) bleiben unverändert bei niceCoord()/niceNum()
+// und damit bei Bruch-/Wurzel-Bevorzugung.
+function niceCoordDec(x, y, latex, fixedDec) {
+  if (latex) return `(${niceNumDec(x, true, fixedDec)} \\mid ${niceNumDec(y, true, fixedDec)})`;
+  return `(${niceNumDec(x, false, fixedDec)} | ${niceNumDec(y, false, fixedDec)})`;
 }
 
 // ═══════════════════════════════════════════════════════════════════

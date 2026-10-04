@@ -202,6 +202,55 @@ function generateLatex() {
   const xCm = uCm.toFixed(1);
   const yCm = uCm.toFixed(1);
 
+  // ── Achsenbeschriftungs-Kollisionsvermeidung (Ticks) ────────────────
+  // Analog zur Canvas-Lösung (computeLabelSkip() in 08_draw.js, draw()):
+  // die Gitterlinien/Ticks bleiben alle bestehen (xtick/ytick unverändert),
+  // aber die ZAHLEN daneben werden ausgedünnt (nur jede n-te sichtbar),
+  // sobald sie bei der gewählten cm-Skalierung + Schriftgrösse sonst
+  // kollidieren würden. pgfplots hat kein Layout-Feedback wie ein echter
+  // Renderer — die physische Label-Grösse wird daher aus Zeichenanzahl und
+  // Schriftgrösse GESCHÄTZT (0.5em/Zeichen ist für Ziffern/Klammern/Kommas
+  // in den meisten LaTeX-Schriften eine brauchbare Näherung). Werden früh
+  // hier (statt erst weiter unten) gelesen, da sowohl die π-Achsen-
+  // beschriftung (weiter unten) als auch die normale xtick/ytick-Erzeugung
+  // (noch weiter unten) sie braucht. Nutzerwunsch: "Achsenbeschriftungen
+  // ... übereinanderliegen", auch im Export.
+  const _ltxFont = _ltxS('ltx-tickfont') || '\\footnotesize';
+  const _ltxScale = (_ltxV('ltx-scale') ?? 1.0);
+  const _xCmS = (parseFloat(xCm)*_ltxScale).toFixed(2);
+  const _yCmS = (parseFloat(yCm)*_ltxScale).toFixed(2);
+  const _ltxFontPtMap = { '\\tiny': 5, '\\scriptsize': 7, '\\footnotesize': 8, '\\small': 9, '\\normalsize': 10 };
+  const _ltxFontPt = _ltxFontPtMap[_ltxFont] || 8;
+  const PT_TO_CM = 0.0352778;
+  // Schätzt die physische Breite eines Labels in cm (LaTeX-Steuerbefehle wie
+  // \frac{}{} und \pi zählen als grob 1 "Zeichen" ihrer sichtbaren Grösse,
+  // daher werden Backslash-Befehle vor dem Zählen entfernt).
+  function ltxLabelWidthCm(text) {
+    const plain = String(text).replace(/\\[a-zA-Z]+/g, 'x').replace(/[{}$]/g, '');
+    return Math.max(1, plain.length) * _ltxFontPt * 0.5 * PT_TO_CM;
+  }
+  // Dünnt eine (Tick-Werte, Tick-Labels)-Liste aus: behält ALLE Ticks
+  // (Gitterlinien bleiben vollständig), blendet aber Labels aus, wenn der
+  // cm-Abstand zwischen zwei benachbarten Ticks kleiner ist als die
+  // geschätzte Breite des breitesten Labels + Mindestabstand. values: die
+  // ROHEN Zahlenwerte (nicht die formatierten Strings) — der Ausdünnungs-
+  // Raster wird an value=0 verankert (idx = Math.round(value/stepData)),
+  // damit der Nullpunkt-Tick (falls im Bereich) immer sichtbar bleibt und
+  // das Muster nicht vom View-Rand abhängt (analog zu computeLabelSkip() /
+  // "idx % skip" auf dem Canvas, 08_draw.js).
+  function ltxDeclutterLabels(values, labels, stepData, cmPerUnitAxis) {
+    if (labels.length < 2) return labels;
+    const maxW = labels.reduce((mx, s) => Math.max(mx, ltxLabelWidthCm(s)), 0);
+    const stepCm = Math.abs(stepData) * cmPerUnitAxis;
+    const minGapCm = 0.15;
+    const skip = Math.max(1, Math.ceil((maxW + minGapCm) / Math.max(stepCm, 0.01)));
+    if (skip <= 1) return labels;
+    return labels.map((lbl, i) => {
+      const idx = Math.round(values[i] / stepData);
+      return (idx % skip === 0) ? lbl : '';
+    });
+  }
+
   // ── Tick-Berechnung ───────────────────────────────────────────────
   const _xts = _ltxV('ltx-xtickstep'), _yts = _ltxV('ltx-ytickstep');
   const xGS = (_xts && _xts > 0) ? _xts : gridStep(xRange);
@@ -216,6 +265,23 @@ function generateLatex() {
     const isInt = Math.abs(step - Math.round(step)) < 1e-9;
     if (isInt) return `{${Math.round(lo)},${Math.round(lo+step)},...,${Math.round(hi)}}`;
     return `{${parseFloat(lo.toFixed(4))},${parseFloat((lo+step).toFixed(4))},...,${parseFloat(hi.toFixed(4))}}`;
+  }
+
+  // Wie niceTickStr(), aber mit vollständig ausgeschriebener xtick/ytick-
+  // Werteliste UND einer parallelen, ausgedünnten xticklabels/yticklabels-
+  // Liste (ltxDeclutterLabels(), s.o.) — niceTickStr()'s kompakte "..."-
+  // Syntax lässt pgfplots selbst durchzählen und erlaubt daher KEIN
+  // Ausblenden einzelner Labels; für die Kollisionsvermeidung wird die
+  // explizite Liste gebraucht (Nutzerwunsch: "Achsenbeschriftungen ...
+  // übereinanderliegen", auch im Export).
+  function buildDeclutteredTickAxis(lo, hi, step, cmPerUnitAxis) {
+    const isInt = Math.abs(step - Math.round(step)) < 1e-9;
+    const vals = [];
+    for (let t = lo; t <= hi + step * 1e-6; t += step) vals.push(parseFloat(t.toFixed(6)));
+    const fmt = v => isInt ? String(Math.round(v)) : String(parseFloat(v.toFixed(4)));
+    const rawLabels = vals.map(fmt);
+    const labels = ltxDeclutterLabels(vals, rawLabels, step, cmPerUnitAxis);
+    return { tickStr: `{${vals.map(fmt).join(',')}}`, labelStr: `{${labels.join(',')}}` };
   }
 
   // ── Pol-Erkennung: Domäne aufteilen ───────────────────────────────
@@ -379,10 +445,11 @@ function generateLatex() {
     // Passenden Schritt wählen: π/2 wenn View klein, π wenn mittel, 2π wenn gross
     const xRange = xmaxF - xminF;
     const piStep = xRange <= 4*PI ? PI/2 : xRange <= 8*PI ? PI : 2*PI;
-    const ticks = [], labels = [];
+    const ticks = [], tickVals = [], labels = [];
     const startTick = Math.ceil(xminF / piStep) * piStep;
     for (let t = startTick; t <= xmaxF + 1e-9; t += piStep) {
       ticks.push(coord(t));
+      tickVals.push(t);
       // Label
       const pf = asPiFraction(t);
       if (Math.abs(t) < 1e-9) {
@@ -399,7 +466,12 @@ function generateLatex() {
     }
     if (ticks.length) {
       xtickStr = `  xtick={${ticks.join(',')}},`;
-      xticklabelStr = `  xticklabels={${labels.join(',')}},`;
+      // Zusätzlich zur groben piStep-Eskalation (π/2→π→2π je nach Range)
+      // auch die feinere, schriftgrössen-/skalierungsbewusste Ausdünnung
+      // anwenden — π-Brüche wie "3π/2" sind breiter als "π" und können bei
+      // kleiner cm-Skalierung trotzdem noch kollidieren.
+      const declutteredLabels = ltxDeclutterLabels(tickVals, labels, piStep, uCm);
+      xticklabelStr = `  xticklabels={${declutteredLabels.join(',')}},`;
     }
   }
 
@@ -554,7 +626,25 @@ function generateLatex() {
             if (y < inf) inf = y;
           }
           if (sup === -Infinity || inf === Infinity) continue; // hier nirgends definiert
-          rStrips.push({ sxL, sxR, sup, inf });
+          // Auf den sichtbaren y-Bereich [yminF,ymaxF] klemmen, BEVOR die Höhe
+          // als "axis cs:"-Koordinate exportiert wird (Bugreport: "dimension
+          // too high" beim Kompilieren, z.B. bei x^4/8-1). Grund: anders als
+          // beim Canvas (dort schneidet der Browser Pixel ausserhalb des
+          // sichtbaren Canvas automatisch und lautlos ab, siehe fillRect() in
+          // drawRiemann(), 08_draw.js) gibt es bei einem rohen \path...
+          // rectangle(axis cs:...) in pgfplots KEIN automatisches Clipping —
+          // die Koordinate wird über die feste "x=…cm,y=…cm"-Skalierung IMMER
+          // in eine physische TikZ-Länge umgerechnet, auch wenn der Wert weit
+          // ausserhalb des sichtbaren Plots liegt. Bei einer schnell
+          // wachsenden Funktion (z.B. x⁴/8−1) kann eine Rechtecks-Ecke daher
+          // ein Vielfaches der sichtbaren Achse betragen und die physische
+          // Länge TeX' harte 16383.99998pt-Grenze überschreiten. Klemmen auf
+          // den sichtbaren Bereich entspricht optisch exakt dem, was auf dem
+          // Canvas ohnehin zu sehen ist (Balken wird am Rand des sichtbaren
+          // Bereichs gekappt statt lückenlos weiterzuwachsen).
+          const supC = Math.min(Math.max(sup, yminF), ymaxF);
+          const infC = Math.min(Math.max(inf, yminF), ymaxF);
+          rStrips.push({ sxL, sxR, sup: supC, inf: infC });
         }
         if (rStrips.length) {
           // Gleiche feste Farben wie auf dem Canvas: COLORS[1]='#D85A30'
@@ -706,14 +796,29 @@ function generateLatex() {
       if (flaeche.axis === 'x' || flaeche.axis === 'g') {
         if (fHi - fLo > 1e-9) {
           const d1c = coord(fLo), d2c = coord(fHi);
+          const expr2x = hasG ? fFn2.expr : '0';
+          // Wie in drawFlaeche() (08_draw.js): a/b dürfen seit der Snap-mit-
+          // Release-Änderung weitere Schnittpunkte überstreichen, dort muss
+          // ein EIGENER fill-between-Aufruf pro vorzeichenkonstantem
+          // Teilintervall erfolgen (sonst self-intersecting soft-clip-Pfad,
+          // gleicher Effekt wie der Canvas-Bug, siehe dortige Doku).
+          const interiorRootsX = (typeof _riemannFindIntersections === 'function')
+            ? _riemannFindIntersections(fFn1.expr, expr2x, fLo, fHi)
+              .filter(r => r > fLo + 1e-7 && r < fHi - 1e-7).sort((p, q) => p - q)
+            : [];
+          const segBoundsX = [fLo, ...interiorRootsX, fHi];
           let secondPath = `F${flaeche.fi2}`;
           body += `  % Fläche zwischen f und ${hasG ? 'g' : 'der x-Achse'} (Flächen-Applet)\n`;
           if (!hasG) {
             secondPath = 'FLAECHE_XACHSE';
             body += `  \\addplot[draw=none, name path=${secondPath}] coordinates {(${d1c},0) (${d2c},0)};\n`;
           }
-          body += `  \\addplot[${fillCol}!30, fill opacity=0.5, draw=none]\n`;
-          body += `    fill between[of=F${flaeche.fi1} and ${secondPath}, soft clip={domain=${d1c}:${d2c}}];\n`;
+          for (let si = 0; si < segBoundsX.length - 1; si++) {
+            const segLo = segBoundsX[si], segHi = segBoundsX[si + 1];
+            if (segHi - segLo < 1e-9) continue;
+            body += `  \\addplot[${fillCol}!30, fill opacity=0.5, draw=none]\n`;
+            body += `    fill between[of=F${flaeche.fi1} and ${secondPath}, soft clip={domain=${coord(segLo)}:${coord(segHi)}}];\n`;
+          }
           body += `  \\addplot[black, fill=white, only marks, mark=*, mark size=3pt] coordinates {(${coord(fA)},0) (${coord(fB)},0)};\n`;
           body += `  \\node[anchor=south, font=\\small, yshift=2pt] at (axis cs:${coord(fA)},0) {$a=${latexNum(fA)}$};\n`;
           body += `  \\node[anchor=south, font=\\small, yshift=2pt] at (axis cs:${coord(fB)},0) {$b=${latexNum(fB)}$};\n`;
@@ -806,8 +911,29 @@ function generateLatex() {
   if (document.getElementById('chk-unitcircle').checked) {
 
     // Gestrichelter Einheitskreis bei (0,0) mit Radius 1
+    //
+    // WICHTIG (gemeldeter Bug: "wird sehr falsch exportiert" — der Kreis
+    // erschien als wilde, in sich verschlungene "Rosette" statt als Kreis):
+    // pgfplots' sin()/cos() erwarten standardmässig GRAD als Argument, daher
+    // wurde \x (läuft hier 0…6.28319, also RADIANT-Werte für 0…2π) bisher
+    // immer erst per deg(\x) in Grad umgerechnet. Sobald aber irgendeine
+    // sichtbare trigonometrische Funktion existiert (hasTrig()), setzt der
+    // Export weiter unten global `trig format plots=rad` auf der Achse — das
+    // ist NÖTIG, damit z.B. y=sin(x) (dessen \x-Domäne im Bogenmass läuft)
+    // korrekt gezeichnet wird. Diese Achsen-Option gilt aber für ALLE
+    // \addplot-Befehle in der Achse, auch für diesen Kreis: sin()/cos()
+    // erwarten dann bereits Radiant — die zusätzliche deg(\x)-Umrechnung
+    // rechnet dann ein zweites Mal um und macht aus den erwarteten
+    // Radiant-Werten (0…2π) fälschlich Grad-Werte (0…360), die als Radiant
+    // interpretiert werden (~57 volle Umdrehungen) → die "Rosette". Einheits-
+    // kreis wird praktisch immer ZUSAMMEN mit sin/cos/tan benutzt, daher trat
+    // der Fehler regelmässig auf. Fix: deg(\x) nur anwenden, wenn NICHT
+    // bereits `trig format plots=rad` aktiv ist (siehe hasTrig() weiter
+    // unten) — sonst \x direkt verwenden, da es dann schon im korrekten
+    // Bogenmass vorliegt.
+    const _circTrig = hasTrig() ? '\\x' : 'deg(\\x)';
     body += `  \\addplot[gray!60, thick, dashed, domain=0:6.28319, samples=200]\n`;
-    body += `    ({cos(deg(\\x))}, {sin(deg(\\x))});\n`;
+    body += `    ({cos(${_circTrig})}, {sin(${_circTrig})});\n`;
 
     // Standard-Winkelmarkierungen: kleine Punkte + Winkel-Labels
     const stdAngles = [0, PI/6, PI/4, PI/3, PI/2, 2*PI/3, 3*PI/4, 5*PI/6,
@@ -820,12 +946,33 @@ function generateLatex() {
     if (stdCoordList.length)
       body += `  \\addplot[gray!50, only marks, mark=*, mark size=1pt] coordinates {${stdCoordList.join(' ')}};\n`;
 
+    // Winkel-Anzeige (Grad/Bogenmaß) am Einheitskreis: dasselbe dedizierte
+    // #unitcircle-angle-mode-Dropdown wie auf dem Canvas (siehe
+    // formatUnitCircleAngle() in 08_draw.js) — NICHT die globale
+    // "π-Notation"-Einstellung (#pi-mode), damit Export und Canvas-Anzeige
+    // konsistent bleiben (Nutzerwunsch: eigene Einstellung für den
+    // Einheitskreis).
+    function _ltxUnitCircleAngle(a) {
+      const modeEl = document.getElementById('unitcircle-angle-mode');
+      const mode = modeEl ? modeEl.value : 'deg';
+      if (mode === 'rad') {
+        if (Math.abs(a) < 1e-9) return '0';
+        const pf = asPiFraction(a);
+        // formatPiLatex() statt latexNum(): direkt π-Bruch bilden, OHNE
+        // Umweg über die globale usePiMode()-Prüfung (latexNum()/niceNum()
+        // würden bei deaktiviertem pi-mode auf Dezimal zurückfallen — die
+        // Einheitskreis-Einstellung soll aber unabhängig davon gelten).
+        if (pf) return formatPiLatex(pf.p, pf.q);
+        return parseFloat(a.toFixed(2)).toString();
+      }
+      return `${Math.round(a*180/PI)}^{\\circ}`;
+    }
+
     // Winkel-Labels
     stdAngles.forEach(a => {
       const cA = Math.cos(a), sA = Math.sin(a);
       if (cA < xminF-0.3 || cA > xmaxF+0.3 || sA < yminF-0.3 || sA > ymaxF+0.3) return;
-      const pf2 = asPiFraction(a);
-      const lbl = (pf2 && usePiMode()) ? latexNum(a) : `${Math.round(a*180/PI)}^{\\circ}`;
+      const lbl = _ltxUnitCircleAngle(a);
       const anc = cA >= 0 ? 'west' : 'east';
       body += `  \\node[anchor=${anc}, font=\\tiny, gray!70] at (axis cs:${coord(cA)},${coord(sA)}) {$${lbl}$};\n`;
     });
@@ -851,8 +998,7 @@ function generateLatex() {
       body += `  \\addplot[white, only marks, mark=o, mark size=3pt, line width=1.5pt] coordinates {(${cpxs},${cpys})};\n`;
 
       // 5. Labels: Winkel (blau, fett), cos= und sin=
-      const pf = asPiFraction(a);
-      const angleTxt = (pf && usePiMode()) ? latexNum(a) : `${parseFloat((a*180/PI).toFixed(1))}^{\\circ}`;
+      const angleTxt = _ltxUnitCircleAngle(a);
       const lblAnc = cosA >= 0 ? 'south west' : 'south east';
       const numAnc = cosA >= 0 ? 'north west' : 'north east';
       body += `  \\node[anchor=${lblAnc}, font=\\scriptsize\\bfseries, blue!80] at (axis cs:${cpxs},${cpys}) {$${angleTxt}$};\n`;
@@ -911,7 +1057,56 @@ function generateLatex() {
     if (kind === 'yaxis') return ltxChk('ltx-yaxis');
     return true;
   };
-  const anchorList = ['south west','north west','south east','north east','south','north','west','east'];
+  // ── Punkt-Label-Kollisionsvermeidung (Sonderpunkte/Freie Punkte/Graph-
+  // Punkte) ────────────────────────────────────────────────────────────
+  // Bisher: reines Round-Robin durch anchorList pro Gruppe, ohne echte
+  // Kollisionsprüfung und ohne dass die drei Gruppen voneinander wüssten
+  // — Labels konnten sich trotzdem überlappen. Fix: gemeinsames Registry
+  // (_ltxPlacedRects, in cm, wie das Canvas-Pendant placedRects in
+  // 08_draw.js) + greedy Platzierung, die für jeden Punkt die erste der
+  // 8 Standard-Anker-Positionen wählt, die mit noch keinem bereits
+  // platzierten Label kollidiert (pgfplots-Anker-Semantik: z.B.
+  // "south west" setzt die untere-linke Ecke des Knotens auf den Punkt,
+  // der Knoten wächst also nach oben-rechts — daher die dx/dy-Vorzeichen
+  // unten). Nutzerwunsch: "Beschriftungen der Punkte ... übereinander-
+  // liegen", auch im Export.
+  const _ltxPlacedRects = [];
+  const ANCHOR_DIRS = [
+    { name: 'south west', dx: 0,    dy: 0    },
+    { name: 'north east', dx: -1,   dy: -1   },
+    { name: 'south east', dx: -1,   dy: 0    },
+    { name: 'north west', dx: 0,    dy: -1   },
+    { name: 'north',      dx: -0.5, dy: -1   },
+    { name: 'south',      dx: -0.5, dy: 0    },
+    { name: 'west',       dx: -1,   dy: -0.5 },
+    { name: 'east',       dx: 0,    dy: -0.5 },
+  ];
+  // Schätzt Breite+Höhe eines Labels in cm für eine gegebene Schriftgrösse
+  // (analog zu ltxLabelWidthCm() weiter oben, aber mit eigenem fontCmd statt
+  // dem fest verdrahteten Tick-Font, da Punkt-Labels \tiny/\small nutzen).
+  function ltxLabelSizeCm(text, fontCmd) {
+    const fpt = _ltxFontPtMap[fontCmd] || 8;
+    const plain = String(text).replace(/\\[a-zA-Z]+/g, 'x').replace(/[{}$]/g, '');
+    const w = Math.max(1, plain.length) * fpt * 0.5 * PT_TO_CM;
+    const h = fpt * 1.2 * PT_TO_CM;
+    return { w, h };
+  }
+  function ltxPlaceAnchor(xData, yData, text, fontCmd) {
+    const cmPerUnitAxis = parseFloat(_xCmS); // gemeinsamer Massstab x=y (s.o.)
+    const xCmV = xData * cmPerUnitAxis, yCmV = yData * cmPerUnitAxis;
+    const { w, h } = ltxLabelSizeCm(text, fontCmd);
+    const pad = 0.05;
+    for (const dir of ANCHOR_DIRS) {
+      const rx = xCmV + dir.dx * w, ry = yCmV + dir.dy * h;
+      const collide = _ltxPlacedRects.some(r =>
+        rx < r.x + r.w + pad && rx + w + pad > r.x &&
+        ry < r.y + r.h + pad && ry + h + pad > r.y);
+      if (!collide) { _ltxPlacedRects.push({ x: rx, y: ry, w, h }); return dir.name; }
+    }
+    const dir = ANCHOR_DIRS[0];
+    _ltxPlacedRects.push({ x: xCmV + dir.dx * w, y: yCmV + dir.dy * h, w, h });
+    return dir.name;
+  }
   const subMap2 = {'₀':'0','₁':'1','₂':'2','₃':'3','₄':'4','₅':'5','₆':'6','₇':'7','₈':'8','₉':'9'};
   function normLabelLtx(lbl, fallback) {
     if (!lbl) return fallback;
@@ -923,7 +1118,6 @@ function generateLatex() {
   // 4a. Sonderpunkte (Nullstellen, Extrema etc.) — nach Checkbox gefiltert
   const spKindSymbol = { zero:'o', max:'triangle', min:'triangle*', inf:'square', isect:'otimes', yaxis:'diamond' };
   const spKindColor  = { zero:'black', max:'red!70!black', min:'blue!70!black', inf:'green!60!black', isect:'violet', yaxis:'orange!80!black' };
-  let spNodeIdx = 0;
   specials.forEach(sp => {
     if (!ltxKindOk(sp.kind)) return;
     if (sp.x < xminF || sp.x > xmaxF || sp.y < yminF || sp.y > ymaxF) return;
@@ -931,10 +1125,10 @@ function generateLatex() {
     const lx = latexNum(sp.x), ly = latexNum(sp.y);
     const sym = spKindSymbol[sp.kind] || '*';
     const col = spKindColor[sp.kind] || 'black';
-    const anc = anchorList[spNodeIdx % anchorList.length];
-    spNodeIdx++;
+    const labTxt = `\\left(${lx}\\,|\\,${ly}\\right)`;
+    const anc = ltxPlaceAnchor(sp.x, sp.y, labTxt, '\\tiny');
     body += `  \\addplot[${col}, only marks, mark=${sym}, mark size=2pt] coordinates {(${xf},${yf})};\n`;
-    body += `  \\node[anchor=${anc}, font=\\tiny, ${col}] at (axis cs:${xf},${yf}) {$\\left(${lx}\\,|\\,${ly}\\right)$};\n`;
+    body += `  \\node[anchor=${anc}, font=\\tiny, ${col}] at (axis cs:${xf},${yf}) {$${labTxt}$};\n`;
   });
 
   // 4b. Freie Punkte
@@ -943,9 +1137,10 @@ function generateLatex() {
       const xf = coord(pt.x), yf = coord(pt.y);
       const lx = latexNum(pt.x), ly = latexNum(pt.y);
       const ptName = normLabelLtx(pt.label, `P_{${i+1}}`);
-      const anc = anchorList[i % anchorList.length];
+      const labTxt = `${ptName}\\left(${lx}\\,|\\,${ly}\\right)`;
+      const anc = ltxPlaceAnchor(pt.x, pt.y, labTxt, '\\small');
       body += `  \\addplot[only marks, mark=*, mark size=2.5pt, black] coordinates {(${xf},${yf})};\n`;
-      body += `  \\node[anchor=${anc}, font=\\small] at (axis cs:${xf},${yf}) {$${ptName}\\left(${lx}\\,|\\,${ly}\\right)$};\n`;
+      body += `  \\node[anchor=${anc}, font=\\small] at (axis cs:${xf},${yf}) {$${labTxt}$};\n`;
     });
   }
 
@@ -957,9 +1152,10 @@ function generateLatex() {
       const xf = coord(gp.x), yf = coord(yVal);
       const lx = latexNum(gp.x), ly = latexNum(yVal);
       const col = pgfColors[gp.fi % pgfColors.length];
-      const anc = anchorList[(points.length + i) % anchorList.length];
+      const labTxt = `\\left(${lx}\\,|\\,${ly}\\right)`;
+      const anc = ltxPlaceAnchor(gp.x, yVal, labTxt, '\\small');
       body += `  \\addplot[only marks, mark=o, mark size=3pt, ${col}] coordinates {(${xf},${yf})};\n`;
-      body += `  \\node[anchor=${anc}, font=\\small, ${col}] at (axis cs:${xf},${yf}) {\\textcolor{${col}}{$\\left(${lx}\\,|\\,${ly}\\right)$}};\n`;
+      body += `  \\node[anchor=${anc}, font=\\small, ${col}] at (axis cs:${xf},${yf}) {\\textcolor{${col}}{$${labTxt}$}};\n`;
     });
   }
 
@@ -1079,6 +1275,25 @@ function generateLatex() {
   // ── Preamble ─────────────────────────────────────────────────────
   const axisLines = [];
   axisLines.push(`  xmin=${xminF}, xmax=${xmaxF}, ymin=${yminF}, ymax=${ymaxF},`);
+  // "restrict y to domain" — Bugreport (weiterhin "dimension too large" trotz
+  // des Klemmens der Ober-/Untersummen-Rechtecke oben): DIESELBE Ursache
+  // betrifft nämlich nicht nur die Riemann-Rechtecke, sondern JEDES \addplot
+  // einer Nutzerfunktion — pgfplots klemmt \addplot-Punkte NICHT automatisch
+  // auf ymin/ymax (das reine "clip=true" der Axis schneidet nur beim
+  // ZEICHNEN, NACHDEM die physische TikZ-Koordinate schon berechnet wurde);
+  // bei einer schnell wachsenden Funktion wie x⁴/8−1 kann ein einzelner
+  // Sample-Punkt der Kurve selbst (nicht nur ein Riemann-Rechteck) über die
+  // feste "x=…cm,y=…cm"-Skalierung eine physische Länge jenseits von TeX'
+  // harter 16383.99998pt-Grenze ergeben → "Dimension too large", auch ganz
+  // ohne Ober-/Untersummen. "restrict y to domain=ymin:ymax" verwirft
+  // Kurvenpunkte ausserhalb des sichtbaren y-Bereichs BEVOR pgfplots sie in
+  // eine physische Koordinate umrechnet — behebt das Problem für ALLE
+  // exportierten Kurven (Funktionsgraphen, Folgen, Flächen-Füllungen usw.),
+  // nicht nur für die Ober-/Untersummen-Rechtecke. Per pdflatex-Testkompilierung
+  // verifiziert (x⁴/8−1 über einen weiten x-Bereich kompiliert jetzt sauber,
+  // die Kurve wird am oberen Rand des sichtbaren Bereichs einfach gekappt —
+  // exakt wie auf dem Canvas).
+  axisLines.push(`  restrict y to domain=${yminF}:${ymaxF},`);
   axisLines.push('  axis lines=middle,');
   axisLines.push('  xlabel=$x$, ylabel=$y$,');
   // Achsenbeschriftung: Position von y=0 und x=0 im Bildbereich [0,1] berechnen
@@ -1088,10 +1303,8 @@ function generateLatex() {
   axisLines.push(`  every axis x label/.style={at={(axis description cs:0.975,${_xAxisFrac.toFixed(3)})},anchor=north},`);
   axisLines.push(`  every axis y label/.style={at={(axis description cs:${_yAxisFrac.toFixed(3)},0.975)},anchor=east},`);
   axisLines.push('  grid=both,');
-  const _ltxFont = _ltxS('ltx-tickfont') || '\\footnotesize';
-  const _ltxScale = (_ltxV('ltx-scale') ?? 1.0);
-  const _xCmS = (parseFloat(xCm)*_ltxScale).toFixed(2);
-  const _yCmS = (parseFloat(yCm)*_ltxScale).toFixed(2);
+  // _ltxFont/_ltxScale/_xCmS/_yCmS: bereits weiter oben gelesen (werden auch
+  // von der π-Achsenbeschriftung und der Tick-Kollisionsvermeidung gebraucht).
   axisLines.push(`  xticklabel style={font=${_ltxFont}},`);
   axisLines.push(`  yticklabel style={font=${_ltxFont}},`);
   axisLines.push(`  x=${_xCmS}cm, y=${_yCmS}cm,`);
@@ -1099,8 +1312,14 @@ function generateLatex() {
     axisLines.push(xtickStr);
     axisLines.push(xticklabelStr);
   } else {
-    axisLines.push(`  xtick=${niceTickStr(xTickMin, xTickMax, xGS)},`);
-    axisLines.push(`  ytick=${niceTickStr(yTickMin, yTickMax, yGS)},`);
+    const xT = buildDeclutteredTickAxis(xTickMin, xTickMax, xGS, uCm);
+    axisLines.push(`  xtick=${xT.tickStr},`);
+    axisLines.push(`  xticklabels=${xT.labelStr},`);
+  }
+  {
+    const yT = buildDeclutteredTickAxis(yTickMin, yTickMax, yGS, uCm);
+    axisLines.push(`  ytick=${yT.tickStr},`);
+    axisLines.push(`  yticklabels=${yT.labelStr},`);
   }
   axisLines.push('  scaled y ticks=false,');
   if (hasTrig()) axisLines.push('  trig format plots=rad,');

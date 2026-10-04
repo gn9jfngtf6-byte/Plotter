@@ -32,7 +32,12 @@ function loadPlotFile(input) {
       const state = parsed.state || parsed; // Rückwärtskompatibilität
       pushHistory();
       applyState(state);
-      pushHistory();
+      // NICHT sofort pushHistory() — applyState() setzt historyPaused=true
+      // SYNCHRON und hebt das erst nach 250ms wieder auf (s. dort); ein
+      // Aufruf direkt danach wäre also immer ein No-Op und der geladene
+      // Zustand würde NIE in der History landen (Vor-/Zurück "vergisst" das
+      // Laden komplett). Erst nach Ablauf der Pause pushen.
+      setTimeout(pushHistory, 300);
       showSaveMsg(`✓ "${file.name}" geladen.`, '#378ADD');
     } catch { showSaveMsg('Fehler: ungültige Datei.', '#e24b4a'); }
     input.value = ''; // zurücksetzen damit dieselbe Datei nochmals geladen werden kann
@@ -61,7 +66,8 @@ function readPlotterFile(file) {
     try {
       const parsed = JSON.parse(ev.target.result);
       const state = parsed.state || parsed;
-      pushHistory(); applyState(state); pushHistory();
+      pushHistory(); applyState(state);
+      setTimeout(pushHistory, 300); // s. Kommentar in loadPlotFile() oben
       showSaveMsg(`✓ "${file.name}" geladen.`, '#378ADD');
     } catch { showSaveMsg('Fehler: ungültige Datei.', '#e24b4a'); }
   };
@@ -92,7 +98,7 @@ function loadPlot(name) {
   if (!saves[name]) return;
   pushHistory();
   applyState(saves[name]);
-  pushHistory();
+  setTimeout(pushHistory, 300); // s. Kommentar in loadPlotFile() (10_io.js oben)
   showSaveMsg(`"${name}" geladen.`, '#378ADD');
 }
 
@@ -104,13 +110,22 @@ function deleteSave(name) {
 }
 
 function showSaveMsg(txt, col) {
+  // Speichern/Laden-Panel wurde auf Nutzerwunsch aus der Sidebar entfernt
+  // (index.html) — die zugehörigen Funktionen (savePlotFile(), loadPlotFile()
+  // usw.) bleiben aber bestehen, u.a. weil das Drag&Drop einer .plotter-Datei
+  // direkt auf den Canvas weiterhin funktioniert (siehe canvas-wrap 'drop'-
+  // Listener unten) und intern showSaveMsg()/renderSavedList() aufruft.
+  // Ohne diesen Guard würde das an document.getElementById('save-msg') === null
+  // scheitern, da es das Element nicht mehr gibt.
   const m = document.getElementById('save-msg');
+  if (!m) return;
   m.textContent = txt; m.style.color = col;
   setTimeout(() => m.textContent = '', 3500);
 }
 
 function renderSavedList() {
   const el = document.getElementById('saved-list');
+  if (!el) return; // Panel entfernt, s. Kommentar in showSaveMsg() oben
   const saves = getSaves();
   const names = Object.keys(saves);
   if (!names.length) { el.innerHTML = '<span style="color:#9ca3af;">Noch keine Slots.</span>'; return; }

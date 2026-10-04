@@ -60,9 +60,16 @@ function drawGraphPoints() {
     ctx.strokeStyle = gp.color; ctx.lineWidth = 2.5; ctx.stroke();
     ctx.beginPath(); ctx.arc(cx, cy, 3, 0, 2*PI); ctx.fillStyle = gp.color; ctx.fill();
 
-    // Koordinaten-Label
-    ctx.font = '11px system-ui,sans-serif'; ctx.fillStyle = gp.color; ctx.textAlign = 'left';
-    ctx.fillText(niceCoord(gp.x, y), cx + 12, cy - 2);
+    // Koordinaten-Label — über drawLabel()/placeLabel() (08_draw.js, siehe
+    // "LABEL-KOLLISIONSVERMEIDUNG" weiter unten) statt direktem fillText():
+    // dadurch weichen Graph-Punkt-Labels automatisch Spezielle-Punkte- und
+    // Manuelle-Punkte-Labels aus (gemeinsames placedRects-Register, einmal
+    // pro draw() über resetLabels() geleert) — Nutzerwunsch: "Beschriftungen
+    // der Punkte ... übereinanderliegen".
+    // Graph-Punkte sind ziehbar → fest dezimal, 2 Nachkommastellen (kein
+    // Bruch-/Wurzel-Wechsel beim Verschieben, Nutzerwunsch aus früherer Anfrage).
+    ctx.font = '11px system-ui,sans-serif'; ctx.textAlign = 'left';
+    drawLabel(ctx, niceCoordDec(gp.x, y, false, 2), cx, cy, gp.color, 'r');
     ctx.restore();
 
     // Löschen-X (nur anzeigen wenn nicht gerade gezogen)
@@ -223,35 +230,20 @@ function drawAsymptotes(w, h) {
 // STEIGUNGSDREIECK ZEICHNEN (nur für lineare Funktionen)
 // ═══════════════════════════════════════════════════════════════════
 
-// ── Canvas-Bruch-Renderer ──────────────────────────────────────────
-// Zeichnet einen Wert: als echten Bruch mit Bruchstrich wenn möglich, sonst als Text.
-// x,y: Ankerpunkt (Mittelpunkt der Bruchlinie bei Brüchen, Textmitte sonst)
-// align: 'left' | 'center' | 'right'
-// Gibt die Breite des gezeichneten Elements zurück.
+// ── Canvas-Zahlen-Renderer (Steigungsdreieck) ───────────────────────
+// Zeichnet einen Wert als reinen Text. x,y: Textmitte. align: 'left' |
+// 'center' | 'right'. Gibt die Breite des gezeichneten Textes zurück.
+//
+// Früher: bei "schönen" Werten ein echter Bruch mit Bruchstrich, sonst
+// Dezimalzahl — die Eckpunkte des Steigungsdreiecks sind aber ziehbar
+// (drawTriBetween(), Priorität 1: customPts/slopeTriPtsMap), Δx/Δy/m
+// änderten sich beim Ziehen daher laufend zwischen Bruch- und Dezimal-
+// darstellung (Nutzerwunsch: "ich möchte nicht, dass dauerhaft zwischen
+// Dezimalzahlen und Brüchen gewechselt wird"). Fix: immer Dezimalzahl,
+// fest auf 2 Nachkommastellen (niceNumDec mit fixedDec=2).
 function ctxFracVal(x, y, v, color, fontSize, align) {
   fontSize = fontSize || 10;
-  const fr = asSimpleFrac(v);
-  if (fr && fr.includes('/')) {
-    const slash = fr.lastIndexOf('/');
-    const num = fr.substring(0, slash), den = fr.substring(slash + 1);
-    ctx.save();
-    ctx.font = `${fontSize}px system-ui`;
-    ctx.fillStyle = color; ctx.strokeStyle = color;
-    const nW = ctx.measureText(num).width, dW = ctx.measureText(den).width;
-    const lineW = Math.max(nW, dW) + 6;
-    let lx = x;
-    if (align === 'center') lx = x - lineW / 2;
-    else if (align === 'right') lx = x - lineW;
-    const cx2 = lx + lineW / 2;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom'; ctx.fillText(num, cx2, y);
-    ctx.lineWidth = 0.8; ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(lx, y + 1); ctx.lineTo(lx + lineW, y + 1); ctx.stroke();
-    ctx.textBaseline = 'top'; ctx.fillText(den, cx2, y + 3);
-    ctx.restore();
-    return lineW;
-  }
-  const txt = niceNum(v);
+  const txt = niceNumDec(v, false, 2);
   ctx.save();
   ctx.font = `${fontSize}px system-ui`; ctx.fillStyle = color;
   ctx.textAlign = align || 'left'; ctx.textBaseline = 'middle';
@@ -260,7 +252,7 @@ function ctxFracVal(x, y, v, color, fontSize, align) {
   return ctx.measureText(txt).width;
 }
 
-// Zeichnet "m = p/q" oder "m = n" mit Bruchstrich wenn nötig.
+// Zeichnet "m = <Dezimalzahl>".
 function ctxSlopeLabel(x, y, slope, color, fontSize) {
   fontSize = fontSize || 10;
   ctx.save();
@@ -297,25 +289,22 @@ function drawSlopeTri(w, h) {
     ctx.beginPath(); ctx.moveTo(px0, py0); ctx.lineTo(px2, py2); ctx.lineTo(px1, py1); ctx.stroke();
     ctx.setLineDash([]);
 
+    // Alle Labels sind jetzt immer reine Dezimalzahlen (ctxFracVal(), s.o.) —
+    // daher einheitlicher Zeilenabstand (fs/2), keine Sonderbehandlung für
+    // eine zweizeilige Bruchdarstellung mehr nötig.
     const fs = 10; // fontSize
-    const fracH = fs * 2 + 6; // Höhe eines Bruchs (2 Zeilen + Linie)
-    const isFracDx = asSimpleFrac(dx) && asSimpleFrac(dx).includes('/');
-    const isFracDy = asSimpleFrac(dy) && asSimpleFrac(dy).includes('/');
-    const isFracSlope = asSimpleFrac(slope) && asSimpleFrac(slope).includes('/');
 
     // Δx-Label: horizontal zentriert unter/über der Grundlinie
-    const belowY = dy >= 0
-      ? py2 + (isFracDx ? fracH/2 + 4 : fs/2 + 4)
-      : py2 - (isFracDx ? fracH/2 + 4 : fs/2 + 4);
+    const belowY = dy >= 0 ? py2 + fs/2 + 4 : py2 - fs/2 - 4;
     ctxFracVal((px0+px2)/2, belowY, dx, fn.color, fs, 'center');
 
     // Δy-Label: rechts neben der Vertikalen, untere Hälfte
     const midY = (py1 + py2) / 2;
-    const dyY = midY + (isFracDy ? fracH/2 + 2 : fs/2 + 2);
+    const dyY = midY + fs/2 + 2;
     ctxFracVal(px2 + 6, dyY, dy, fn.color, fs, 'left');
 
     // m=-Label: rechts neben der Vertikalen, obere Hälfte
-    const mY = midY - (isFracSlope ? fracH/2 + 2 : fs/2 + 2);
+    const mY = midY - fs/2 - 2;
     ctxSlopeLabel(px2 + 6, mY, slope, fn.color, fs);
 
     // Punkte an den beiden Eckpunkten zeichnen mit Koordinaten-Label
@@ -324,9 +313,10 @@ function drawSlopeTri(w, h) {
       ctx.beginPath(); ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
       ctx.fillStyle = fn.color; ctx.fill();
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
-      // Koordinaten-Label mit Brüchen
+      // Koordinaten-Label — Dreieckspunkte sind ziehbar (slopeTriPtsMap) →
+      // fest dezimal, 2 Nachkommastellen (kein Bruch-Wechsel, Nutzerwunsch).
       ctx.font = `${fs}px system-ui`; ctx.fillStyle = fn.color;
-      const xStr = niceNum(x), yStr = niceNum(y);
+      const xStr = niceNumDec(x, false, 2), yStr = niceNumDec(y, false, 2);
       const lbl = `(${xStr}|${yStr})`;
       ctx.textAlign = idx === 0 ? 'right' : 'left';
       ctx.textBaseline = 'middle';
@@ -447,6 +437,16 @@ function findNearDiffQuotHit(mx, my) {
 // Differenzenquotient-Formel unten, z.B. "3 − (−1)" statt des
 // missverständlichen "3 − -1".
 function _dqParenDec(v) { const s = niceNumDec(v); return v < 0 ? `(${s})` : s; }
+
+// Fest auf 5 Nachkommastellen gerundet — UNABHÄNGIG von der globalen
+// "Nachkommastellen"-Einstellung (precision, 02_core.js). Für Anzeigen, bei
+// denen sich ein Näherungswert einem Grenzwert annähern soll (Nutzerwunsch,
+// sowohl beim Mittelwert der Ober-/Untersummen als auch beim
+// Differenzenquotienten m, der sich dem Differentialquotienten f'(x) nähert)
+// — dafür braucht es immer genug (und IMMER GLEICH VIEL) Auflösung, egal was
+// der Nutzer sonst als Nachkommastellen eingestellt hat. Negative Null (z.B.
+// -0.00000 nach Rundung) wird zu "0.00000" bereinigt (kosmetisch).
+function _fix5Dec(v) { if (!isFinite(v)) return '–'; const s = v.toFixed(5); return s === '-0.00000' ? '0.00000' : s; }
 
 // Zeichnet das Differenzenquotient-Applet: Sekante durch A und B, Steigungs-
 // dreieck (gestrichelt, MIT Katheten-Längenbeschriftung — Nutzerwunsch) sowie
@@ -586,7 +586,12 @@ function drawDiffQuot(w, h) {
   //      IMMER dezimal (niceNumDec statt fracHTML) — Nutzerwunsch: kein
   //      Wechsel zwischen Dezimalzahlen und Brüchen.
   if (dwEl) {
-    const dStr = niceNumDec(derivA), xAStr = niceNumDec(xA);
+    // Fest auf 5 Nachkommastellen gerundet (_fix5Dec, 08_draw.js, geteilt mit
+    // dem Riemann-Mittelwert) — UNABHÄNGIG von der globalen "Nachkommastellen"-
+    // Einstellung (Nutzerwunsch: "dann könnte man sehen, wie sich dieser der
+    // Steigung in diesem Punkt naht"). Dafür braucht es immer genug (und
+    // IMMER GLEICH VIEL) Auflösung, egal was der Nutzer sonst eingestellt hat.
+    const dStr = _fix5Dec(derivA), xAStr = niceNumDec(xA);
     let html = `<div>Differenzenquotient:</div>`;
     if (isCoincident) {
       // Grenzfall h=0: A und B liegen genau übereinander — kein 0/0-Bruch
@@ -598,12 +603,22 @@ function drawDiffQuot(w, h) {
       const denXA = _dqParenDec(xA); // vermeidet "3 − -1" in der Nenner-Zeile
       const frac0 = `<span class="mfrac"><span class="mfrac-num">f(${xBStr}) − f(${xAStr2})</span><span class="mfrac-den">${xBStr} − ${denXA}</span></span>`;
       const frac1 = `<span class="mfrac"><span class="mfrac-num">${niceNumDec(dySigned)}</span><span class="mfrac-den">${niceNumDec(hVal)}</span></span>`;
-      html += `<div style="margin:4px 0;">m = ${frac0} = ${frac1} = <b>${niceNumDec(m)}</b></div>`;
+      // Ergebnis bewusst in einer EIGENEN, separaten Zeile (analog zum
+      // Riemann-Mittelwert, siehe drawRiemann() oben): bei kleinen h-Werten
+      // ändert sich die Ziffernbreite der Formel-Zeile, was das Ergebnis
+      // sonst "springen" liesse.
+      html += `<div style="margin:4px 0;">m = ${frac0} = ${frac1}</div>`;
+      html += `<div>= <b>${_fix5Dec(m)}</b></div>`;
       if (isNear) {
-        html += `<div style="color:#1D9E75;font-weight:600;margin-top:3px;">→ A und B liegen nahe beieinander: m nähert sich dem Differentialquotienten f'(${xAStr}) = ${dStr}!</div>`;
+        html += `<div style="color:#1D9E75;font-weight:600;margin-top:3px;">→ A und B liegen nahe beieinander: m nähert sich dem Differentialquotienten f'(${xAStr}) an!</div>`;
       } else {
-        html += `<div style="margin-top:3px;">Ziehe A und B näher zusammen, um zu sehen, wie m sich dem Differentialquotienten (f'(${xAStr}) = ${dStr}) annähert.</div>`;
+        html += `<div style="margin-top:3px;">Ziehe A und B näher zusammen, um zu sehen, wie m sich dem Differentialquotienten f'(${xAStr}) annähert.</div>`;
       }
+      // Steigung (Differentialquotient) IMMER als eigene, klar beschriftete
+      // Zeile anzeigen (Nutzerwunsch: "Diese Steigung sollte auch angegeben
+      // werden") — vorher stand sie nur eingebettet in den obigen bedingten
+      // Hinweissätzen und war damit nicht immer klar sichtbar.
+      html += `<div style="margin-top:4px;">Steigung (Differentialquotient) f'(${xAStr}) = <b>${dStr}</b></div>`;
     }
     dwEl.innerHTML = html;
   }
@@ -779,13 +794,36 @@ function drawRiemann(w, h) {
     html += `<div style="margin-top:4px;color:#D85A30;font-weight:600;">Obersumme O = ${niceNumDec(obersumme)}</div>`;
     html += `<div style="color:#1D9E75;font-weight:600;">Untersumme U = ${niceNumDec(untersumme)}</div>`;
     html += `<div style="margin-top:3px;">O − U = ${niceNumDec(diff)}</div>`;
+    // Mittelwert von Ober- und Untersumme (Nutzerwunsch) — bessere Schätzung
+    // des exakten Integrals als O oder U allein (Fehler liegt "im Schnitt"
+    // ungefähr symmetrisch zwischen beiden). Formel ZUERST (mit echtem
+    // Bruchstrich, .mfrac — siehe injectFracCSS() in 03_math.js), danach erst
+    // die eingesetzten Werte und das Ergebnis (dieselbe Reihenfolge wie beim
+    // Textaufgaben-Löser der Exponentialfunktionen, 11_fitting.js).
+    const mid = (obersumme + untersumme) / 2;
+    const mfr = (num, den) => `<span class="mfrac"><span class="mfrac-num">${num}</span><span class="mfrac-den">${den}</span></span>`;
+    // Ergebnis bewusst in einer EIGENEN, separaten Zeile statt am Ende
+    // derselben Zeile wie die Formel (Nutzerwunsch): bei variierendem n
+    // ändert sich die Ziffernbreite von O/U in der Formel-Zeile, wodurch die
+    // Formel-Zeile mal umbricht und mal nicht — das liess das Ergebnis
+    // "springen". Mit einer eigenen, festen Zeile bleibt die Position des
+    // Ergebnisses beim Verändern von n stabil.
+    html += `<div style="margin-top:3px;">Mittelwert M = ${mfr('O + U', '2')} = ${mfr(`${niceNumDec(obersumme)} + ${niceNumDec(untersumme)}`, '2')}</div>`;
+    html += `<div>= ${_fix5Dec(mid)}</div>`;
     const sym = _riemannSymbolicIntegral(riemann.antiderivRaw, xLeft, xRight);
     if (sym) {
       // Symbolische Stammfunktion vorhanden — echter geschlossener Ausdruck
       // statt einer numerischen Simpson-Näherung (Nutzerwunsch: "einen
       // symbolischen Ausdruck für das Integral").
       const aL = latexNum(xLeft), bL = latexNum(xRight);
-      const latex = `\\int_{${aL}}^{${bL}} f(x)\\,dx = \\Big[${sym.FxLatex}\\Big]_{${aL}}^{${bL}} = ${latexNum(sym.value)}`;
+      const exactLtx = latexNum(sym.value);
+      // Kommt das exakte Integral als Bruch heraus (Nutzerwunsch: "oft" der
+      // Fall bei Polynomen) — zusätzlich als Dezimalzahl mit 5 Nachkomma-
+      // stellen anhängen, direkt vergleichbar mit dem Mittelwert M oben.
+      // Bei einem bereits ganzzahligen Ergebnis (kein "\frac" in latexNum())
+      // ist eine zusätzliche Dezimaldarstellung überflüssig.
+      const decSuffix = exactLtx.includes('\\frac') ? ` \\approx ${_fix5Dec(sym.value)}` : '';
+      const latex = `\\int_{${aL}}^{${bL}} f(x)\\,dx = \\Big[${sym.FxLatex}\\Big]_{${aL}}^{${bL}} = ${exactLtx}${decSuffix}`;
       html += `<div style="margin-top:4px;">Exaktes Integral (symbolisch):</div>`;
       html += `<div style="margin:2px 0 4px;">${latexToMathLiveHtml(latex)}</div>`;
     } else {
@@ -858,6 +896,26 @@ function drawFlaeche(w, h) {
     const expr2 = hasG ? fn2.expr : '0';
     const xLeft = lo, xRight = hi;
 
+    // Zerlegung an ZUSÄTZLICHEN Schnittpunkten von f und expr2 STRIKT
+    // INNERHALB (xLeft, xRight) — a/b dürfen sich seit der Snap-mit-Release-
+    // Änderung (siehe _riemannSnapX()) frei über weitere Schnittpunkte hinweg
+    // ziehen lassen, d.h. f−g muss im Intervall NICHT mehr das Vorzeichen
+    // beibehalten (der ursprüngliche Kommentar bei _riemannComputeAntiderivDiff
+    // ging noch davon aus). Ein einzelnes Polygon (vorwärts entlang f, zurück
+    // entlang g) über ein Intervall mit Vorzeichenwechsel ist selbstüber-
+    // schneidend — Canvas' "nonzero winding"-Füllregel kann dabei einen der
+    // beiden Lappen komplett verschwinden lassen (gemeldeter Fehler: "links
+    // von der y-Achse funktioniert es nicht" — reproduziert z.B. mit
+    // f=x^3, g=x und a links von der dritten Nullstelle bei x=-1). Fix: pro
+    // vorzeichenkonstantem Teilintervall ein EIGENES, in sich geschlossenes
+    // Polygon zeichnen (siehe Schleife unten) statt eines über den ganzen
+    // Bereich. Ohne weitere Schnittpunkte (Normalfall) ist segBounds genau
+    // [xLeft, xRight] — Verhalten dann unverändert zu vorher.
+    const interiorRoots = _riemannFindIntersections(fn1.expr, expr2, xLeft, xRight)
+      .filter(r => r > xLeft + 1e-7 && r < xRight - 1e-7)
+      .sort((p, q) => p - q);
+    const segBounds = [xLeft, ...interiorRoots, xRight];
+
     function drawBoundsMarkersX() {
       const { cx: cxA, cy: cyAx } = toCanvas(a, 0);
       const { cx: cxB } = toCanvas(b, 0);
@@ -888,17 +946,26 @@ function drawFlaeche(w, h) {
     }
 
     const aCol = AREA_ALPHAS[flaeche.fi1 % AREA_ALPHAS.length];
-    const width = xRight - xLeft;
-    const steps = Math.round(w * 2), xs = [], y1s = [], y2s = [];
-    for (let i = 0; i <= steps; i++) {
-      const x = xLeft + (i / steps) * width, ya = safeEval(fn1.expr, x), yb = safeEval(expr2, x);
-      if (isFinite(ya) && isFinite(yb)) { xs.push(x); y1s.push(ya); y2s.push(yb); }
+    const fullWidth = xRight - xLeft;
+    let anyFilled = false;
+    for (let si = 0; si < segBounds.length - 1; si++) {
+      const segLo = segBounds[si], segHi = segBounds[si + 1];
+      const width = segHi - segLo;
+      if (width < 1e-9) continue;
+      const steps = Math.max(20, Math.round(w * 2 * (width / fullWidth))), xs = [], y1s = [], y2s = [];
+      for (let i = 0; i <= steps; i++) {
+        const x = segLo + (i / steps) * width, ya = safeEval(fn1.expr, x), yb = safeEval(expr2, x);
+        if (isFinite(ya) && isFinite(yb)) { xs.push(x); y1s.push(ya); y2s.push(yb); }
+      }
+      if (xs.length > 1) {
+        anyFilled = true;
+        ctx.beginPath();
+        xs.forEach((x, i) => { const { cx, cy } = toCanvas(x, y1s[i]); i === 0 ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy); });
+        for (let i = xs.length - 1; i >= 0; i--) { const { cx, cy } = toCanvas(xs[i], y2s[i]); ctx.lineTo(cx, cy); }
+        ctx.closePath(); ctx.fillStyle = aCol; ctx.fill();
+      }
     }
-    if (xs.length > 1) {
-      ctx.beginPath();
-      xs.forEach((x, i) => { const { cx, cy } = toCanvas(x, y1s[i]); i === 0 ? ctx.moveTo(cx, cy) : ctx.lineTo(cx, cy); });
-      for (let i = xs.length - 1; i >= 0; i--) { const { cx, cy } = toCanvas(xs[i], y2s[i]); ctx.lineTo(cx, cy); }
-      ctx.closePath(); ctx.fillStyle = aCol; ctx.fill();
+    if (anyFilled) {
       const edgeCol = fn1.color + '88';
       ctx.strokeStyle = edgeCol; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
       const { cx: lx1 } = toCanvas(xLeft, 0), { cx: lx2 } = toCanvas(xRight, 0);
@@ -912,21 +979,50 @@ function drawFlaeche(w, h) {
     if (dwEl) {
       const gLabel = hasG ? 'g' : 'der x-Achse';
       let html = `<div>Fläche zwischen f und ${gLabel} im Intervall [${niceNumDec(xLeft)}, ${niceNumDec(xRight)}]</div>`;
-      const sym = _riemannSymbolicIntegral(flaeche.antiderivRaw, xLeft, xRight);
-      if (sym) {
-        const aL = latexNum(xLeft), bL = latexNum(xRight);
-        const areaVal = Math.abs(sym.value);
-        const gTex = hasG ? 'g(x)' : '0';
-        let latex = `\\int_{${aL}}^{${bL}} \\big(f(x)-${gTex}\\big)\\,dx = \\Big[${sym.FxLatex}\\Big]_{${aL}}^{${bL}} = ${latexNum(sym.value)}`;
-        html += `<div style="margin-top:4px;">Fläche (symbolisch):</div>`;
-        html += `<div style="margin:2px 0 4px;">${latexToMathLiveHtml(latex)}</div>`;
-        if (sym.value < 0) {
-          html += `<div>Fläche = <b>${latexToMathLiveHtml('\\left|' + latexNum(sym.value) + '\\right| = ' + latexNum(areaVal))}</b></div>`;
+      if (segBounds.length === 2) {
+        // Kein zusätzlicher Schnittpunkt im Intervall — unverändertes
+        // Verhalten wie vor der Zerlegung (einzelnes bestimmtes Integral).
+        const sym = _riemannSymbolicIntegral(flaeche.antiderivRaw, xLeft, xRight);
+        if (sym) {
+          const aL = latexNum(xLeft), bL = latexNum(xRight);
+          const areaVal = Math.abs(sym.value);
+          const gTex = hasG ? 'g(x)' : '0';
+          let latex = `\\int_{${aL}}^{${bL}} \\big(f(x)-${gTex}\\big)\\,dx = \\Big[${sym.FxLatex}\\Big]_{${aL}}^{${bL}} = ${latexNum(sym.value)}`;
+          html += `<div style="margin-top:4px;">Fläche (symbolisch):</div>`;
+          html += `<div style="margin:2px 0 4px;">${latexToMathLiveHtml(latex)}</div>`;
+          if (sym.value < 0) {
+            html += `<div>Fläche = <b>${latexToMathLiveHtml('\\left|' + latexNum(sym.value) + '\\right| = ' + latexNum(areaVal))}</b></div>`;
+          }
+        } else {
+          const exact = (typeof computeArea === 'function') ? computeArea(fn1.expr, expr2, xLeft, xRight) : NaN;
+          if (isFinite(exact)) {
+            html += `<div style="margin-top:4px;">Fläche ≈ <b>${niceNumDec(exact)}</b></div>`;
+          }
         }
       } else {
-        const exact = (typeof computeArea === 'function') ? computeArea(fn1.expr, expr2, xLeft, xRight) : NaN;
-        if (isFinite(exact)) {
-          html += `<div style="margin-top:4px;">Fläche ≈ <b>${niceNumDec(exact)}</b></div>`;
+        // Intervall enthält weitere Schnittpunkte — f−g wechselt dort das
+        // Vorzeichen, ein einzelnes bestimmtes Integral wäre die SIGNIERTE
+        // (Netto-)Fläche, nicht die tatsächlich eingeschlossene Fläche.
+        // Stattdessen abschnittsweise je Vorzeichenbereich integrieren und
+        // die Beträge summieren (pro Abschnitt symbolisch, wenn möglich,
+        // sonst numerisch über computeArea() — die selbst schon |f−g|
+        // integriert und daher korrekt bleibt).
+        let total = 0; const parts = [];
+        for (let si = 0; si < segBounds.length - 1; si++) {
+          const segLo = segBounds[si], segHi = segBounds[si + 1];
+          const sym = _riemannSymbolicIntegral(flaeche.antiderivRaw, segLo, segHi);
+          if (sym) {
+            total += Math.abs(sym.value);
+            parts.push(latexNum(Math.abs(sym.value)));
+          } else {
+            const exact = (typeof computeArea === 'function') ? computeArea(fn1.expr, expr2, segLo, segHi) : NaN;
+            if (isFinite(exact)) { total += exact; parts.push(latexNum(exact)); }
+          }
+        }
+        html += `<div style="margin-top:4px;color:var(--text-muted);">Das Intervall enthält ${interiorRoots.length} weitere Schnittpunkt${interiorRoots.length === 1 ? '' : 'e'} von f und ${gLabel} — die Fläche wird abschnittsweise berechnet.</div>`;
+        if (parts.length) {
+          const sumLatex = parts.map(p => `\\left|${p}\\right|`).join(' + ') + ` = ${latexNum(total)}`;
+          html += `<div style="margin-top:4px;">Fläche = <b>${latexToMathLiveHtml(sumLatex)}</b></div>`;
         }
       }
       dwEl.innerHTML = html;
@@ -1045,9 +1141,12 @@ function drawPerpMarkers() {
     ctx.restore();
     return { cx, cy };
   }
+  // M/Q hängen von ptA/ptB/throughPt ab (ziehbare Graph-Punkte) und ändern
+  // sich daher live beim Ziehen → fest dezimal, 2 Nachkommastellen (kein
+  // Bruch-Wechsel, Nutzerwunsch).
   function labelAt(cx, cy, letter, x, y, col) {
     const html = (typeof latexToMathLiveHtml === 'function')
-      ? letter + latexToMathLiveHtml(niceCoord(x, y, true))
+      ? letter + latexToMathLiveHtml(niceCoordDec(x, y, true, 2))
       : null;
     if (html) {
       drawMathLabel(html, cx + 7, cy - 8, col, { align: 'left', baseline: 'bottom', fontSize: 11 });
@@ -1055,7 +1154,7 @@ function drawPerpMarkers() {
       ctx.save();
       ctx.font = '11px system-ui'; ctx.fillStyle = col;
       ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
-      ctx.fillText(`${letter}${niceCoord(x, y)}`, cx + 7, cy - 8);
+      ctx.fillText(`${letter}${niceCoordDec(x, y, false, 2)}`, cx + 7, cy - 8);
       ctx.restore();
     }
   }
@@ -1105,6 +1204,38 @@ function drawPerpMarkers() {
 //     0…2π), cos → a−π/2 (Fenster -π/2…3π/2) — cos wird damit strukturell
 //     zu einem phasenverschobenen sin (cos(a−π/2)=sin(a)): bei Kreispunkt
 //     (0,1) [a=π/2] liegt der Graphpunkt ebenfalls bei (0,1).
+// Winkel-Anzeige am Einheitskreis: Gradmaß oder Bogenmaß, über das
+// dedizierte #unitcircle-angle-mode-Dropdown im Trigonometrie-Panel
+// (index.html) wählbar — Nutzerwunsch: eigene Einstellung NUR für den
+// Einheitskreis, unabhängig von der globalen "π-Notation"-Einstellung
+// (#pi-mode im ⚙-Menü), die an vielen anderen Stellen der App verwendet
+// wird und hier bewusst NICHT mitgilt.
+function unitCircleAngleMode() {
+  const el = document.getElementById('unitcircle-angle-mode');
+  return el ? el.value : 'deg';
+}
+// Formatiert einen Winkel a (Bogenmaß, wie intern gespeichert) je nach
+// unitCircleAngleMode():
+//  - 'deg' (Standard): immer ganze Gradzahl, wie bisher (Nutzerwunsch
+//    "möglichst einfach" aus einer früheren Anfrage) — keine π-Notation,
+//    keine Nachkommastellen.
+//  - 'rad': echtes Bogenmaß — π-Bruch wenn der Winkel "schön" ist (z.B. an
+//    den festen Standard-Markierungen unten, oder wenn der gezogene Punkt
+//    dort einschnappt), sonst Dezimalzahl fest auf 2 Nachkommastellen
+//    (niceNumDec mit fixedDec=2 — derselbe "kein Bruch-/Dezimal-Wechsel für
+//    bewegliche Werte"-Grundsatz wie bei den übrigen ziehbaren Punkten,
+//    da der Kreispunkt frei beweglich ist und meist NICHT exakt auf einem
+//    π-Vielfachen liegt).
+function formatUnitCircleAngle(a) {
+  if (unitCircleAngleMode() === 'rad') {
+    if (Math.abs(a) < 1e-9) return '0';
+    const pf = asPiFraction(a);
+    if (pf) return formatPi(pf.p, pf.q);
+    return niceNumDec(a, false, 2);
+  }
+  return `${Math.round(a*180/PI)}°`;
+}
+
 function drawUnitCircle(w, h) {
   const { ox, oy, r } = getCircleParams(); if (r < 2) return; // zu klein zum Zeichnen
   const v = isoView || view;
@@ -1126,8 +1257,7 @@ function drawUnitCircle(w, h) {
     if (cosA >= v.xmin - 0.1 && cosA <= v.xmax + 0.1 && sinA >= v.ymin - 0.1 && sinA <= v.ymax + 0.1) {
       const lx = px + (cosA >= 0 ? 12 : -12), ly = py + (sinA <= 0 ? 13 : -4);
       ctx.fillStyle = '#6b7280'; ctx.textAlign = cosA >= 0 ? 'left' : 'right';
-      const pf = asPiFraction(a); // π-Notation wenn möglich
-      ctx.fillText(pf && usePiMode() ? formatPi(pf.p, pf.q) : `${Math.round(a*180/PI)}°`, lx, ly);
+      ctx.fillText(formatUnitCircleAngle(a), lx, ly);
     }
   });
 
@@ -1156,15 +1286,18 @@ function drawUnitCircle(w, h) {
     ctx.strokeStyle = '#378ADD'; ctx.lineWidth = 2.5; ctx.stroke();
     ctx.beginPath(); ctx.arc(px, py, 3, 0, 2*PI); ctx.fillStyle = '#378ADD'; ctx.fill();
 
-    // Label: Winkel, cos-Wert, sin-Wert
-    const pf = asPiFraction(a);
-    const angleTxt = pf && usePiMode() ? formatPi(pf.p, pf.q) : `${niceNum(a*180/PI)}°`;
+    // Label: Winkel, cos-Wert, sin-Wert — Winkel-Einheit (Grad/Bogenmaß)
+    // über formatUnitCircleAngle() steuerbar (Nutzerwunsch: eigene
+    // Einstellung für den Einheitskreis).
+    const angleTxt = formatUnitCircleAngle(a);
     const lx = px + (cosA >= 0 ? 13 : -13), ly = py + (sinA <= 0 ? 18 : -8);
     ctx.font = 'bold 10px system-ui'; ctx.fillStyle = '#1e40af'; ctx.textAlign = cosA >= 0 ? 'left' : 'right';
     ctx.fillText(angleTxt, lx, ly);
     ctx.font = '9px system-ui';
-    ctx.fillStyle = '#1D9E75'; ctx.fillText(`cos=${niceNum(cosA)}`, lx, ly + 12);
-    ctx.fillStyle = '#D85A30'; ctx.fillText(`sin=${niceNum(sinA)}`, lx, ly + 22);
+    // cos=/sin= ändern sich laufend beim Ziehen des Kreispunkts → fest
+    // dezimal, 2 Nachkommastellen (kein Bruch-Wechsel, Nutzerwunsch).
+    ctx.fillStyle = '#1D9E75'; ctx.fillText(`cos=${niceNumDec(cosA, false, 2)}`, lx, ly + 12);
+    ctx.fillStyle = '#D85A30'; ctx.fillText(`sin=${niceNumDec(sinA, false, 2)}`, lx, ly + 22);
 
     // Tangenskonstruktion (klassisch, namensgebend): die durch Ursprung und
     // Kreispunkt verlängerte Gerade schneidet die senkrechte Tangente x=1
@@ -1180,6 +1313,12 @@ function drawUnitCircle(w, h) {
       const e = fn.expr.trim();
       return /\btan\s*\(/.test(e) && !/\bsin\s*\(/.test(e) && !/\bcos\s*\(/.test(e);
     });
+    // tanTipPoint: die Spitze des Tangens-"Dreiecks" (Ursprung–(1,0)–(1,tanA))
+    // auf der Tangente x=1, in Canvas-Koordinaten — wird unten (Schleife über
+    // functions) für die horizontale Verbindungslinie zum Punkt auf dem
+    // tan-Graphen benötigt (Nutzerwunsch), daher hier ausserhalb des
+    // if-Blocks deklariert.
+    let tanTipPoint = null;
     if (hasVisibleTan && Math.abs(cosA) > 1e-6) {
       const tanA = sinA / cosA; // == tan(a) exakt, wie unten in der Projektion
       const { cx: tx, cy: ty } = toCanvas(1, tanA);
@@ -1192,8 +1331,11 @@ function drawUnitCircle(w, h) {
       ctx.beginPath(); ctx.moveTo(t0x, t0y); ctx.lineTo(tx, ty); ctx.stroke();
       ctx.setLineDash([]);
       ctx.beginPath(); ctx.arc(tx, ty, 3, 0, 2*PI); ctx.fillStyle = '#8B5CF6'; ctx.fill();
+      // tan= ändert sich laufend beim Ziehen des Kreispunkts → fest dezimal,
+      // 2 Nachkommastellen (kein Bruch-Wechsel, Nutzerwunsch).
       ctx.font = '9px system-ui'; ctx.fillStyle = '#8B5CF6'; ctx.textAlign = 'left';
-      ctx.fillText(`tan=${niceNum(tanA)}`, tx + 6, ty + 3);
+      ctx.fillText(`tan=${niceNumDec(tanA, false, 2)}`, tx + 6, ty + 3);
+      tanTipPoint = { tx, ty };
     }
 
     // Projektion auf alle sichtbaren Graphen
@@ -1228,7 +1370,9 @@ function drawUnitCircle(w, h) {
       const hasSin = /\bsin\s*\(/.test(expr);
       const hasCos = /\bcos\s*\(/.test(expr);
       const hasTan = /\btan\s*\(/.test(expr);
+      const isSinLike = hasSin && !hasCos && !hasTan;
       const isCosLike = hasCos && !hasSin && !hasTan;
+      const isTanLike = hasTan && !hasSin && !hasCos; // dieselbe Erkennung wie hasVisibleTan oben
 
       const xG = isCosLike ? a - PI/2 : a;
       const yG = safeEval(fn.expr, xG);
@@ -1240,6 +1384,35 @@ function drawUnitCircle(w, h) {
       ctx.beginPath(); ctx.arc(gx, gy, 6, 0, 2*PI); ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
       ctx.strokeStyle = fn.color; ctx.lineWidth = 2; ctx.stroke();
       ctx.beginPath(); ctx.arc(gx, gy, 2.5, 0, 2*PI); ctx.fillStyle = fn.color; ctx.fill();
+
+      // Horizontale gestrichelte Verbindungslinie vom Kreispunkt zum Punkt
+      // auf dem sin-/cos-Graphen (Nutzerwunsch, analog zur bereits
+      // bestehenden Tangens-Verbindungslinie unten). Für BEIDE (sin und cos)
+      // liegt der Kreispunkt auf derselben Canvas-Höhe wie der Graphpunkt:
+      // bei sin, weil dessen Höhe direkt sinA ist (py); bei cos, weil xG
+      // bewusst um −π/2 phasenverschoben ist (siehe Kommentar weiter oben:
+      // cos(a−π/2)=sin(a)) — der cos-Graphpunkt liegt damit ebenfalls exakt
+      // auf Höhe sinA. Eine horizontale Linie ist daher in beiden Fällen
+      // tatsächlich horizontal.
+      if ((isSinLike || isCosLike)) {
+        ctx.save();
+        ctx.strokeStyle = '#378ADD88'; ctx.lineWidth = 1.2; ctx.setLineDash([3,3]);
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(gx, gy); ctx.stroke();
+        ctx.restore();
+      }
+
+      // Horizontale gestrichelte Verbindungslinie von der Spitze des
+      // Tangens-Dreiecks (auf der Tangente x=1, Höhe tan(a) — tanTipPoint
+      // oben) zum Punkt auf dem tan-Graphen (Nutzerwunsch: "die Spitze des
+      // Dreiecks mit dem Punkt auf dem Graphen ... verbinden"). Beide Punkte
+      // liegen auf derselben Höhe y=tan(a), macht den Zusammenhang zwischen
+      // Kreiskonstruktion und Graphwert direkt sichtbar.
+      if (isTanLike && tanTipPoint) {
+        ctx.save();
+        ctx.strokeStyle = '#8B5CF688'; ctx.lineWidth = 1.2; ctx.setLineDash([3,3]);
+        ctx.beginPath(); ctx.moveTo(tanTipPoint.tx, tanTipPoint.ty); ctx.lineTo(gx, gy); ctx.stroke();
+        ctx.restore();
+      }
     });
   });
   ctx.restore();
@@ -1370,19 +1543,72 @@ function drawMathLabel(html, x, y, color, opts) {
 let placedRects = [];
 function resetLabels() { placedRects = []; }
 
+// Räumliches Gitter mit dicht gesampelten Punkten der gezeichneten Funktions-
+// graphen (siehe Abschnitt 7 "Funktionsgraphen" in draw()) — damit können
+// Labels auch die Kurve selbst als Hindernis behandeln, nicht nur andere
+// Labels (Nutzerwunsch: "die Punktbeschriftung kollidiert mit dem gezeich-
+// neten Graphen"). Bucket-Grösse CURVE_BUCKET (Pixel) hält die Lookup-Kosten
+// pro Kandidaten-Rechteck klein (nur die überlappenden Buckets werden
+// durchsucht statt aller Kurvenpunkte). Wird EINMAL pro draw()-Aufruf
+// geleert — VOR der Kurvenzeichnung (Abschnitt 7), NICHT bei resetLabels()
+// (die erst danach, direkt vor den Punkt-Labels, aufgerufen wird).
+let curveGrid = new Map();
+const CURVE_BUCKET = 20;
+function resetCurveGrid() { curveGrid = new Map(); }
+function addCurveSample(x, y) {
+  const key = (Math.floor(x / CURVE_BUCKET)) + ',' + (Math.floor(y / CURVE_BUCKET));
+  let arr = curveGrid.get(key);
+  if (!arr) { arr = []; curveGrid.set(key, arr); }
+  arr.push(x, y); // flache [x0,y0,x1,y1,...]-Paare statt Objekten (weniger GC-Druck)
+}
+function rectHitsCurve(r) {
+  if (curveGrid.size === 0) return false;
+  const x0 = Math.floor(r.x / CURVE_BUCKET), x1 = Math.floor((r.x + r.w) / CURVE_BUCKET);
+  const y0 = Math.floor(r.y / CURVE_BUCKET), y1 = Math.floor((r.y + r.h) / CURVE_BUCKET);
+  for (let bx = x0; bx <= x1; bx++) {
+    for (let by = y0; by <= y1; by++) {
+      const arr = curveGrid.get(bx + ',' + by);
+      if (!arr) continue;
+      for (let i = 0; i < arr.length; i += 2) {
+        const px = arr[i], py = arr[i+1];
+        if (px >= r.x && px <= r.x+r.w && py >= r.y && py <= r.y+r.h) return true;
+      }
+    }
+  }
+  return false;
+}
+function rectCollides(r) {
+  if (placedRects.some(e => r.x < e.x+e.w && r.x+r.w > e.x && r.y < e.y+e.h && r.y+r.h > e.y)) return true;
+  return rectHitsCurve(r);
+}
+
 // Findet eine kollisionsfreie Position für ein Label.
-// dir: 'r' = Label rechts vom Punkt, 'l' = links
-// Probiert mehrere Verschiebungen (oben/unten/links/rechts) bis keine Kollision.
+// dir: 'r' = Label bevorzugt rechts vom Punkt, 'l' = bevorzugt oberhalb/links.
+// Probiert eine ganze Reihe Verschiebungen (nah/weit, alle Richtungen), bis
+// weder mit anderen Labels noch mit einer gezeichneten Funktionskurve eine
+// Kollision besteht — je mehr Kandidaten, desto seltener bleibt am Ende
+// nur die (kollidierende) erste Option übrig.
 function placeLabel(ctx, text, cx, cy, dir) {
   const m = ctx.measureText(text); const tw = m.width + 4, th = 14;
-  // Mögliche Positionen in Prioritätsreihenfolge
-  const offsets = dir === 'r'
-    ? [[8,-th],[8,2],[8,-th*2],[-tw-8,-th],[-tw-8,2]]  // rechts: oben, unten, weit oben, links-oben, links-unten
-    : [[0,-th-8],[0,6]];                                  // links: oben, unten
+  const near = 8, far = 22;
+  const rightFirst = [
+    [near,-th], [near,2], [near,-th*2], [near,th],
+    [-tw-near,-th], [-tw-near,2],
+    [-tw/2,-th-near], [-tw/2,near+6],
+    [far,-th], [far,th], [-tw-far,-th], [-tw-far,th],
+    [-tw/2,-th-far], [-tw/2,far+6],
+  ];
+  const leftFirst = [
+    [-tw/2,-th-near], [-tw/2,near+6],
+    [near,-th], [near,2],
+    [-tw-near,-th], [-tw-near,2],
+    [-tw/2,-th-far], [-tw/2,far+6],
+    [far,-th], [-tw-far,-th],
+  ];
+  const offsets = dir === 'l' ? leftFirst : rightFirst;
   for (const [ox, oy] of offsets) {
     const rx = cx + ox, ry = cy + oy, r = { x:rx, y:ry, w:tw, h:th };
-    // Kollision prüfen mit allen bereits platzierten Labels
-    if (!placedRects.some(e => rx < e.x+e.w && rx+tw > e.x && ry < e.y+e.h && ry+th > e.y)) {
+    if (!rectCollides(r)) {
       placedRects.push(r); return { x:rx, y:ry+th-2 }; // kollisionsfrei
     }
   }
@@ -1449,6 +1675,10 @@ function draw() {
   // drawMathLabel() weiter unten) — einmal pro draw()-Aufruf, VOR drawAsymptotes()
   // und der Spezielle-Punkte-Sektion, da beide neu hineinschreiben.
   clearMathLabelOverlay();
+  // Kurven-Kollisionsraster leeren — VOR Abschnitt 7 (Funktionsgraphen), das
+  // es befüllt; resetLabels() (erst kurz vor den Punkt-Labels aufgerufen)
+  // leert nur placedRects, nicht dieses Raster (s. Kommentar dort).
+  resetCurveGrid();
 
   // ── 1. Hintergrund ────────────────────────────────────────────
   ctx.fillStyle = C.bg; ctx.fillRect(0, 0, w, h);
@@ -1481,15 +1711,44 @@ function draw() {
   ctx.fillStyle = C.label; ctx.font = fnt;
   const lblPad = bf(6); // Abstand vom Rand / von der Achse
 
+  // Achsenbeschriftungs-Kollisionsvermeidung: die Gitterlinien bleiben IMMER
+  // vollständig (Gitternetz-Feinheit-Einstellung unverändert), aber die
+  // ZAHLEN daneben werden ausgedünnt (nur jede n-te gezeichnet), sobald sie
+  // bei der aktuellen Zoomstufe/Schriftgrösse sonst übereinander- bzw.
+  // ineinanderlaufen würden (Nutzerwunsch: "Achsenbeschriftungen ...
+  // übereinanderliegen"). n wird so klein wie möglich gewählt (n=1 = alle
+  // Labels, wie bisher) — erst wenn die geschätzte Label-Breite/-Höhe den
+  // verfügbaren Platz pro Gitterschritt übersteigt, wird ausgedünnt.
+  // idx = gerundeter Gitter-Index (…,-2,-1,0,1,2,…) — vorzeichenunabhängig
+  // nutzbar, da "idx % skip === 0" auch für negative idx bei exakter
+  // Teilbarkeit true ergibt (0 bleibt immer 0).
+  function computeLabelSkip(sizePx, stepPx, minGapPx) {
+    if (!(stepPx > 0)) return 1;
+    return Math.max(1, Math.ceil((sizePx + minGapPx) / stepPx));
+  }
+
   // X-Achsen-Zahlen: center-ausgerichtet über/unter der x-Achse
   // Position: wenn Achse sichtbar → direkt daneben; wenn ausserhalb → am Rand bleiben
   const xLblY_raw = xAxisY + bf(15);
   const xLblY = Math.min(Math.max(xLblY_raw, axisFontSize + 4), h - 4);
   ctx.textAlign = 'center';
-  for (let gx = Math.ceil(v.xmin/xStep)*xStep; gx <= v.xmax + xStep*0.01; gx += xStep) {
-    if (Math.abs(gx) > xStep * 0.01) {
-      const { cx } = toCanvas(gx, 0);
-      ctx.fillText(niceNum(gx, true), cx, xLblY);
+  {
+    // Breiteste sichtbare X-Beschriftung ermitteln (π-Brüche/negative Zahlen
+    // sind unterschiedlich breit) — ein einheitlicher Ausdünnungs-Faktor
+    // wirkt gleichmässiger als ein pro Tick unterschiedlicher.
+    let maxXLblW = 0;
+    for (let gx = Math.ceil(v.xmin/xStep)*xStep; gx <= v.xmax + xStep*0.01; gx += xStep) {
+      if (Math.abs(gx) > xStep * 0.01) maxXLblW = Math.max(maxXLblW, ctx.measureText(niceNum(gx, true)).width);
+    }
+    const xPxPerStep = Math.abs(toCanvas(xStep, 0).cx - toCanvas(0, 0).cx);
+    const xSkip = computeLabelSkip(maxXLblW, xPxPerStep, bf(10));
+    for (let gx = Math.ceil(v.xmin/xStep)*xStep; gx <= v.xmax + xStep*0.01; gx += xStep) {
+      if (Math.abs(gx) > xStep * 0.01) {
+        const idx = Math.round(gx / xStep);
+        if (idx % xSkip !== 0) continue;
+        const { cx } = toCanvas(gx, 0);
+        ctx.fillText(niceNum(gx, true), cx, xLblY);
+      }
     }
   }
 
@@ -1497,21 +1756,31 @@ function draw() {
   const yAxisVisible = yAxisX > 0 && yAxisX < w;
   const yAxisOffLeft  = yAxisX <= 0;   // weit nach rechts bewegt
   const yAxisOffRight = yAxisX >= w;   // weit nach links bewegt
-  for (let gy = Math.ceil(v.ymin/yStep)*yStep; gy <= v.ymax + yStep*0.01; gy += yStep) {
-    if (Math.abs(gy) > yStep * 0.01) {
-      const { cy } = toCanvas(0, gy);
-      if (yAxisOffLeft) {
-        // Achse links ausserhalb → Labels links im Bild, links-ausgerichtet
-        ctx.textAlign = 'left';
-        ctx.fillText(niceNum(gy, true), lblPad, cy + 4);
-      } else if (yAxisOffRight) {
-        // Achse rechts ausserhalb → Labels rechts im Bild, rechts-ausgerichtet
-        ctx.textAlign = 'right';
-        ctx.fillText(niceNum(gy, true), w - lblPad - 30, cy + 4);
-      } else {
-        // Achse sichtbar → links der y-Achse, rechts-ausgerichtet
-        ctx.textAlign = 'right';
-        ctx.fillText(niceNum(gy, true), Math.max(yAxisX - lblPad, lblPad + 20), cy + 4);
+  {
+    // Vertikal reicht die Zeilenhöhe als Grösse (Zahlen überlappen sich
+    // nicht seitlich, nur wenn Gitterschritte vertikal zu eng beieinander
+    // liegen).
+    const yLblH = axisFontSize + bf(4);
+    const yPxPerStep = Math.abs(toCanvas(0, yStep).cy - toCanvas(0, 0).cy);
+    const ySkip = computeLabelSkip(yLblH, yPxPerStep, bf(4));
+    for (let gy = Math.ceil(v.ymin/yStep)*yStep; gy <= v.ymax + yStep*0.01; gy += yStep) {
+      if (Math.abs(gy) > yStep * 0.01) {
+        const idx = Math.round(gy / yStep);
+        if (idx % ySkip !== 0) continue;
+        const { cy } = toCanvas(0, gy);
+        if (yAxisOffLeft) {
+          // Achse links ausserhalb → Labels links im Bild, links-ausgerichtet
+          ctx.textAlign = 'left';
+          ctx.fillText(niceNum(gy, true), lblPad, cy + 4);
+        } else if (yAxisOffRight) {
+          // Achse rechts ausserhalb → Labels rechts im Bild, rechts-ausgerichtet
+          ctx.textAlign = 'right';
+          ctx.fillText(niceNum(gy, true), w - lblPad - 30, cy + 4);
+        } else {
+          // Achse sichtbar → links der y-Achse, rechts-ausgerichtet
+          ctx.textAlign = 'right';
+          ctx.fillText(niceNum(gy, true), Math.max(yAxisX - lblPad, lblPad + 20), cy + 4);
+        }
       }
     }
   }
@@ -1585,6 +1854,7 @@ function draw() {
       const yDraw = y < v.ymin - yClamp ? v.ymin - yClamp : y > v.ymax + yClamp ? v.ymax + yClamp : y;
       const { cx, cy } = toCanvas(x, yDraw);
       if (!started) { ctx.moveTo(cx, cy); started = true; } else { ctx.lineTo(cx, cy); }
+      addCurveSample(cx, cy); // fürs Punkt-Label-Kollisionsraster (s.o.)
       prevY = y;
     }
     ctx.stroke();
@@ -1668,13 +1938,15 @@ function draw() {
     const nearHoverPt = hoverPt !== null && Math.abs(toCanvas(pt.x, 0).cx - toCanvas(hoverPt, 0).cx) < 30 && Math.abs(toCanvas(0, pt.y).cy - toCanvas(0, 0).cy + toCanvas(pt.x, pt.y).cy - toCanvas(pt.x, 0).cy) < 30;
     if (lmode === 'all' || isDragThis || (lmode === 'hover' && nearHoverPt)) {
       const prefixText = pt.label || `P${i+1}`;
-      const ptLbl = prefixText + niceCoord(pt.x, pt.y);
+      // Manuelle Punkte sind IMMER ziehbar → fest dezimal, 2 Nachkommastellen
+      // (kein Bruch-/Wurzel-Wechsel beim Verschieben, Nutzerwunsch).
+      const ptLbl = prefixText + niceCoordDec(pt.x, pt.y, false, 2);
       // Präfix ("P1", oder ein Custom-Label des Nutzers) bleibt reiner Text;
-      // nur die Koordinate selbst wird MathLive-gerendert (Brüche/Wurzeln/π).
+      // nur die Koordinate selbst wird MathLive-gerendert.
       let lblHtml = null;
       if (typeof latexToMathLiveHtml === 'function') {
         const prefixHtml = typeof _mlEscapeHtml === 'function' ? _mlEscapeHtml(prefixText) : prefixText;
-        lblHtml = prefixHtml + latexToMathLiveHtml(niceCoord(pt.x, pt.y, true));
+        lblHtml = prefixHtml + latexToMathLiveHtml(niceCoordDec(pt.x, pt.y, true, 2));
       }
       ctx.fillStyle = C.anno; ctx.font = fnt; ctx.textAlign = 'left';
       drawLabel(ctx, ptLbl, cx, cy, C.anno, 'r', lblHtml);
@@ -1712,9 +1984,11 @@ function draw() {
       ctx.strokeStyle = '#378ADD'; ctx.lineWidth = 2.5; ctx.stroke();
       ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, 2 * PI);
       ctx.fillStyle = '#378ADD'; ctx.fill();
+      // Fit-Pick-Punkte werden live per Klick/Drag gesetzt → fest dezimal,
+      // 2 Nachkommastellen (kein Bruch-Wechsel, Nutzerwunsch).
       ctx.font = 'bold 11px system-ui,sans-serif';
       ctx.fillStyle = '#1e40af'; ctx.textAlign = 'left';
-      ctx.fillText(`P${i + 1} ${niceCoord(pt.x, pt.y)}`, cx + 11, cy - 5);
+      ctx.fillText(`P${i + 1} ${niceCoordDec(pt.x, pt.y, false, 2)}`, cx + 11, cy - 5);
     });
     ctx.restore();
   }
@@ -1756,9 +2030,12 @@ function draw() {
       ctx.setLineDash([8, 5]); ctx.strokeStyle = col + 'bb'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(0, hy); ctx.lineTo(w, hy); ctx.stroke();
       ctx.setLineDash([]);
+      // Wert stammt aus recomputeFitFn() (11_fitting.js) und ändert sich
+      // laufend beim Ziehen der Exp-Fit-Punkte → fest dezimal, 2
+      // Nachkommastellen (kein Bruch-Wechsel, Nutzerwunsch).
       ctx.font = '11px system-ui,sans-serif'; ctx.fillStyle = col;
       ctx.textAlign = 'right';
-      ctx.fillText(`y = ${niceNum(hVal)}`, w - 6, hy - 5);
+      ctx.fillText(`y = ${niceNumDec(hVal, false, 2)}`, w - 6, hy - 5);
       ctx.restore();
     }
   }
@@ -1775,9 +2052,12 @@ function draw() {
       ctx.setLineDash([8, 5]); ctx.strokeStyle = col + 'bb'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(vx, 0); ctx.lineTo(vx, h); ctx.stroke();
       ctx.setLineDash([]);
+      // Wert stammt aus recomputeFitFn() (11_fitting.js) und ändert sich
+      // laufend beim Ziehen der Log-Fit-Punkte → fest dezimal, 2
+      // Nachkommastellen (kein Bruch-Wechsel, Nutzerwunsch).
       ctx.font = '11px system-ui,sans-serif'; ctx.fillStyle = col;
       ctx.textAlign = 'left';
-      ctx.fillText(`x = ${niceNum(vVal)}`, vx + 4, 14);
+      ctx.fillText(`x = ${niceNumDec(vVal, false, 2)}`, vx + 4, 14);
       ctx.restore();
     }
   }

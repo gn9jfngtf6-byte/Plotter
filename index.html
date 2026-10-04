@@ -183,6 +183,21 @@ math-field.func-inp-ce {
 math-field.func-inp-ce::part(virtual-keyboard-toggle) {
   opacity: 0.45;
   transform: scale(0.8);
+  /* MathLive schaltet den Umschalter intern per Shadow-DOM-Regel
+     ("@media (hover:none) and (pointer:coarse) { :host(:not(:focus))
+     .ML__container { pointer-events:none } }") komplett stumm, SOLANGE
+     das jeweilige Eingabefeld noch nicht fokussiert ist. Das war die
+     Ursache dafür, dass auf Tablet/Handy nur das GERADE fokussierte Feld
+     zuverlässig reagierte — bei allen anderen musste man zuerst "blind"
+     ins Feld tippen (Fokus holen) bevor der Knopf überhaupt reagierte,
+     und beim obersten Feld führte das je nach Fokuszustand zu dem
+     berichteten "mal geht's, mal nicht" mit mehrfachem Antippen. Wir
+     erzwingen hier pointer-events:auto direkt auf dem exponierten Part,
+     was die geerbte Sperre des Elternelements gezielt für dieses eine
+     Element wieder aufhebt (siehe MDN: ein Kind kann pointer-events
+     unabhängig vom Elternelement selbst setzen) — der Knopf ist damit
+     IMMER antippbar, unabhängig vom Fokuszustand des Feldes. */
+  pointer-events: auto !important;
 }
 /* Der "☰"-Menü-Knopf, den MathLive sonst selbst rechts im Eingabefeld
    anzeigt, wird hier ausgeblendet — er existiert stattdessen als eigener
@@ -735,7 +750,20 @@ body.beam select { font-size: 17px; }
       <button onclick="trigAddFunction('cos')" data-mlatex="\cos(x)" style="flex:1;">cos(x)</button>
       <button onclick="trigAddFunction('tan')" data-mlatex="\tan(x)" style="flex:1;">tan(x)</button>
     </div>
-    <div class="settings-row" style="margin-top:6px;"><label><input type="checkbox" id="chk-unitcircle" autocomplete="off" onchange="scheduleDraw()"> <span data-i18n="chk_unitcircle">Einheitskreis</span></label></div>
+    <div class="settings-row" style="margin-top:6px;flex-wrap:wrap;gap:6px;">
+      <label><input type="checkbox" id="chk-unitcircle" autocomplete="off" onchange="scheduleDraw()"> <span data-i18n="chk_unitcircle">Einheitskreis</span></label>
+      <!-- Winkel-Anzeige am Einheitskreis: Gradmaß (bisheriges Verhalten,
+           immer ganze Gradzahl) oder Bogenmaß (Radiant — π-Bruch wenn
+           "schön", sonst fest 2 Nachkommastellen dezimal, siehe
+           formatUnitCircleAngle() in 08_draw.js) — Nutzerwunsch: eigene,
+           dedizierte Einstellung NUR für den Einheitskreis, unabhängig von
+           der globalen "π-Notation"-Einstellung im ⚙-Menü (die betrifft
+           Zahlen an vielen anderen Stellen der App). -->
+      <select id="unitcircle-angle-mode" onchange="scheduleDraw()" style="font-size:11px;" title="Winkel-Anzeige am Einheitskreis">
+        <option value="deg" selected data-i18n="opt_unitcircle_deg">Gradmaß</option>
+        <option value="rad" data-i18n="opt_unitcircle_rad">Bogenmaß</option>
+      </select>
+    </div>
     <div id="trig-dw" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div>
 
     <!-- Allgemeine Form y = a·sin(b(x−c)) + d (bzw. cos/tan) mit
@@ -990,31 +1018,11 @@ body.beam select { font-size: 17px; }
     <div id="latex-msg" style="font-size:10px;color:#1D9E75;margin-top:3px;"></div>
   </div>
 
-  <!-- Speichern / Laden -->
-  <div class="panel">
-    <div class="panel-title" data-i18n="panel_save">💾 Speichern / Laden</div>
-    <div class="func-row" style="margin-bottom:6px;">
-      <input type="text" id="save-name" data-i18n-placeholder="ph_filename" placeholder="Dateiname…" style="flex:1;">
-      <button onclick="savePlotFile()" style="flex-shrink:0;" data-i18n="btn_save_file">💾 Speichern</button>
-    </div>
-    <label id="load-label" style="display:block;text-align:center;padding:8px;border:2px dashed #c8cdd6;border-radius:6px;cursor:pointer;font-size:11px;color:#6b7280;margin-bottom:4px;"
-      ondragover="event.preventDefault();this.style.borderColor='#378ADD';this.style.background='#eff6ff';"
-      ondragleave="this.style.borderColor='#c8cdd6';this.style.background='';"
-      ondrop="this.style.borderColor='#c8cdd6';this.style.background='';handleFileDrop(event);">
-      <span data-i18n="btn_open_file">📂 Datei öffnen / hierher ziehen</span>
-      <input type="file" id="load-file" accept=".plotter,.json" onchange="loadPlotFile(this)" style="display:none;">
-    </label>
-    <div style="font-size:10px;color:#9ca3af;margin-bottom:6px;" data-i18n="lbl_hint_save">Auch: .plotter-Datei auf den Plot ziehen</div>
-    <div style="border-top:1px solid #dde1e7;margin-top:2px;padding-top:6px;">
-      <div class="panel-title" style="margin-bottom:4px;" data-i18n="lbl_slots">Browser-Slots</div>
-      <div class="func-row" style="margin-bottom:4px;">
-        <input type="text" id="save-name-local" data-i18n-placeholder="ph_name" placeholder="Name…" style="flex:1;">
-        <button onclick="savePlotLocal()" style="flex-shrink:0;" data-i18n="btn_slot">+ Slot</button>
-      </div>
-      <div id="saved-list" style="font-size:11px;"></div>
-    </div>
-    <div id="save-msg" style="font-size:10px;color:#1D9E75;margin-top:3px;"></div>
-  </div>
+  <!-- Speichern/Laden-Panel auf Nutzerwunsch entfernt ("das Menüpunkt
+       speichern/laden braucht es nicht") — die zugrundeliegenden Funktionen
+       (savePlotFile(), loadPlotFile(), savePlotLocal(), loadPlot() usw. in
+       10_io.js) bleiben unangetastet, inkl. Drag&Drop einer .plotter-Datei
+       direkt auf den Canvas (siehe dort) — nur dieses Sidebar-Panel ist weg. -->
 
 </div><!-- Ende Sidebar -->
 
@@ -1035,12 +1043,12 @@ body.beam select { font-size: 17px; }
     <button id="redo-btn" onmousedown="return false" onclick="commitAndRedo()" style="font-size:14px;padding:3px 9px;" disabled>↪</button>
     <button id="pointer-mode-btn" onclick="togglePointerMode()" title="Laserpointer (Maus / Stift / Touch)" style="font-size:13px;">🔴 Pointer</button>
     <button id="point-mode-btn" onclick="togglePointMode()" data-i18n="btn_point">· Punkt setzen</button>
-    <button id="graph-pt-btn" onclick="toggleGraphPtMode()" data-i18n="btn_ongraph">📍 Auf Graph</button>
+    <button id="graph-pt-btn" onclick="toggleGraphPtMode()" data-i18n="btn_ongraph">📍 Punkt auf Graph</button>
     <button id="delete-mode-btn" onclick="toggleDeleteMode()" class="delete-mode-btn" data-i18n="btn_delete">🗑 Löschen</button>
-    <button onclick="toggleDarkMode()" id="dark-btn" title="Dark Mode" style="font-size:14px;padding:3px 9px;">🌙</button>
-    <button onclick="toggleBeamMode()" id="beam-btn" title="Beamer-Modus EIN">📺</button>
+    <button onclick="toggleDarkMode()" id="dark-btn" data-i18n="btn_darkmode" data-i18n-title="btn_darkmode" title="Dark Mode" style="font-size:14px;padding:3px 9px;">🌙 Dark Mode</button>
+    <button onclick="toggleBeamMode()" id="beam-btn" data-i18n="btn_beamer" title="Beamer-Modus EIN">📺 Beamer</button>
     <div style="position:relative;display:inline-block;">
-      <button onclick="toggleSettingsMenu()" id="settings-btn" data-i18n-title="panel_settings" title="Einstellungen" style="font-size:14px;padding:3px 9px;">⚙</button>
+      <button onclick="toggleSettingsMenu()" id="settings-btn" data-i18n="btn_settings" data-i18n-title="panel_settings" title="Einstellungen" style="font-size:14px;padding:3px 9px;">⚙ Einstellungen</button>
       <!-- Einstellungen: war vorher ein eigenes Sidebar-Panel (⚙ Einstellungen),
            auf Nutzerwunsch in die obere Leiste verschoben — gleiches Popover-Muster
            wie #lang-menu (position:fixed, Schliessen bei Klick ausserhalb),
