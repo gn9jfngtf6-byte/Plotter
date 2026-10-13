@@ -431,10 +431,15 @@ function renderBegriffe(filter) {
 
   const matches = BEGRIFFE.filter(b => {
     if (!q) return true;
+    // Suche auch im übersetzten Text (bei anderer Sprache als Deutsch), Schlagwörter nur deutsch
+    const trx = x => { try { return (typeof AI18N !== 'undefined' && AI18N.tr) ? String(AI18N.tr(x || '')) : (x || ''); } catch (e) { return x || ''; } };
     return b.term.toLowerCase().includes(q)
         || b.def.toLowerCase().includes(q)
         || (b.tags || '').toLowerCase().includes(q)
-        || (b.example || '').toLowerCase().includes(q);
+        || (b.example || '').toLowerCase().includes(q)
+        || trx(b.term).toLowerCase().includes(q)
+        || trx(b.def).toLowerCase().includes(q)
+        || trx(b.example).toLowerCase().includes(q);
   });
 
   if (matches.length === 0) {

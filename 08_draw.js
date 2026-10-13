@@ -69,7 +69,7 @@ function drawGraphPoints() {
     // Graph-Punkte sind ziehbar → fest dezimal, 2 Nachkommastellen (kein
     // Bruch-/Wurzel-Wechsel beim Verschieben, Nutzerwunsch aus früherer Anfrage).
     ctx.font = '11px system-ui,sans-serif'; ctx.textAlign = 'left';
-    drawLabel(ctx, niceCoordDec(gp.x, y, false, 2), cx, cy, gp.color, 'r');
+    drawLabel(ctx, niceCoordDec(gp.x, y, false, 2), cx, cy, gp.color, 'r', coordHtml(gp.x, y, true, 2));
     ctx.restore();
 
     // Löschen-X (nur anzeigen wenn nicht gerade gezogen)
@@ -1541,6 +1541,9 @@ function drawMathLabel(html, x, y, color, opts) {
 // Speichert Rechtecke bereits platzierter Labels.
 // Wird am Anfang jedes draw()-Aufrufs geleert.
 let placedRects = [];
+// Rechtecke der Achsenzahlen — Punktbeschriftungen weichen ihnen ebenfalls aus
+// (wird beim Zeichnen der Achsenbeschriftung gefüllt, NICHT von resetLabels() geleert).
+let tickRects = [];
 function resetLabels() { placedRects = []; }
 
 // Räumliches Gitter mit dicht gesampelten Punkten der gezeichneten Funktions-
@@ -1579,6 +1582,7 @@ function rectHitsCurve(r) {
 }
 function rectCollides(r) {
   if (placedRects.some(e => r.x < e.x+e.w && r.x+r.w > e.x && r.y < e.y+e.h && r.y+r.h > e.y)) return true;
+  if (tickRects.some(e => r.x < e.x+e.w && r.x+r.w > e.x && r.y < e.y+e.h && r.y+r.h > e.y)) return true;
   return rectHitsCurve(r);
 }
 
@@ -1588,8 +1592,9 @@ function rectCollides(r) {
 // weder mit anderen Labels noch mit einer gezeichneten Funktionskurve eine
 // Kollision besteht — je mehr Kandidaten, desto seltener bleibt am Ende
 // nur die (kollidierende) erste Option übrig.
-function placeLabel(ctx, text, cx, cy, dir) {
-  const m = ctx.measureText(text); const tw = m.width + 4, th = 14;
+function placeLabel(ctx, text, cx, cy, dir, size) {
+  // size (optional): tatsächlich gemessene Grösse eines HTML-Labels (Brüche machen es höher als 14px)
+  const m = ctx.measureText(mnus(text)); const tw = (size ? size.w : m.width) + 4, th = size ? Math.max(14, size.h + 2) : 14;
   const near = 8, far = 22;
   const rightFirst = [
     [near,-th], [near,2], [near,-th*2], [near,th],
@@ -1622,11 +1627,37 @@ function placeLabel(ctx, text, cx, cy, dir) {
 // MathLive-gerendertes HTML-Overlay-Label (drawMathLabel(), selbe Position)
 // gezeichnet — 'text' dient dann nur noch der Breitenschätzung für die
 // Kollisionsvermeidung (ctx.measureText), nicht der eigentlichen Anzeige.
+// Grösse eines HTML-Labels im Overlay messen (unsichtbar eingefügt, damit Brüche/grosse Klammern
+// bei der Kollisionsvermeidung mit ihrer echten Höhe zählen)
+function measureMathLabel(html, fontSize) {
+  const ov = document.getElementById('canvas-label-overlay');
+  if (!ov || !html) return null;
+  const d = document.createElement('div');
+  d.className = 'canvas-math-label';
+  d.style.visibility = 'hidden'; d.style.left = '0px'; d.style.top = '0px';
+  d.style.fontSize = (fontSize || 11) + 'px';
+  d.innerHTML = html;
+  ov.appendChild(d);
+  const r = { w: d.offsetWidth, h: d.offsetHeight };
+  ov.removeChild(d);
+  return (r.w > 0 && r.h > 0) ? r : null;
+}
+
 function drawLabel(ctx, text, cx, cy, col, dir = 'r', html) {
   ctx.fillStyle = col || C.anno;
-  const p = placeLabel(ctx, text, cx, cy, dir);
-  if (html) { drawMathLabel(html, p.x, p.y, col, { align: 'left', baseline: 'alphabetic' }); return; }
-  ctx.fillText(text, p.x, p.y);
+  const size = html ? measureMathLabel(html, 11) : null;
+  const p = placeLabel(ctx, text, cx, cy, dir, size);
+  if (html) {
+    // Unterkante des Labels = p.y (bei gemessener Höhe exakt, sonst wie bisher)
+    let x = p.x, y = p.y;
+    // im sichtbaren Canvas halten
+    const W = canvas.clientWidth || 0, H = canvas.clientHeight || 0;
+    if (size && W) { x = Math.max(2, Math.min(x, W - size.w - 2)); }
+    if (size && H) { y = Math.max(size.h + 2, Math.min(y, H - 2)); }
+    drawMathLabel(html, x, y, col, { align: 'left', baseline: 'alphabetic' });
+    return;
+  }
+  ctx.fillText(mnus(text), p.x, p.y);
 }
 
 // Zeichnet einen speziellen Punkt (Extremum, Nullstelle, Wendepunkt, Schnittpunkt)
@@ -1668,6 +1699,7 @@ function drawSpecialDot(cx, cy, kind, col) {
 function draw() {
   const { w, h } = setupCanvas();
   const v = isoView || view; // isometrischer View für diesen Frame
+  try { if (window.EGGS) EGGS.onView(v); } catch (e) {} // Easter-Egg: extremes Zoomen (24_eggs.js)
   const axisFontSize = bf(parseInt(document.getElementById('axis-font-size')?.value || 12));
   const fnt = `${axisFontSize}px -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif`;
 
@@ -1709,6 +1741,8 @@ function draw() {
 
   // Achsenbeschriftung (Zahlenwerte an den Gitterlinien)
   ctx.fillStyle = C.label; ctx.font = fnt;
+  tickRects = [];
+  const tickRect = (txt, x, y, align) => { const tw = ctx.measureText(txt).width; const x0 = align === 'center' ? x - tw/2 : align === 'right' ? x - tw : x; tickRects.push({ x: x0 - 1, y: y - axisFontSize, w: tw + 2, h: axisFontSize + 3 }); };
   const lblPad = bf(6); // Abstand vom Rand / von der Achse
 
   // Achsenbeschriftungs-Kollisionsvermeidung: die Gitterlinien bleiben IMMER
@@ -1747,7 +1781,7 @@ function draw() {
         const idx = Math.round(gx / xStep);
         if (idx % xSkip !== 0) continue;
         const { cx } = toCanvas(gx, 0);
-        ctx.fillText(niceNum(gx, true), cx, xLblY);
+        ctx.fillText(niceNum(gx, true), cx, xLblY); tickRect(mnus(niceNum(gx, true)), cx, xLblY, 'center');
       }
     }
   }
@@ -1771,15 +1805,15 @@ function draw() {
         if (yAxisOffLeft) {
           // Achse links ausserhalb → Labels links im Bild, links-ausgerichtet
           ctx.textAlign = 'left';
-          ctx.fillText(niceNum(gy, true), lblPad, cy + 4);
+          ctx.fillText(niceNum(gy, true), lblPad, cy + 4); tickRect(mnus(niceNum(gy, true)), lblPad, cy + 4, 'left');
         } else if (yAxisOffRight) {
           // Achse rechts ausserhalb → Labels rechts im Bild, rechts-ausgerichtet
           ctx.textAlign = 'right';
-          ctx.fillText(niceNum(gy, true), w - lblPad - 30, cy + 4);
+          ctx.fillText(niceNum(gy, true), w - lblPad - 30, cy + 4); tickRect(mnus(niceNum(gy, true)), w - lblPad - 30, cy + 4, 'right');
         } else {
           // Achse sichtbar → links der y-Achse, rechts-ausgerichtet
           ctx.textAlign = 'right';
-          ctx.fillText(niceNum(gy, true), Math.max(yAxisX - lblPad, lblPad + 20), cy + 4);
+          ctx.fillText(niceNum(gy, true), Math.max(yAxisX - lblPad, lblPad + 20), cy + 4); tickRect(mnus(niceNum(gy, true)), Math.max(yAxisX - lblPad, lblPad + 20), cy + 4, 'right');
         }
       }
     }
@@ -1988,7 +2022,9 @@ function draw() {
       // 2 Nachkommastellen (kein Bruch-Wechsel, Nutzerwunsch).
       ctx.font = 'bold 11px system-ui,sans-serif';
       ctx.fillStyle = '#1e40af'; ctx.textAlign = 'left';
-      ctx.fillText(`P${i + 1} ${niceCoordDec(pt.x, pt.y, false, 2)}`, cx + 11, cy - 5);
+      if (typeof drawMathLabel === 'function' && typeof latexToMathLiveHtml === 'function') {
+        drawMathLabel(`<b>P${i + 1}</b>&nbsp;` + coordHtml(pt.x, pt.y, true, 2), cx + 11, cy - 5, '#1e40af', { align: 'left', baseline: 'bottom', fontSize: 11 });
+      } else ctx.fillText(`P${i + 1} ${niceCoordDec(pt.x, pt.y, false, 2)}`, cx + 11, cy - 5);
     });
     ctx.restore();
   }
@@ -2083,7 +2119,9 @@ function draw() {
     // Links oder rechts positionieren je nach Mausposition
     const lx = hcx + 10 > w - 160 ? hcx - 10 : hcx + 10;
     ctx.textAlign = hcx + 10 > w - 160 ? 'right' : 'left'; ctx.font = fnt; ctx.fillStyle = C.anno;
-    lines.forEach((t, i) => ctx.fillText(t, lx, 20 + i*16));
+    // Zeilenabstand mit der (im Beamer-Modus grösseren) Schrift mitskalieren, sonst überlappen die Zeilen
+    const _lh = beamMode ? 32 : 16, _y0 = beamMode ? 34 : 20;
+    lines.forEach((t, i) => ctx.fillText(t, lx, _y0 + i*_lh));
 
     // Kleine farbige Punkte wo die Funktionen die Hover-Linie schneiden
     functions.forEach(fn => {

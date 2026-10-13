@@ -851,7 +851,7 @@ window.addEventListener('resize', () => scheduleDraw()); // Fallback
 
 // History-Stack: Array von serialisierten Zuständen (JSON-Strings)
 // historyIdx zeigt auf den aktuellen Zustand.
-let history = [], historyIdx = -1, historyPaused = false;
+let undoStack = [], historyIdx = -1, historyPaused = false;
 let _historyPauseTimer = null; // s. applyState() unten
 
 // Normalisiert eine Funktion für die History-Momentaufnahme: die
@@ -904,9 +904,10 @@ function applyState(s) {
   historyPaused = true;
   // Deep Copy! Ohne dies würden Live-Mutations die History-Einträge korrumpieren.
   const sc = JSON.parse(JSON.stringify(s));
-  functions = sc.functions; params = sc.params; points = sc.points;
-  linkedLines = sc.linkedLines; graphPoints = sc.graphPoints;
-  unitCirclePts = sc.unitCirclePts;
+  // Fallbacks: ältere/fremde .plotter-Dateien kennen nicht alle Felder.
+  functions = sc.functions || []; params = sc.params || {}; points = sc.points || [];
+  linkedLines = sc.linkedLines || []; graphPoints = sc.graphPoints || [];
+  unitCirclePts = sc.unitCirclePts || [];
   // Lineare Optimierung — Defaults falls aus einem älteren Zustand geladen
   // (siehe captureState() oben / 17_linopt.js).
   loConstraints = sc.loConstraints || []; loObjA = sc.loObjA ?? 1; loObjB = sc.loObjB ?? 1;
@@ -959,30 +960,30 @@ function pushHistory() {
   if (historyPaused) return;
   const cur = JSON.stringify(captureState());
   // Nicht speichern wenn identisch mit letztem Eintrag
-  if (history.length > 0 && JSON.stringify(history[historyIdx]) === cur) return;
-  history = history.slice(0, historyIdx + 1);
-  history.push(JSON.parse(cur));
-  if (history.length > 50) history.shift();
-  historyIdx = history.length - 1;
+  if (undoStack.length > 0 && JSON.stringify(undoStack[historyIdx]) === cur) return;
+  undoStack = undoStack.slice(0, historyIdx + 1);
+  undoStack.push(JSON.parse(cur));
+  if (undoStack.length > 50) undoStack.shift();
+  historyIdx = undoStack.length - 1;
   updateUndoRedoBtns();
 }
 
 function updateUndoRedoBtns() {
   document.getElementById('undo-btn').disabled = historyIdx <= 0;
-  document.getElementById('redo-btn').disabled = historyIdx >= history.length - 1;
+  document.getElementById('redo-btn').disabled = historyIdx >= undoStack.length - 1;
 }
 
 function undo() {
   if (historyIdx <= 0) return;
   historyIdx--;
-  applyState(history[historyIdx]);
+  applyState(undoStack[historyIdx]);
   updateUndoRedoBtns();
 }
 
 function redo() {
-  if (historyIdx >= history.length - 1) return;
+  if (historyIdx >= undoStack.length - 1) return;
   historyIdx++;
-  applyState(history[historyIdx]);
+  applyState(undoStack[historyIdx]);
   updateUndoRedoBtns();
 }
 

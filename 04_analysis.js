@@ -168,6 +168,26 @@ function fmtExact(num, den) {
   return `${n}/${d}`;
 }
 
+// LaTeX-Variante von fmtExact(): 3/2 → "\\frac{3}{2}", -1/2 → "-\\frac{1}{2}", 2/1 → "2"
+function fmtExactTex(num, den) {
+  den = den || 1;
+  const g = gcdInt(Math.abs(num), Math.abs(den)) || 1;
+  let n = Math.round(num / g), d = Math.round(den / g);
+  if (d < 0) { n = -n; d = -d; }
+  if (d === 1) return String(n);
+  return (n < 0 ? '-' : '') + `\\frac{${Math.abs(n)}}{${d}}`;
+}
+// Fertiges Koordinaten-Label (MathLive-HTML, Klammern wachsen mit Brüchen/Wurzeln mit)
+function exactCoordHtml(xTex, yTex, fallbackHtml) {
+  try {
+    if (typeof latexToMathLiveHtml === 'function' && typeof coordTex === 'function') {
+      const h = latexToMathLiveHtml(coordTex(xTex, yTex));
+      if (h) return h;
+    }
+  } catch (e) {}
+  return fallbackHtml;
+}
+
 // Sucht eine RATIONALE Nullstelle eines kubischen Polynoms a·x³+b·x²+c·x+d via
 // Rationale-Nullstellen-Satz — die im Unterricht übliche "Rateverfahren"-Methode:
 // Kandidaten sind Teiler des Absolutglieds über Teiler des Leitkoeffizienten.
@@ -356,7 +376,24 @@ function tryAnalyticalZerosEx(fi_idx, expr) {
       scale = s; break;
     }
   }
+  // Koeffizienten müssen bei der gewählten Skalierung wirklich ganzzahlig sein
+  // (sonst z.B. 1/3·x² → aI=0 bzw. falsch gerundete Wurzeln).
+  if (![a, b, c].every(v => Math.abs(v * scale - Math.round(v * scale)) < 1e-3)) return [];
   const aI = Math.round(a * scale), bI = Math.round(b * scale), cI = Math.round(c * scale);
+  // Ist f(x) wirklich dieses Polynom? Die Taylor-Näherung bei 0 samt einer Probe
+  // bei x=1 reicht NICHT (cos(x) ≈ 1−x²/2 und √(4−x²) ≈ 2−x²/4 bestehen sie
+  // fälschlich → Phantom-Nullstellen ±√2 bzw. ±2√2). Daher mehrere Proben weit
+  // auseinander; nicht-endliche Stellen (Definitionslücken) werden übersprungen.
+  { let nOk = 0;
+    for (const xt of [-7.3, -3.1, -1.7, 0.5, 2.3, 4.9, 9.1]) {
+      const yt = safeEval(expr, xt);
+      if (!isFinite(yt)) continue;
+      const qt = (aI * xt * xt + bI * xt + cI) / scale;
+      if (Math.abs(qt - yt) > 1e-6 * (1 + Math.abs(qt))) return [];
+      nOk++;
+    }
+    if (nOk < 3) return [];
+  }
   // Schutz vor Division durch 0 weiter unten (2*aI im Nenner): bei einer nur
   // numerisch (finite-Differenzen-Rauschen) knapp über der 1e-6-Schwelle
   // liegenden zweiten Ableitung kann a so winzig sein, dass es bei keiner der
@@ -372,7 +409,8 @@ function tryAnalyticalZerosEx(fi_idx, expr) {
   if (DInt === 0) {
     const x0 = -bI / (2 * aI);
     const z = { kind:'zero', fi:fi_idx, x:x0, y:0, col };
-    z.exactLabel = `(${fmtExact(-bI, 2 * aI)} | 0)`;
+    z.exactLabel = exactCoordHtml(fmtExactTex(-bI, 2 * aI), '0', `(${mnus(fmtExact(-bI, 2 * aI))} | 0)`);
+    z.textLabel = mnus(`(${fmtExact(-bI, 2 * aI)} | 0)`);
     return [z];
   }
 
@@ -397,8 +435,10 @@ function tryAnalyticalZerosEx(fi_idx, expr) {
     const xMinusStr = fmtExact(nc - nr, d);
     const z1 = { kind:'zero', fi:fi_idx, x:(-bI + Math.sqrt(DInt)) / den, y:0, col };
     const z2 = { kind:'zero', fi:fi_idx, x:(-bI - Math.sqrt(DInt)) / den, y:0, col };
-    z1.exactLabel = z1.textLabel = `(${xPlusStr} | 0)`;
-    z2.exactLabel = z2.textLabel = `(${xMinusStr} | 0)`;
+    z1.exactLabel = exactCoordHtml(fmtExactTex(nc + nr, d), '0', `(${mnus(xPlusStr)} | 0)`);
+    z2.exactLabel = exactCoordHtml(fmtExactTex(nc - nr, d), '0', `(${mnus(xMinusStr)} | 0)`);
+    z1.textLabel = mnus(`(${xPlusStr} | 0)`);
+    z2.textLabel = mnus(`(${xMinusStr} | 0)`);
     return [z1, z2];
   }
 
@@ -423,14 +463,20 @@ function tryAnalyticalZerosEx(fi_idx, expr) {
   const z2 = { kind:'zero', fi:fi_idx, x:xMinus, y:0, col };
 
   // HTML-Label (Sidebar/Tooltip) — mit Bruchstrich
+  const radTex = (() => {
+    const top = nrAbs === 1 ? `\\sqrt{${sr.radicand}}` : `${nrAbs}\\sqrt{${sr.radicand}}`;
+    return d === 1 ? top : `\\frac{${top}}{${d}}`;
+  })();
+  const constTex = fmtExactTex(nc, d);
   const mkLbl = (pm) => {
-    if (constStr === '0') return `(${pm > 0 ? '' : '−'}${radHtml} | 0)`;
-    return `(${constStr} ${pm > 0 ? '+' : '−'} ${radHtml} | 0)`;
+    const fb = constStr === '0' ? `(${pm > 0 ? '' : '−'}${radHtml} | 0)` : `(${mnus(constStr)} ${pm > 0 ? '+' : '−'} ${radHtml} | 0)`;
+    const xTex = constStr === '0' ? `${pm > 0 ? '' : '-'}${radTex}` : `${constTex}${pm > 0 ? '+' : '-'}${radTex}`;
+    return exactCoordHtml(xTex, '0', fb);
   };
   // Reintext-Label (Canvas fillText) — kein HTML
   const mkTxt = (pm) => {
-    if (constStr === '0') return `(${pm > 0 ? '' : '-'}${radText} | 0)`;
-    return `(${constStr} ${pm > 0 ? '+' : '-'} ${radText} | 0)`;
+    if (constStr === '0') return `(${pm > 0 ? '' : '−'}${radText} | 0)`;
+    return `(${mnus(constStr)} ${pm > 0 ? '+' : '−'} ${radText} | 0)`;
   };
 
   // z1 = xPlus = (nc + nr·√radicand)/d — das Vorzeichen des nr-Terms für
@@ -477,17 +523,41 @@ async function computeSpecials(myToken) {
 
   for (let fi_idx = 0; fi_idx < functions.length; fi_idx++) {
     const fi = functions[fi_idx];
-    if (!fi.expr.trim() || fi.visible === false) continue;
+    if (!fi.expr.trim() || fi.visible === false || fi.noSpecials) continue;
     const col = fi.color;
     const isLin = isLinearFunc(fi.expr);
 
     // ── Nullstellen: Vorzeichenwechsel von f(x) ──────────────────
-    let py = null, ppx = null;
+    let py = null, ppx = null, lastFin = null, lastX = null;
+    // Funktionswerte auf dem Raster — werden von den Berührungs-Nullstellen und der
+    // Extrema-/Wendepunkt-Suche unten wiederverwendet (spart ~1/3 aller Auswertungen).
+    const ys = new Float64Array(steps + 1);
     for (let s = 0; s <= steps; s++) {
       { const _yp = yieldIfNeeded(); if (_yp) { await _yp; _lastYield = performance.now(); if (cancelled()) return; } }
       const x = view.xmin + s * dx, y = safeEval(fi.expr, x);
+      ys[s] = y;
+      // ── Nullstelle genau am Rand des Definitionsbereichs (z.B. √(4−x²) bei ±2,
+      // √(x²−1) bei ±1): dort gibt es keinen Vorzeichenwechsel, weil die Funktion
+      // danach nicht definiert ist. Rand per Bisektion auf „definiert/undefiniert“
+      // suchen; ein einzelner Lochpunkt (Lücke < 1 Schritt) zählt nicht.
+      if (lastFin !== null && isFinite(y) !== lastFin) {
+        let fx = lastFin ? lastX : x, bx = lastFin ? x : lastX;
+        const dir = Math.sign(bx - fx);
+        for (let it = 0; it < 70; it++) { const m = (fx+bx)/2; if (isFinite(safeEval(fi.expr, m))) fx = m; else bx = m; }
+        const yEdge = safeEval(fi.expr, fx);
+        if (isFinite(yEdge) && Math.abs(yEdge) < 1e-6 && !isFinite(safeEval(fi.expr, bx + dir * 0.5 * dx))) {
+          const ex = Math.round(fx * 1e9) / 1e9;
+          // Der Randpunkt selbst muss definiert sein und 0 liefern — sonst ist es nur
+          // ein Grenzwert (x·log(x), 1/log(x) für x→0⁺), keine Nullstelle.
+          const yEx = safeEval(fi.expr, ex);
+          if (isFinite(yEx) && Math.abs(yEx) < 1e-9 && !acc.some(p => p.kind==='zero' && p.fi===fi_idx && Math.abs(p.x-ex)<tol))
+            acc.push({ kind:'zero', fi:fi_idx, x:ex, y:0, col });
+        }
+      }
+      lastFin = isFinite(y); lastX = x;
       if (!isFinite(y)) { py = null; continue; }
-      if (py !== null && Math.sign(y) !== Math.sign(py) && py !== 0) {
+      // Math.max(|py|,|y|) > 1e-60: sonst Unterlauf (e^(−100x) → 0 für großes x) als „Nullstelle“
+      if (py !== null && Math.sign(y) !== Math.sign(py) && py !== 0 && Math.max(Math.abs(py), Math.abs(y)) > 1e-60) {
         let lo = ppx, hi = x;
         for (let it = 0; it < 40; it++) { const m = (lo+hi)/2, ym = safeEval(fi.expr, m); if (Math.sign(ym) === Math.sign(py)) lo = m; else hi = m; }
         const mx = (lo+hi)/2;
@@ -507,7 +577,7 @@ async function computeSpecials(myToken) {
       for (let s = 0; s <= steps && !isLin; s++) {
         { const _yp = yieldIfNeeded(); if (_yp) { await _yp; _lastYield = performance.now(); if (cancelled()) return; } }
         const xc = view.xmin + s * dx;
-        const yc = safeEval(fi.expr, xc);
+        const yc = ys[s];
         if (!isFinite(yc)) { da = db = xa = xb = null; continue; }
         const dc = Math.abs(yc);
         if (da !== null && db !== null && db < da && db < dc && db < 1e-2) {
@@ -600,29 +670,55 @@ async function computeSpecials(myToken) {
     // ── Extrema (f'=0) und Wendepunkte (f''=0) ───────────────────
     // Lineare Funktionen haben konstante Ableitung → kein Scan nötig (spart 27.000 safeEval-Aufrufe)
     let pd1 = null, pd2 = null;
+    // Letzte Stelle mit deutlich von 0 verschiedenem f'' (und ihr Schritt-Index):
+    // Liegt ein Wendepunkt EXAKT auf einem Gitterpunkt (x³ bei x=0, x⁵−x, sin(x) bei 0 …),
+    // ist dort f''=0 und der Vorzeichenwechsel zwischen unmittelbaren Nachbarn
+    // würde sonst übersehen.
+    let nz2 = null, nz2s = -1;
     if (isLin) { pd1 = null; }
     for (let s = 1; s < steps && !isLin; s++) {
       { const _yp = yieldIfNeeded(); if (_yp) { await _yp; _lastYield = performance.now(); if (cancelled()) return; } }
       const x = view.xmin + s * dx;
-      const d1 = deriv1(fi.expr, x), d2 = deriv2(fi.expr, x);
-      if (!isFinite(d1) || !isFinite(d2)) { pd1 = null; pd2 = null; continue; }
+      // f'(x), f''(x) wie deriv1()/deriv2() (03_math.js), aber mit gemeinsamen Funktionswerten:
+      // 4 statt 9 Auswertungen (f(x) selbst kommt aus dem Raster ys).
+      const _f0 = ys[s], _fp1 = safeEval(fi.expr, x + H), _fm1 = safeEval(fi.expr, x - H),
+            _fp2 = safeEval(fi.expr, x + 2*H), _fm2 = safeEval(fi.expr, x - 2*H);
+      const d1 = (-_fp2 + 8*_fp1 - 8*_fm1 + _fm2) / (12*H);
+      const d2 = (-_fp2 + 16*_fp1 - 30*_f0 + 16*_fm1 - _fm2) / (12*H*H);
+      if (!isFinite(d1) || !isFinite(d2)) { pd1 = null; pd2 = null; nz2 = null; continue; }
 
       if (pd1 !== null && Math.sign(d1) !== Math.sign(pd1) && pd1 !== 0) {
         let lo = view.xmin + (s-1) * dx, hi = x;
         for (let it = 0; it < 40; it++) { const m = (lo+hi)/2, dm = deriv1(fi.expr, m); if (Math.sign(dm) === Math.sign(pd1)) lo = m; else hi = m; }
         const mx = (lo+hi)/2, my = safeEval(fi.expr, mx);
         const kind = deriv2(fi.expr, mx) < 0 ? 'max' : 'min';
-        if (isFinite(my) && !acc.some(p => p.fi===fi_idx && p.kind===kind && Math.abs(p.x-mx)<tol))
+        // Rausch-Filter: In sehr flachen Bereichen (x^20, e^(−100x) für große x …)
+        // wechselt die numerische Ableitung wegen Rundungsrauschen ständig das
+        // Vorzeichen → Phantom-Extrema. Ein echtes Extremum muss beidseits
+        // (4 Schritte entfernt) messbar tiefer/höher liegen. Nicht definierte
+        // Nachbarn (Definitionsrand) werden ignoriert.
+        const _hN = 4 * dx, _eps = 1e-12 * (1 + Math.abs(my));
+        const _sideOk = (xx) => { const v = safeEval(fi.expr, xx); return !isFinite(v) || (kind === 'max' ? v < my - _eps : v > my + _eps); };
+        // Polstelle zwischen zwei Rasterpunkten: f ist links/rechts betragsmässig riesig und wechselt das
+        // Vorzeichen — f' wechselt dort scheinbar das Vorzeichen, es ist aber kein Extremum.
+        const _fl = safeEval(fi.expr, mx - _hN), _fr = safeEval(fi.expr, mx + _hN);
+        const _poleLike = isFinite(_fl) && isFinite(_fr) && _fl * _fr < 0 && Math.abs(my) > 100 * Math.max(Math.abs(_fl), Math.abs(_fr), 1e-9);
+        if (isFinite(my) && !_poleLike && _sideOk(mx - _hN) && _sideOk(mx + _hN) && !acc.some(p => p.fi===fi_idx && p.kind===kind && Math.abs(p.x-mx)<tol))
           acc.push({ kind, fi:fi_idx, x:mx, y:my, col });
       }
 
-      if (!isLin && pd2 !== null && Math.sign(d2) !== Math.sign(pd2) && pd2 !== 0
-          && Math.abs(d2) > 1e-4 && Math.abs(pd2) > 1e-4) {
-        let lo = view.xmin + (s-1) * dx, hi = x;
-        for (let it = 0; it < 40; it++) { const m = (lo+hi)/2, dm = deriv2(fi.expr, m); if (Math.sign(dm) === Math.sign(pd2)) lo = m; else hi = m; }
+      // Rausch-Schwelle der 5-Punkt-Formel: ≈ 5,3·ε·|f|/H² (H=1e-5) → ≈ 6e-6·|f|, hier mit Sicherheitsfaktor — wächst mit |f(x)|.
+      // Beim starken Herauszoomen (|f| ~ 1e16) wäre f'' sonst reines Rundungsrauschen
+      // und erzeugte hunderte Phantom-Wendepunkte.
+      const _d2tol = 1e-4 + 4e-5 * (1 + Math.abs(_f0));
+      const _nzNow = Math.abs(d2) > _d2tol;
+      if (!isLin && _nzNow && nz2 !== null && Math.sign(d2) !== Math.sign(nz2) && s - nz2s <= 8) {
+        let lo = view.xmin + nz2s * dx, hi = x;
+        for (let it = 0; it < 40; it++) { const m = (lo+hi)/2, dm = deriv2(fi.expr, m); if (Math.sign(dm) === Math.sign(nz2)) lo = m; else hi = m; }
         const mx = (lo+hi)/2, my = safeEval(fi.expr, mx);
-        const d2L = deriv2(fi.expr, mx - 1e-3), d2R = deriv2(fi.expr, mx + 1e-3);
-        const realWP = isFinite(d2L) && isFinite(d2R) && Math.sign(d2L) !== Math.sign(d2R) && Math.abs(d2L) > 1e-4 && Math.abs(d2R) > 1e-4;
+        // Abstand 3e-2 statt 1e-3: bei flachen Wendepunkten (x⁵−x bei 0: f''=20x³) wäre |f''| sonst unter der Rauschschwelle
+        const d2L = deriv2(fi.expr, mx - 3e-2), d2R = deriv2(fi.expr, mx + 3e-2);
+        const realWP = isFinite(d2L) && isFinite(d2R) && Math.sign(d2L) !== Math.sign(d2R) && Math.abs(d2L) > _d2tol && Math.abs(d2R) > _d2tol;
         const hasKink = /\babs\s*\(|\bsqrt\s*\(|\bnthroot\s*\(/.test(fi.expr);
         const fNearL = safeEval(fi.expr, mx - 1e-3), fNearR = safeEval(fi.expr, mx + 1e-3);
         const yRange = Math.abs(view.ymax - view.ymin);
@@ -632,6 +728,7 @@ async function computeSpecials(myToken) {
           acc.push({ kind:'inf', fi:fi_idx, x:mx, y:my, col });
       }
       pd1 = d1; pd2 = d2;
+      if (_nzNow) { nz2 = d2; nz2s = s; }
     }
 
     // Filtere Sonderpunkte ausserhalb des Definitionsbereichs
@@ -709,8 +806,11 @@ async function computeSpecials(myToken) {
         if (!acc.some(p => p.kind==='asymp' && p.fi===fi_idx && Math.abs(p.y - val) < 1e-4))
           acc.push({ kind:'asymp', fi:fi_idx, x:0, y:val, col, dir, asympKey:`asymp_${fi_idx}_${parseFloat(val.toFixed(6))}` });
       };
-      if (canPlus  && conv(yP)) { const v = yP[0]; if (isFinite(v)) addAsymp(v, '+∞'); }
-      if (canMinus && conv(yM)) { const v = yM[0]; if (isFinite(v)) addAsymp(v, '-∞'); }
+      // Kreuz-Skalen-Test: bei x≈±1e4 darf der Wert nicht merklich vom Wert bei ±1e7 abweichen
+      // (sonst z.B. 1/log(x) → 0, das bei 1e7 erst 0.062 erreicht und dort fälschlich "konvergiert" wirkt)
+      const loOk = (v, sgn) => { const lo = safeEval(fi_obj.expr, 1e4 * sgn); return !isFinite(lo) || Math.abs(lo - v) <= 5e-3 * (1 + Math.abs(v)); };
+      if (canPlus  && conv(yP)) { const v = yP[0]; if (isFinite(v) && loOk(v, 1)) addAsymp(v, '+∞'); }
+      if (canMinus && conv(yM)) { const v = yM[0]; if (isFinite(v) && loOk(v, -1)) addAsymp(v, '-∞'); }
 
       const BIG_LO = 1e4; // zweite, deutlich kleinere Skala für den Kreuz-Skalen-Konsistenztest unten
       for (const [arr, dirSign, dirStr, dirOk] of [[yP, 1, '+∞', canPlus], [yM, -1, '-∞', canMinus]]) {
@@ -743,8 +843,12 @@ async function computeSpecials(myToken) {
           // noch so grosse relative Abweichung fälschlich durchlassen.
           if (isFinite(slopeLo) && Math.abs(slopeLo) > 1e-12) {
             const ratio = slope / slopeLo;
-            if (!isFinite(ratio) || ratio < 0.5 || ratio > 2) continue;
+            if (!isFinite(ratio) || ratio < 0.8 || ratio > 1.25) continue;
           }
+          // Auch der Achsenabschnitt muss auf beiden Skalen übereinstimmen
+          // (x·log(x): Steigung wächst langsam, Achsenabschnitt läuft davon; tan(x)+x: Zufallswert)
+          const intLo = arrLo[0] - slope * BIG_LO * dirSign;
+          if (!isFinite(intLo) || Math.abs(intLo - intercept) > 0.02 * (1 + Math.abs(intercept))) continue;
         }
         const _fv1 = safeEval(fi_obj.expr, 1), _fv2 = safeEval(fi_obj.expr, 2);
         if (isFinite(_fv1) && isFinite(_fv2) &&
@@ -812,7 +916,14 @@ async function computeSpecials(myToken) {
         if (!acc.some(p => p.kind==='pole' && p.fi===fi_idx && Math.abs(p.x - ax) < MERGE_POLE))
           acc.push({ kind:'pole', fi:fi_idx, x:axNice, y:0, col, xRaw:ax });
       };
-      const bisectPole = (lo, hi) => { addPole(findBoundary(lo, hi)); };
+      // Zusätzliche Gegenprobe: an der gefundenen Stelle muss |f| von mindestens einer
+      // Seite WIRKLICH divergieren. Sonst wird beim starken Herauszoomen eine steile,
+      // stetige Kurve (z.B. Parabel mit Nullstelle im Scan-Intervall, f ~ 1e16) fälschlich
+      // als Pol gemeldet.
+      const bisectPole = (lo, hi) => {
+        const ax = findBoundary(lo, hi);
+        if (probeDivergence(fi_obj.expr, ax, -1) || probeDivergence(fi_obj.expr, ax, 1)) addPole(ax);
+      };
 
       // Verifiziert, dass innerhalb [lo,hi] eine ECHTE Singularität liegt (|f|
       // wächst unbeschränkt, je näher man kommt), statt nur eine STEILE aber
@@ -1134,7 +1245,7 @@ function renderSpecialList() {
     groups[key].push(pt);
   });
   // Koordinaten ohne exactLabel → Dezimal (keine falschen Brüche für numerisch gefundene Punkte)
-  const ptLabel = pt => pt.exactLabel || `(${niceNumDec(pt.x)} | ${niceNumDec(pt.y)})`;
+  const ptLabel = pt => pt.exactLabel || coordHtml(pt.x, pt.y, true);
 
   Object.values(groups).forEach(grp => {
     if (grp.length < 2) { grp.forEach(pt => addSPRow(el, pt, ptLabel(pt))); return; }

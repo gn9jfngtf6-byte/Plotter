@@ -127,8 +127,11 @@ function asSimpleFrac(v, latex) {
   const abs = Math.abs(v);
   if (Math.abs(abs - Math.round(abs)) < 1e-9) return null; // ganze Zahl
   // Zwei Toleranzstufen: exakt zuerst, dann Fallback für gerundete Werte
-  for (const tol of [1e-9, 5e-5]) {
-    for (let q = 2; q <= 100; q++) {
+  // Toleranz und maximaler Nenner hängen zusammen: je grösser die Toleranz, desto kleiner der erlaubte
+  // Nenner — sonst "findet" man für jede beliebige (irrationale) Zahl irgendeinen Bruch mit grossem
+  // Nenner (z.B. −57/73 statt −0.78), obwohl der Wert gar kein Bruch ist.
+  for (const [tol, qmax] of [[1e-9, 100], [5e-6, 36], [5e-5, 12]]) {
+    for (let q = 2; q <= qmax; q++) {
       const p = Math.round(abs * q);
       if (p > 0 && Math.abs(p / q - abs) < tol) {
         const g = gcd(p, q);
@@ -147,17 +150,63 @@ function asSimpleFrac(v, latex) {
   }
   return null;
 }
+// ── Zoom-abhängige Zahlendarstellung ─────────────────────────────────
+// Problem früher: mit fester Nachkommastellen-Einstellung (z.B. 1) zeigten ALLE Achsenzahlen
+// und Punkt-Beschriftungen beim starken Hineinzoomen dieselbe Zahl ("0", "1", "−4" …), und beim
+// starken Herauszoomen standen endlose Ziffernreihen (10000000) da.
+// Lösung: Anzahl Nachkommastellen aus dem Gitterabstand ableiten und sehr grosse/kleine
+// Zahlen in Zehnerpotenz-Schreibweise (2·10⁷) ausgeben.
+function viewSpanNow() {
+  try {
+    const v = (typeof isoView !== 'undefined' && isoView) || view;
+    const sp = Math.min(v.xmax - v.xmin, v.ymax - v.ymin);
+    return (isFinite(sp) && sp > 0) ? sp : 20;
+  } catch (e) { return 20; }
+}
+// Nachkommastellen, die nötig sind, damit benachbarte Gitterlinien/Punkte unterscheidbar bleiben
+function decimalsForView(base) {
+  const gs = gridStep(viewSpanNow());
+  const need = Math.max(0, -Math.floor(Math.log10(gs) + 1e-9));
+  return Math.min(15, Math.max(base, need > 0 ? need + 1 : 0));
+}
+function _supNum(n) {
+  const m = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻' };
+  return String(n).split('').map(c => m[c] || c).join('');
+}
+// Zehnerpotenz-Schreibweise für |v| ≥ 1e7 oder 0 < |v| < 1e-5, sonst null
+function sciFormat(v, latex) {
+  const a = Math.abs(v);
+  // Kleine Werte nur dann als Zehnerpotenz, wenn sie im aktuellen Ausschnitt überhaupt sichtbar sind
+  // (sonst Rundungsrauschen wie 1e-7 bei normalem Zoom → bleibt "0")
+  if (!(a >= 1e7 || (a > 0 && a < 1e-5 && a >= viewSpanNow() * 1e-4))) return null;
+  let e = Math.floor(Math.log10(a)), m = a / Math.pow(10, e);
+  m = parseFloat(m.toPrecision(4));
+  if (m >= 10) { m /= 10; e += 1; }
+  const sign = v < 0 ? '-' : '';
+  const mant = parseFloat(m.toPrecision(4)).toString();
+  const lead = (mant === '1') ? '' : mant + (latex ? '\\cdot ' : '·');
+  return latex ? `${sign}${lead}10^{${e}}` : `${sign}${lead}10${_supNum(e)}`;
+}
+// Dezimalzahl mit zoom-abhängiger Stellenzahl (Nullen am Ende entfallen)
+function fmtDecView(v, base, latex) {
+  const sc = sciFormat(v, latex); if (sc) return sc;
+  return parseFloat(v.toFixed(decimalsForView(base))).toString();
+}
+function zeroEpsNow() { return Math.min(1e-9, viewSpanNow() * 1e-9); }
+
 // latex=true: gibt LaTeX zurück (für drawMathLabel()-Overlays); sonst wie bisher
 // den Unicode-Anzeigestring (Eingabefeld-Textinput, Solve-Panel, …).
 function niceNum(v, forAxis, latex) {
   if (!isFinite(v)) return '–';
-  if (Math.abs(v) < 1e-9) return '0'; // sehr kleine Zahlen = 0
+  if (Math.abs(v) < zeroEpsNow()) return '0'; // sehr kleine Zahlen = 0
   if (usePiMode()) { const pf = asPiFraction(v); if (pf) return latex ? formatPiLatex(pf.p, pf.q) : formatPi(pf.p, pf.q); }
-  if (!forAxis) {
+  // Brüche/Wurzeln nur, solange die Toleranzen der Erkennung (bis 5e-5) deutlich feiner als der
+  // sichtbare Ausschnitt sind — beim extremen Hineinzoomen würde sonst z.B. 1.00000012 zu "1".
+  if (!forAxis && viewSpanNow() >= 1e-2) {
     const sr = asSurd(v, latex); if (sr) return sr;     // Wurzel-Formen: √2/2, √3/2 …
     const fr = asSimpleFrac(v, latex); if (fr) return fr; // rationale Brüche: 1/3, 2/5 …
   }
-  return parseFloat(v.toFixed(precision)).toString();
+  return fmtDecView(v, precision, latex);
 }
 
 // Gibt eine Zahl als HTML-Bruch zurück: <span class="mfrac">…</span> oder plain string.
@@ -200,8 +249,45 @@ function rootHTML(indexStr, contentHTML) {
 
 // Koordinaten-String, z.B. "(1/3 | 2)". latex=true → LaTeX für drawMathLabel()-Overlays.
 function niceCoord(x, y, latex) {
-  if (latex) return `(${niceNum(x, false, true)} \\mid ${niceNum(y, false, true)})`;
-  return `(${niceNum(x)} | ${niceNum(y)})`;
+  if (latex) return coordTex(niceNum(x, false, true), niceNum(y, false, true));
+  return mnus(`(${niceNum(x)} | ${niceNum(y)})`);
+}
+
+// Einheitliches Minuszeichen für reine Text-Anzeigen (Canvas-Text, Tooltips, Listen):
+// "-" (Bindestrich, kurz) → "−" (U+2212, echtes Minus) — nur dort, wo es ein Vorzeichen bzw.
+// ein Rechenzeichen ist (vor Ziffer/Punkt/√/π, oder zwischen Leerzeichen), nie in Wörtern
+// wie "x-Achse" oder Exponenten wie "1e-7". LaTeX/MathLive-Ausgaben brauchen das nicht
+// (dort wird "-" ohnehin als echtes Minus gesetzt).
+function mnus(s) {
+  return String(s).replace(/(^|[^\w.])-(?=[\d.√π])/g, '$1\u2212').replace(/(\s)-(\s)/g, '$1\u2212$2');
+}
+
+// Canvas-Text (Achsenzahlen, Beschriftungen): überall dasselbe Minuszeichen. Alle fillText()-Aufrufe der
+// App zeigen nur Anzeigetext (nie etwas, das zurückgelesen wird) — daher zentral statt an ~40 Stellen.
+(function () {
+  const P = (typeof CanvasRenderingContext2D !== 'undefined') && CanvasRenderingContext2D.prototype;
+  if (!P || P.__minusPatched) return;
+  const orig = P.fillText;
+  P.fillText = function (text, x, y, maxWidth) {
+    if (typeof text === 'string' && text.indexOf('-') >= 0) text = mnus(text);
+    return maxWidth === undefined ? orig.call(this, text, x, y) : orig.call(this, text, x, y, maxWidth);
+  };
+  P.__minusPatched = true;
+})();
+
+// Koordinatenpaar als LaTeX mit MITWACHSENDEN Klammern (\left( … \right)) — bei Brüchen/Wurzeln
+// werden Klammern und Trennstrich so hoch wie der Inhalt, sonst normal gross.
+function coordTex(xTex, yTex) {
+  // \dfrac statt \frac: in der kleinen Beschriftungsschrift bleibt der Bruch so gut lesbar
+  xTex = String(xTex).replace(/\\frac/g, '\\dfrac'); yTex = String(yTex).replace(/\\frac/g, '\\dfrac');
+  const tall = /\\frac|\\sqrt|\\dfrac/.test(xTex + yTex);
+  return tall ? `\\left(${xTex}\\,\\middle|\\,${yTex}\\right)` : `\\left(${xTex}\\mid ${yTex}\\right)`;
+}
+// Koordinate als fertiges, MathLive-gerendertes HTML (Fallback: Text mit echtem Minus)
+function coordHtml(x, y, dec, fixedDec) {
+  const tex = dec ? coordTex(niceNumDec(x, true, fixedDec), niceNumDec(y, true, fixedDec)) : niceCoord(x, y, true);
+  if (typeof latexToMathLiveHtml === 'function') { const h = latexToMathLiveHtml(tex); if (h) return h; }
+  return dec ? niceCoordDec(x, y, false, fixedDec) : niceCoord(x, y);
 }
 
 // Einheitliche Formatierung einer schrägen Asymptote "y = m·x + k" (inkl. Sonderfälle
@@ -232,11 +318,10 @@ function fmtObliqueAsymLabel(slope, intercept, latex) {
 // "Nachkommastellen"-Einstellung (precision) — siehe niceCoordDec() unten.
 function niceNumDec(v, latex, fixedDec) {
   if (!isFinite(v)) return '–';
-  if (Math.abs(v) < 1e-9) return '0';
+  if (Math.abs(v) < zeroEpsNow()) return '0';
   // Pi-Modus: exakte π-Vielfache bleiben (z.B. π/2 im Trig-Kontext)
   if (usePiMode()) { const pf = asPiFraction(v); if (pf) return latex ? formatPiLatex(pf.p, pf.q) : formatPi(pf.p, pf.q); }
-  const dec = (typeof fixedDec === 'number') ? fixedDec : precision;
-  return parseFloat(v.toFixed(dec)).toString();
+  return fmtDecView(v, (typeof fixedDec === 'number') ? fixedDec : precision, latex);
 }
 
 // Koordinaten-String, IMMER dezimal (kein Bruch-/Wurzel-Wechsel) — für Punkte,
@@ -250,8 +335,8 @@ function niceNumDec(v, latex, fixedDec) {
 // Extrema, Lösungsweg-Kästen, …) bleiben unverändert bei niceCoord()/niceNum()
 // und damit bei Bruch-/Wurzel-Bevorzugung.
 function niceCoordDec(x, y, latex, fixedDec) {
-  if (latex) return `(${niceNumDec(x, true, fixedDec)} \\mid ${niceNumDec(y, true, fixedDec)})`;
-  return `(${niceNumDec(x, false, fixedDec)} | ${niceNumDec(y, false, fixedDec)})`;
+  if (latex) return coordTex(niceNumDec(x, true, fixedDec), niceNumDec(y, true, fixedDec));
+  return mnus(`(${niceNumDec(x, false, fixedDec)} | ${niceNumDec(y, false, fixedDec)})`);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -588,7 +673,26 @@ function getEvalFn(expr, pNames) {
 //   1. Neuen Parameter-Namen in new Function() einfügen (nach 'logbase')
 //   2. Entsprechende Math.*-Funktion in fn(...) Aufruf einfügen
 //   3. Button in .kbd ergänzen
+// Schnellpfad für Ausdrücke OHNE Parameter (der Normalfall): direkter Map-Zugriff über den
+// Ausdruck selbst — spart pro Aufruf Object.keys(params), String-Verkettung (Cache-Schlüssel),
+// join() und Spread. Das Auswerten läuft tausende Male pro Berechnung der Sonderstellen.
+const _evalNoParam = new Map();
 function safeEval(expr, xVal) {
+  let hasP = false;
+  for (const _k in params) { hasP = true; break; }
+  if (!hasP) {
+    let f = _evalNoParam.get(expr);
+    if (f === undefined) {
+      if (!expr || !expr.trim()) return NaN;
+      f = getEvalFn(expr, []);
+      _evalNoParam.set(expr, f);
+    }
+    if (!f) return NaN;
+    try {
+      return f(xVal, Math.sin, Math.cos, Math.tan, Math.sqrt, Math.abs, Math.log, Math.exp,
+               PI, Math.E, _nthroot, _logn, _log10, _logbase, Math.asin, Math.acos, Math.atan);
+    } catch (ex) { return NaN; }
+  }
   if (!expr || !expr.trim()) return NaN;
   try {
     const pN = Object.keys(params);
@@ -604,7 +708,7 @@ function safeEval(expr, xVal) {
 // - Funktionsausdruck geändert wurde
 // - Parameter-Werte geändert wurden
 // - Eine Funktion gelöscht wurde
-function clearEvalCache() { evalCache.clear(); }
+function clearEvalCache() { evalCache.clear(); _evalNoParam.clear(); }
 
 // Setzt Parameterwerte in einen Ausdruck ein und vereinfacht das Ergebnis.
 // Beispiel: "a(x-v)^2 + h"  mit a=1, v=3, h=0  →  "(x-3)^2"

@@ -1443,12 +1443,14 @@ function recomputeFitFn(fi) {
     if (fn.fitType === 'linear') {
       const b = document.getElementById('loesungsweg-box');
       if (b?.style.display === 'block') showLoesungsweg();
+      if (typeof refreshPanelCard === 'function') refreshPanelCard('plin');   // Lösungsweg-Karte (22c_steps_panels.js)
     }
     if (['quadratic', 'vertex', 'roots'].includes(fn.fitType)) {
       const sp = document.getElementById('quad-sp-box');
       if (sp?.style.display === 'block') showQuadScheitelpunkt();
       const ns = document.getElementById('quad-ns-box');
       if (ns?.style.display === 'block') showQuadNullstellen();
+      if (typeof refreshPanelCard === 'function') { refreshPanelCard('pvertex'); refreshPanelCard('pzeros'); }
     }
 
     return true;

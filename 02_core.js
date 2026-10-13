@@ -37,8 +37,8 @@ const AREA_ALPHAS = ['rgba(55,138,221,0.15)','rgba(216,90,48,0.15)','rgba(29,158
 // Farben für Gitternetz, Achsen, Labels, Hintergrund — dynamisch je nach Dark Mode
 const C = { get grid(){ return darkMode?'#2d3140':'#e5e7eb'; },
              get axis(){ return darkMode?'#6b7280':'#6b7280'; },
-             get label(){ return beamMode?'#000000':(darkMode?'#6b7280':'#9ca3af'); },
-             get anno(){ return beamMode?'#000000':(darkMode?'#c4c9d6':'#4b5563'); },
+             get label(){ return beamMode?(darkMode?'#ffffff':'#000000'):(darkMode?'#6b7280':'#9ca3af'); },
+             get anno(){ return beamMode?(darkMode?'#ffffff':'#000000'):(darkMode?'#c4c9d6':'#4b5563'); },
              get bg(){ return darkMode?'#16181d':'#ffffff'; } };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -108,11 +108,10 @@ try {
 
 let _kbdOpen = false;
 function toggleKbd() {
-  _kbdOpen = !_kbdOpen;
-  const body = document.getElementById('kbd-body');
-  const arrow = document.getElementById('kbd-arrow');
-  if (body) body.style.display = _kbdOpen ? '' : 'none';
-  if (arrow) arrow.style.transform = _kbdOpen ? '' : 'rotate(-90deg)';
+  // Die Tastatur ist ein normales Sidebar-Panel (#kbd-panel); das Einklappen übernimmt
+  // der generische Panel-Code (11_fitting.js). Funktion bleibt als Kompatibilitäts-Aufruf.
+  const p = document.getElementById('kbd-panel');
+  if (p) p.classList.toggle('collapsed');
 }
 
 // Einstellungen-Popover (obere Leiste, ⚙-Knopf) — gleiches Fixed-Position-Muster
@@ -121,17 +120,29 @@ function toggleKbd() {
 // Schriftgrösse, Gitternetz, Nachkommastellen, π-Notation, Zahlendarstellung,
 // Beschriftungen) ist statisches HTML in index.html, daher hier nur Ein-/Ausblenden
 // + Positionierung nötig (kein dynamischer Aufbau wie beim Sprachmenü).
+// Popover unter einem Knopf platzieren und im Fenster halten: Die Knöpfe
+// Darstellung/Einstellungen/Sprache sitzen rechts in der Toolbar — mit
+// "left = Knopf-Linkskante" ragte das Menü rechts aus dem Bildschirm.
+// Menü muss bereits sichtbar (display:block) sein, damit seine Breite messbar ist.
+function placeMenuUnder(menu, btn) {
+  if (!menu || !btn) return;
+  const r = btn.getBoundingClientRect();
+  const w = menu.offsetWidth;
+  const margin = 8;
+  let left = r.left;
+  if (left + w > window.innerWidth - margin) left = r.right - w;      // rechtsbündig zum Knopf
+  left = Math.max(margin, Math.min(left, window.innerWidth - w - margin));
+  menu.style.top = (r.bottom + 6) + 'px';
+  menu.style.left = left + 'px';
+}
+
 function toggleSettingsMenu() {
   const menu = document.getElementById('settings-menu');
   if (!menu) return;
   if (menu.style.display === 'none' || !menu.style.display) {
     const btn = document.getElementById('settings-btn');
-    if (btn) {
-      const r = btn.getBoundingClientRect();
-      menu.style.top = (r.bottom + 4) + 'px';
-      menu.style.left = (r.left) + 'px';
-    }
     menu.style.display = 'block';
+    placeMenuUnder(menu, btn);
     setTimeout(() => { document.addEventListener('click', closeSettingsMenuOutside, { once: true }); }, 0);
   } else {
     closeSettingsMenu();
@@ -152,7 +163,12 @@ let darkMode = false;
 function toggleDarkMode() {
   darkMode = !darkMode;
   document.body.classList.toggle('dark', darkMode);
-  document.getElementById('dark-btn').textContent = darkMode ? '☀' : '🌙';
+  const dbtn = document.getElementById('dark-btn');
+  // Beschriftung bleibt (wie die übrigen Toolbar-Knöpfe) Emoji + Text; das
+  // data-i18n-Attribut wird mitgewechselt, damit applyI18n() bei einem
+  // Sprachwechsel nicht wieder den falschen Text einsetzt.
+  dbtn.setAttribute('data-i18n', darkMode ? 'btn_lightmode' : 'btn_darkmode');
+  dbtn.textContent = t(darkMode ? 'btn_lightmode' : 'btn_darkmode');
   scheduleDraw();
 }
 
@@ -437,8 +453,19 @@ function setupCanvas() {
 }
 
 // CSS-Grösse des Canvas-Containers (ohne DPR-Faktor)
-function getW() { return document.getElementById('canvas-wrap').clientWidth || 600; }
-function getH() { return document.getElementById('canvas-wrap').clientHeight || 500; }
+// Gemessene Grösse wird zwischengespeichert (clientWidth erzwingt jedes Mal ein Layout — toCanvas()
+// läuft tausende Male pro Zeichnen/Berechnung). Ein ResizeObserver hält den Wert aktuell.
+let _wrapW = 0, _wrapH = 0, _wrapRO = null;
+function _measureWrap() {
+  const el = document.getElementById('canvas-wrap');
+  _wrapW = el ? el.clientWidth : 0; _wrapH = el ? el.clientHeight : 0;
+  if (!_wrapRO && el && typeof ResizeObserver !== 'undefined') {
+    _wrapRO = new ResizeObserver(() => { _wrapW = 0; _wrapH = 0; if (typeof scheduleDraw === 'function') scheduleDraw(); });
+    _wrapRO.observe(el);
+  }
+}
+function getW() { if (!_wrapW) _measureWrap(); return _wrapW || 600; }
+function getH() { if (!_wrapH) _measureWrap(); return _wrapH || 500; }
 
 // Mausposition relativ zum Canvas-Element (in CSS-Pixeln)
 function mousePos(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }

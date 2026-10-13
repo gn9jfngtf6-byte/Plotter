@@ -12,7 +12,7 @@
 
 // Speichert den aktuellen Zustand als .plotter-Datei auf dem Computer
 function savePlotFile() {
-  const name = (document.getElementById('save-name').value.trim() || 'plot');
+  const name = ((document.getElementById('save-name')?.value || '').trim() || 'plot');
   const data = JSON.stringify({ v: 1, state: captureState() }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const a = document.createElement('a');
@@ -83,11 +83,12 @@ function getSaves() {
 }
 
 function savePlotLocal() {
-  const name = document.getElementById('save-name-local').value.trim();
+  const name = (document.getElementById('save-name-local')?.value || '').trim();
   if (!name) { showSaveMsg('Bitte einen Namen eingeben.', '#e24b4a'); return; }
   const saves = getSaves();
   saves[name] = captureState();
-  localStorage.setItem(SAVE_KEY, JSON.stringify(saves));
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(saves)); }
+  catch { showSaveMsg('Speichern nicht möglich (Speicher voll oder gesperrt).', '#e24b4a'); return; }
   showSaveMsg(`✓ "${name}" gespeichert.`, '#1D9E75');
   renderSavedList();
 }
@@ -105,7 +106,7 @@ function loadPlot(name) {
 function deleteSave(name) {
   const saves = getSaves();
   delete saves[name];
-  localStorage.setItem(SAVE_KEY, JSON.stringify(saves));
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(saves)); } catch {}
   renderSavedList();
 }
 

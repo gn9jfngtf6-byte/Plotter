@@ -1,0 +1,2544 @@
+{
+ "1/x|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=0$",
+  "approx": false
+ },
+ "1/x|pole|0.000|": {
+  "res": "Senkrechte Asymptote: $x=0$",
+  "approx": false
+ },
+ "(x+1)/(x-2)|zero|-1.000|": {
+  "res": "Nullstelle: $N(-1\\,|\\,0)$",
+  "approx": false
+ },
+ "(x+1)/(x-2)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-\\frac{1}{2})$",
+  "approx": false
+ },
+ "(x+1)/(x-2)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=1$",
+  "approx": false
+ },
+ "(x+1)/(x-2)|pole|2.000|": {
+  "res": "Senkrechte Asymptote: $x=2$",
+  "approx": false
+ },
+ "(x^2-1)/(x-1)|zero|-1.000|": {
+  "res": "Nullstelle: $N(-1\\,|\\,0)$",
+  "approx": false
+ },
+ "(x^2-1)/(x-1)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "(x^2-1)/(x-1)|hole|1.000|": {
+  "res": "Hebbare Lücke bei $(1\\,|\\,2)$ — dort ist $f$ nicht definiert, der Graph hat ein „Loch“.",
+  "approx": false
+ },
+ "(x^2-4)/(x^2-x-2)|zero|-2.000|": {
+  "res": "Nullstelle: $N(-2\\,|\\,0)$",
+  "approx": false
+ },
+ "(x^2-4)/(x^2-x-2)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,2)$",
+  "approx": false
+ },
+ "(x^2-4)/(x^2-x-2)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=1$",
+  "approx": false
+ },
+ "(x^2-4)/(x^2-x-2)|pole|-1.000|": {
+  "res": "Senkrechte Asymptote: $x=-1$",
+  "approx": false
+ },
+ "(x^2-4)/(x^2-x-2)|hole|2.000|": {
+  "res": "Hebbare Lücke bei $(2\\,|\\,\\frac{4}{3})$ — dort ist $f$ nicht definiert, der Graph hat ein „Loch“.",
+  "approx": false
+ },
+ "x/(x^2+1)|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x/(x^2+1)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x/(x^2+1)|inf|-1.732|": {
+  "res": "Wendepunkt: $W(-\\sqrt{3}\\,|\\,-\\frac{\\sqrt{3}}{4})$",
+  "approx": false
+ },
+ "x/(x^2+1)|min|-1.000|": {
+  "res": "Tiefpunkt: $T(-1\\,|\\,-\\frac{1}{2})$",
+  "approx": false
+ },
+ "x/(x^2+1)|inf|0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x/(x^2+1)|max|1.000|": {
+  "res": "Hochpunkt: $H(1\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "x/(x^2+1)|inf|1.732|": {
+  "res": "Wendepunkt: $W(\\sqrt{3}\\,|\\,\\frac{\\sqrt{3}}{4})$",
+  "approx": false
+ },
+ "x/(x^2+1)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=0$",
+  "approx": false
+ },
+ "(x^2+1)/x|max|-1.000|": {
+  "res": "Hochpunkt: $H(-1\\,|\\,-2)$",
+  "approx": false
+ },
+ "(x^2+1)/x|min|1.000|": {
+  "res": "Tiefpunkt: $T(1\\,|\\,2)$",
+  "approx": false
+ },
+ "(x^2+1)/x|asymp|0.000|+∞": {
+  "res": "Schräge Asymptote: $y=x$",
+  "approx": false
+ },
+ "(x^2+1)/x|pole|0.000|": {
+  "res": "Senkrechte Asymptote: $x=0$",
+  "approx": false
+ },
+ "(2x^2-3x)/(x+1)|zero|-0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=0,\\ x_{2}=\\frac{3}{2}$",
+  "approx": false
+ },
+ "(2x^2-3x)/(x+1)|zero|1.500|": {
+  "res": "Alle Nullstellen: $x_{1}=0,\\ x_{2}=\\frac{3}{2}$",
+  "approx": false
+ },
+ "(2x^2-3x)/(x+1)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "(2x^2-3x)/(x+1)|max|-2.581|": {
+  "res": "Hochpunkt: $H(\\frac{-2-\\sqrt{10}}{2}\\,|\\,-7-2\\sqrt{10})$",
+  "approx": false
+ },
+ "(2x^2-3x)/(x+1)|min|0.581|": {
+  "res": "Tiefpunkt: $T(\\frac{-2+\\sqrt{10}}{2}\\,|\\,-7+2\\sqrt{10})$",
+  "approx": false
+ },
+ "(2x^2-3x)/(x+1)|asymp|0.000|+∞": {
+  "res": "Schräge Asymptote: $y=2x-5$",
+  "approx": false
+ },
+ "(2x^2-3x)/(x+1)|pole|-1.000|": {
+  "res": "Senkrechte Asymptote: $x=-1$",
+  "approx": false
+ },
+ "1/(x^2-4)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-\\frac{1}{4})$",
+  "approx": false
+ },
+ "1/(x^2-4)|max|-0.000|": {
+  "res": "Hochpunkt: $H(0\\,|\\,-\\frac{1}{4})$",
+  "approx": false
+ },
+ "1/(x^2-4)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=0$",
+  "approx": false
+ },
+ "1/(x^2-4)|pole|-2.000|": {
+  "res": "Senkrechte Asymptote: $x=-2$",
+  "approx": false
+ },
+ "1/(x^2-4)|pole|2.000|": {
+  "res": "Senkrechte Asymptote: $x=2$",
+  "approx": false
+ },
+ "(x^3-x)/(x^2-4)|zero|-1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-1,\\ x_{2}=0,\\ x_{3}=1$",
+  "approx": false
+ },
+ "(x^3-x)/(x^2-4)|zero|-0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-1,\\ x_{2}=0,\\ x_{3}=1$",
+  "approx": false
+ },
+ "(x^3-x)/(x^2-4)|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-1,\\ x_{2}=0,\\ x_{3}=1$",
+  "approx": false
+ },
+ "(x^3-x)/(x^2-4)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "(x^3-x)/(x^2-4)|max|-3.259|": {
+  "res": "Hochpunkt: $H(-\\sqrt{\\frac{11+\\sqrt{105}}{2}}\\,|\\,\\frac{{\\left(-\\sqrt{\\frac{11}{2}+\\frac{\\sqrt{105}}{2}}\\right)}^{3}+\\sqrt{\\frac{11}{2}+\\frac{\\sqrt{105}}{2}}}{{\\left(-\\sqrt{\\frac{11}{2}+\\frac{\\sqrt{105}}{2}}\\right)}^{2}-4})$",
+  "approx": false
+ },
+ "(x^3-x)/(x^2-4)|min|-0.614|": {
+  "res": "Tiefpunkt: $T(-\\sqrt{\\frac{11-\\sqrt{105}}{2}}\\,|\\,\\frac{{\\left(-\\sqrt{\\frac{11}{2}-\\frac{\\sqrt{105}}{2}}\\right)}^{3}+\\sqrt{\\frac{11}{2}-\\frac{\\sqrt{105}}{2}}}{{\\left(-\\sqrt{\\frac{11}{2}-\\frac{\\sqrt{105}}{2}}\\right)}^{2}-4})$",
+  "approx": false
+ },
+ "(x^3-x)/(x^2-4)|inf|0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "(x^3-x)/(x^2-4)|max|0.614|": {
+  "res": "Hochpunkt: $H(\\sqrt{\\frac{11-\\sqrt{105}}{2}}\\,|\\,\\frac{{\\sqrt{\\frac{11}{2}-\\frac{\\sqrt{105}}{2}}}^{3}-\\sqrt{\\frac{11}{2}-\\frac{\\sqrt{105}}{2}}}{{\\sqrt{\\frac{11}{2}-\\frac{\\sqrt{105}}{2}}}^{2}-4})$",
+  "approx": false
+ },
+ "(x^3-x)/(x^2-4)|min|3.259|": {
+  "res": "Tiefpunkt: $T(\\sqrt{\\frac{11+\\sqrt{105}}{2}}\\,|\\,\\frac{{\\sqrt{\\frac{11}{2}+\\frac{\\sqrt{105}}{2}}}^{3}-\\sqrt{\\frac{11}{2}+\\frac{\\sqrt{105}}{2}}}{{\\sqrt{\\frac{11}{2}+\\frac{\\sqrt{105}}{2}}}^{2}-4})$",
+  "approx": false
+ },
+ "(x^3-x)/(x^2-4)|asymp|0.000|+∞": {
+  "res": "Schräge Asymptote: $y=x$",
+  "approx": false
+ },
+ "(x^3-x)/(x^2-4)|pole|-2.000|": {
+  "res": "Senkrechte Asymptote: $x=-2$",
+  "approx": false
+ },
+ "(x^3-x)/(x^2-4)|pole|2.000|": {
+  "res": "Senkrechte Asymptote: $x=2$",
+  "approx": false
+ },
+ "x^2/(x^2-1)|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2/(x^2-1)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2/(x^2-1)|max|-0.000|": {
+  "res": "Hochpunkt: $H(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2/(x^2-1)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=1$",
+  "approx": false
+ },
+ "x^2/(x^2-1)|pole|-1.000|": {
+  "res": "Senkrechte Asymptote: $x=-1$",
+  "approx": false
+ },
+ "x^2/(x^2-1)|pole|1.000|": {
+  "res": "Senkrechte Asymptote: $x=1$",
+  "approx": false
+ },
+ "EC^x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "EC^x|asymp|0.000|-∞": {
+  "res": "Waagrechte Asymptote (für $x\\to-\\infty$): $y=0$",
+  "approx": false
+ },
+ "EC^(-x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "EC^(-x)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=0$",
+  "approx": false
+ },
+ "x*EC^x|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x*EC^x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x*EC^x|inf|-2.000|": {
+  "res": "Wendepunkt: $W(-2\\,|\\,-2\\cdot e^{-2})$",
+  "approx": false
+ },
+ "x*EC^x|min|-1.000|": {
+  "res": "Tiefpunkt: $T(-1\\,|\\,-\\frac{1}{e})$",
+  "approx": false
+ },
+ "x*EC^x|asymp|0.000|-∞": {
+  "res": "Waagrechte Asymptote (für $x\\to-\\infty$): $y=0$",
+  "approx": false
+ },
+ "x^2*EC^(-x)|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2*EC^(-x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2*EC^(-x)|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2*EC^(-x)|inf|0.586|": {
+  "res": "Wendepunkt: $W(2-\\sqrt{2}\\,|\\,\\left(6-4\\sqrt{2}\\right)\\cdot e^{-2+\\sqrt{2}})$",
+  "approx": false
+ },
+ "x^2*EC^(-x)|max|2.000|": {
+  "res": "Hochpunkt: $H(2\\,|\\,4\\cdot e^{-2})$",
+  "approx": false
+ },
+ "x^2*EC^(-x)|inf|3.414|": {
+  "res": "Wendepunkt: $W(2+\\sqrt{2}\\,|\\,\\left(6+4\\sqrt{2}\\right)\\cdot e^{-2-\\sqrt{2}})$",
+  "approx": false
+ },
+ "x^2*EC^(-x)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=0$",
+  "approx": false
+ },
+ "EC^x-2|zero|0.693|": {
+  "res": "Nullstelle: $N(\\ln(2)\\,|\\,0)$",
+  "approx": false
+ },
+ "EC^x-2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-1)$",
+  "approx": false
+ },
+ "EC^x-2|asymp|0.000|-∞": {
+  "res": "Waagrechte Asymptote (für $x\\to-\\infty$): $y=-2$",
+  "approx": false
+ },
+ "EC^(x)/(1+EC^x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "EC^(x)/(1+EC^x)|inf|-0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "EC^(x)/(1+EC^x)|asymp|0.000|-∞": {
+  "res": "Waagrechte Asymptote (für $x\\to-\\infty$): $y=0$",
+  "approx": false
+ },
+ "log(x)|zero|1.000|": {
+  "res": "Nullstelle: $N(1\\,|\\,0)$",
+  "approx": false
+ },
+ "log(x)|pole|0.000|": {
+  "res": "Senkrechte Asymptote: $x=0$",
+  "approx": false
+ },
+ "log(x)-1|zero|2.718|": {
+  "res": "Nullstelle: $N(e\\,|\\,0)$",
+  "approx": false
+ },
+ "log(x)-1|pole|0.000|": {
+  "res": "Senkrechte Asymptote: $x=0$",
+  "approx": false
+ },
+ "x*log(x)|zero|1.000|": {
+  "res": "Nullstelle: $N(1\\,|\\,0)$",
+  "approx": false
+ },
+ "x*log(x)|min|0.368|": {
+  "res": "Tiefpunkt: $T({e}^{-1}\\,|\\,-\\frac{1}{e})$",
+  "approx": false
+ },
+ "log(x^2+1)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "log(x^2+1)|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,0)$",
+  "approx": false
+ },
+ "log(x^2+1)|inf|1.000|": {
+  "res": "Wendepunkt: $W(1\\,|\\,\\ln(2))$",
+  "approx": false
+ },
+ "sqrt(x)|zero|0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "sqrt(x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "sqrt(x+4)-2|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "sqrt(x+4)-2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "sqrt(4-x^2)|zero|2.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-2,\\ x_{2}=2$",
+  "approx": false
+ },
+ "sqrt(4-x^2)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,2)$",
+  "approx": false
+ },
+ "sqrt(4-x^2)|max|-0.000|": {
+  "res": "Hochpunkt: $H(0\\,|\\,2)$",
+  "approx": false
+ },
+ "x*sqrt(x+1)|zero|-0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-1,\\ x_{2}=0$",
+  "approx": false
+ },
+ "x*sqrt(x+1)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "abs(x)|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "abs(x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "abs(x)|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,0)$",
+  "approx": false
+ },
+ "abs(x-2)-1|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=1,\\ x_{2}=3$",
+  "approx": false
+ },
+ "abs(x-2)-1|zero|3.000|": {
+  "res": "Alle Nullstellen: $x_{1}=1,\\ x_{2}=3$",
+  "approx": false
+ },
+ "abs(x-2)-1|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "abs(x-2)-1|min|2.000|": {
+  "res": "Tiefpunkt: $T(2\\,|\\,-1)$",
+  "approx": false
+ },
+ "abs(x-2)-1|asymp|0.000|+∞": {
+  "res": "Schräge Asymptote (für $x\\to+\\infty$): $y=x-3$",
+  "approx": false
+ },
+ "abs(x^2-4)|zero|2.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-2,\\ x_{2}=2$",
+  "approx": false
+ },
+ "abs(x^2-4)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,4)$",
+  "approx": false
+ },
+ "abs(x^2-4)|max|-0.000|": {
+  "res": "Hochpunkt: $H(0\\,|\\,4)$",
+  "approx": false
+ },
+ "abs(x^2-4)|min|2.000|": {
+  "res": "Tiefpunkt: $T(2\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)|zero|-0.000|": {
+  "res": "Diese Nullstelle: $N(0\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)|zero|3.142|": {
+  "res": "Diese Nullstelle: $N(\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)|zero|6.283|": {
+  "res": "Diese Nullstelle: $N(2\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)|zero|9.425|": {
+  "res": "Diese Nullstelle: $N(3\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)|inf|-0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)|max|1.571|": {
+  "res": "Hochpunkt: $H(\\frac{\\pi}{2}\\,|\\,1)$",
+  "approx": false
+ },
+ "sin(x)|inf|3.142|": {
+  "res": "Wendepunkt: $W(\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)|min|4.712|": {
+  "res": "Tiefpunkt: $T(\\frac{3\\pi}{2}\\,|\\,-1)$",
+  "approx": false
+ },
+ "sin(x)|inf|6.283|": {
+  "res": "Wendepunkt: $W(2\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)|max|7.854|": {
+  "res": "Hochpunkt: $H(\\frac{5\\pi}{2}\\,|\\,1)$",
+  "approx": false
+ },
+ "sin(x)|inf|9.425|": {
+  "res": "Wendepunkt: $W(3\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "cos(x)|zero|1.571|": {
+  "res": "Diese Nullstelle: $N(\\frac{\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "cos(x)|zero|4.712|": {
+  "res": "Diese Nullstelle: $N(\\frac{3\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "cos(x)|zero|7.854|": {
+  "res": "Diese Nullstelle: $N(\\frac{5\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "cos(x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "cos(x)|max|-0.000|": {
+  "res": "Hochpunkt: $H(0\\,|\\,1)$",
+  "approx": false
+ },
+ "cos(x)|inf|1.571|": {
+  "res": "Wendepunkt: $W(\\frac{\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "cos(x)|min|3.142|": {
+  "res": "Tiefpunkt: $T(\\pi\\,|\\,-1)$",
+  "approx": false
+ },
+ "cos(x)|inf|4.712|": {
+  "res": "Wendepunkt: $W(\\frac{3\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "cos(x)|max|6.283|": {
+  "res": "Hochpunkt: $H(2\\pi\\,|\\,1)$",
+  "approx": false
+ },
+ "cos(x)|inf|7.854|": {
+  "res": "Wendepunkt: $W(\\frac{5\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "cos(x)|min|9.425|": {
+  "res": "Tiefpunkt: $T(3\\pi\\,|\\,-1)$",
+  "approx": false
+ },
+ "tan(x)|zero|-0.000|": {
+  "res": "Diese Nullstelle: $N(0\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "tan(x)|zero|3.142|": {
+  "res": "Diese Nullstelle: $N(\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "tan(x)|zero|6.283|": {
+  "res": "Diese Nullstelle: $N(2\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "tan(x)|zero|9.425|": {
+  "res": "Diese Nullstelle: $N(3\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "tan(x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(x)|inf|0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(x)|inf|3.142|": {
+  "res": "Wendepunkt: $W(\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(x)|inf|6.283|": {
+  "res": "Wendepunkt: $W(2\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(x)|inf|9.425|": {
+  "res": "Wendepunkt: $W(3\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(x)|pole|1.571|": {
+  "res": "Senkrechte Asymptote: $x=\\frac{\\pi}{2}$ — wegen der Periodizität unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "tan(x)|pole|4.712|": {
+  "res": "Senkrechte Asymptote: $x=\\frac{3\\pi}{2}$ — wegen der Periodizität unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "tan(x)|pole|7.854|": {
+  "res": "Senkrechte Asymptote: $x=\\frac{5\\pi}{2}$ — wegen der Periodizität unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "sin(2x)|zero|-0.000|": {
+  "res": "Diese Nullstelle: $N(0\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(2x)|zero|1.571|": {
+  "res": "Diese Nullstelle: $N(\\frac{\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(2x)|zero|3.142|": {
+  "res": "Diese Nullstelle: $N(\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(2x)|zero|4.712|": {
+  "res": "Diese Nullstelle: $N(\\frac{3\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(2x)|zero|6.283|": {
+  "res": "Diese Nullstelle: $N(2\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(2x)|zero|7.854|": {
+  "res": "Diese Nullstelle: $N(\\frac{5\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(2x)|zero|9.425|": {
+  "res": "Diese Nullstelle: $N(3\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(2x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(2x)|inf|-0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(2x)|max|0.785|": {
+  "res": "Hochpunkt: $H(\\frac{\\pi}{4}\\,|\\,1)$",
+  "approx": false
+ },
+ "sin(2x)|inf|1.571|": {
+  "res": "Wendepunkt: $W(\\frac{\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(2x)|min|2.356|": {
+  "res": "Tiefpunkt: $T(\\frac{3\\pi}{4}\\,|\\,-1)$",
+  "approx": false
+ },
+ "sin(2x)|inf|3.142|": {
+  "res": "Wendepunkt: $W(\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(2x)|max|3.927|": {
+  "res": "Hochpunkt: $H(\\frac{5\\pi}{4}\\,|\\,1)$",
+  "approx": false
+ },
+ "sin(2x)|inf|4.712|": {
+  "res": "Wendepunkt: $W(\\frac{3\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(2x)|min|5.498|": {
+  "res": "Tiefpunkt: $T(\\frac{7\\pi}{4}\\,|\\,-1)$",
+  "approx": false
+ },
+ "sin(2x)|inf|6.283|": {
+  "res": "Wendepunkt: $W(2\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(2x)|max|7.069|": {
+  "res": "Hochpunkt: $H(\\frac{9\\pi}{4}\\,|\\,1)$",
+  "approx": false
+ },
+ "sin(2x)|inf|7.854|": {
+  "res": "Wendepunkt: $W(\\frac{5\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(2x)|min|8.639|": {
+  "res": "Tiefpunkt: $T(\\frac{11\\pi}{4}\\,|\\,-1)$",
+  "approx": false
+ },
+ "sin(2x)|inf|9.425|": {
+  "res": "Wendepunkt: $W(3\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "2sin(x)+1|zero|3.665|": {
+  "res": "Diese Nullstelle: $N(\\frac{7\\pi}{6}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{7\\pi}{6}+2k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "2sin(x)+1|zero|5.760|": {
+  "res": "Diese Nullstelle: $N(\\frac{11\\pi}{6}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=-\\frac{\\pi}{6}+2k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "2sin(x)+1|zero|9.948|": {
+  "res": "Diese Nullstelle: $N(\\frac{19\\pi}{6}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{7\\pi}{6}+2k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "2sin(x)+1|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "2sin(x)+1|inf|0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,1)$",
+  "approx": false
+ },
+ "2sin(x)+1|max|1.571|": {
+  "res": "Hochpunkt: $H(\\frac{\\pi}{2}\\,|\\,3)$",
+  "approx": false
+ },
+ "2sin(x)+1|inf|3.142|": {
+  "res": "Wendepunkt: $W(\\pi\\,|\\,1)$",
+  "approx": false
+ },
+ "2sin(x)+1|min|4.712|": {
+  "res": "Tiefpunkt: $T(\\frac{3\\pi}{2}\\,|\\,-1)$",
+  "approx": false
+ },
+ "2sin(x)+1|inf|6.283|": {
+  "res": "Wendepunkt: $W(2\\pi\\,|\\,1)$",
+  "approx": false
+ },
+ "2sin(x)+1|max|7.854|": {
+  "res": "Hochpunkt: $H(\\frac{5\\pi}{2}\\,|\\,3)$",
+  "approx": false
+ },
+ "2sin(x)+1|inf|9.425|": {
+  "res": "Wendepunkt: $W(3\\pi\\,|\\,1)$",
+  "approx": false
+ },
+ "sin(x)+cos(x)|zero|2.356|": {
+  "res": "Diese Nullstelle: $N(\\frac{3\\pi}{4}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=-\\frac{\\pi}{4}+k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)+cos(x)|zero|5.498|": {
+  "res": "Diese Nullstelle: $N(\\frac{7\\pi}{4}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=-\\frac{\\pi}{4}+k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)+cos(x)|zero|8.639|": {
+  "res": "Diese Nullstelle: $N(\\frac{11\\pi}{4}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=-\\frac{\\pi}{4}+k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)+cos(x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "sin(x)+cos(x)|max|0.785|": {
+  "res": "Hochpunkt: $H(\\frac{\\pi}{4}\\,|\\,\\sqrt{2})$",
+  "approx": false
+ },
+ "sin(x)+cos(x)|inf|2.356|": {
+  "res": "Wendepunkt: $W(\\frac{3\\pi}{4}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)+cos(x)|min|3.927|": {
+  "res": "Tiefpunkt: $T(\\frac{5\\pi}{4}\\,|\\,-\\sqrt{2})$",
+  "approx": false
+ },
+ "sin(x)+cos(x)|inf|5.498|": {
+  "res": "Wendepunkt: $W(\\frac{7\\pi}{4}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)+cos(x)|max|7.069|": {
+  "res": "Hochpunkt: $H(\\frac{9\\pi}{4}\\,|\\,\\sqrt{2})$",
+  "approx": false
+ },
+ "sin(x)+cos(x)|inf|8.639|": {
+  "res": "Wendepunkt: $W(\\frac{11\\pi}{4}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)/x|zero|3.142|": {
+  "res": "Diese Nullstelle: $N(\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)/x|zero|6.283|": {
+  "res": "Diese Nullstelle: $N(2\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)/x|zero|9.425|": {
+  "res": "Diese Nullstelle: $N(3\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)/x|inf|2.082|": {
+  "res": "Wendepunkt: $W(2.082\\,|\\,0.4191)$",
+  "approx": true
+ },
+ "sin(x)/x|min|4.493|": {
+  "res": "Tiefpunkt: $T(4.493\\,|\\,-0.2172)$",
+  "approx": true
+ },
+ "sin(x)/x|inf|5.940|": {
+  "res": "Wendepunkt: $W(5.94\\,|\\,-0.0566)$",
+  "approx": true
+ },
+ "sin(x)/x|max|7.725|": {
+  "res": "Hochpunkt: $H(7.725\\,|\\,0.1284)$",
+  "approx": true
+ },
+ "sin(x)/x|inf|9.206|": {
+  "res": "Wendepunkt: $W(9.206\\,|\\,0.0236)$",
+  "approx": true
+ },
+ "sin(x)/x|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=0$",
+  "approx": false
+ },
+ "x*sin(x)|zero|-0.000|": {
+  "res": "Diese Nullstelle: $N(0\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele.",
+  "approx": false
+ },
+ "x*sin(x)|zero|3.142|": {
+  "res": "Diese Nullstelle: $N(\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "x*sin(x)|zero|6.283|": {
+  "res": "Diese Nullstelle: $N(2\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "x*sin(x)|zero|9.425|": {
+  "res": "Diese Nullstelle: $N(3\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "x*sin(x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x*sin(x)|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,0)$",
+  "approx": true
+ },
+ "x*sin(x)|inf|1.077|": {
+  "res": "Wendepunkt: $W(1.077\\,|\\,0.9482)$",
+  "approx": true
+ },
+ "x*sin(x)|max|2.029|": {
+  "res": "Hochpunkt: $H(2.029\\,|\\,1.82)$",
+  "approx": true
+ },
+ "x*sin(x)|inf|3.644|": {
+  "res": "Wendepunkt: $W(3.644\\,|\\,-1.753)$",
+  "approx": true
+ },
+ "x*sin(x)|min|4.913|": {
+  "res": "Tiefpunkt: $T(4.913\\,|\\,-4.814)$",
+  "approx": true
+ },
+ "x*sin(x)|inf|6.578|": {
+  "res": "Wendepunkt: $W(6.578\\,|\\,1.914)$",
+  "approx": true
+ },
+ "x*sin(x)|max|7.979|": {
+  "res": "Hochpunkt: $H(7.979\\,|\\,7.917)$",
+  "approx": true
+ },
+ "x*sin(x)|inf|9.630|": {
+  "res": "Wendepunkt: $W(9.63\\,|\\,-1.958)$",
+  "approx": true
+ },
+ "cos(x)^2|zero|1.571|": {
+  "res": "Diese Nullstelle: $N(\\frac{\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "cos(x)^2|zero|4.712|": {
+  "res": "Diese Nullstelle: $N(\\frac{3\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "cos(x)^2|zero|7.854|": {
+  "res": "Diese Nullstelle: $N(\\frac{5\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "cos(x)^2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "cos(x)^2|max|-0.000|": {
+  "res": "Hochpunkt: $H(0\\,|\\,1)$",
+  "approx": false
+ },
+ "cos(x)^2|inf|0.785|": {
+  "res": "Wendepunkt: $W(\\frac{\\pi}{4}\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "cos(x)^2|min|1.571|": {
+  "res": "Tiefpunkt: $T(\\frac{\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "cos(x)^2|inf|2.356|": {
+  "res": "Wendepunkt: $W(\\frac{3\\pi}{4}\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "cos(x)^2|max|3.142|": {
+  "res": "Hochpunkt: $H(\\pi\\,|\\,1)$",
+  "approx": false
+ },
+ "cos(x)^2|inf|3.927|": {
+  "res": "Wendepunkt: $W(\\frac{5\\pi}{4}\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "cos(x)^2|min|4.712|": {
+  "res": "Tiefpunkt: $T(\\frac{3\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "cos(x)^2|inf|5.498|": {
+  "res": "Wendepunkt: $W(\\frac{7\\pi}{4}\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "cos(x)^2|max|6.283|": {
+  "res": "Hochpunkt: $H(2\\pi\\,|\\,1)$",
+  "approx": false
+ },
+ "cos(x)^2|inf|7.069|": {
+  "res": "Wendepunkt: $W(\\frac{9\\pi}{4}\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "cos(x)^2|min|7.854|": {
+  "res": "Tiefpunkt: $T(\\frac{5\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "cos(x)^2|inf|8.639|": {
+  "res": "Wendepunkt: $W(\\frac{11\\pi}{4}\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "cos(x)^2|max|9.425|": {
+  "res": "Hochpunkt: $H(3\\pi\\,|\\,1)$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|zero|0.785|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\frac{11\\pi}{4},\\ x_{2}=-\\frac{9\\pi}{4},\\ x_{3}=-\\frac{7\\pi}{4},\\ x_{4}=-\\frac{5\\pi}{4},\\ x_{5}=-\\frac{3\\pi}{4},\\ x_{6}=-\\frac{\\pi}{4},\\ x_{7}=\\frac{\\pi}{4},\\ x_{8}=\\frac{3\\pi}{4},\\ \\dots$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|zero|2.356|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\frac{11\\pi}{4},\\ x_{2}=-\\frac{9\\pi}{4},\\ x_{3}=-\\frac{7\\pi}{4},\\ x_{4}=-\\frac{5\\pi}{4},\\ x_{5}=-\\frac{3\\pi}{4},\\ x_{6}=-\\frac{\\pi}{4},\\ x_{7}=\\frac{\\pi}{4},\\ x_{8}=\\frac{3\\pi}{4},\\ \\dots$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|zero|3.927|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\frac{11\\pi}{4},\\ x_{2}=-\\frac{9\\pi}{4},\\ x_{3}=-\\frac{7\\pi}{4},\\ x_{4}=-\\frac{5\\pi}{4},\\ x_{5}=-\\frac{3\\pi}{4},\\ x_{6}=-\\frac{\\pi}{4},\\ x_{7}=\\frac{\\pi}{4},\\ x_{8}=\\frac{3\\pi}{4},\\ \\dots$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|zero|5.498|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\frac{11\\pi}{4},\\ x_{2}=-\\frac{9\\pi}{4},\\ x_{3}=-\\frac{7\\pi}{4},\\ x_{4}=-\\frac{5\\pi}{4},\\ x_{5}=-\\frac{3\\pi}{4},\\ x_{6}=-\\frac{\\pi}{4},\\ x_{7}=\\frac{\\pi}{4},\\ x_{8}=\\frac{3\\pi}{4},\\ \\dots$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|zero|7.069|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\frac{11\\pi}{4},\\ x_{2}=-\\frac{9\\pi}{4},\\ x_{3}=-\\frac{7\\pi}{4},\\ x_{4}=-\\frac{5\\pi}{4},\\ x_{5}=-\\frac{3\\pi}{4},\\ x_{6}=-\\frac{\\pi}{4},\\ x_{7}=\\frac{\\pi}{4},\\ x_{8}=\\frac{3\\pi}{4},\\ \\dots$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|zero|8.639|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\frac{11\\pi}{4},\\ x_{2}=-\\frac{9\\pi}{4},\\ x_{3}=-\\frac{7\\pi}{4},\\ x_{4}=-\\frac{5\\pi}{4},\\ x_{5}=-\\frac{3\\pi}{4},\\ x_{6}=-\\frac{\\pi}{4},\\ x_{7}=\\frac{\\pi}{4},\\ x_{8}=\\frac{3\\pi}{4},\\ \\dots$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-\\frac{1}{2})$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|min|0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,-\\frac{1}{2})$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|inf|0.785|": {
+  "res": "Wendepunkt: $W(\\frac{\\pi}{4}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|max|1.571|": {
+  "res": "Hochpunkt: $H(\\frac{\\pi}{2}\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|inf|2.356|": {
+  "res": "Wendepunkt: $W(\\frac{3\\pi}{4}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|min|3.142|": {
+  "res": "Tiefpunkt: $T(\\pi\\,|\\,-\\frac{1}{2})$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|inf|3.927|": {
+  "res": "Wendepunkt: $W(\\frac{5\\pi}{4}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|max|4.712|": {
+  "res": "Hochpunkt: $H(\\frac{3\\pi}{2}\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|inf|5.498|": {
+  "res": "Wendepunkt: $W(\\frac{7\\pi}{4}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|min|6.283|": {
+  "res": "Tiefpunkt: $T(2\\pi\\,|\\,-\\frac{1}{2})$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|inf|7.069|": {
+  "res": "Wendepunkt: $W(\\frac{9\\pi}{4}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|max|7.854|": {
+  "res": "Hochpunkt: $H(\\frac{5\\pi}{2}\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|inf|8.639|": {
+  "res": "Wendepunkt: $W(\\frac{11\\pi}{4}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)^2-1/2|min|9.425|": {
+  "res": "Tiefpunkt: $T(3\\pi\\,|\\,-\\frac{1}{2})$",
+  "approx": false
+ },
+ "sin(x)*cos(x)|zero|-0.000|": {
+  "res": "Diese Nullstelle: $N(0\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)*cos(x)|zero|1.571|": {
+  "res": "Diese Nullstelle: $N(\\frac{\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)*cos(x)|zero|3.142|": {
+  "res": "Diese Nullstelle: $N(\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)*cos(x)|zero|4.712|": {
+  "res": "Diese Nullstelle: $N(\\frac{3\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)*cos(x)|zero|6.283|": {
+  "res": "Diese Nullstelle: $N(2\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)*cos(x)|zero|7.854|": {
+  "res": "Diese Nullstelle: $N(\\frac{5\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)*cos(x)|zero|9.425|": {
+  "res": "Diese Nullstelle: $N(3\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "sin(x)*cos(x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)*cos(x)|inf|-0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)*cos(x)|max|0.785|": {
+  "res": "Hochpunkt: $H(\\frac{\\pi}{4}\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "sin(x)*cos(x)|inf|1.571|": {
+  "res": "Wendepunkt: $W(\\frac{\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)*cos(x)|min|2.356|": {
+  "res": "Tiefpunkt: $T(\\frac{3\\pi}{4}\\,|\\,-\\frac{1}{2})$",
+  "approx": false
+ },
+ "sin(x)*cos(x)|inf|3.142|": {
+  "res": "Wendepunkt: $W(\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)*cos(x)|max|3.927|": {
+  "res": "Hochpunkt: $H(\\frac{5\\pi}{4}\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "sin(x)*cos(x)|inf|4.712|": {
+  "res": "Wendepunkt: $W(\\frac{3\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)*cos(x)|min|5.498|": {
+  "res": "Tiefpunkt: $T(\\frac{7\\pi}{4}\\,|\\,-\\frac{1}{2})$",
+  "approx": false
+ },
+ "sin(x)*cos(x)|inf|6.283|": {
+  "res": "Wendepunkt: $W(2\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)*cos(x)|max|7.069|": {
+  "res": "Hochpunkt: $H(\\frac{9\\pi}{4}\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "sin(x)*cos(x)|inf|7.854|": {
+  "res": "Wendepunkt: $W(\\frac{5\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "sin(x)*cos(x)|min|8.639|": {
+  "res": "Tiefpunkt: $T(\\frac{11\\pi}{4}\\,|\\,-\\frac{1}{2})$",
+  "approx": false
+ },
+ "sin(x)*cos(x)|inf|9.425|": {
+  "res": "Wendepunkt: $W(3\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "EC^x*sin(x)|zero|-0.000|": {
+  "res": "Diese Nullstelle: $N(0\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "EC^x*sin(x)|zero|3.142|": {
+  "res": "Diese Nullstelle: $N(\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "EC^x*sin(x)|zero|6.283|": {
+  "res": "Diese Nullstelle: $N(2\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "EC^x*sin(x)|zero|9.425|": {
+  "res": "Diese Nullstelle: $N(3\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "EC^x*sin(x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "EC^x*sin(x)|inf|1.571|": {
+  "res": "Wendepunkt: $W(\\frac{\\pi}{2}\\,|\\,{e}^{\\frac{\\pi }{2}})$",
+  "approx": false
+ },
+ "EC^x*sin(x)|max|2.356|": {
+  "res": "Hochpunkt: $H(\\frac{3\\pi}{4}\\,|\\,\\frac{{e}^{\\frac{3}{4} \\cdot \\pi } \\cdot \\sqrt{2}}{2})$",
+  "approx": false
+ },
+ "EC^x*sin(x)|inf|4.712|": {
+  "res": "Wendepunkt: $W(\\frac{3\\pi}{2}\\,|\\,-({e}^{\\frac{3}{2} \\cdot \\pi }))$",
+  "approx": false
+ },
+ "EC^x*sin(x)|min|5.498|": {
+  "res": "Tiefpunkt: $T(\\frac{7\\pi}{4}\\,|\\,\\frac{{e}^{\\frac{7}{4} \\cdot \\pi } \\cdot -\\sqrt{2}}{2})$",
+  "approx": false
+ },
+ "EC^x*sin(x)|inf|7.854|": {
+  "res": "Wendepunkt: $W(\\frac{5\\pi}{2}\\,|\\,{e}^{\\frac{5}{2} \\cdot \\pi })$",
+  "approx": false
+ },
+ "EC^x*sin(x)|max|8.639|": {
+  "res": "Hochpunkt: $H(\\frac{11\\pi}{4}\\,|\\,\\frac{{e}^{\\frac{11}{4} \\cdot \\pi } \\cdot \\sqrt{2}}{2})$",
+  "approx": false
+ },
+ "x^2-2x|zero|0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=0,\\ x_{2}=2$",
+  "approx": false
+ },
+ "x^2-2x|zero|2.000|": {
+  "res": "Alle Nullstellen: $x_{1}=0,\\ x_{2}=2$",
+  "approx": false
+ },
+ "x^2-2x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2-2x|min|1.000|": {
+  "res": "Tiefpunkt: $T(1\\,|\\,-1)$",
+  "approx": false
+ },
+ "x^2|zero|0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,0)$",
+  "approx": false
+ },
+ "-x^2|zero|0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "-x^2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "-x^2|max|-0.000|": {
+  "res": "Hochpunkt: $H(0\\,|\\,0)$",
+  "approx": false
+ },
+ "0.5x^2-3|zero|2.449|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\sqrt{6},\\ x_{2}=\\sqrt{6}$",
+  "approx": false
+ },
+ "0.5x^2-3|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-3)$",
+  "approx": false
+ },
+ "0.5x^2-3|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,-3)$",
+  "approx": false
+ },
+ "(1/3)x^3-x|zero|-0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\sqrt{3},\\ x_{2}=0,\\ x_{3}=\\sqrt{3}$",
+  "approx": false
+ },
+ "(1/3)x^3-x|zero|1.732|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\sqrt{3},\\ x_{2}=0,\\ x_{3}=\\sqrt{3}$",
+  "approx": false
+ },
+ "(1/3)x^3-x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "(1/3)x^3-x|inf|-0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "(1/3)x^3-x|min|1.000|": {
+  "res": "Tiefpunkt: $T(1\\,|\\,-\\frac{2}{3})$",
+  "approx": false
+ },
+ "x^3-3x^2+3x-1|zero|1.000|": {
+  "res": "Nullstelle: $N(1\\,|\\,0)$",
+  "approx": false
+ },
+ "x^3-3x^2+3x-1|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-1)$",
+  "approx": false
+ },
+ "x^3-3x^2+3x-1|inf|1.000|": {
+  "res": "Wendepunkt: $W(1\\,|\\,0)$",
+  "approx": false
+ },
+ "2^x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "2^x-4|zero|2.000|": {
+  "res": "Nullstelle: $N(2\\,|\\,0)$",
+  "approx": false
+ },
+ "2^x-4|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-3)$",
+  "approx": false
+ },
+ "(1/2)^x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "(1/2)^x|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=0$",
+  "approx": false
+ },
+ "x^x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "x^x|min|0.368|": {
+  "res": "Tiefpunkt: $T({e}^{-1}\\,|\\,{\\left(\\frac{1}{e}\\right)}^{\\frac{1}{e}})$",
+  "approx": false
+ },
+ "x^(1/3)|zero|0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^(1/3)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^(2/3)|zero|0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^(2/3)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^(-2)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=0$",
+  "approx": false
+ },
+ "x^(-2)|pole|0.000|": {
+  "res": "Senkrechte Asymptote: $x=0$",
+  "approx": false
+ },
+ "1/x^2|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=0$",
+  "approx": false
+ },
+ "1/x^2|pole|0.000|": {
+  "res": "Senkrechte Asymptote: $x=0$",
+  "approx": false
+ },
+ "3|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,3)$",
+  "approx": false
+ },
+ "0|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "-5|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-5)$",
+  "approx": false
+ },
+ "x|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "-x|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "-x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "2x-1|zero|0.500|": {
+  "res": "Nullstelle: $N(\\frac{1}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "2x-1|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-1)$",
+  "approx": false
+ },
+ "0.25x+0.5|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,\\frac{1}{2})$",
+  "approx": false
+ },
+ "(x-1)^3|zero|1.000|": {
+  "res": "Nullstelle: $N(1\\,|\\,0)$",
+  "approx": false
+ },
+ "(x-1)^3|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-1)$",
+  "approx": false
+ },
+ "(x-1)^3|inf|1.000|": {
+  "res": "Wendepunkt: $W(1\\,|\\,0)$",
+  "approx": false
+ },
+ "(x+2)^2*(x-1)^2|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-2,\\ x_{2}=1$",
+  "approx": false
+ },
+ "(x+2)^2*(x-1)^2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,4)$",
+  "approx": false
+ },
+ "(x+2)^2*(x-1)^2|inf|0.366|": {
+  "res": "Wendepunkt: $W(\\frac{-1+\\sqrt{3}}{2}\\,|\\,\\frac{9}{4})$",
+  "approx": false
+ },
+ "(x+2)^2*(x-1)^2|min|1.000|": {
+  "res": "Tiefpunkt: $T(1\\,|\\,0)$",
+  "approx": false
+ },
+ "x^6-x^4|zero|-0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-1,\\ x_{2}=0,\\ x_{3}=1$",
+  "approx": false
+ },
+ "x^6-x^4|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-1,\\ x_{2}=0,\\ x_{3}=1$",
+  "approx": false
+ },
+ "x^6-x^4|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^6-x^4|max|-0.000|": {
+  "res": "Hochpunkt: $H(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^6-x^4|inf|0.632|": {
+  "res": "Wendepunkt: $W(\\frac{\\sqrt{10}}{5}\\,|\\,-\\frac{12}{125})$",
+  "approx": false
+ },
+ "x^6-x^4|min|0.816|": {
+  "res": "Tiefpunkt: $T(\\frac{\\sqrt{6}}{3}\\,|\\,-\\frac{4}{27})$",
+  "approx": false
+ },
+ "x^4-x^3|zero|-0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=0,\\ x_{2}=1$",
+  "approx": false
+ },
+ "x^4-x^3|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=0,\\ x_{2}=1$",
+  "approx": false
+ },
+ "x^4-x^3|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^4-x^3|inf|-0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^4-x^3|inf|0.500|": {
+  "res": "Wendepunkt: $W(\\frac{1}{2}\\,|\\,-\\frac{1}{16})$",
+  "approx": false
+ },
+ "x^4-x^3|min|0.750|": {
+  "res": "Tiefpunkt: $T(\\frac{3}{4}\\,|\\,-\\frac{27}{256})$",
+  "approx": false
+ },
+ "x^3+x^2+x+1|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "100x^2-300|zero|1.732|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\sqrt{3},\\ x_{2}=\\sqrt{3}$",
+  "approx": false
+ },
+ "100x^2-300|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-300)$",
+  "approx": false
+ },
+ "100x^2-300|min|0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,-300)$",
+  "approx": false
+ },
+ "0.001x^2|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "0.001x^2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "0.001x^2|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,0)$",
+  "approx": false
+ },
+ "(x-100)^2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,10000)$",
+  "approx": false
+ },
+ "1000x|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "1000x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^3/1000|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^3/1000|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^3/1000|inf|-0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "atan(x)|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "atan(x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,\\arctan(0))$",
+  "approx": false
+ },
+ "atan(x)|inf|-0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,\\arctan(0))$",
+  "approx": false
+ },
+ "atan(x)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=\\frac{\\pi}{2}$",
+  "approx": false
+ },
+ "asin(x)|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "asin(x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,\\arcsin(0))$",
+  "approx": false
+ },
+ "asin(x)|inf|0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,\\arcsin(0))$",
+  "approx": false
+ },
+ "acos(x)/2|zero|1.000|": {
+  "res": "Nullstelle: $N(1\\,|\\,0)$",
+  "approx": false
+ },
+ "acos(x)/2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,\\frac{\\arccos(0)}{2})$",
+  "approx": false
+ },
+ "acos(x)/2|inf|0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,\\frac{\\arccos(0)}{2})$",
+  "approx": false
+ },
+ "sqrt(abs(x))|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "sqrt(abs(x))|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "sqrt(abs(x))|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,0)$",
+  "approx": false
+ },
+ "log(abs(x))|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-1,\\ x_{2}=1$",
+  "approx": false
+ },
+ "log(abs(x))|pole|0.000|": {
+  "res": "Senkrechte Asymptote: $x=0$",
+  "approx": false
+ },
+ "1/log(x)|zero|0.000|": {
+  "fallback": true
+ },
+ "1/log(x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,\\frac{1}{\\ln(0)})$",
+  "approx": false
+ },
+ "1/log(x)|inf|0.135|": {
+  "res": "Wendepunkt: $W(0.1353\\,|\\,-0.5)$",
+  "approx": true
+ },
+ "1/log(x)|pole|1.000|": {
+  "res": "Senkrechte Asymptote: $x=1$",
+  "approx": false
+ },
+ "EC^(1/x)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=1$",
+  "approx": false
+ },
+ "EC^(1/x)|pole|0.001|": {
+  "fallback": true
+ },
+ "EC^(-x^2)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "EC^(-x^2)|max|-0.000|": {
+  "res": "Hochpunkt: $H(0\\,|\\,1)$",
+  "approx": false
+ },
+ "EC^(-x^2)|inf|0.707|": {
+  "res": "Wendepunkt: $W(\\frac{\\sqrt{2}}{2}\\,|\\,e^{-\\frac{1}{2}})$",
+  "approx": false
+ },
+ "EC^(-x^2)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=0$",
+  "approx": false
+ },
+ "x*EC^(-x^2)|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x*EC^(-x^2)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x*EC^(-x^2)|inf|0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x*EC^(-x^2)|max|0.707|": {
+  "res": "Hochpunkt: $H(\\frac{\\sqrt{2}}{2}\\,|\\,\\frac{\\sqrt{2}}{2}\\cdot e^{-\\frac{1}{2}})$",
+  "approx": false
+ },
+ "x*EC^(-x^2)|inf|1.225|": {
+  "res": "Wendepunkt: $W(\\frac{\\sqrt{6}}{2}\\,|\\,\\frac{\\sqrt{6}}{2}\\cdot e^{-\\frac{3}{2}})$",
+  "approx": false
+ },
+ "x*EC^(-x^2)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=0$",
+  "approx": false
+ },
+ "(EC^x-EC^(-x))/2|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "(EC^x-EC^(-x))/2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x/(EC^x-1)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=0$",
+  "approx": false
+ },
+ "log(x)/x|zero|1.000|": {
+  "res": "Nullstelle: $N(1\\,|\\,0)$",
+  "approx": false
+ },
+ "log(x)/x|max|2.718|": {
+  "res": "Hochpunkt: $H(e\\,|\\,\\frac{1}{e})$",
+  "approx": false
+ },
+ "log(x)/x|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=0$",
+  "approx": false
+ },
+ "log(x)/x|pole|0.000|": {
+  "fallback": true
+ },
+ "x^2/EC^x|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2/EC^x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2/EC^x|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2/EC^x|inf|0.586|": {
+  "res": "Wendepunkt: $W(2-\\sqrt{2}\\,|\\,\\left(6-4\\sqrt{2}\\right)\\cdot e^{-2+\\sqrt{2}})$",
+  "approx": false
+ },
+ "x^2/EC^x|max|2.000|": {
+  "res": "Hochpunkt: $H(2\\,|\\,4\\cdot e^{-2})$",
+  "approx": false
+ },
+ "x^2/EC^x|inf|3.414|": {
+  "res": "Wendepunkt: $W(2+\\sqrt{2}\\,|\\,\\left(6+4\\sqrt{2}\\right)\\cdot e^{-2-\\sqrt{2}})$",
+  "approx": false
+ },
+ "x^2/EC^x|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=0$",
+  "approx": false
+ },
+ "(x-1)/(x^2-1)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "(x-1)/(x^2-1)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=0$",
+  "approx": false
+ },
+ "(x-1)/(x^2-1)|hole|1.000|": {
+  "res": "Hebbare Lücke bei $(1\\,|\\,\\frac{1}{2})$ — dort ist $f$ nicht definiert, der Graph hat ein „Loch“.",
+  "approx": false
+ },
+ "(x+3)/(x^2+x-6)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-\\frac{1}{2})$",
+  "approx": false
+ },
+ "(x+3)/(x^2+x-6)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=0$",
+  "approx": false
+ },
+ "(x+3)/(x^2+x-6)|pole|2.000|": {
+  "res": "Senkrechte Asymptote: $x=2$",
+  "approx": false
+ },
+ "x^2/(x+1)|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2/(x+1)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2/(x+1)|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^2/(x+1)|asymp|0.000|+∞": {
+  "res": "Schräge Asymptote: $y=x-1$",
+  "approx": false
+ },
+ "(x^3+1)/(x+1)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "(x^3+1)/(x+1)|min|0.500|": {
+  "res": "Tiefpunkt: $T(\\frac{1}{2}\\,|\\,\\frac{3}{4})$",
+  "approx": false
+ },
+ "(2x+1)/(x-3)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-\\frac{1}{3})$",
+  "approx": false
+ },
+ "(2x+1)/(x-3)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=2$",
+  "approx": false
+ },
+ "(2x+1)/(x-3)|pole|3.000|": {
+  "res": "Senkrechte Asymptote: $x=3$",
+  "approx": false
+ },
+ "-1/(x+2)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-\\frac{1}{2})$",
+  "approx": false
+ },
+ "-1/(x+2)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=0$",
+  "approx": false
+ },
+ "1/(x-1)^2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "1/(x-1)^2|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=0$",
+  "approx": false
+ },
+ "1/(x-1)^2|pole|1.000|": {
+  "res": "Senkrechte Asymptote: $x=1$",
+  "approx": false
+ },
+ "1/(x-1)^3|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-1)$",
+  "approx": false
+ },
+ "1/(x-1)^3|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=0$",
+  "approx": false
+ },
+ "1/(x-1)^3|pole|1.000|": {
+  "res": "Senkrechte Asymptote: $x=1$",
+  "approx": false
+ },
+ "tan(x)+x|zero|-0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-7.979,\\ x_{2}=-4.913,\\ x_{3}=-2.029,\\ x_{4}=0,\\ x_{5}=2.029,\\ x_{6}=4.913,\\ x_{7}=7.979$",
+  "approx": true
+ },
+ "tan(x)+x|zero|2.029|": {
+  "res": "Alle Nullstellen: $x_{1}=-7.979,\\ x_{2}=-4.913,\\ x_{3}=-2.029,\\ x_{4}=0,\\ x_{5}=2.029,\\ x_{6}=4.913,\\ x_{7}=7.979$",
+  "approx": true
+ },
+ "tan(x)+x|zero|4.913|": {
+  "res": "Alle Nullstellen: $x_{1}=-7.979,\\ x_{2}=-4.913,\\ x_{3}=-2.029,\\ x_{4}=0,\\ x_{5}=2.029,\\ x_{6}=4.913,\\ x_{7}=7.979$",
+  "approx": true
+ },
+ "tan(x)+x|zero|7.979|": {
+  "res": "Alle Nullstellen: $x_{1}=-7.979,\\ x_{2}=-4.913,\\ x_{3}=-2.029,\\ x_{4}=0,\\ x_{5}=2.029,\\ x_{6}=4.913,\\ x_{7}=7.979$",
+  "approx": true
+ },
+ "tan(x)+x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(x)+x|inf|0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(x)+x|inf|3.142|": {
+  "res": "Wendepunkt: $W(\\pi\\,|\\,\\pi )$",
+  "approx": false
+ },
+ "tan(x)+x|inf|6.283|": {
+  "res": "Wendepunkt: $W(2\\pi\\,|\\,2 \\pi )$",
+  "approx": false
+ },
+ "tan(x)+x|inf|9.425|": {
+  "res": "Wendepunkt: $W(3\\pi\\,|\\,3 \\pi )$",
+  "approx": false
+ },
+ "tan(x)+x|pole|1.571|": {
+  "res": "Senkrechte Asymptote: $x=\\frac{\\pi}{2}$ — wegen der Periodizität unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "tan(x)+x|pole|4.712|": {
+  "res": "Senkrechte Asymptote: $x=\\frac{3\\pi}{2}$ — wegen der Periodizität unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "tan(x)+x|pole|7.854|": {
+  "res": "Senkrechte Asymptote: $x=\\frac{5\\pi}{2}$ — wegen der Periodizität unendlich viele ($x=\\frac{\\pi}{2}+k\\pi$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "1/sin(x)|min|1.571|": {
+  "res": "Tiefpunkt: $T(\\frac{\\pi}{2}\\,|\\,1)$",
+  "approx": false
+ },
+ "1/sin(x)|max|4.712|": {
+  "res": "Hochpunkt: $H(\\frac{3\\pi}{2}\\,|\\,-1)$",
+  "approx": false
+ },
+ "1/sin(x)|min|7.854|": {
+  "res": "Tiefpunkt: $T(\\frac{5\\pi}{2}\\,|\\,1)$",
+  "approx": false
+ },
+ "1/sin(x)|pole|0.000|": {
+  "res": "Senkrechte Asymptote: $x=0$ — wegen der Periodizität unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "1/sin(x)|pole|3.142|": {
+  "res": "Senkrechte Asymptote: $x=\\pi$ — wegen der Periodizität unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "1/sin(x)|pole|6.283|": {
+  "res": "Senkrechte Asymptote: $x=2\\pi$ — wegen der Periodizität unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "1/sin(x)|pole|9.425|": {
+  "res": "Senkrechte Asymptote: $x=3\\pi$ — wegen der Periodizität unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "sin(1/x)|zero|0.045|": {
+  "res": "Alle Nullstellen: $x_{1}=-0.3183,\\ x_{2}=-0.1592,\\ x_{3}=-0.1061,\\ x_{4}=-0.0796,\\ x_{5}=-0.0637,\\ x_{6}=-0.0531,\\ x_{7}=-0.0455,\\ x_{8}=0.0455,\\ \\dots$",
+  "approx": true
+ },
+ "sin(1/x)|zero|0.053|": {
+  "res": "Alle Nullstellen: $x_{1}=-0.3183,\\ x_{2}=-0.1592,\\ x_{3}=-0.1061,\\ x_{4}=-0.0796,\\ x_{5}=-0.0637,\\ x_{6}=-0.0531,\\ x_{7}=-0.0455,\\ x_{8}=0.0455,\\ \\dots$",
+  "approx": true
+ },
+ "sin(1/x)|zero|0.064|": {
+  "res": "Alle Nullstellen: $x_{1}=-0.3183,\\ x_{2}=-0.1592,\\ x_{3}=-0.1061,\\ x_{4}=-0.0796,\\ x_{5}=-0.0637,\\ x_{6}=-0.0531,\\ x_{7}=-0.0455,\\ x_{8}=0.0455,\\ \\dots$",
+  "approx": true
+ },
+ "sin(1/x)|zero|0.080|": {
+  "res": "Alle Nullstellen: $x_{1}=-0.3183,\\ x_{2}=-0.1592,\\ x_{3}=-0.1061,\\ x_{4}=-0.0796,\\ x_{5}=-0.0637,\\ x_{6}=-0.0531,\\ x_{7}=-0.0455,\\ x_{8}=0.0455,\\ \\dots$",
+  "approx": true
+ },
+ "sin(1/x)|zero|0.106|": {
+  "res": "Alle Nullstellen: $x_{1}=-0.3183,\\ x_{2}=-0.1592,\\ x_{3}=-0.1061,\\ x_{4}=-0.0796,\\ x_{5}=-0.0637,\\ x_{6}=-0.0531,\\ x_{7}=-0.0455,\\ x_{8}=0.0455,\\ \\dots$",
+  "approx": true
+ },
+ "sin(1/x)|zero|0.159|": {
+  "res": "Alle Nullstellen: $x_{1}=-0.3183,\\ x_{2}=-0.1592,\\ x_{3}=-0.1061,\\ x_{4}=-0.0796,\\ x_{5}=-0.0637,\\ x_{6}=-0.0531,\\ x_{7}=-0.0455,\\ x_{8}=0.0455,\\ \\dots$",
+  "approx": true
+ },
+ "sin(1/x)|zero|0.318|": {
+  "res": "Alle Nullstellen: $x_{1}=-0.3183,\\ x_{2}=-0.1592,\\ x_{3}=-0.1061,\\ x_{4}=-0.0796,\\ x_{5}=-0.0637,\\ x_{6}=-0.0531,\\ x_{7}=-0.0455,\\ x_{8}=0.0455,\\ \\dots$",
+  "approx": true
+ },
+ "sin(1/x)|min|0.042|": {
+  "res": "Tiefpunkt: $T(0.0424\\,|\\,-1)$",
+  "approx": true
+ },
+ "sin(1/x)|max|0.049|": {
+  "res": "Hochpunkt: $H(0.049\\,|\\,1)$",
+  "approx": true
+ },
+ "sin(1/x)|min|0.058|": {
+  "res": "Tiefpunkt: $T(0.0579\\,|\\,-1)$",
+  "approx": true
+ },
+ "sin(1/x)|max|0.071|": {
+  "res": "Hochpunkt: $H(0.0707\\,|\\,1)$",
+  "approx": true
+ },
+ "sin(1/x)|min|0.091|": {
+  "res": "Tiefpunkt: $T(0.0909\\,|\\,-1)$",
+  "approx": true
+ },
+ "sin(1/x)|max|0.127|": {
+  "res": "Hochpunkt: $H(0.1273\\,|\\,1)$",
+  "approx": true
+ },
+ "sin(1/x)|inf|0.152|": {
+  "res": "Wendepunkt: $W(0.152\\,|\\,0.2909)$",
+  "approx": true
+ },
+ "sin(1/x)|min|0.212|": {
+  "res": "Tiefpunkt: $T(0.2122\\,|\\,-1)$",
+  "approx": true
+ },
+ "sin(1/x)|inf|0.274|": {
+  "res": "Wendepunkt: $W(0.2745\\,|\\,-0.4812)$",
+  "approx": true
+ },
+ "sin(1/x)|max|0.637|": {
+  "res": "Hochpunkt: $H(0.6366\\,|\\,1)$",
+  "approx": true
+ },
+ "sin(1/x)|inf|0.929|": {
+  "res": "Wendepunkt: $W(0.9286\\,|\\,0.8805)$",
+  "approx": true
+ },
+ "sin(1/x)|asymp|0.000|+∞": {
+  "fallback": true
+ },
+ "x*sin(1/x)|zero|0.045|": {
+  "res": "Alle Nullstellen: $x_{1}=-0.3183,\\ x_{2}=-0.1592,\\ x_{3}=-0.1061,\\ x_{4}=-0.0796,\\ x_{5}=-0.0637,\\ x_{6}=-0.0531,\\ x_{7}=-0.0455,\\ x_{8}=0.0455,\\ \\dots$",
+  "approx": true
+ },
+ "x*sin(1/x)|zero|0.053|": {
+  "res": "Alle Nullstellen: $x_{1}=-0.3183,\\ x_{2}=-0.1592,\\ x_{3}=-0.1061,\\ x_{4}=-0.0796,\\ x_{5}=-0.0637,\\ x_{6}=-0.0531,\\ x_{7}=-0.0455,\\ x_{8}=0.0455,\\ \\dots$",
+  "approx": true
+ },
+ "x*sin(1/x)|zero|0.064|": {
+  "res": "Alle Nullstellen: $x_{1}=-0.3183,\\ x_{2}=-0.1592,\\ x_{3}=-0.1061,\\ x_{4}=-0.0796,\\ x_{5}=-0.0637,\\ x_{6}=-0.0531,\\ x_{7}=-0.0455,\\ x_{8}=0.0455,\\ \\dots$",
+  "approx": true
+ },
+ "x*sin(1/x)|zero|0.080|": {
+  "res": "Alle Nullstellen: $x_{1}=-0.3183,\\ x_{2}=-0.1592,\\ x_{3}=-0.1061,\\ x_{4}=-0.0796,\\ x_{5}=-0.0637,\\ x_{6}=-0.0531,\\ x_{7}=-0.0455,\\ x_{8}=0.0455,\\ \\dots$",
+  "approx": true
+ },
+ "x*sin(1/x)|zero|0.106|": {
+  "res": "Alle Nullstellen: $x_{1}=-0.3183,\\ x_{2}=-0.1592,\\ x_{3}=-0.1061,\\ x_{4}=-0.0796,\\ x_{5}=-0.0637,\\ x_{6}=-0.0531,\\ x_{7}=-0.0455,\\ x_{8}=0.0455,\\ \\dots$",
+  "approx": true
+ },
+ "x*sin(1/x)|zero|0.159|": {
+  "res": "Alle Nullstellen: $x_{1}=-0.3183,\\ x_{2}=-0.1592,\\ x_{3}=-0.1061,\\ x_{4}=-0.0796,\\ x_{5}=-0.0637,\\ x_{6}=-0.0531,\\ x_{7}=-0.0455,\\ x_{8}=0.0455,\\ \\dots$",
+  "approx": true
+ },
+ "x*sin(1/x)|zero|0.318|": {
+  "res": "Alle Nullstellen: $x_{1}=-0.3183,\\ x_{2}=-0.1592,\\ x_{3}=-0.1061,\\ x_{4}=-0.0796,\\ x_{5}=-0.0637,\\ x_{6}=-0.0531,\\ x_{7}=-0.0455,\\ x_{8}=0.0455,\\ \\dots$",
+  "approx": true
+ },
+ "x*sin(1/x)|zero|0.040|": {
+  "fallback": true
+ },
+ "x*sin(1/x)|min|0.043|": {
+  "res": "Tiefpunkt: $T(0.0425\\,|\\,-0.0425)$",
+  "approx": true
+ },
+ "x*sin(1/x)|max|0.049|": {
+  "res": "Hochpunkt: $H(0.0491\\,|\\,0.049)$",
+  "approx": true
+ },
+ "x*sin(1/x)|max|0.071|": {
+  "res": "Hochpunkt: $H(0.0711\\,|\\,0.0709)$",
+  "approx": true
+ },
+ "x*sin(1/x)|min|0.092|": {
+  "res": "Tiefpunkt: $T(0.0917\\,|\\,-0.0913)$",
+  "approx": true
+ },
+ "x*sin(1/x)|max|0.129|": {
+  "res": "Hochpunkt: $H(0.1294\\,|\\,0.1284)$",
+  "approx": true
+ },
+ "x*sin(1/x)|inf|0.159|": {
+  "res": "Wendepunkt: $W(0.1592\\,|\\,0)$",
+  "approx": true
+ },
+ "x*sin(1/x)|min|0.223|": {
+  "res": "Tiefpunkt: $T(0.2225\\,|\\,-0.2172)$",
+  "approx": true
+ },
+ "x*sin(1/x)|inf|0.318|": {
+  "res": "Wendepunkt: $W(0.3183\\,|\\,0)$",
+  "approx": true
+ },
+ "x*sin(1/x)|asymp|0.000|+∞": {
+  "fallback": true
+ },
+ "(x^2-9)/(x-3)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,3)$",
+  "approx": false
+ },
+ "(x^2-9)/(x-3)|hole|3.000|": {
+  "res": "Hebbare Lücke bei $(3\\,|\\,6)$ — dort ist $f$ nicht definiert, der Graph hat ein „Loch“.",
+  "approx": false
+ },
+ "4/(x^2+4)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "4/(x^2+4)|max|-0.000|": {
+  "res": "Hochpunkt: $H(0\\,|\\,1)$",
+  "approx": false
+ },
+ "4/(x^2+4)|inf|1.155|": {
+  "res": "Wendepunkt: $W(\\frac{2\\sqrt{3}}{3}\\,|\\,\\frac{3}{4})$",
+  "approx": false
+ },
+ "4/(x^2+4)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=0$",
+  "approx": false
+ },
+ "sqrt(x^2+1)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "sqrt(x^2+1)|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,1)$",
+  "approx": false
+ },
+ "sqrt(x^2+1)|asymp|0.000|+∞": {
+  "res": "Schräge Asymptote (für $x\\to+\\infty$): $y=x$",
+  "approx": false
+ },
+ "sqrt(x^2-1)|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-1,\\ x_{2}=1$",
+  "approx": false
+ },
+ "sqrt(x^2-1)|asymp|0.000|+∞": {
+  "res": "Schräge Asymptote (für $x\\to+\\infty$): $y=x$",
+  "approx": false
+ },
+ "x+1/x|min|1.000|": {
+  "res": "Tiefpunkt: $T(1\\,|\\,2)$",
+  "approx": false
+ },
+ "x+1/x|asymp|0.000|+∞": {
+  "res": "Schräge Asymptote: $y=x$",
+  "approx": false
+ },
+ "x+1/x|pole|0.000|": {
+  "res": "Senkrechte Asymptote: $x=0$",
+  "approx": false
+ },
+ "x-1/x|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-1,\\ x_{2}=1$",
+  "approx": false
+ },
+ "x-1/x|asymp|0.000|+∞": {
+  "res": "Schräge Asymptote: $y=x$",
+  "approx": false
+ },
+ "x-1/x|pole|0.000|": {
+  "res": "Senkrechte Asymptote: $x=0$",
+  "approx": false
+ },
+ "x^2+1/x|min|0.794|": {
+  "res": "Tiefpunkt: $T(\\sqrt[3]{\\frac{1}{2}}\\,|\\,{\\sqrt[3]{\\frac{1}{2}}}^{2}+\\frac{1}{\\sqrt[3]{\\frac{1}{2}}})$",
+  "approx": false
+ },
+ "x^2+1/x|pole|0.000|": {
+  "res": "Senkrechte Asymptote: $x=0$",
+  "approx": false
+ },
+ "x/(x-1)^2|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x/(x-1)^2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x/(x-1)^2|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote: $y=0$",
+  "approx": false
+ },
+ "x/(x-1)^2|pole|1.000|": {
+  "res": "Senkrechte Asymptote: $x=1$",
+  "approx": false
+ },
+ "log(x+1)|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "log(x+1)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "log(1-x)|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "log(1-x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "log(1-x)|pole|1.000|": {
+  "res": "Senkrechte Asymptote: $x=1$",
+  "approx": false
+ },
+ "EC^(100x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "EC^(-100x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "EC^(-100x)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=0$",
+  "approx": false
+ },
+ "10^x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "x^10|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^10|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^20-1|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-1,\\ x_{2}=1$",
+  "approx": false
+ },
+ "x^20-1|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-1)$",
+  "approx": false
+ },
+ "(x-1)(x-2)(x-3)(x-4)|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=1,\\ x_{2}=2,\\ x_{3}=3,\\ x_{4}=4$",
+  "approx": false
+ },
+ "(x-1)(x-2)(x-3)(x-4)|zero|2.000|": {
+  "res": "Alle Nullstellen: $x_{1}=1,\\ x_{2}=2,\\ x_{3}=3,\\ x_{4}=4$",
+  "approx": false
+ },
+ "(x-1)(x-2)(x-3)(x-4)|zero|3.000|": {
+  "res": "Alle Nullstellen: $x_{1}=1,\\ x_{2}=2,\\ x_{3}=3,\\ x_{4}=4$",
+  "approx": false
+ },
+ "(x-1)(x-2)(x-3)(x-4)|zero|4.000|": {
+  "res": "Alle Nullstellen: $x_{1}=1,\\ x_{2}=2,\\ x_{3}=3,\\ x_{4}=4$",
+  "approx": false
+ },
+ "(x-1)(x-2)(x-3)(x-4)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,24)$",
+  "approx": false
+ },
+ "(x-1)(x-2)(x-3)(x-4)|min|1.382|": {
+  "res": "Tiefpunkt: $T(\\frac{5-\\sqrt{5}}{2}\\,|\\,-1)$",
+  "approx": false
+ },
+ "(x-1)(x-2)(x-3)(x-4)|inf|1.855|": {
+  "res": "Wendepunkt: $W(\\frac{15-\\sqrt{15}}{6}\\,|\\,-\\frac{11}{36})$",
+  "approx": false
+ },
+ "(x-1)(x-2)(x-3)(x-4)|max|2.500|": {
+  "res": "Hochpunkt: $H(\\frac{5}{2}\\,|\\,\\frac{9}{16})$",
+  "approx": false
+ },
+ "(x-1)(x-2)(x-3)(x-4)|inf|3.145|": {
+  "res": "Wendepunkt: $W(\\frac{15+\\sqrt{15}}{6}\\,|\\,-\\frac{11}{36})$",
+  "approx": false
+ },
+ "(x-1)(x-2)(x-3)(x-4)|min|3.618|": {
+  "res": "Tiefpunkt: $T(\\frac{5+\\sqrt{5}}{2}\\,|\\,-1)$",
+  "approx": false
+ },
+ "x(x-1)(x+1)(x-2)(x+2)|zero|-0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-2,\\ x_{2}=-1,\\ x_{3}=0,\\ x_{4}=1,\\ x_{5}=2$",
+  "approx": false
+ },
+ "x(x-1)(x+1)(x-2)(x+2)|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-2,\\ x_{2}=-1,\\ x_{3}=0,\\ x_{4}=1,\\ x_{5}=2$",
+  "approx": false
+ },
+ "x(x-1)(x+1)(x-2)(x+2)|zero|2.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-2,\\ x_{2}=-1,\\ x_{3}=0,\\ x_{4}=1,\\ x_{5}=2$",
+  "approx": false
+ },
+ "x(x-1)(x+1)(x-2)(x+2)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x(x-1)(x+1)(x-2)(x+2)|inf|0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x(x-1)(x+1)(x-2)(x+2)|max|0.544|": {
+  "res": "Hochpunkt: $H(\\sqrt{\\frac{15-\\sqrt{145}}{10}}\\,|\\,\\sqrt{\\frac{3}{2}-\\frac{\\sqrt{145}}{10}} \\cdot \\left(\\sqrt{\\frac{3}{2}-\\frac{\\sqrt{145}}{10}}-1\\right) \\cdot \\left(\\sqrt{\\frac{3}{2}-\\frac{\\sqrt{145}}{10}}+1\\right) \\cdot \\left(\\sqrt{\\frac{3}{2}-\\frac{\\sqrt{145}}{10}}-2\\right) \\cdot \\left(\\sqrt{\\frac{3}{2}-\\frac{\\sqrt{145}}{10}}+2\\right))$",
+  "approx": false
+ },
+ "x(x-1)(x+1)(x-2)(x+2)|inf|1.225|": {
+  "res": "Wendepunkt: $W(\\frac{\\sqrt{6}}{2}\\,|\\,-\\frac{5\\sqrt{6}}{8})$",
+  "approx": false
+ },
+ "x(x-1)(x+1)(x-2)(x+2)|min|1.644|": {
+  "res": "Tiefpunkt: $T(\\sqrt{\\frac{15+\\sqrt{145}}{10}}\\,|\\,\\sqrt{\\frac{3}{2}+\\frac{\\sqrt{145}}{10}} \\cdot \\left(\\sqrt{\\frac{3}{2}+\\frac{\\sqrt{145}}{10}}-1\\right) \\cdot \\left(\\sqrt{\\frac{3}{2}+\\frac{\\sqrt{145}}{10}}+1\\right) \\cdot \\left(\\sqrt{\\frac{3}{2}+\\frac{\\sqrt{145}}{10}}-2\\right) \\cdot \\left(\\sqrt{\\frac{3}{2}+\\frac{\\sqrt{145}}{10}}+2\\right))$",
+  "approx": false
+ },
+ "x^2-2x-3|zero|3.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-1,\\ x_{2}=3$",
+  "approx": false
+ },
+ "x^2-2x-3|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-3)$",
+  "approx": false
+ },
+ "x^2-2x-3|min|1.000|": {
+  "res": "Tiefpunkt: $T(1\\,|\\,-4)$",
+  "approx": false
+ },
+ "x^3-3x|zero|-0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\sqrt{3},\\ x_{2}=0,\\ x_{3}=\\sqrt{3}$",
+  "approx": false
+ },
+ "x^3-3x|zero|1.732|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\sqrt{3},\\ x_{2}=0,\\ x_{3}=\\sqrt{3}$",
+  "approx": false
+ },
+ "x^3-3x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^3-3x|inf|0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^3-3x|min|1.000|": {
+  "res": "Tiefpunkt: $T(1\\,|\\,-2)$",
+  "approx": false
+ },
+ "x^4-5x^2+4|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-2,\\ x_{2}=-1,\\ x_{3}=1,\\ x_{4}=2$",
+  "approx": false
+ },
+ "x^4-5x^2+4|zero|2.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-2,\\ x_{2}=-1,\\ x_{3}=1,\\ x_{4}=2$",
+  "approx": false
+ },
+ "x^4-5x^2+4|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,4)$",
+  "approx": false
+ },
+ "x^4-5x^2+4|max|-0.000|": {
+  "res": "Hochpunkt: $H(0\\,|\\,4)$",
+  "approx": false
+ },
+ "x^4-5x^2+4|inf|0.913|": {
+  "res": "Wendepunkt: $W(\\frac{\\sqrt{30}}{6}\\,|\\,\\frac{19}{36})$",
+  "approx": false
+ },
+ "x^4-5x^2+4|min|1.581|": {
+  "res": "Tiefpunkt: $T(\\frac{\\sqrt{10}}{2}\\,|\\,-\\frac{9}{4})$",
+  "approx": false
+ },
+ "(x-1)(x+2)x|zero|-0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-2,\\ x_{2}=0,\\ x_{3}=1$",
+  "approx": false
+ },
+ "(x-1)(x+2)x|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-2,\\ x_{2}=0,\\ x_{3}=1$",
+  "approx": false
+ },
+ "(x-1)(x+2)x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "(x-1)(x+2)x|min|0.549|": {
+  "res": "Tiefpunkt: $T(\\frac{-1+\\sqrt{7}}{3}\\,|\\,\\frac{20-14\\sqrt{7}}{27})$",
+  "approx": false
+ },
+ "2x^3-3x^2-12x|zero|-0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=\\frac{3-\\sqrt{105}}{4},\\ x_{2}=0,\\ x_{3}=\\frac{3+\\sqrt{105}}{4}$",
+  "approx": false
+ },
+ "2x^3-3x^2-12x|zero|3.312|": {
+  "res": "Alle Nullstellen: $x_{1}=\\frac{3-\\sqrt{105}}{4},\\ x_{2}=0,\\ x_{3}=\\frac{3+\\sqrt{105}}{4}$",
+  "approx": false
+ },
+ "2x^3-3x^2-12x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "2x^3-3x^2-12x|inf|0.500|": {
+  "res": "Wendepunkt: $W(\\frac{1}{2}\\,|\\,-\\frac{13}{2})$",
+  "approx": false
+ },
+ "2x^3-3x^2-12x|min|2.000|": {
+  "res": "Tiefpunkt: $T(2\\,|\\,-20)$",
+  "approx": false
+ },
+ "-x^2+4|zero|2.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-2,\\ x_{2}=2$",
+  "approx": false
+ },
+ "-x^2+4|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,4)$",
+  "approx": false
+ },
+ "-x^2+4|max|-0.000|": {
+  "res": "Hochpunkt: $H(0\\,|\\,4)$",
+  "approx": false
+ },
+ "x^2+1|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "x^2+1|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,1)$",
+  "approx": false
+ },
+ "x^3|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^3|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^3|inf|-0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^4|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^4|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^4|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,0)$",
+  "approx": false
+ },
+ "3x+2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,2)$",
+  "approx": false
+ },
+ "x^3-6x^2+11x-6|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=1,\\ x_{2}=2,\\ x_{3}=3$",
+  "approx": false
+ },
+ "x^3-6x^2+11x-6|zero|2.000|": {
+  "res": "Alle Nullstellen: $x_{1}=1,\\ x_{2}=2,\\ x_{3}=3$",
+  "approx": false
+ },
+ "x^3-6x^2+11x-6|zero|3.000|": {
+  "res": "Alle Nullstellen: $x_{1}=1,\\ x_{2}=2,\\ x_{3}=3$",
+  "approx": false
+ },
+ "x^3-6x^2+11x-6|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-6)$",
+  "approx": false
+ },
+ "x^3-6x^2+11x-6|max|1.423|": {
+  "res": "Hochpunkt: $H(\\frac{6-\\sqrt{3}}{3}\\,|\\,\\frac{2\\sqrt{3}}{9})$",
+  "approx": false
+ },
+ "x^3-6x^2+11x-6|inf|2.000|": {
+  "res": "Wendepunkt: $W(2\\,|\\,0)$",
+  "approx": false
+ },
+ "x^3-6x^2+11x-6|min|2.577|": {
+  "res": "Tiefpunkt: $T(\\frac{6+\\sqrt{3}}{3}\\,|\\,-\\frac{2\\sqrt{3}}{9})$",
+  "approx": false
+ },
+ "x^3-2x|zero|-0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\sqrt{2},\\ x_{2}=0,\\ x_{3}=\\sqrt{2}$",
+  "approx": false
+ },
+ "x^3-2x|zero|1.414|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\sqrt{2},\\ x_{2}=0,\\ x_{3}=\\sqrt{2}$",
+  "approx": false
+ },
+ "x^3-2x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^3-2x|inf|0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^3-2x|min|0.816|": {
+  "res": "Tiefpunkt: $T(\\frac{\\sqrt{6}}{3}\\,|\\,-\\frac{4\\sqrt{6}}{9})$",
+  "approx": false
+ },
+ "(x-1)^2*(x+2)|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-2,\\ x_{2}=1$",
+  "approx": false
+ },
+ "(x-1)^2*(x+2)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,2)$",
+  "approx": false
+ },
+ "(x-1)^2*(x+2)|min|1.000|": {
+  "res": "Tiefpunkt: $T(1\\,|\\,0)$",
+  "approx": false
+ },
+ "x^4-2x^2|zero|-0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\sqrt{2},\\ x_{2}=0,\\ x_{3}=\\sqrt{2}$",
+  "approx": false
+ },
+ "x^4-2x^2|zero|1.414|": {
+  "res": "Alle Nullstellen: $x_{1}=-\\sqrt{2},\\ x_{2}=0,\\ x_{3}=\\sqrt{2}$",
+  "approx": false
+ },
+ "x^4-2x^2|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^4-2x^2|max|-0.000|": {
+  "res": "Hochpunkt: $H(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^4-2x^2|inf|0.577|": {
+  "res": "Wendepunkt: $W(\\frac{\\sqrt{3}}{3}\\,|\\,-\\frac{5}{9})$",
+  "approx": false
+ },
+ "x^4-2x^2|min|1.000|": {
+  "res": "Tiefpunkt: $T(1\\,|\\,-1)$",
+  "approx": false
+ },
+ "x^5-x|zero|-0.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-1,\\ x_{2}=0,\\ x_{3}=1$",
+  "approx": false
+ },
+ "x^5-x|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-1,\\ x_{2}=0,\\ x_{3}=1$",
+  "approx": false
+ },
+ "x^5-x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^5-x|inf|0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x^5-x|min|0.669|": {
+  "res": "Tiefpunkt: $T(\\sqrt{\\frac{\\sqrt{5}}{5}}\\,|\\,{\\sqrt{\\frac{\\sqrt{5}}{5}}}^{5}-\\sqrt{\\frac{\\sqrt{5}}{5}})$",
+  "approx": false
+ },
+ "sqrt(4x^2+4x+5)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,\\sqrt{5})$",
+  "approx": false
+ },
+ "sqrt(4x^2+4x+5)|asymp|0.000|+∞": {
+  "res": "Schräge Asymptote (für $x\\to+\\infty$): $y=2x+1$",
+  "approx": false
+ },
+ "EC^(x+1)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,e^{1})$",
+  "approx": false
+ },
+ "x*EC^(2x)|zero|-0.000|": {
+  "res": "Nullstelle: $N(0\\,|\\,0)$",
+  "approx": false
+ },
+ "x*EC^(2x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "(2/3)^x|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "(2/3)^x|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=0$",
+  "approx": false
+ },
+ "x/sin(x)|max|4.493|": {
+  "res": "Hochpunkt: $H(4.493\\,|\\,-4.603)$",
+  "approx": true
+ },
+ "x/sin(x)|min|7.725|": {
+  "res": "Tiefpunkt: $T(7.725\\,|\\,7.79)$",
+  "approx": true
+ },
+ "x/sin(x)|pole|3.142|": {
+  "res": "Senkrechte Asymptote: $x=\\pi$ — wegen der Periodizität unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$), ausser dort, wo auch der Zähler $0$ wird",
+  "approx": false
+ },
+ "x/sin(x)|pole|6.283|": {
+  "res": "Senkrechte Asymptote: $x=2\\pi$ — wegen der Periodizität unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$), ausser dort, wo auch der Zähler $0$ wird",
+  "approx": false
+ },
+ "x/sin(x)|pole|9.425|": {
+  "res": "Senkrechte Asymptote: $x=3\\pi$ — wegen der Periodizität unendlich viele ($x=k\\pi$, $k\\in\\mathbb{Z}$), ausser dort, wo auch der Zähler $0$ wird",
+  "approx": false
+ },
+ "tan(2x)|zero|-0.000|": {
+  "res": "Diese Nullstelle: $N(0\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "tan(2x)|zero|1.571|": {
+  "res": "Diese Nullstelle: $N(\\frac{\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "tan(2x)|zero|3.142|": {
+  "res": "Diese Nullstelle: $N(\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "tan(2x)|zero|4.712|": {
+  "res": "Diese Nullstelle: $N(\\frac{3\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "tan(2x)|zero|6.283|": {
+  "res": "Diese Nullstelle: $N(2\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "tan(2x)|zero|7.854|": {
+  "res": "Diese Nullstelle: $N(\\frac{5\\pi}{2}\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "tan(2x)|zero|9.425|": {
+  "res": "Diese Nullstelle: $N(3\\pi\\,|\\,0)$ — wegen der Periodizität gibt es unendlich viele ($x=\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$).",
+  "approx": false
+ },
+ "tan(2x)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(2x)|inf|0.000|": {
+  "res": "Wendepunkt: $W(0\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(2x)|inf|1.571|": {
+  "res": "Wendepunkt: $W(\\frac{\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(2x)|inf|3.142|": {
+  "res": "Wendepunkt: $W(\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(2x)|inf|4.712|": {
+  "res": "Wendepunkt: $W(\\frac{3\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(2x)|inf|6.283|": {
+  "res": "Wendepunkt: $W(2\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(2x)|inf|7.854|": {
+  "res": "Wendepunkt: $W(\\frac{5\\pi}{2}\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(2x)|inf|9.425|": {
+  "res": "Wendepunkt: $W(3\\pi\\,|\\,0)$",
+  "approx": false
+ },
+ "tan(2x)|pole|0.785|": {
+  "res": "Senkrechte Asymptote: $x=\\frac{\\pi}{4}$ — wegen der Periodizität unendlich viele ($x=\\frac{\\pi}{4}+\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "tan(2x)|pole|2.356|": {
+  "res": "Senkrechte Asymptote: $x=\\frac{3\\pi}{4}$ — wegen der Periodizität unendlich viele ($x=\\frac{\\pi}{4}+\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "tan(2x)|pole|3.927|": {
+  "res": "Senkrechte Asymptote: $x=\\frac{5\\pi}{4}$ — wegen der Periodizität unendlich viele ($x=\\frac{\\pi}{4}+\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "tan(2x)|pole|5.498|": {
+  "res": "Senkrechte Asymptote: $x=\\frac{7\\pi}{4}$ — wegen der Periodizität unendlich viele ($x=\\frac{\\pi}{4}+\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "tan(2x)|pole|7.069|": {
+  "res": "Senkrechte Asymptote: $x=\\frac{9\\pi}{4}$ — wegen der Periodizität unendlich viele ($x=\\frac{\\pi}{4}+\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "tan(2x)|pole|8.639|": {
+  "res": "Senkrechte Asymptote: $x=\\frac{11\\pi}{4}$ — wegen der Periodizität unendlich viele ($x=\\frac{\\pi}{4}+\\frac{k\\pi}{2}$, $k\\in\\mathbb{Z}$)",
+  "approx": false
+ },
+ "1/(EC^x-1)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=0$",
+  "approx": false
+ },
+ "1/(EC^x-1)|pole|0.000|": {
+  "res": "Senkrechte Asymptote: $x=0$",
+  "approx": false
+ },
+ "(EC^x+1)/(EC^x-1)|pole|0.000|": {
+  "res": "Senkrechte Asymptote: $x=0$",
+  "approx": false
+ },
+ "EC^(x^2)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,1)$",
+  "approx": false
+ },
+ "EC^(x^2)|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,1)$",
+  "approx": false
+ },
+ "(x^2-1)*EC^(-x^2)|zero|1.000|": {
+  "res": "Alle Nullstellen: $x_{1}=-1,\\ x_{2}=1$",
+  "approx": false
+ },
+ "(x^2-1)*EC^(-x^2)|yaxis|0.000|": {
+  "res": "Schnittpunkt mit der y-Achse: $S_y(0\\,|\\,-1)$",
+  "approx": false
+ },
+ "(x^2-1)*EC^(-x^2)|min|-0.000|": {
+  "res": "Tiefpunkt: $T(0\\,|\\,-1)$",
+  "approx": false
+ },
+ "(x^2-1)*EC^(-x^2)|inf|0.560|": {
+  "res": "Wendepunkt: $W(\\sqrt{\\frac{7-\\sqrt{33}}{4}}\\,|\\,\\left({\\sqrt{\\frac{7}{4}-\\frac{\\sqrt{33}}{4}}}^{2}-1\\right) \\cdot {e}^{-({\\sqrt{\\frac{7}{4}-\\frac{\\sqrt{33}}{4}}}^{2})})$",
+  "approx": false
+ },
+ "(x^2-1)*EC^(-x^2)|max|1.414|": {
+  "res": "Hochpunkt: $H(\\sqrt{2}\\,|\\,e^{-2})$",
+  "approx": false
+ },
+ "(x^2-1)*EC^(-x^2)|inf|1.785|": {
+  "res": "Wendepunkt: $W(\\sqrt{\\frac{7+\\sqrt{33}}{4}}\\,|\\,\\left({\\sqrt{\\frac{7}{4}+\\frac{\\sqrt{33}}{4}}}^{2}-1\\right) \\cdot {e}^{-({\\sqrt{\\frac{7}{4}+\\frac{\\sqrt{33}}{4}}}^{2})})$",
+  "approx": false
+ },
+ "(x^2-1)*EC^(-x^2)|asymp|0.000|+∞": {
+  "res": "Waagrechte Asymptote (für $x\\to+\\infty$): $y=0$",
+  "approx": false
+ }
+}

@@ -634,7 +634,9 @@ function drawLinOpt() {
         // bleibt bewusst bei fracHTML()/niceCoord(), da sie ein fertiges,
         // nicht-bewegliches Ergebnis zeigt.
         ctx.font = '11px system-ui,sans-serif'; ctx.fillStyle = '#1e40af'; ctx.textAlign = 'left';
-        ctx.fillText(niceCoordDec(p.x, p.y, false, 2), c.cx + 8, c.cy - 6);
+        if (typeof drawMathLabel === 'function' && typeof latexToMathLiveHtml === 'function') {
+          drawMathLabel(coordHtml(p.x, p.y, true, 2), c.cx + 8, c.cy - 6, '#1e40af', { align: 'left', baseline: 'bottom', fontSize: 11 });
+        } else ctx.fillText(niceCoordDec(p.x, p.y, false, 2), c.cx + 8, c.cy - 6);
         ctx.restore();
       });
     }
@@ -735,12 +737,12 @@ function loShowSolution() {
   (realResults.length ? realResults : results).forEach(r => {
     const isBest = r === best && !nearEdge;
     const style = isBest ? ' style="font-weight:700;color:#1D9E75;"' : '';
-    html.push(`<span class="lw-line lw-indent"${style}>${niceCoord(r.p.x, r.p.y)}:  z = ${fracHTML(loObjA)}·${niceNum(r.p.x)} + ${fracHTML(loObjB)}·${niceNum(r.p.y)} = ${fracHTML(r.z)}</span>`);
+    html.push(`<span class="lw-line lw-indent"${style}>${coordHtml(r.p.x, r.p.y)}:  z = ${fracHTML(loObjA)}·${niceNum(r.p.x)} + ${fracHTML(loObjB)}·${niceNum(r.p.y)} = ${fracHTML(r.z)}</span>`);
   });
   if (nearEdge) {
     html.push(lwLine(t('lo_unbounded'), false, true));
   } else {
-    html.push(lwLine(tf('lo_heading_result', { mode: loMode === 'max' ? t('lo_max') : t('lo_min'), point: niceCoord(best.p.x, best.p.y), val: fracHTML(best.z) }), false, true));
+    html.push(lwLine(tf('lo_heading_result', { mode: loMode === 'max' ? t('lo_max') : t('lo_min'), point: coordHtml(best.p.x, best.p.y), val: fracHTML(best.z) }), false, true));
   }
   box.innerHTML = html.join('');
   box.style.display = 'block';

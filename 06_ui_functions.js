@@ -379,6 +379,7 @@ function renderFuncList() {
       fn.expr = raw;
       clearEvalCache(); syncParams(); scheduleComputeSpecials();
        syncLinearExtra(); scheduleDraw();
+      try { if (window.EGGS) EGGS.onExpr(fn, i, raw); } catch (ex) {}
       // Definitionsbereich bei Ausdrucksänderung neu erkennen (wenn nicht manuell gesetzt)
       const _ds = _domSt(fn);
       _ds.userSet = false;
@@ -1991,7 +1992,7 @@ function showSolveTooltip(pts) {
     } else if (pt.kind === 'pole') {
       coordStr = fmtVerticalAsymLabel(pt.x);
     } else {
-      coordStr = pt.exactLabel || niceCoord(pt.x, pt.y);
+      coordStr = pt.exactLabel || coordHtml(pt.x, pt.y);
     }
     titleEl.innerHTML = `f<sub>${pt.fi+1}</sub>&thinsp;${kindNames[pt.kind] || pt.kind}&ensp;<span style="font-weight:400;opacity:0.75">${coordStr}</span>`;
   }

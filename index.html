@@ -15,70 +15,102 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg-app: #f0f2f5;
-  --bg-sidebar: #f7f8fa;
+  --bg-app: #eef1f7;
+  --bg-sidebar: #fbfcfe;
   --bg-canvas: #ffffff;
   --bg-btn: #ffffff;
   --bg-input: #ffffff;
-  --bg-range: #f7f8fa;
-  --border: #dde1e7;
-  --border-input: #c8cdd6;
-  --text: #1a1d23;
-  --text-muted: #6b7280;
-  --text-label: #9ca3af;
-  --text-btn: #1a1d23;
-  --btn-hover: #eef0f4;
-  --active-bg: #dbeafe;
-  --active-border: #378ADD;
-  --active-text: #1e40af;
-  --panel-title: #9ca3af;
+  --bg-range: #ffffff;
+  --border: #e5e8f0;
+  --border-input: #d3d9e6;
+  --text: #1a2033;
+  --text-muted: #5a647a;
+  --text-label: #8a93a8;
+  --text-btn: #1a2033;
+  --btn-hover: #eff2f9;
+  --active-bg: #e6eeff;
+  --active-border: #3d7bf7;
+  --active-text: #1f48c4;
+  --panel-title: #1a2033;
+  /* Design-System (modern) */
+  --accent: #3d7bf7;
+  --accent-soft: rgba(61,123,247,0.14);
+  --ring: 0 0 0 3px rgba(61,123,247,0.22);
+  --radius-sm: 8px;
+  --radius: 12px;
+  --shadow-sm: 0 1px 2px rgba(20,28,50,0.06);
+  --shadow-md: 0 6px 24px rgba(20,28,50,0.10), 0 1px 3px rgba(20,28,50,0.06);
+  --glass: rgba(255,255,255,0.78);
+  --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, system-ui, sans-serif;
 }
 body.dark {
-  --bg-app: #111318;
-  --bg-sidebar: #1a1d23;
-  --bg-canvas: #16181d;
-  --bg-btn: #252830;
-  --bg-input: #252830;
-  --bg-range: #1a1d23;
-  --border: #2d3140;
-  --border-input: #3a3f50;
-  --text: #e8eaf0;
-  --text-muted: #9ca3af;
-  --text-label: #6b7280;
-  --text-btn: #e8eaf0;
-  --btn-hover: #2d3140;
-  --active-bg: #1e3a5f;
-  --active-border: #378ADD;
-  --active-text: #93c5fd;
-  --panel-title: #6b7280;
+  --bg-app: #0c0e13;
+  --bg-sidebar: #12151c;
+  --bg-canvas: #0f1218;
+  --bg-btn: #1a1f2b;
+  --bg-input: #171b25;
+  --bg-range: #12151c;
+  --border: #232937;
+  --border-input: #323a4e;
+  --text: #e8ebf4;
+  --text-muted: #a0a9bf;
+  --text-label: #717b92;
+  --text-btn: #e8ebf4;
+  --btn-hover: #222939;
+  --active-bg: #1c2f5e;
+  --active-border: #5b92ff;
+  --active-text: #b3c8ff;
+  --panel-title: #e8ebf4;
+  --accent: #5b92ff;
+  --accent-soft: rgba(91,146,255,0.18);
+  --ring: 0 0 0 3px rgba(91,146,255,0.28);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
+  --shadow-md: 0 8px 28px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.4);
+  --glass: rgba(24,28,38,0.78);
 }
 
 html, body { height: 100%; overflow: hidden; }
-body { background: var(--bg-app); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; color: var(--text); }
+body { background: var(--bg-app); font-family: var(--font-ui); font-size: 13px; color: var(--text); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
 .app { display: flex; height: 100%; }
-.sidebar { width: 280px; min-width: 280px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+.sidebar { width: 296px; min-width: 296px; background: var(--bg-sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-input) transparent; z-index: 5; box-shadow: 1px 0 12px rgba(20,28,50,0.04); }
+.sidebar::-webkit-scrollbar { width: 8px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border-input); border-radius: 8px; border: 2px solid var(--bg-sidebar); }
 
-.panel { padding: 10px 12px; border-bottom: 1px solid var(--border); }
-.panel-title { font-size: 10px; color: var(--panel-title); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; font-weight: 600; cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center; }
-.panel-title .panel-arrow { font-size: 10px; transition: transform 0.18s; color: var(--text-muted); flex-shrink: 0; }
+/* Kopfzeile der Seitenleiste (Logo + Name) */
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 54px; min-height: 54px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 3; background: var(--bg-sidebar); }
+.brand-logo { width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, #5b92ff 0%, #7c5cff 100%); display: grid; place-items: center; box-shadow: 0 2px 8px rgba(91,110,255,0.35); flex-shrink: 0; }
+.brand-logo svg { width: 20px; height: 20px; display: block; }
+.brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); line-height: 1.1; }
+.brand-sub { font-size: 10.5px; color: var(--text-label); font-weight: 500; margin-top: 2px; }
+
+.panel { padding: 12px 16px; border-bottom: 1px solid var(--border); transition: background 0.15s; }
+.panel.collapsed:hover { background: var(--btn-hover); }
+.panel-title { font-size: 13px; color: var(--panel-title); letter-spacing: -0.005em; margin-bottom: 10px; font-weight: 600; cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.panel-title .panel-arrow { font-size: 11px; transition: transform 0.18s; color: var(--text-label); flex-shrink: 0; }
 .panel.collapsed .panel-title { margin-bottom: 0; }
 .panel.collapsed .panel-title .panel-arrow { transform: rotate(-90deg); }
 .panel-body { }
 .panel.collapsed .panel-body { display: none; }
 
-button { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 12px; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border-input); background: var(--bg-btn); color: var(--text-btn); cursor: pointer; white-space: nowrap; transition: background 0.12s; }
+button { font-family: var(--font-ui); font-size: 12px; font-weight: 500; padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-input); background: var(--bg-btn); color: var(--text-btn); cursor: pointer; white-space: nowrap; box-shadow: var(--shadow-sm); transition: background 0.12s, border-color 0.12s, box-shadow 0.12s, transform 0.06s; }
 button:hover { background: var(--btn-hover); }
+button:active { transform: scale(0.97); }
+button:focus-visible { outline: none; box-shadow: var(--ring); }
+button:disabled { opacity: 0.38; cursor: default; box-shadow: none; }
+button:disabled:hover { background: var(--bg-btn); }
+button:disabled:active { transform: none; }
 button.active-btn { background: var(--active-bg); border-color: var(--active-border); color: var(--active-text); }
 
-input[type=text] { font-family: 'Cascadia Code','Fira Mono',monospace; font-size: 12px; padding: 4px 8px; border: 1px solid var(--border-input); border-radius: 6px; background: var(--bg-input); color: var(--text); outline: none; width: 100%; }
-input[type=text]:focus { border-color: #378ADD; }
-input[type=number] { font-family: 'Segoe UI',system-ui,sans-serif; font-size: 12px; padding: 3px 6px; border: 1px solid var(--border-input); border-radius: 6px; background: var(--bg-input); color: var(--text); outline: none; }
-input[type=range] { accent-color: #378ADD; width: 100%; }
-select { font-family: 'Segoe UI',system-ui,sans-serif; font-size: 12px; padding: 3px 6px; border: 1px solid var(--border-input); border-radius: 6px; background: var(--bg-input); color: var(--text); outline: none; min-width: 0; }
+input[type=text] { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Fira Mono', monospace; font-size: 12px; padding: 6px 10px; border: 1px solid var(--border-input); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text); outline: none; width: 100%; transition: border-color 0.12s, box-shadow 0.12s; }
+input[type=text]:focus, input[type=number]:focus, select:focus { border-color: var(--accent); box-shadow: var(--ring); }
+input[type=number] { font-family: var(--font-ui); font-size: 12px; padding: 5px 8px; border: 1px solid var(--border-input); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text); outline: none; transition: border-color 0.12s, box-shadow 0.12s; }
+input[type=range] { accent-color: var(--accent); width: 100%; }
+input[type=checkbox], input[type=radio] { accent-color: var(--accent); }
+select { font-family: var(--font-ui); font-size: 12px; padding: 5px 8px; border: 1px solid var(--border-input); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text); outline: none; min-width: 0; transition: border-color 0.12s, box-shadow 0.12s; }
 
-.func-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
-.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.15); }
+.func-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; border: none; box-shadow: 0 0 0 3px rgba(128,134,150,0.16); cursor: pointer; }
 .sp-row { display: flex; align-items: flex-start; gap: 5px; margin-bottom: 5px; font-size: 11px; line-height: 1.5; }
 .add-row { display: flex; gap: 5px; margin-top: 4px; align-items: center; }
 .toolbar { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
@@ -86,7 +118,8 @@ select { font-family: 'Segoe UI',system-ui,sans-serif; font-size: 12px; padding:
 .hint { font-size: 10px; color: var(--text-label); margin-top: 3px; line-height: 1.4; }
 .hint code { background: var(--btn-hover); padding: 1px 4px; border-radius: 3px; font-size: 10px; }
 
-.del-btn { font-size: 10px; padding: 1px 6px; color: var(--text-muted); flex-shrink: 0; }
+.del-btn { font-size: 11px; padding: 2px 7px; color: var(--text-muted); flex-shrink: 0; border-color: transparent; background: transparent; box-shadow: none; border-radius: 6px; }
+.del-btn:hover { background: var(--btn-hover); color: var(--text); border-color: var(--border); }
 .settings-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 11px; color: var(--text-muted); }
 .area-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; flex-wrap: wrap; font-size: 11px; color: var(--text-muted); }
 #area-result { font-size: 12px; color: var(--text); margin-top: 5px; font-weight: 500; }
@@ -100,15 +133,31 @@ select { font-family: 'Segoe UI',system-ui,sans-serif; font-size: 12px; padding:
 .badge-yax{background:#fce7f3;color:#9d174d;}
 
 .graph-area { flex: 1; display: flex; flex-direction: column; background: var(--bg-canvas); min-width: 0; overflow: hidden; }
-.range-bar { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-bottom: 1px solid var(--border); flex-wrap: wrap; background: var(--bg-range); flex-shrink: 0; }
+.range-bar { display: flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 54px; border-bottom: 1px solid var(--border); flex-wrap: wrap; background: var(--bg-range); flex-shrink: 0; position: relative; z-index: 60; box-shadow: 0 1px 8px rgba(20,28,50,0.04); }
+/* Gruppierte Toolbar: Knöpfe in Gruppen, ruhige "Ghost"-Optik */
+.tb-group { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 11px; background: var(--btn-hover); }
+.tb-group > button, .tb-group > div > button { border-color: transparent; background: transparent; box-shadow: none; border-radius: 8px; padding: 5px 10px; }
+.tb-group > button:hover, .tb-group > div > button:hover { background: var(--bg-btn); box-shadow: var(--shadow-sm); }
+.tb-group > button.active-btn, .tb-group > div > button.active-btn { background: var(--bg-btn); border-color: var(--active-border); color: var(--active-text); box-shadow: 0 0 0 1px var(--active-border) inset, var(--shadow-sm); }
+.tb-group > button:disabled:hover { background: transparent; box-shadow: none; }
+.tb-spacer { flex: 1 1 8px; min-width: 4px; }
 .range-bar label { color: var(--text-muted); font-size: 11px; }
 .range-bar input[type=number], .range-bar input[type=text] { width: 52px; }
 
 #canvas { display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: grab; background: var(--bg-canvas); touch-action: none; }
 
-.kbd { display:flex; flex-wrap:wrap; gap:3px; margin-top:6px; }
-.kbd button { font-size:11px; padding:3px 6px; border-radius:5px; min-width:34px; text-align:center; font-family:'Cascadia Code','Fira Mono',monospace; }
-.kbd button:hover { background: var(--active-bg); border-color:#378ADD; }
+/* Mathe-Tastatur: 10-Spalten-Raster (5 Tasten je Zeile, letzte Zeile 2 breite Tasten),
+   Tasten nach Art eingefärbt: Variablen/Konstanten, Operatoren, Klammern/Potenzen/Wurzeln, Funktionen. */
+.kbd { display:grid; grid-template-columns:repeat(10, 1fr); gap:5px; margin-top:8px; }
+.kbd button { grid-column:span 2; display:flex; align-items:center; justify-content:center; min-width:0; height:36px; padding:0 2px; font-size:14px; font-weight:500; border-radius:9px; text-align:center; font-family:var(--font-ui); }
+.kbd button.kwide { grid-column:span 5; }
+.kbd button.kv { font-weight:600; }
+.kbd button.ko { background:var(--accent-soft); border-color:transparent; color:var(--accent); font-size:16px; font-weight:600; }
+.kbd button.kp { background:var(--bg-btn); }
+.kbd button.kf { background:var(--bg-input); border-style:dashed; }
+.kbd button:hover { background: var(--active-bg); border-color:var(--accent); }
+.kbd button.ko:hover { background: var(--accent); color:#fff; }
+.kbd button.kfrac .preview-frac { transform:scale(1.15); }
 
 .param-wrap { margin-bottom: 8px; }
 .param-row { display: flex; align-items: center; gap: 5px; flex-wrap: nowrap; }
@@ -116,13 +165,13 @@ select { font-family: 'Segoe UI',system-ui,sans-serif; font-size: 12px; padding:
 .param-ctrl-row { display: flex; align-items: center; gap: 5px; margin-top: 3px; font-size: 11px; }
 .param-val-inp { font-family: monospace; font-size: 11px; width: 68px; padding: 2px 5px; border: 1px solid var(--border-input); border-radius: 4px; background: var(--bg-input); color: var(--text); }
 
-.tooltip { position:absolute; background:rgba(20,20,20,0.88); color:#fff; font-size:11px; padding:3px 9px; border-radius:5px; pointer-events:none; display:none; white-space:nowrap; z-index:10; }
+.tooltip { position:absolute; background:rgba(22,26,38,0.92); color:#fff; font-size:11.5px; padding:4px 10px; border-radius:8px; box-shadow:var(--shadow-md); backdrop-filter:blur(6px); pointer-events:none; display:none; white-space:nowrap; z-index:10; }
 
-.color-popup { position:fixed; background:var(--bg-sidebar); border:1px solid var(--border); border-radius:8px; padding:6px; display:none; z-index:9999; box-shadow:0 4px 16px rgba(0,0,0,0.18); }
+.color-popup { position:fixed; background:var(--bg-sidebar); border:1px solid var(--border); border-radius:var(--radius); padding:8px; display:none; z-index:9999; box-shadow:var(--shadow-md); }
 .color-popup.active { display:grid; grid-template-columns:repeat(5,20px); gap:4px; width:auto; }
 .color-swatch { width:20px; height:20px; border-radius:4px; border:1.5px solid rgba(0,0,0,0.12); cursor:pointer; flex-shrink:0; transition:transform 0.1s; }
 .color-swatch:hover { transform:scale(1.2); }
-.color-swatch.selected { border-color:#1a1d23; box-shadow:0 0 0 2px #378ADD; }
+.color-swatch.selected { border-color:#fff; box-shadow:0 0 0 2px var(--accent); }
 
 .expr-preview { font-size: 11px; color: var(--text); padding: 1px 4px 3px; line-height: 1.7; min-height: 0; }
 .preview-frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 2px; line-height: 1.2; }
@@ -218,7 +267,8 @@ math-field.func-inp-ce::part(menu-toggle) {
 
 body.delete-mode #canvas { cursor:crosshair !important; }
 button.delete-mode-btn { color:#e24b4a; }
-button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; color:#e24b4a; }
+button.delete-mode-btn.active-btn, .tb-group > button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; color:#c2262a; box-shadow:0 0 0 1px #e24b4a inset; }
+body.dark button.delete-mode-btn.active-btn, body.dark .tb-group > button.delete-mode-btn.active-btn { background:#4a1d22; color:#ff9a9a; }
 
 /* ── Mathe-Beschriftungs-Overlay (Punkte/Asymptoten, direkt im Canvas) ──────
    Ersetzt Canvas-Text (system-ui-Font) für Beschriftungen mit Zahlen, die
@@ -246,18 +296,20 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
 /* ── Funktions-Label-Overlay (oben rechts im Canvas) ──────── */
 #func-labels-overlay {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 12px;
+  right: 12px;
   z-index: 40;
-  background: var(--bg-sidebar);
-  border: 1.5px solid var(--border);
-  border-radius: 7px;
-  padding: 5px 10px 6px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  backdrop-filter: blur(10px) saturate(1.4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 14px 7px;
   font-size: 13px;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-ui);
   pointer-events: none;
   line-height: 2;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+  box-shadow: var(--shadow-md);
   max-width: 320px;
 }
 .flo-row {
@@ -267,11 +319,12 @@ button.delete-mode-btn.active-btn { background:#fee2e2; border-color:#e24b4a; co
   white-space: nowrap;
 }
 .flo-dot {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   flex-shrink: 0;
-  border: 1px solid rgba(0,0,0,0.1);
+  border: none;
+  box-shadow: 0 0 0 3px rgba(128,134,150,0.16);
 }
 .flo-expr {
   color: var(--text);
@@ -292,8 +345,7 @@ body.beam .flo-dot {
 body.beam .flo-expr { font-size: 20px; }
 
 /* ── Beamer-Modus ──────────────────────────────────────────── */
-button#beam-btn { font-size:13px; padding:3px 9px; }
-button#beam-btn.active-btn { background:#fef08a; border-color:#ca8a04; color:#713f12; }
+button#beam-btn.active-btn, .tb-group > button#beam-btn.active-btn { background:#fef3c7; border-color:#d97706; color:#78350f; box-shadow:0 0 0 1px #d97706 inset; }
 
 body.beam {
   /* Alle Grau-Töne auf Schwarz — maximaler Kontrast fürs Beamen */
@@ -304,6 +356,17 @@ body.beam {
   --panel-title: #000000;
   font-size: 18px;
 }
+/* Beamer + Dunkelmodus: maximaler Kontrast heisst hier WEISS auf dunkel
+   (die Schwarz-Werte oben würden auf dem dunklen Hintergrund verschwinden). */
+body.beam.dark {
+  --text:        #ffffff;
+  --text-muted:  #f1f3f9;
+  --text-label:  #e3e7f2;
+  --text-btn:    #ffffff;
+  --panel-title: #ffffff;
+  --border:       #3a4258;
+  --border-input: #55607c;
+}
 
 /* Funktions-Eingabefeld: deutlich grösser */
 body.beam math-field.func-inp-ce {
@@ -312,6 +375,10 @@ body.beam math-field.func-inp-ce {
   line-height: 1.5;
   padding: 5px 8px;
 }
+
+/* Bruch-Taste der Tastatur: Platzhalter-Kästchen bleiben klein genug für die Taste */
+body.beam .kbd .kfrac .pf-num, body.beam .kbd .kfrac .pf-den { font-size: 15px !important; line-height: 1.05; }
+body.beam .kbd .kfrac .preview-frac { transform: none; }
 
 /* Brüche im Eingabefeld: mitskalieren */
 body.beam .preview-frac .pf-num,
@@ -327,8 +394,9 @@ body.beam .preview-sup {
 /* Math-Tastatur: deutlich grösser */
 body.beam .kbd button {
   font-size: 18px !important;
-  padding: 7px 11px !important;
-  min-width: 44px;
+  padding: 0 2px !important;
+  min-width: 0;
+  height: 46px;
   font-weight: 600;
 }
 
@@ -398,7 +466,188 @@ body.beam select { font-size: 17px; }
 /* Kleine Abschnitts-Überschrift innerhalb eines Panels (z.B. "Zwei Punkte",
    "Steigungsform") — hilft, mehrere Methoden/Funktionen innerhalb eines
    Panels sauber zu gliedern statt sie unstrukturiert aneinanderzureihen. */
-.subpanel-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #378ADD; margin-bottom: 4px; }
+.subpanel-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin-bottom: 4px; }
+
+
+/* ═══════════════════════════════════════════════════
+   MODERNES DESIGN — Zusatzschicht (Karten, Eingabefelder, Menüs, Scrollbars)
+   Bewusst NACH den Basisregeln und VOR Beamer/Mobile-Overrides platziert,
+   damit Beamer-Modus und Handy-Layout weiterhin die letzte Instanz bleiben.
+   ═══════════════════════════════════════════════════ */
+
+/* Funktions-Eingabefelder (Inline-Styles in 06_ui_functions.js → !important) */
+math-field.func-inp-ce {
+  border-radius: 10px !important;
+  border: 1px solid var(--border-input) !important;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.12s, box-shadow 0.12s;
+  outline: none !important;
+}
+math-field.func-inp-ce:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border-input)) !important; }
+math-field.func-inp-ce:focus-within {
+  border-color: var(--accent) !important;
+  box-shadow: var(--ring);
+  outline: none !important;
+}
+
+/* Kleine "Pille"-Knöpfe unter den Funktionen (D, W, lim, f', ∫) */
+.smart-btn { transition: background 0.12s, transform 0.06s; font-weight: 600; }
+.smart-btn:hover { background: color-mix(in srgb, currentColor 12%, transparent) !important; }
+/* Dunkelmodus: die dunklen Pillen-Farben (z.B. NS #92400e) heller, sonst kaum lesbar */
+body.dark .smart-btn:not(.sb-active) { filter: brightness(1.6) saturate(1.1); }
+body.dark .smart-btn:not(.sb-active):hover { filter: brightness(1.85) saturate(1.1); }
+body.beam.dark .smart-btn:not(.sb-active) { filter: brightness(1.8) saturate(1.1); }
+
+/* Popover-Menüs: Einstellungen, Sprache, Lösungsweg */
+#settings-menu, #lang-menu {
+  border-radius: var(--radius) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow-md) !important;
+  padding: 12px 14px !important;
+}
+#lang-menu { padding: 6px !important; }
+#solve-tooltip { border-radius: var(--radius) !important; border-width: 1px !important; box-shadow: var(--shadow-md) !important; }
+.settings-row { margin-bottom: 8px; }
+
+/* ═══ Menüs & Auswahlfelder — einheitliches Popover-Design ═══════════════
+   Gilt für: Auswahlfelder (<select>, Aufklappliste siehe 25_menus.js),
+   Einstellungen-/Sprachmenü, Farbwähler und das Kontextmenü (☰) der
+   Formeleingabe (MathLive). Alle Farben kommen aus den Design-Variablen oben,
+   Hell/Dunkel funktioniert dadurch automatisch. */
+
+/* — Auswahlfelder: eigener Pfeil statt der System-Pfeile (macOS: Auf/Ab) — */
+select {
+  -webkit-appearance: none; -moz-appearance: none; appearance: none;
+  cursor: pointer; line-height: 1.3;
+  padding-right: 27px !important;
+  border: 1px solid var(--border-input) !important;
+  border-radius: var(--radius-sm) !important;
+  background-color: var(--bg-input) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%236b7487' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 9px center !important;
+  background-size: 12px 12px !important;
+  transition: border-color .12s, box-shadow .12s, background-color .12s;
+}
+body.dark select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23a0a9bf' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E") !important;
+}
+/* kleine, platzsparende Auswahlfelder (Inline-Schriftgrösse ≤ 11px) */
+select[style*="font-size:10px"], select[style*="font-size:11px"], select[style*="font-size: 10px"], select[style*="font-size: 11px"] {
+  padding-right: 20px !important; background-position: right 5px center !important; background-size: 10px 10px !important;
+}
+select:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 45%, var(--border-input)) !important; }
+select:focus, select[aria-expanded="true"] { border-color: var(--accent) !important; box-shadow: var(--ring) !important; }
+select:disabled { opacity: .5; cursor: default; }
+select option, select optgroup { font-family: var(--font-ui); background: var(--bg-sidebar); color: var(--text); }
+
+/* — Aufklapp-Popover der Auswahlfelder (25_menus.js) und Sprachmenü — */
+.ds-pop {
+  position: fixed; z-index: 10100; overflow: auto; padding: 5px;
+  background: var(--bg-sidebar); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md);
+  font-family: var(--font-ui); font-size: 12.5px; line-height: 1.25;
+  transform-origin: top left; animation: ds-in .13s ease-out;
+  max-width: min(420px, calc(100vw - 16px)); scrollbar-width: thin;
+}
+.ds-pop.up { transform-origin: bottom left; }
+@keyframes ds-in { from { opacity: 0; transform: translateY(-5px) scale(.98); } to { opacity: 1; transform: none; } }
+.ds-opt {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 7px 10px; border-radius: 8px; cursor: pointer; white-space: nowrap;
+  background: none; border: 0 !important; box-shadow: none !important; margin: 0;
+  color: inherit; font: inherit; text-align: left; user-select: none; -webkit-user-select: none;
+}
+.ds-opt .ds-t { flex: 1; }
+.ds-opt .ds-chk { width: 14px; height: 14px; flex: none; opacity: 0; color: var(--accent); }
+.ds-opt[aria-selected="true"], .ds-opt[aria-checked="true"] { color: var(--accent); font-weight: 600; }
+.ds-opt[aria-selected="true"] .ds-chk, .ds-opt[aria-checked="true"] .ds-chk { opacity: 1; }
+.ds-opt.hi, #lang-menu .ds-opt:hover { background: var(--btn-hover); }
+.ds-opt[aria-selected="true"].hi, #lang-menu .ds-opt[aria-checked="true"]:hover { background: var(--accent-soft); }
+.ds-opt[aria-disabled="true"] { opacity: .4; cursor: default; }
+.ds-opt:focus-visible { outline: none; box-shadow: var(--ring) !important; }
+.ds-ind { padding-left: 18px; }
+.ds-grp { padding: 9px 10px 4px; font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text-label); }
+.ds-sep { height: 1px; background: var(--border); margin: 4px 6px; }
+body.beam .ds-pop { font-size: 16px; }
+
+/* — Sprachmenü — */
+#lang-menu { padding: 5px !important; min-width: 168px !important; animation: ds-in .13s ease-out; }
+#lang-menu-inner { display: flex; flex-direction: column; gap: 1px; }
+
+/* — Einstellungen-Menü: Beschriftung links, Bedienelement rechts, sauber ausgerichtet — */
+#settings-menu { min-width: 310px !important; padding: 14px 16px !important; animation: ds-in .13s ease-out; }
+#settings-menu .settings-row { font-size: 12px; color: var(--text); }
+#settings-menu .settings-row:has(> select) { display: grid; grid-template-columns: 1fr minmax(0, 148px); gap: 14px; align-items: center; margin-bottom: 9px; }
+#settings-menu .settings-row:has(> select) > select { width: 100%; }
+#settings-menu .settings-row label { cursor: pointer; }
+#settings-menu .hint { color: var(--text-label); }
+input[type=password] { font-family: var(--font-ui); font-size: 12px; padding: 6px 10px; border: 1px solid var(--border-input); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text); outline: none; transition: border-color .12s, box-shadow .12s; }
+input[type=password]:focus { border-color: var(--accent); box-shadow: var(--ring); }
+
+/* — Export-Panel: gleiche Gestaltung wie die Einstellungen (Raster, Chips, Variablen-Farben) — */
+#export-panel .ex-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
+#export-panel .ex-actions button { padding: 7px 4px; font-size: 12px; justify-content: center; }
+#export-panel .ex-actions button.ex-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+#export-panel .ex-actions button.ex-primary:hover { filter: brightness(1.1); }
+#export-panel .ex-label { font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text-label); margin: 2px 0 7px; }
+#export-panel .ex-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 14px; }
+#export-panel .ex-chips label { display: flex; align-items: center; gap: 7px; padding: 6px 9px; font-size: 11.5px; color: var(--text); background: var(--bg-input); border: 1px solid var(--border-input); border-radius: var(--radius-sm); cursor: pointer; user-select: none; transition: background .12s, border-color .12s; min-width: 0; }
+#export-panel .ex-chips label:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border-input)); }
+#export-panel .ex-chips label:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+#export-panel .ex-chips input { margin: 0; flex: none; }
+#export-panel .ex-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 8px; margin-bottom: 14px; }
+#export-panel .ex-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+#export-panel .ex-field.ex-full { grid-column: 1 / -1; }
+#export-panel .ex-field label { font-size: 11px; color: var(--text-muted); }
+#export-panel .ex-field input[type=number], #export-panel .ex-field select { width: 100%; font-size: 12px; padding: 6px 9px; }
+#export-panel .ex-out { width: 100%; height: 96px; resize: vertical; font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Fira Mono', monospace; font-size: 11px; line-height: 1.5; padding: 9px 10px; border: 1px solid var(--border-input); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text); outline: none; transition: border-color .12s, box-shadow .12s; }
+#export-panel .ex-out:focus { border-color: var(--accent); box-shadow: var(--ring); }
+#export-panel .ex-msg { font-size: 11px; color: #1D9E75; margin-top: 5px; min-height: 14px; }
+body.beam #export-panel .ex-chips { grid-template-columns: 1fr; }
+body.beam #export-panel .ex-chips label, body.beam #export-panel .ex-field label, body.beam #export-panel .ex-label { font-size: 15px; }
+body.beam #export-panel .ex-field input[type=number], body.beam #export-panel .ex-field select { font-size: 15px; }
+body.beam #export-panel .ex-out { font-size: 14px; }
+
+/* — Parameter-Schieber: Min/Max-Felder ohne Spin-Pfeile, zentriert (Werte wie -5 nicht abgeschnitten) — */
+.param-row input[type=number] { padding: 5px 2px; text-align: center; -moz-appearance: textfield; appearance: textfield; }
+.param-row input[type=number]::-webkit-inner-spin-button, .param-row input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* — Farbwähler — */
+.color-popup { border-radius: var(--radius) !important; padding: 10px !important; box-shadow: var(--shadow-md) !important; }
+.color-popup.active { grid-template-columns: repeat(5, 24px) !important; gap: 7px !important; }
+.color-swatch { width: 24px; height: 24px; border-radius: 8px; transition: transform .12s, box-shadow .12s; }
+.color-swatch:hover { transform: scale(1.12); }
+.color-swatch.selected { border-color: var(--bg-sidebar); box-shadow: 0 0 0 2px var(--accent); }
+
+/* — Kontextmenü der Formeleingabe (☰ am Eingabefeld, MathLive) —
+   MathLive rendert das Menü im Shadow-DOM des Feldes; Farben/Schrift laufen
+   über seine --ui-menu-*-Variablen, die Form über ::part(...). */
+math-field {
+  --ui-font-family: var(--font-ui); --ui-font-size: 13px; --ui-line-height: 1.35; --ui-letter-spacing: 0;
+  --ui-menu-bg: var(--bg-sidebar); --ui-menu-text: var(--text);
+  --ui-menu-bg-hover: var(--btn-hover); --ui-menu-text-hover: var(--text);
+  --ui-menu-bg-active: var(--accent); --ui-menu-text-active: #fff;
+  --ui-menu-bg-active-muted: var(--btn-hover); --ui-menu-text-active-muted: var(--text);
+  --ui-menu-shadow: var(--shadow-md); --ui-menu-divider: var(--border);
+}
+math-field::part(ui-menu-container) { border: 1px solid var(--border); border-radius: var(--radius); padding: 5px 0; min-width: 190px; }
+math-field::part(menu-item) { padding: 2px 10px; margin: 1px 5px; border-radius: 8px; }
+math-field::part(menu-divider) { margin: 4px 12px; padding: 0; }
+
+/* Lösungsweg-Boxen & Hinweise */
+.lw-box { border-radius: var(--radius-sm); }
+.hint code { border-radius: 5px; }
+
+/* Plot-Fläche: weicher Verlauf in den Rändern, kein harter Kasten */
+.graph-area { position: relative; }
+#canvas-wrap { background: var(--bg-canvas); }
+
+/* Badges etwas runder */
+.badge { border-radius: 6px; padding: 2px 6px; }
+
+/* Dünne Scrollbars überall */
+* { scrollbar-width: thin; scrollbar-color: var(--border-input) transparent; }
 
 /* ═══════════════════════════════════════════════════
    MOBILE / TOUCHSCREEN LAYOUT
@@ -418,6 +667,28 @@ body.beam select { font-size: 17px; }
   flex-shrink: 0;
 }
 
+/* ═══ LÖSUNGSWEGE (22_steps.js) — Schrift = Eingabefeld (KaTeX/MathLive), Rand-Notizen, Ergebnis-Box ═══ */
+#solve-tooltip:has(.sv) { width: min(470px, calc(100% - 20px)) !important; max-height: min(88vh, 760px) !important; }
+#solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 12.5px !important; }
+#solve-tooltip:has(.sv) #solve-tooltip-content { max-height: min(80vh, 700px) !important; padding-right: 2px; }
+.sv { font-family: 'KaTeX_Main', 'Cambria Math', Georgia, serif; font-size: 14px; line-height: 1.5; white-space: normal; color: var(--text); text-align: left; }
+.sv b { font-weight: 700; }
+.sv-h { margin: 11px 0 3px; font-weight: 700; font-size: 0.96em; color: var(--accent); }
+.sv > .sv-h:first-child { margin-top: 2px; }
+.sv-p { margin: 4px 0; }
+.sv-eq { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 14px; padding: 2px 0 2px 12px; }
+.sv-eq .sv-f { max-width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.sv-op { margin-left: auto; padding-left: 10px; border-left: 2px solid var(--border-input); color: var(--text-muted); font-size: 0.84em; white-space: nowrap; }
+.sv-res { margin: 9px 0 3px; padding: 7px 11px; border-radius: var(--radius-sm); background: var(--accent-soft); border-left: 3px solid var(--accent); font-weight: 600; }
+.sv-res .sv-m { font-weight: 400; }
+body.beam #solve-tooltip:has(.sv) { width: min(720px, calc(100% - 20px)) !important; }
+body.beam .sv { font-size: 19px; }
+body.beam .sv span, body.beam .sv label { font-size: inherit; }
+body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !important; }
+.sv-note { margin: 5px 0; color: var(--text-muted); font-size: 0.88em; font-style: italic; }
+.sv-sub { margin: 3px 0 3px 4px; padding-left: 10px; border-left: 2px solid var(--border); }
+.sv-m { display: inline-block; }
+.sv-eq .sv-m { display: inline; }
 @media (max-width: 700px) {
   /* Kleinere Basis-Schriftgröße damit alles kompakter wirkt */
   body { font-size: 12px; }
@@ -471,6 +742,20 @@ body.beam select { font-size: 17px; }
 <div class="app">
 <div class="sidebar" id="sidebar">
 
+  <!-- Kopfzeile: Logo + Name -->
+  <div class="brand">
+    <div class="brand-logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 20h18M4 4v16" stroke-width="1.6" opacity="0.55"/>
+        <path d="M4.5 17c3-.2 4-3 6-8s4-5.5 6.5-4.5" stroke-width="2.2"/>
+      </svg>
+    </div>
+    <div>
+      <div class="brand-name">Funktionenplotter</div>
+      <div class="brand-sub">Mathematik · Analysis</div>
+    </div>
+  </div>
+
   <!-- PANEL 1: Funktionen eingeben + Mathematik-Tastatur -->
   <div class="panel">
     <div class="panel-title" data-i18n="panel_functions">ƒ Funktionen</div>
@@ -484,40 +769,39 @@ body.beam select { font-size: 17px; }
          Hier direkt im (standardmässig offenen) Funktionen-Panel statt in einem eigenen,
          normalerweise eingeklappten Panel, damit die Pills ohne Extra-Klick sichtbar sind. -->
     <div id="asym-pills" style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 2px 0;"></div>
-    <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:4px;">
-      <div class="panel-title" style="margin-bottom:0;cursor:pointer;" onclick="toggleKbd()">
-        ⌨ Tastatur <span id="kbd-arrow" class="panel-arrow" style="transform:rotate(-90deg);">▾</span>
-      </div>
-      <div id="kbd-body" style="display:none;">
+  </div>
+
+  <!-- Tastatur: eigenes, einklappbares Panel (gleiche Höhe/Optik wie alle anderen Menüpunkte).
+       Das Einklappen übernimmt der generische Panel-Code in 11_fitting.js. -->
+  <div class="panel" id="kbd-panel">
+    <div class="panel-title">⌨ Tastatur</div>
+      <div id="kbd-body">
         <div class="kbd">
-          <button onmousedown="return false" onclick="kbdInsert('x')" data-mlatex="x">x</button>
-          <button onmousedown="return false" onclick="kbdInsert('pi')" data-mlatex="\pi">π</button>
-          <button onmousedown="return false" onclick="kbdInsert('EC')" data-mlatex="e">e</button>
-          <button onmousedown="return false" onclick="kbdInsert('(')" data-mlatex="(">(</button>
-          <button onmousedown="return false" onclick="kbdInsert(')')" data-mlatex=")">)</button>
-          <div style="display:inline-grid;grid-template-columns:1fr 1fr;gap:3px;align-self:flex-start;">
-            <button onmousedown="return false" onclick="kbdInsert('+')" style="margin:0;" data-mlatex="+">+</button>
-            <button onmousedown="return false" onclick="kbdInsert('-')" style="margin:0;" data-mlatex="-">−</button>
-            <button onmousedown="return false" onclick="kbdInsert('*')" style="margin:0;" data-mlatex="\cdot">⋅</button>
-            <button onmousedown="return false" onclick="kbdInsert('/')" style="margin:0;" data-mlatex="\div">÷</button>
-          </div>
-          <button onmousedown="return false" onclick="kbdInsert('^2')" data-mlatex="x^{2}">x²</button>
-          <button onmousedown="return false" onclick="kbdInsert('^')" data-mlatex="x^{n}">xⁿ</button>
-          <button onmousedown="return false" onclick="kbdFrac()" data-i18n-title="title_frac" style="padding:3px 8px;line-height:1;"><span class="preview-frac" style="pointer-events:none;font-size:10px;"><span class="pf-num">□</span><span class="pf-den">□</span></span></button>
-          <button onmousedown="return false" onclick="kbdInsert('exp(',')')" data-mlatex="e^{x}">eˣ</button>
-          <button onmousedown="return false" onclick="kbdInsert('sin(',')')" data-mlatex="\sin">sin</button>
-          <button onmousedown="return false" onclick="kbdInsert('cos(',')')" data-mlatex="\cos">cos</button>
-          <button onmousedown="return false" onclick="kbdInsert('tan(',')')" data-mlatex="\tan">tan</button>
-          <button onmousedown="return false" onclick="kbdInsert('sqrt(',')')" data-mlatex="\sqrt{x}">√x</button>
-          <button onmousedown="return false" onclick="kbdInsert('nthroot(','',3)" data-mlatex="\sqrt[n]{x}">ⁿ√x</button>
-          <button onmousedown="return false" onclick="kbdInsert('log(',')')" data-mlatex="\ln">ln</button>
-          <button onmousedown="return false" onclick="kbdInsert('log10(',')')" data-mlatex="\log_{10}">log₁₀</button>
-          <button onmousedown="return false" onclick="kbdInsert('logn(','',2)" data-mlatex="\log_{n}">logₙ</button>
-          <button onmousedown="return false" onclick="kbdInsert('abs(',')')" data-mlatex="\left|x\right|">|x|</button>
+          <button class="kv" onmousedown="return false" onclick="kbdInsert('x')" data-mlatex="x">x</button>
+          <button class="kv" onmousedown="return false" onclick="kbdInsert('pi')" data-mlatex="\pi">π</button>
+          <button class="kv" onmousedown="return false" onclick="kbdInsert('EC')" data-mlatex="e">e</button>
+          <button class="kp" onmousedown="return false" onclick="kbdInsert('(')" data-mlatex="(">(</button>
+          <button class="kp" onmousedown="return false" onclick="kbdInsert(')')" data-mlatex=")">)</button>
+          <button class="ko" onmousedown="return false" onclick="kbdInsert('+')" data-mlatex="+">+</button>
+          <button class="ko" onmousedown="return false" onclick="kbdInsert('-')" data-mlatex="-">−</button>
+          <button class="ko" onmousedown="return false" onclick="kbdInsert('*')" data-mlatex="\cdot">⋅</button>
+          <button class="ko" onmousedown="return false" onclick="kbdInsert('/')" data-mlatex="\div">÷</button>
+          <button class="ko kfrac" onmousedown="return false" onclick="kbdFrac()" data-i18n-title="title_frac"><span class="preview-frac" style="pointer-events:none;font-size:10px;"><span class="pf-num">□</span><span class="pf-den">□</span></span></button>
+          <button class="kp" onmousedown="return false" onclick="kbdInsert('^2')" data-mlatex="x^{2}">x²</button>
+          <button class="kp" onmousedown="return false" onclick="kbdInsert('^')" data-mlatex="x^{n}">xⁿ</button>
+          <button class="kp" onmousedown="return false" onclick="kbdInsert('sqrt(',')')" data-mlatex="\sqrt{x}">√x</button>
+          <button class="kp" onmousedown="return false" onclick="kbdInsert('nthroot(','',3)" data-mlatex="\sqrt[n]{x}">ⁿ√x</button>
+          <button class="kp" onmousedown="return false" onclick="kbdInsert('abs(',')')" data-mlatex="\left|x\right|">|x|</button>
+          <button class="kf" onmousedown="return false" onclick="kbdInsert('sin(',')')" data-mlatex="\sin">sin</button>
+          <button class="kf" onmousedown="return false" onclick="kbdInsert('cos(',')')" data-mlatex="\cos">cos</button>
+          <button class="kf" onmousedown="return false" onclick="kbdInsert('tan(',')')" data-mlatex="\tan">tan</button>
+          <button class="kf" onmousedown="return false" onclick="kbdInsert('exp(',')')" data-mlatex="e^{x}">eˣ</button>
+          <button class="kf" onmousedown="return false" onclick="kbdInsert('log(',')')" data-mlatex="\ln">ln</button>
+          <button class="kf kwide" onmousedown="return false" onclick="kbdInsert('log10(',')')" data-mlatex="\log_{10}">log₁₀</button>
+          <button class="kf kwide" onmousedown="return false" onclick="kbdInsert('logn(','',2)" data-mlatex="\log_{n}">logₙ</button>
         </div>
         <div class="hint" style="margin-top:4px;" data-i18n="lbl_kbd_hint">Klicke ins Funktionsfeld, dann auf eine Taste.<br><code>nthroot(x,n)</code>=ⁿ√x &nbsp;<code>logn(x,b)</code>=log<sub>b</sub>x &nbsp;<code>EC</code>=e</div>
       </div>
-    </div>
   </div>
 
   <!-- PANEL 2: Parameter-Schieber — direkt unter Funktionen -->
@@ -574,15 +858,18 @@ body.beam select { font-size: 17px; }
          11_fitting.js): "⊥ Senkrechte" startet einen 2-Schritt-Ablauf (Punkt
          im Plot wählen, dann eine Gerade im Plot anklicken), "⊥ Mittel-
          senkrechte" ebenfalls 2 Schritte (Punkt 1, dann Punkt 2). Der
-         Lösungsweg inkl. Steigungsbeziehung m₁·m₂ = −1 erscheint im selben
-         "📋 Lösungsweg"-Kasten oben (showLoesungsweg() wurde dafür
-         erweitert), kein zweiter Lösungsweg-Knopf nötig. -->
+         Lösungsweg inkl. Steigungsbeziehung m₁·m₂ = −1 zeigt der Knopf
+         "📋 Lösungsweg" direkt darunter (Karte oben rechts im Plot,
+         showPerpLoesungsweg() in 22c_steps_panels.js). -->
     <div class="subpanel">
       <div class="subpanel-label" data-i18n="lbl_lin_perp">Senkrechte &amp; Mittelsenkrechte</div>
       <div class="hint" style="margin-bottom:5px;" data-i18n="perp_hint">Für die Senkrechte: Punkt und Gerade im Plot wählen. Für die Mittelsenkrechte: zwei Punkte wählen. Inkl. Lösungsweg und Beziehung der Steigungen (m₁·m₂ = −1).</div>
       <div class="toolbar" style="margin-top:0;gap:4px;flex-wrap:wrap;">
         <button id="perp-pick-btn" onclick="linPerpTogglePick()" style="flex:1;" data-i18n="btn_perp_pick" data-i18n-title="btn_perp_pick">⊥ Senkrechte</button>
         <button id="bisector-pick-btn" onclick="linBisectorTogglePick()" style="flex:1;" data-i18n="btn_bisector_pick" data-i18n-title="btn_bisector_pick">⊥ Mittelsenkrechte (inkl. M)</button>
+      </div>
+      <div class="toolbar" style="margin-top:4px;gap:4px;">
+        <button onclick="showPerpLoesungsweg()" id="perp-lw-btn" style="flex:1;" data-i18n="btn_solution">📋 Lösungsweg</button>
       </div>
       <div id="perp-pick-status" style="font-size:10px;color:#378ADD;min-height:10px;margin-top:2px;"></div>
       <div id="lin-perp-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
@@ -978,15 +1265,16 @@ body.beam select { font-size: 17px; }
   </div>
 
   <!-- Export -->
-  <div class="panel">
-    <div class="panel-title" data-i18n="panel_export">Export</div>
-    <div class="toolbar" style="margin-bottom:6px;">
+  <div class="panel" id="export-panel">
+    <div class="panel-title" data-i18n="panel_export">📤 Export</div>
+    <div class="ex-actions">
       <button onclick="exportJPEG()" data-i18n="btn_jpeg">📷 JPEG</button>
-      <button onclick="generateLatex()">LaTeX</button>
+      <button onclick="generateLatex()" class="ex-primary">LaTeX</button>
       <button onclick="copyLatex()" data-i18n="btn_copy">Kopieren</button>
     </div>
-    <div style="font-size:10px;color:#6b7280;margin-bottom:4px;" data-i18n="lbl_ltx_pts">Sonderpunkte im LaTeX:</div>
-    <div style="display:flex;flex-wrap:wrap;gap:4px 10px;font-size:10px;margin-bottom:6px;">
+
+    <div class="ex-label" data-i18n="lbl_ltx_pts">Sonderpunkte im LaTeX:</div>
+    <div class="ex-chips">
       <label><input type="checkbox" id="ltx-zeros" checked> <span data-i18n="chk_zeros">Nullstellen</span></label>
       <label><input type="checkbox" id="ltx-max" checked> <span data-i18n="chk_maxima">Maxima</span></label>
       <label><input type="checkbox" id="ltx-min" checked> <span data-i18n="chk_minima">Minima</span></label>
@@ -996,26 +1284,29 @@ body.beam select { font-size: 17px; }
       <label><input type="checkbox" id="ltx-graphpts" checked> <span data-i18n="chk_graphpts">Graph-Punkte</span></label>
       <label><input type="checkbox" id="ltx-freepts" checked> <span data-i18n="chk_freepts">Freie Punkte</span></label>
     </div>
-        <div style="font-size:10px;color:#6b7280;margin:4px 0 2px 0;">LaTeX-Achseneinstellungen:</div>
-    <div style="display:grid;grid-template-columns:auto 1fr auto 1fr;gap:3px 5px;align-items:center;font-size:10px;margin-bottom:3px;">
-      <label style="white-space:nowrap">Schrift:</label>
-      <select id="ltx-tickfont" style="font-size:10px;padding:1px 2px;grid-column:2/5;">
-        <option value="\tiny">\tiny</option>
-        <option value="\scriptsize">\scriptsize</option>
-        <option value="\footnotesize" selected>\footnotesize</option>
-        <option value="\small">\small</option>
-        <option value="\normalsize">\normalsize</option>
-      </select>
-      <label style="white-space:nowrap">Tick x:</label><input type="number" id="ltx-xtickstep" value="1" min="0.1" step="0.5" autocomplete="off" style="width:100%;font-size:10px;padding:1px 3px;">
-      <label style="white-space:nowrap">Tick y:</label><input type="number" id="ltx-ytickstep" value="1" min="0.1" step="0.5" autocomplete="off" style="width:100%;font-size:10px;padding:1px 3px;">
-      <label style="white-space:nowrap">Scale:</label><input type="number" id="ltx-scale" value="1" min="0.1" step="0.1" autocomplete="off" style="width:100%;font-size:10px;padding:1px 3px;grid-column:2/5;">
-      <label style="white-space:nowrap">x_min:</label><input type="number" id="ltx-xmin" placeholder="auto" autocomplete="off" style="width:100%;font-size:10px;padding:1px 3px;">
-      <label style="white-space:nowrap">x_max:</label><input type="number" id="ltx-xmax" placeholder="auto" autocomplete="off" style="width:100%;font-size:10px;padding:1px 3px;">
-      <label style="white-space:nowrap">y_min:</label><input type="number" id="ltx-ymin" placeholder="auto" autocomplete="off" style="width:100%;font-size:10px;padding:1px 3px;">
-      <label style="white-space:nowrap">y_max:</label><input type="number" id="ltx-ymax" placeholder="auto" autocomplete="off" style="width:100%;font-size:10px;padding:1px 3px;">
+
+    <div class="ex-label">LaTeX-Achseneinstellungen:</div>
+    <div class="ex-grid">
+      <div class="ex-field ex-full"><label for="ltx-tickfont">Schrift</label>
+        <select id="ltx-tickfont">
+          <option value="\tiny">\tiny</option>
+          <option value="\scriptsize">\scriptsize</option>
+          <option value="\footnotesize" selected>\footnotesize</option>
+          <option value="\small">\small</option>
+          <option value="\normalsize">\normalsize</option>
+        </select>
+      </div>
+      <div class="ex-field"><label for="ltx-xtickstep">Tick x</label><input type="number" id="ltx-xtickstep" value="1" min="0.1" step="0.5" autocomplete="off"></div>
+      <div class="ex-field"><label for="ltx-ytickstep">Tick y</label><input type="number" id="ltx-ytickstep" value="1" min="0.1" step="0.5" autocomplete="off"></div>
+      <div class="ex-field ex-full"><label for="ltx-scale">Scale</label><input type="number" id="ltx-scale" value="1" min="0.1" step="0.1" autocomplete="off"></div>
+      <div class="ex-field"><label for="ltx-xmin">x_min</label><input type="number" id="ltx-xmin" placeholder="auto" autocomplete="off"></div>
+      <div class="ex-field"><label for="ltx-xmax">x_max</label><input type="number" id="ltx-xmax" placeholder="auto" autocomplete="off"></div>
+      <div class="ex-field"><label for="ltx-ymin">y_min</label><input type="number" id="ltx-ymin" placeholder="auto" autocomplete="off"></div>
+      <div class="ex-field"><label for="ltx-ymax">y_max</label><input type="number" id="ltx-ymax" placeholder="auto" autocomplete="off"></div>
     </div>
-<textarea id="latex-out" readonly style="width:100%;height:90px;font-family:'Cascadia Code','Fira Mono',monospace;font-size:10px;padding:6px;border:1px solid #c8cdd6;border-radius:6px;background:#f7f8fa;color:#374151;resize:vertical;outline:none;line-height:1.5;" data-i18n-placeholder="ph_latex" placeholder="LaTeX-Code erscheint hier…"></textarea>
-    <div id="latex-msg" style="font-size:10px;color:#1D9E75;margin-top:3px;"></div>
+
+    <textarea id="latex-out" class="ex-out" readonly data-i18n-placeholder="ph_latex" placeholder="LaTeX-Code erscheint hier…"></textarea>
+    <div id="latex-msg" class="ex-msg"></div>
   </div>
 
   <!-- Speichern/Laden-Panel auf Nutzerwunsch entfernt ("das Menüpunkt
@@ -1039,16 +1330,22 @@ body.beam select { font-size: 17px; }
     <input type="number" id="xmax" value="10" step="1" hidden>
     <input type="number" id="ymin" value="-6" step="1" hidden>
     <input type="number" id="ymax" value="6" step="1" hidden>
-    <button id="undo-btn" onmousedown="return false" onclick="commitAndUndo()" style="font-size:14px;padding:3px 9px;" disabled>↩</button>
-    <button id="redo-btn" onmousedown="return false" onclick="commitAndRedo()" style="font-size:14px;padding:3px 9px;" disabled>↪</button>
-    <button id="pointer-mode-btn" onclick="togglePointerMode()" title="Laserpointer (Maus / Stift / Touch)" style="font-size:13px;">🔴 Pointer</button>
-    <button id="point-mode-btn" onclick="togglePointMode()" data-i18n="btn_point">· Punkt setzen</button>
-    <button id="graph-pt-btn" onclick="toggleGraphPtMode()" data-i18n="btn_ongraph">📍 Punkt auf Graph</button>
-    <button id="delete-mode-btn" onclick="toggleDeleteMode()" class="delete-mode-btn" data-i18n="btn_delete">🗑 Löschen</button>
-    <button onclick="toggleDarkMode()" id="dark-btn" data-i18n="btn_darkmode" data-i18n-title="btn_darkmode" title="Dark Mode" style="font-size:14px;padding:3px 9px;">🌙 Dark Mode</button>
-    <button onclick="toggleBeamMode()" id="beam-btn" data-i18n="btn_beamer" title="Beamer-Modus EIN">📺 Beamer</button>
-    <div style="position:relative;display:inline-block;">
-      <button onclick="toggleSettingsMenu()" id="settings-btn" data-i18n="btn_settings" data-i18n-title="panel_settings" title="Einstellungen" style="font-size:14px;padding:3px 9px;">⚙ Einstellungen</button>
+    <div class="tb-group">
+      <button id="undo-btn" onmousedown="return false" onclick="commitAndUndo()" disabled>↩</button>
+      <button id="redo-btn" onmousedown="return false" onclick="commitAndRedo()" disabled>↪</button>
+    </div>
+    <div class="tb-group">
+      <button id="pointer-mode-btn" onclick="togglePointerMode()" title="Laserpointer (Maus / Stift / Touch)">🔴 Pointer</button>
+      <button id="point-mode-btn" onclick="togglePointMode()" data-i18n="btn_point">⊙ Punkt setzen</button>
+      <button id="graph-pt-btn" onclick="toggleGraphPtMode()" data-i18n="btn_ongraph">📍 Punkt auf Graph</button>
+      <button id="delete-mode-btn" onclick="toggleDeleteMode()" class="delete-mode-btn" data-i18n="btn_delete">🗑 Löschen</button>
+    </div>
+    <div class="tb-spacer"></div>
+    <div class="tb-group">
+      <button onclick="toggleDarkMode()" id="dark-btn" data-i18n="btn_darkmode" data-i18n-title="btn_darkmode" title="🌙 Dark Mode">🌙 Dark Mode</button>
+      <button onclick="toggleBeamMode()" id="beam-btn" data-i18n="btn_beamer" title="Beamer-Modus EIN">📺 Beamer</button>
+      <div style="position:relative;display:inline-block;">
+      <button onclick="toggleSettingsMenu()" id="settings-btn" data-i18n="btn_settings" data-i18n-title="panel_settings" title="Einstellungen">⚙ Einstellungen</button>
       <!-- Einstellungen: war vorher ein eigenes Sidebar-Panel (⚙ Einstellungen),
            auf Nutzerwunsch in die obere Leiste verschoben — gleiches Popover-Muster
            wie #lang-menu (position:fixed, Schliessen bei Klick ausserhalb),
@@ -1107,23 +1404,38 @@ body.beam select { font-size: 17px; }
           </select>
         </div>
         <div class="settings-row"><label><input type="checkbox" id="chk-funclabels" checked onchange="updateFuncLabelsOverlay();scheduleDraw()"> <span data-i18n="chk_labels">Funktionsbeschriftung im Plot</span></label></div>
-        <div class="settings-row" style="margin-bottom:0;"><label><input type="checkbox" id="chk-gridsnap" checked onchange="scheduleDraw()"> <span data-i18n="chk_gridsnap">Gitterpunkt-Snapping</span></label></div>
+        <div class="settings-row"><label><input type="checkbox" id="chk-gridsnap" checked onchange="scheduleDraw()"> <span data-i18n="chk_gridsnap">Gitterpunkt-Snapping</span></label></div>
+        <div class="settings-row" style="margin-bottom:0;"><label><input type="checkbox" id="chk-eggs" checked onchange="window.EGGS&&EGGS.setEnabled(this.checked)"> <span>Überraschungen</span></label></div>
+        <!-- Automatische Übersetzung (23_autotranslate.js) -->
+        <div id="autotr-box" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+          <div class="settings-row" style="margin-bottom:4px;"><b>Übersetzung</b></div>
+          <div class="settings-row"><label><input type="checkbox" id="autotr-online" checked onchange="AI18N.setOnline(this.checked)"> <span>Neue Texte automatisch online übersetzen</span></label></div>
+          <div class="settings-row" style="flex-wrap:wrap;"><label for="autotr-key">Eigener API-Schlüssel (Google Cloud, optional):</label>
+            <input type="password" id="autotr-key" autocomplete="off" spellcheck="false" style="flex:1;min-width:120px;" onchange="AI18N.setApiKey(this.value)"></div>
+          <div class="settings-row" style="gap:6px;flex-wrap:wrap;">
+            <button type="button" onclick="AI18N.exportCache()">Übersetzungen exportieren</button>
+            <button type="button" onclick="AI18N.clearCache()">Übersetzungs-Speicher leeren</button>
+          </div>
+          <div class="hint" id="autotr-status" style="margin:2px 0 0;">&nbsp;</div>
+          <div class="hint" style="margin:2px 0 0;font-size:10px;">Es werden nur Beschriftungstexte gesendet – Zahlen, Formeln und eigene Eingaben bleiben im Browser.</div>
+        </div>
       </div>
     </div>
     <div style="position:relative;display:inline-block;">
-      <button onclick="toggleLangMenu()" id="lang-btn" title="Sprache / Language" style="font-size:12px;padding:3px 8px;">🌐 DE</button>
-      <div id="lang-menu" style="display:none;position:fixed;background:var(--bg-sidebar);border:1px solid var(--border);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.18);z-index:9999;min-width:140px;">
+      <button onclick="toggleLangMenu()" id="lang-btn" translate="no" title="Sprache / Language">🌐 DE</button>
+      <div id="lang-menu" translate="no" style="display:none;position:fixed;background:var(--bg-sidebar);border:1px solid var(--border);border-radius:8px;padding:4px;box-shadow:0 4px 16px rgba(0,0,0,0.18);z-index:9999;min-width:140px;">
         <div id="lang-menu-inner"></div>
       </div>
     </div>
-  </div>
+    </div><!-- Ende tb-group (Darstellung) -->
+  </div><!-- Ende range-bar -->
 
   <div id="canvas-wrap" style="flex:1; position:relative; min-height:0;">
     <canvas id="canvas"></canvas>
     <div class="tooltip" id="tooltip"></div>
     <div id="canvas-label-overlay"></div>
     <div id="func-labels-overlay" style="display:none;"></div>
-    <div id="solve-tooltip" style="display:none;position:absolute;top:8px;left:8px;z-index:50;width:300px;max-height:min(80vh, 560px);background:var(--bg-sidebar);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.16);padding:4px 10px 6px;font-size:10.5px;line-height:1.65;font-family:'KaTeX_Main','Cambria Math',Georgia,serif;white-space:pre-wrap;color:var(--text);">
+    <div id="solve-tooltip" style="display:none;position:absolute;top:8px;left:8px;z-index:50;width:300px;max-height:min(80vh, 560px);background:var(--bg-sidebar);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.16);padding:4px 10px 6px;font-size:10.5px;line-height:1.65;font-family:'KaTeX_Main','Cambria Math',Georgia,serif;white-space:normal;color:var(--text);">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;line-height:1.2;margin-bottom:2px;">
         <span id="solve-tooltip-title" style="font-weight:700;font-size:11px;white-space:nowrap;overflow:visible;"></span>
         <span onclick="hideSolveTooltip()" style="cursor:pointer;font-size:14px;opacity:0.4;flex-shrink:0;font-family:system-ui;line-height:1;" title="Schließen">✕</span>
@@ -1133,7 +1445,7 @@ body.beam select { font-size: 17px; }
            "schön dargestellten" gestapelten Brüche (rr()/fracHTML(), siehe
            04_analysis.js) mehr vertikalen Platz brauchen als reiner Text und das
            entscheidende Endergebnis sonst abgeschnitten würde. -->
-      <div id="solve-tooltip-content" style="max-height:min(70vh, 480px);overflow-y:auto;"></div>
+      <div id="solve-tooltip-content" style="max-height:min(70vh, 480px);overflow-y:auto;white-space:pre-wrap;"></div>
     </div>
   </div>
   <div class="color-popup" id="color-popup"></div>
@@ -1198,13 +1510,23 @@ document.addEventListener('DOMContentLoaded', () => {
      konsumiert (Phase 2: Nerdamer-Verfeinerung). -->
 <script src="18_nerdamer_limits.js"></script>
 <script src="06_ui_functions.js"></script>
+<script src="20_exact.js"></script><!-- exakte Arithmetik (Brüche, Wurzeln, Polynome) -->
+<script src="21_solver.js"></script><!-- Lösungsweg-Engine: Polynome -->
+<script src="21b_equation.js"></script><!-- Lösungsweg-Engine: allgemeine Gleichungen -->
+<script src="22_steps.js"></script><!-- Lösungswege: Nullstellen, Extrema, Wendepunkte, Schnittpunkte -->
+<script src="22b_steps_asymptotes.js"></script><!-- Lösungswege: Polstellen, Lücken, Asymptoten, Grenzwerte + Einhängen in die Oberfläche -->
 <script src="07_export.js"></script>
 <script src="08_draw.js"></script>
 <script src="09_events.js"></script>
 <script src="10_io.js"></script>
 <script src="11_fitting.js"></script>
+<script src="22c_steps_panels.js"></script><!-- Lösungswege der Panels: Gerade, Scheitelpunkt, Nullstellen (Parabel) im Karten-Stil -->
 <script src="12_begriffe.js"></script>
 <script src="13_sequences.js"></script>
+<script src="19_icons.js"></script><!-- moderne Linien-Icons statt Emojis (ersetzt Emoji-Zeichen im DOM) -->
+<script src="25_menus.js"></script><!-- modernes Auswahl-Dropdown für alle <select> -->
+<script src="24_eggs.js"></script><!-- Easter-Eggs (optional, Schalter in den Einstellungen) -->
+<script src="23_autotranslate.js"></script><!-- automatische Übersetzung aller Texte in die gewählte Sprache (nach den Icons laden) -->
 
 <script>
 function updateAsymPills() {
