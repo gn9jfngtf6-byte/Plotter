@@ -165,6 +165,8 @@ function latexNum(v) {
 }
 
 function generateLatex() {
+  // 3D-Raum aktiv: TikZ-Code der 3D-Szene (30_3d_ui.js)
+  if (typeof td3dActive === 'function' && td3dActive() && typeof td3dLatex === 'function') { document.getElementById('latex-out').value = td3dLatex(); return; }
   const v = isoView || view;
   const _ltxV = id => { const el=document.getElementById(id); return el&&el.value.trim()!==''?parseFloat(el.value):null; };
   const _ltxS = id => { const el=document.getElementById(id); return el?el.value:null; };
@@ -277,7 +279,7 @@ function generateLatex() {
   function buildDeclutteredTickAxis(lo, hi, step, cmPerUnitAxis) {
     const isInt = Math.abs(step - Math.round(step)) < 1e-9;
     const vals = [];
-    for (let t = lo; t <= hi + step * 1e-6; t += step) vals.push(parseFloat(t.toFixed(6)));
+    for (let t = lo, n = 0; t <= hi + step * 1e-6 && n < 500; t += step, n++) vals.push(parseFloat(t.toFixed(6)));
     const fmt = v => isInt ? String(Math.round(v)) : String(parseFloat(v.toFixed(4)));
     const rawLabels = vals.map(fmt);
     const labels = ltxDeclutterLabels(vals, rawLabels, step, cmPerUnitAxis);
@@ -447,7 +449,7 @@ function generateLatex() {
     const piStep = xRange <= 4*PI ? PI/2 : xRange <= 8*PI ? PI : 2*PI;
     const ticks = [], tickVals = [], labels = [];
     const startTick = Math.ceil(xminF / piStep) * piStep;
-    for (let t = startTick; t <= xmaxF + 1e-9; t += piStep) {
+    for (let t = startTick, _tn = 0; t <= xmaxF + 1e-9 && _tn < 500; t += piStep, _tn++) {
       ticks.push(coord(t));
       tickVals.push(t);
       // Label
@@ -691,8 +693,11 @@ function generateLatex() {
   // Schieberegler-Werte textuell ein (liefert einen rein numerischen
   // Ausdruck), bevor exprToPgf() ihn in pgfplots-Syntax übersetzt.
   const _ltxSub = expr => (typeof exprWithValues === 'function') ? exprWithValues(expr) : expr;
+  // Balken bei Funktionen (31_bars2d.js) vor den Kurven
+  if (typeof fbLatex === 'function') body += fbLatex({ xmin: xminF, xmax: xmaxF, colors: pgfColors, coord, uCm });
   functions.forEach((fn, i) => {
     if (!fn.expr.trim() || fn.visible === false) return;
+    if (typeof fbHides === 'function' && fbHides(fn)) return;   // Kurve entfällt, solange Balken gezeigt werden
     // Ausdruck überspringen wenn er nirgends endlich ist (z.B. unvollständige Brüche wie "()/()")
     const testVals = [0, 1, -1, 2, -2].map(xv => safeEval(fn.expr, xv));
     if (testVals.every(v => !isFinite(v))) return;
@@ -1113,6 +1118,12 @@ function generateLatex() {
     return lbl
       .replace(/_([₀₁₂₃₄₅₆₇₈₉]+)/g, (_, d) => '_{' + d.split('').map(c => subMap2[c]||c).join('') + '}')
       .replace(/([₀₁₂₃₄₅₆₇₈₉]+)/g, d => '_{' + d.split('').map(c => subMap2[c]||c).join('') + '}');
+  }
+
+  // 3b. Geometrie (Punkte, Strecken, Kreise, Vektoren, Winkel …) — siehe geoToPgf() in
+  // 27_geo_ui.js. Wie auf dem Canvas ÜBER den Funktionsgraphen, aber unter den Sonderpunkten.
+  if (typeof geoToPgf === 'function' && typeof geoAll === 'function' && geoAll().length) {
+    body += geoToPgf({ coord, col: hexToPgfColor, xmin: xminF, xmax: xmaxF, ymin: yminF, ymax: ymaxF });
   }
 
   // 4a. Sonderpunkte (Nullstellen, Extrema etc.) — nach Checkbox gefiltert

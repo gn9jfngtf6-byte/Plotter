@@ -133,12 +133,167 @@ function _mlRemovePendingCompositionAtom(mf) {
   } catch (ex) { /* defensiv */ }
   return false;
 }
+// Steht das Feld gerade im LaTeX-Modus (der Nutzer hat "\\" getippt und schreibt z.B. gerade
+// "\\frac{x^2")? Dann ist "^" ein ganz normales LaTeX-Zeichen und darf NICHT in eine
+// Hochstellung umgewandelt werden — sonst wird das Zeichen verschluckt, die "2" landet
+// als gewöhnlicher Text neben dem "x" und der Befehl lässt sich nicht mehr sauber abschliessen.
+function _mlInLatexMode(mf) {
+  try {
+    if (mf.mode === 'latex') return true;
+    const model = mf._mathfield && mf._mathfield.model;
+    let atom = model && typeof model.at === 'function' ? model.at(model.position) : null;
+    // Eine laufende Kompositions-Vorschau (macOS-Tottaste "^") sitzt als eigenes Atom am Cursor -- ihr
+    // Modus ist nicht verlässlich; massgeblich ist das Atom davor.
+    if (atom && atom.type === 'composition') atom = model.at(model.position - 1);
+    return !!(atom && (atom.mode === 'latex' || atom.type === 'latex' || atom.type === 'latexgroup'));
+  } catch (ex) { return false; }
+}
 function _mlHandleCaret(mf, isDeadCaret) {
   try {
     if (isDeadCaret) _mlRemovePendingCompositionAtom(mf);
-    mf.executeCommand('moveToSuperscript');
+    if (_mlInLatexMode(mf)) mf.executeCommand(['typedText', '^']);   // literales Zeichen im LaTeX-Text
+    else mf.executeCommand('moveToSuperscript');
   } catch (ex) { /* defensiv */ }
 }
+// ───────────── Komfort im LaTeX-Modus (Eingabe von "\sin(x)", "\pi", "\cdot" … per Tastatur) ─────────────
+// MathLive beendet den LaTeX-Modus von sich aus nur bei Leerzeichen/Enter oder wenn eine Klammerstruktur
+// wie \frac{…}{…} vollständig ist. Wer "\ln(x)" oder "\pi+1" tippt, bliebe sonst im LaTeX-Text stecken
+// (Ausdruck bleibt unausgewertet bzw. wird falsch gelesen). Darum: steht im LaTeX-Text genau EIN fertiges
+// Kommando OHNE Argumente (\ln, \sin, \pi, \cdot …) und kommt ein Zeichen, das das Kommando beendet
+// (Klammer, Ziffer, Operator, Hoch-/Tiefstellung …), wird das Kommando zuerst abgeschlossen.
+const ML_NOARG_CMDS = new Set(['sin','cos','tan','cot','sec','csc','arcsin','arccos','arctan','sinh','cosh','tanh','coth',
+  'ln','log','lg','exp','abs','min','max','pi','cdot','times','div','pm','infty','alpha','beta','gamma','delta','epsilon',
+  'varepsilon','theta','vartheta','lambda','mu','sigma','tau','phi','varphi','omega','rho','eta','kappa','nu','psi','chi','xi','zeta',
+  'Delta','Gamma','Sigma','Omega','Theta','Phi','Pi','Lambda','Psi','le','leq','ge','geq','ne','neq','approx','ldots','dots','cdots',
+  'ast','star','circ','bullet','lt','gt','to','rightarrow','Rightarrow','in','cap','cup','subset','subseteq','mid','sim','equiv']);
+function _mlLatexZoneText(mf) {
+  try {
+    const mm = mf._mathfield.model, a = mm.at(mm.position);
+    if (!a || a.mode !== 'latex') return null;
+    return mm.atoms.filter(x => x.parent === a.parent && x.type === 'latex').map(x => x.value).join('');
+  } catch (ex) { return null; }
+}
+document.addEventListener('keydown', function (e) {
+  if (e.defaultPrevented || e.metaKey || (e.ctrlKey && !e.altKey)) return;   // Alt allein: auf dem Mac nötig für \ { } | [ ]
+  if (!e.key || e.key.length !== 1 || /[A-Za-z\s{}\[\]]/.test(e.key)) return;   // Buchstaben/Leerzeichen/Klammern des Befehls selbst: MathLive; ein "\" dagegen beendet das vorige Kommando
+  const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+  const mf = path.find(n => n && n.tagName === 'MATH-FIELD');
+  if (!mf || mf.mode !== 'latex') return;
+  const T = _mlLatexZoneText(mf);
+  const m = T && /^\\([A-Za-z]+)$/.exec(T);
+  if (m && ML_NOARG_CMDS.has(m[1])) { try { mf.executeCommand('complete'); } catch (ex) { /* defensiv */ } }
+}, true);
+// \left( … \right) : nach dem schliessenden Begrenzer ist der Ausdruck vollständig
+document.addEventListener('input', function (e) {
+  const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+  const mf = path.find(n => n && n.tagName === 'MATH-FIELD');
+  if (!mf || mf.mode !== 'latex') return;
+  const T = _mlLatexZoneText(mf);
+  if (T && /\\right[)\]|.]$/.test(T) && (T.match(/\\left/g) || []).length === (T.match(/\\right/g) || []).length) {
+    try { mf.executeCommand('complete'); } catch (ex) { /* defensiv */ }
+  }
+}, true);
+
+// ───────────── Weitere Robustheit des Eingabefelds ─────────────
+// (a) Störende MathLive-Kürzel entfernen: Wer "dx", "ee", "mm", "log" … tippt, will in diesem Programm
+//     fast nie ein Differential, die imaginäre Einheit, eine Einheit oder einen Logarithmus mit Platzhalter-
+//     Basis, sondern Variablen/Parameter bzw. einen normalen Logarithmus. Wird beim ersten Fokus je Feld gesetzt.
+const ML_DROP_SHORTCUTS = ['ee', 'ii', 'jj', 'dx', 'dy', 'dt', 'sint', 'xin', 'in', 'of', 'mod', '(mod', 'del', 'deg',
+  'mm', 'cm', 'km', 'kg', 'ft', 'inch', 'mi', 'oo', 'xx', 'ch', 'sh', 'th', 'tg', 'ctg', 'cth', 'lb', '@', '//', '||', 'sub', 'sup', 'or', 'and', 'not', 'union'];
+function _mlPatchShortcuts(mf) {
+  if (!mf || mf.__mlShortcutsPatched) return;
+  mf.__mlShortcutsPatched = true;
+  try {
+    const cur = mf.inlineShortcuts;
+    if (!cur) return;
+    const sc = Object.assign({}, cur);
+    ML_DROP_SHORTCUTS.forEach(k => { delete sc[k]; });
+    sc.log = '\\log';          // statt "\log_{#?}": log(x) und log_2(x) müssen beide natürlich tippbar sein
+    mf.inlineShortcuts = sc;
+  } catch (ex) { /* defensiv */ }
+}
+function _mlFieldFromEvent(e) {
+  const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
+  return path.find(n => n && n.tagName === 'MATH-FIELD') || null;
+}
+document.addEventListener('focusin', function (e) { _mlPatchShortcuts(_mlFieldFromEvent(e)); }, true);
+
+// (b) Hoch-/Tiefstellung: Informationen zur aktuellen Cursor-Position
+function _mlBranchInfo(mf) {
+  try {
+    const m = mf._mathfield.model, a = m.at(m.position);
+    if (!a || (a.parentBranch !== 'superscript' && a.parentBranch !== 'subscript') || !a.parent) return null;
+    const list = a.parent.branch(a.parentBranch) || [];
+    const content = list.filter(x => x.type !== 'first' && x.type !== 'placeholder');
+    return { branch: a.parentBranch, owner: a.parent, count: content.length, atEnd: list[list.length - 1] === a };
+  } catch (ex) { return null; }
+}
+function _mlStop(e) {
+  e.preventDefault(); e.stopPropagation();
+  if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+}
+function _mlBraceReset(mf) {
+  mf.__mlBraceDepth = 0;
+  try { mf.smartSuperscript = true; } catch (ex) { /* defensiv */ }
+}
+// Geschweifte Klammern im Math-Modus: "x^{2}", "e^{-x}", "x^{x^{2}}", "\log_{10}". "{" direkt am Anfang
+// einer Hoch-/Tiefstellung öffnet eine Gruppe (kein Auto-Austritt nach der ersten Ziffer mehr), "}" verlässt sie.
+// Überall sonst werden { und } verschluckt (sie würden sonst als \lbrace/\rbrace im Ausdruck landen).
+document.addEventListener('keydown', function (e) {
+  if (e.defaultPrevented || e.isComposing || !e.key || e.key.length !== 1) return;
+  if (e.metaKey || (e.ctrlKey && !e.altKey)) return;          // Alt allein ist auf dem Mac nötig, um { } \ | [ ] zu tippen
+  const mf = _mlFieldFromEvent(e);
+  if (!mf) return;
+  const k = e.key;
+  if (_mlInLatexMode(mf)) {
+    // Leerzeichen innerhalb einer noch offenen Klammer (\frac{\sin x}{…}) beendet den LaTeX-Text NICHT.
+    if (k === ' ') {
+      const T = _mlLatexZoneText(mf);
+      if (T && (T.match(/\{/g) || []).length > (T.match(/\}/g) || []).length) {
+        _mlStop(e);
+        try { mf.executeCommand(['typedText', ' ']); } catch (ex) { /* defensiv */ }
+      }
+    }
+    return;
+  }
+  const info = _mlBranchInfo(mf);
+  if (k === '{') {
+    _mlStop(e);
+    if (info && info.count === 0) {
+      mf.__mlBraceDepth = (mf.__mlBraceDepth || 0) + 1;
+      try { mf.smartSuperscript = false; } catch (ex) { /* defensiv */ }
+    }
+    return;
+  }
+  if (k === '}') {
+    _mlStop(e);
+    if (info) {
+      try { mf.executeCommand('moveAfterParent'); } catch (ex) { /* defensiv */ }
+      mf.__mlBraceDepth = Math.max(0, (mf.__mlBraceDepth || 0) - 1);
+      if (!mf.__mlBraceDepth) _mlBraceReset(mf);
+    }
+    return;
+  }
+  // Funktionsnamen (sin, cos, log …) mit Hoch-/Tiefstellung: "sin^2(x)" bzw. "log_2(x)" — nach der
+  // ersten Ziffer/dem ersten Zeichen im Exponenten/Index endet dieser bei "(" oder einem Buchstaben.
+  if (info && /^(mop|operator|operatorname|mopover)$/.test(info.owner.type) && !(mf.__mlBraceDepth > 0) && info.count > 0 && info.atEnd &&
+      (k === '(' || /[A-Za-z]/.test(k))) {
+    try { mf.executeCommand('moveAfterParent'); } catch (ex) { /* defensiv */ }
+  }
+}, true);
+// Klammer-Zustand zurücksetzen, sobald der Cursor die Hoch-/Tiefstellung verlassen hat bzw. das Feld den Fokus verliert
+function _mlSyncBraces(mf) {
+  if (mf && mf.__mlBraceDepth && !_mlBranchInfo(mf)) _mlBraceReset(mf);
+}
+['input', 'keyup', 'click'].forEach(ev => document.addEventListener(ev, function (e) { _mlSyncBraces(_mlFieldFromEvent(e)); }, true));
+// Beim Verlassen des Feldes einen noch offenen LaTeX-Text abschließen, damit er nicht als "\frac{…" stehen bleibt
+document.addEventListener('focusout', function (e) {
+  const mf = _mlFieldFromEvent(e);
+  if (!mf) return;
+  _mlBraceReset(mf);
+  try { if (_mlInLatexMode(mf)) mf.executeCommand('complete'); } catch (ex) { /* defensiv */ }
+}, true);
+
 document.addEventListener('keydown', function (e) {
   if (e.defaultPrevented) return;
   const isCaret = e.key === '^';
@@ -147,6 +302,9 @@ document.addEventListener('keydown', function (e) {
   const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
   const mf = path.find(n => n && n.tagName === 'MATH-FIELD');
   if (!mf) return;
+  // Im LaTeX-Modus ist "^" ein ganz normales Textzeichen: weder die normale Taste noch die macOS-Tottaste
+  // wird abgefangen -- MathLive fügt das Zeichen (auch aus der Komposition) selbst literal in den LaTeX-Text ein.
+  if (_mlInLatexMode(mf)) return;
   e.preventDefault();
   e.stopPropagation();
   if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
@@ -159,6 +317,7 @@ document.addEventListener('beforeinput', function (e) {
   const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
   const mf = path.find(n => n && n.tagName === 'MATH-FIELD');
   if (!mf) return;
+  if (_mlInLatexMode(mf)) return;   // LaTeX-Text: "^" bleibt ein literales Zeichen (siehe keydown-Handler)
   const alreadyHandled = !!mf.__mlDeadCaretHandled;
   mf.__mlDeadCaretHandled = false;
   e.preventDefault();
@@ -171,6 +330,19 @@ document.addEventListener('beforeinput', function (e) {
     // "input"-Ereignis bestätigt, dass das Zeichen trotzdem eingefügt wurde.
     mf.__mlPendingCaretFixMode = alreadyHandled ? 'cleanup-only' : 'full';
   }
+}, true);
+// Sicherheitsnetz: Kam im LaTeX-Text ein "^" per Tottaste (Komposition), ist aber danach nicht im Text gelandet,
+// wird es hier nachgetragen.
+document.addEventListener('compositionend', function (e) {
+  if (e.data !== '^') return;
+  const mf = _mlFieldFromEvent(e);
+  if (!mf || !_mlInLatexMode(mf)) return;
+  setTimeout(function () {
+    try {
+      const T = _mlLatexZoneText(mf);
+      if (T != null && !/\^$/.test(T)) mf.executeCommand(['typedText', '^']);
+    } catch (ex) { /* defensiv */ }
+  }, 0);
 }, true);
 document.addEventListener('input', function (e) {
   const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
@@ -228,14 +400,29 @@ const MI_FNAMES = new Set([
   'nthroot', 'logn', 'log10', 'logbase',
   'asin', 'acos', 'atan'
 ]);
+// Funktionen, die der Auswerter nicht kennt, die der Parser aber über bekannte
+// Funktionen ausdrückt (sinh(u) = (e^u - e^-u)/2 usw.).
+const MI_EXPAND_FNAMES = new Set(['sinh', 'cosh', 'tanh', 'coth', 'cot', 'sec', 'csc']);
+function miIsFuncName(v) { return MI_FNAMES.has(v) || MI_EXPAND_FNAMES.has(v); }
 
 // ---------- Tokenizer ----------
-function miTokenize(s) {
+// strict=true (nur für MathLive-Eingabe): unbekannte Zeichen (z.B. "!", "%", "<=",
+// "{", "⌊") führen zu einem Fehler statt stillschweigend überlesen zu werden —
+// sonst wird aus "x÷2" ohne Warnung "x-2" bzw. aus "x≤2" ein "x*2". Der Aufrufer
+// behält bei einem Fehler den bisherigen Ausdruck.
+function miTokenize(s, strict) {
   const toks = [];
   let i = 0;
   while (i < s.length) {
     const c = s[i];
-    if (c === ' ' || c === '\t' || c === '\n' || c === '\r') { i++; continue; }
+    if (c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\u00a0') { i++; continue; }
+    if (strict) {
+      if (c === '-' && s[i + 1] === ':') { toks.push({ t: '/', v: '/' }); i += 2; continue; }   // ÷ (ASCIIMath: "-:")
+      if (c === '\u00f7') { toks.push({ t: '/', v: '/' }); i++; continue; }
+      if (c === '\u00d7' || c === '\u00b7' || c === '\u22c5' || c === '\u2217') { toks.push({ t: '*', v: '*' }); i++; continue; }
+      if (c === '\u2212' || c === '\u2013') { toks.push({ t: '-', v: '-' }); i++; continue; }
+      if (c === '\u2223' || c === '\u2016') { toks.push({ t: '|', v: '|' }); i++; continue; }
+    }
     if (/[0-9]/.test(c) || (c === '.' && /[0-9]/.test(s[i + 1] || ''))) {
       let j = i;
       while (j < s.length && /[0-9.]/.test(s[j])) j++;
@@ -251,6 +438,7 @@ function miTokenize(s) {
       i = j; continue;
     }
     if ('+-*/^(),_|'.includes(c)) { toks.push({ t: c, v: c }); i++; continue; }
+    if (strict) throw new Error('Unbekanntes Zeichen "' + c + '"');
     i++; // unbekanntes Zeichen defensiv überspringen
   }
   return toks;
@@ -317,24 +505,35 @@ function miCanonicalizeAsciiMath(tokens) {
         }
       }
 
+      // MathLive hat für "abs" kein Kürzel: getippt wird a·b·s(…); "abs(" meinen wir als Betragsfunktion.
+      if (tok.t === 'id' && tok.v === 'a' && t[i + 1] && t[i + 1].t === 'id' && t[i + 1].v === 'b' &&
+          t[i + 2] && t[i + 2].t === 'id' && t[i + 2].v === 's' && t[i + 3] && t[i + 3].t === '(') {
+        t.splice(i, 3, { t: 'id', v: 'abs' });
+        continue outer;
+      }
+
       if (tok.t === 'id' && tok.v === 'ln') {
-        t[i] = { t: 'id', v: 'log' };
+        // natürlicher Logarithmus: Rohsyntax "log"; das Flag verhindert, dass die
+        // Regel "nacktes log = log10" ihn gleich wieder umbenennt.
+        t[i] = { t: 'id', v: 'log', nat: true };
         continue outer;
       }
 
       // MathLive kann den Arkusfunktionen-Namen je nach Version/Dialekt als
       // "arcsin"/"arccos"/"arctan" statt unserem "asin"/"acos"/"atan" ausgeben.
       if (tok.t === 'id' && (tok.v === 'arcsin' || tok.v === 'arccos' || tok.v === 'arctan')) {
-        t[i] = { t: 'id', v: tok.v.slice(3) };
+        t[i] = { t: 'id', v: 'a' + tok.v.slice(3) };     // arcsin -> asin
         continue outer;
       }
 
-      if (tok.t === 'id' && tok.v === 'log' && t[i + 1] && t[i + 1].t === '(') {
+      // nacktes "log" (auch ohne Klammer, z.B. "log x") = Zehnerlogarithmus;
+      // "log_b ..." bleibt für den Parser stehen.
+      if (tok.t === 'id' && tok.v === 'log' && !tok.nat && !(t[i + 1] && t[i + 1].t === '_')) {
         t[i] = { t: 'id', v: 'log10' };
         continue outer;
       }
 
-      if (tok.t === 'id' && tok.v === 'e' && !(t[i + 1] && t[i + 1].t === '(')) {
+      if (tok.t === 'id' && tok.v === 'e') {
         t[i] = { t: 'id', v: 'EC' };
         continue outer;
       }
@@ -369,7 +568,10 @@ function miCanStartPrimary(tok) {
   return !!tok && (tok.t === 'num' || tok.t === 'id' || tok.t === '(');
 }
 
-function miParse(tokens) {
+// strict=true (MathLive-Eingabe): Funktionen dürfen ohne Klammern stehen ("sin x",
+// "ln 2x", "sin^2(x)", "log_2 x") und eine nackte Funktion ohne Argument ist ein Fehler.
+// strict=false (Rohausdruck der App): wie bisher nur die Form name(...).
+function miParse(tokens, strict) {
   let p = 0;
   function peek() { return tokens[p]; }
   function next() { return tokens[p++]; }
@@ -377,6 +579,9 @@ function miParse(tokens) {
     if (!peek() || peek().t !== t) throw new Error('Parse-Fehler: erwartet "' + t + '", gefunden ' + JSON.stringify(peek()) + ' bei Position ' + p);
     return next();
   }
+  const N = (v) => ({ type: 'num', v: String(v) });
+  const C = (name, ...args) => ({ type: 'call', name, args });
+  const isFnTok = (tok) => !!tok && tok.t === 'id' && miIsFuncName(tok.v);
 
   function parseExpr() {
     let node = parseTerm();
@@ -406,6 +611,10 @@ function miParse(tokens) {
       next();
       return { type: 'neg', x: parseUnary() };
     }
+    if (peek() && peek().t === '+') {   // führendes Plus: "+x" = "x"
+      next();
+      return parseUnary();
+    }
     return parsePower();
   }
   function parsePower() {
@@ -414,6 +623,78 @@ function miParse(tokens) {
       next();
       const exp = parseUnary();
       node = { type: 'pow', a: node, b: exp };
+    }
+    return node;
+  }
+  // Exponent direkt hinter einem Funktionsnamen: sin^2(x), sin^(-1)(x), sin^2 x
+  function parseFuncExponent() {
+    if (peek() && peek().t === '-') { next(); return { type: 'neg', x: parseFuncExponent() }; }
+    if (peek() && peek().t === 'num') return N(next().v);
+    if (peek() && peek().t === 'id') return { type: 'id', v: next().v };
+    if (peek() && peek().t === '(') { next(); const e = parseExpr(); expect(')'); return e; }
+    throw new Error('Parse-Fehler: Exponent erwartet');
+  }
+  // Argument ohne Klammern: "sin x", "sin 2x", "ln x^2", "cos -x"
+  function parseBareArg() {
+    let node = parseUnary();
+    if (node.type === 'num') {
+      // Koeffizient: "sin 2x" = sin(2x); bei einer weiteren Funktion ("sin 2 cos x") ist Schluss
+      while (peek() && ((peek().t === 'id' && !isFnTok(peek())) || peek().t === '(')) {
+        node = { type: 'mul', a: node, b: parseUnary() };
+      }
+    }
+    return node;
+  }
+  function inverseOf(name) { return name === 'sin' ? 'asin' : name === 'cos' ? 'acos' : name === 'tan' ? 'atan' : null; }
+  function expandFn(name, u) {
+    const e1 = () => C('exp', u), e2 = () => C('exp', { type: 'neg', x: u });
+    switch (name) {
+      case 'sinh': return { type: 'div', a: { type: 'sub', a: e1(), b: e2() }, b: N(2) };
+      case 'cosh': return { type: 'div', a: { type: 'add', a: e1(), b: e2() }, b: N(2) };
+      case 'tanh': return { type: 'div', a: { type: 'sub', a: e1(), b: e2() }, b: { type: 'add', a: e1(), b: e2() } };
+      case 'coth': return { type: 'div', a: { type: 'add', a: e1(), b: e2() }, b: { type: 'sub', a: e1(), b: e2() } };
+      case 'cot': return { type: 'div', a: C('cos', u), b: C('sin', u) };
+      case 'sec': return { type: 'div', a: N(1), b: C('cos', u) };
+      case 'csc': return { type: 'div', a: N(1), b: C('sin', u) };
+    }
+    return C(name, u);
+  }
+  function parseFunction(tok) {
+    const name = tok.v;
+    // log_b x / log_(b) x
+    let base = null;
+    if (strict && name === 'log' && peek() && peek().t === '_') {
+      next();
+      if (peek() && peek().t === '(') { next(); base = parseExpr(); expect(')'); }
+      else if (peek() && (peek().t === 'num' || peek().t === 'id')) base = peek().t === 'num' ? N(next().v) : { type: 'id', v: next().v };
+      else throw new Error('Parse-Fehler: Basis des Logarithmus fehlt');
+    }
+    let powExp = null;
+    if (strict && peek() && peek().t === '^') { next(); powExp = parseFuncExponent(); }
+    let args;
+    if (peek() && peek().t === '(') {
+      next();
+      args = [];
+      if (!(peek() && peek().t === ')')) {
+        args.push(parseExpr());
+        while (peek() && peek().t === ',') { next(); args.push(parseExpr()); }
+      }
+      expect(')');
+    } else if (strict) {
+      if (name === 'nthroot' || name === 'logn' || name === 'logbase') throw new Error('Parse-Fehler: Klammer erwartet nach ' + name);
+      if (!peek() || !(peek().t === 'num' || peek().t === 'id' || peek().t === '-' || peek().t === '+')) throw new Error('Parse-Fehler: Argument fehlt für ' + name);
+      args = [parseBareArg()];
+    } else {
+      return { type: 'id', v: name };   // lenient: Funktionsname ohne Klammer = Bezeichner (wie bisher)
+    }
+    if (strict && args.length === 0 && name !== 'nthroot') throw new Error('Parse-Fehler: leeres Argument bei ' + name);
+    let node;
+    if (base) node = (base.type === 'num' && base.v === '10') ? C('log10', args[0]) : C('logn', args[0], base);
+    else if (MI_EXPAND_FNAMES.has(name)) node = expandFn(name, args[0]);
+    else node = { type: 'call', name, args };
+    if (powExp) {
+      const inv = powExp.type === 'neg' && powExp.x.type === 'num' && powExp.x.v === '1' ? inverseOf(name) : null;
+      node = inv ? C(inv, args[0]) : { type: 'pow', a: node, b: powExp };
     }
     return node;
   }
@@ -429,16 +710,7 @@ function miParse(tokens) {
     }
     if (tok.t === 'id') {
       next();
-      if (MI_FNAMES.has(tok.v) && peek() && peek().t === '(') {
-        next();
-        const args = [];
-        if (!(peek() && peek().t === ')')) {
-          args.push(parseExpr());
-          while (peek() && peek().t === ',') { next(); args.push(parseExpr()); }
-        }
-        expect(')');
-        return { type: 'call', name: tok.v, args };
-      }
+      if (miIsFuncName(tok.v) && (strict || (peek() && peek().t === '('))) return parseFunction(tok);
       return { type: 'id', v: tok.v };
     }
     throw new Error('Parse-Fehler: unerwartetes Token ' + JSON.stringify(tok) + ' bei Position ' + p);
@@ -449,8 +721,8 @@ function miParse(tokens) {
   return result;
 }
 
-function miParseRaw(s) { return miParse(miTokenize(s)); }
-function miParseAsciiMath(s) { return miParse(miCanonicalizeAsciiMath(miTokenize(s))); }
+function miParseRaw(s) { return miParse(miTokenize(s), false); }
+function miParseAsciiMath(s) { return miParse(miCanonicalizeAsciiMath(miTokenize(s, true)), true); }
 
 // ---------- Drucker: AST → Rohausdruck-Format ----------
 // Konvention: Brüche werden IMMER als (Zähler)/(Nenner) gedruckt — beide

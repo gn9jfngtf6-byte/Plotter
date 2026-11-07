@@ -784,11 +784,261 @@ function calcIntegrate(node, v) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// UMKEHRFUNKTION (f⁻¹) — Term durch «Abschälen» des Ausdrucks
+// ───────────────────────────────────────────────────────────────────
+// Kommt x GENAU EINMAL im Ausdruck vor, wird die Gleichung y = f(x) von aussen
+// nach innen aufgelöst (Gegenoperation Schritt für Schritt: + ↔ −, · ↔ ÷,
+// ^n ↔ ⁿ√, exp ↔ ln, sin ↔ arcsin …). Zusätzlich werden die beiden
+// Schulfälle mit mehrfachem x erkannt: gebrochen-lineare Funktionen
+// (ax+b)/(cx+d) und quadratische Funktionen (Scheitelpunktform, mit ±-Zweig).
+// Mehrdeutige Schritte (gerade Potenz, abs) liefern mehrere Kandidaten; welcher
+// Zweig stimmt, entscheidet eine NUMERISCHE Probe f⁻¹(f(x)) = x auf dem
+// aktuellen Definitionsbereich — so wird nie ein falscher Term ausgegeben.
+// Die Umkehrfunktion wird wieder in der Variablen x geschrieben.
+// ═══════════════════════════════════════════════════════════════════
+function calcCountVar(node, name) {
+  if (!node) return 0;
+  switch (node.type) {
+    case 'num': return 0;
+    case 'id': return node.v === name ? 1 : 0;
+    case 'call': return node.args.reduce((s, a) => s + calcCountVar(a, name), 0);
+    case 'neg': return calcCountVar(node.x, name);
+    default: return calcCountVar(node.a, name) + calcCountVar(node.b, name);
+  }
+}
+function _ciCall(name, ...args) { return { type: 'call', name, args }; }
+function _ciB(type, a, b) { return { type, a, b }; }
+
+// Liefert alle Kandidaten-ASTs für x = f⁻¹(rhs) (rhs: AST in der neuen Variablen x).
+function calcInvPeel(node, rhs) {
+  const hasX = n => calcContainsVar(n, 'x');
+  const peel = (n, r) => calcInvPeel(n, r);
+  switch (node.type) {
+    case 'id': return node.v === 'x' ? [rhs] : [];
+    case 'neg': return peel(node.x, { type: 'neg', x: rhs });
+    case 'add': return hasX(node.a) ? peel(node.a, _ciB('sub', rhs, node.b)) : peel(node.b, _ciB('sub', rhs, node.a));
+    case 'sub': return hasX(node.a) ? peel(node.a, _ciB('add', rhs, node.b)) : peel(node.b, _ciB('sub', node.a, rhs));
+    case 'mul': return hasX(node.a) ? peel(node.a, _ciB('div', rhs, node.b)) : peel(node.b, _ciB('div', rhs, node.a));
+    case 'div': return hasX(node.a) ? peel(node.a, _ciB('mul', rhs, node.b)) : peel(node.b, _ciB('div', node.a, rhs));
+    case 'pow': {
+      if (hasX(node.a) && !hasX(node.b)) {
+        // Exponent als Zahl bestimmen (falls konstant)
+        let ev = null;
+        const ids = new Set(); calcCollectIds(node.b, ids);
+        if (ids.size === 0) { try { ev = safeEval(miToRaw(node.b, 0), 0); } catch (e) { ev = null; } }
+        if (ev != null && !isFinite(ev)) ev = null;
+        if (ev === 0) return [];
+        if (ev === 1) return peel(node.a, rhs);
+        if (ev === -1) return peel(node.a, _ciB('div', calcNum(1), rhs));
+        if (ev != null && Number.isInteger(ev)) {
+          const root = ev === 2 ? _ciCall('sqrt', rhs) : _ciCall('nthroot', rhs, calcNum(ev));
+          if (ev % 2 === 0) return peel(node.a, root).concat(peel(node.a, { type: 'neg', x: root }));
+          return peel(node.a, root);
+        }
+        return peel(node.a, _ciB('pow', rhs, _ciB('div', calcNum(1), node.b)));
+      }
+      if (!hasX(node.a) && hasX(node.b)) {
+        if (node.a.type === 'id' && node.a.v === 'EC') return peel(node.b, _ciCall('log', rhs));
+        if (node.a.type === 'num' && parseFloat(node.a.v) === 10) return peel(node.b, _ciCall('log10', rhs));
+        return peel(node.b, _ciB('div', _ciCall('log', rhs), _ciCall('log', node.a)));
+      }
+      return [];
+    }
+    case 'call': {
+      const a = node.args;
+      const one = (a.length === 1 && hasX(a[0]));
+      switch (node.name) {
+        case 'sqrt': return one ? peel(a[0], _ciB('pow', rhs, calcNum(2))) : [];
+        case 'exp':  return one ? peel(a[0], _ciCall('log', rhs)) : [];
+        case 'log':  return one ? peel(a[0], _ciCall('exp', rhs)) : [];
+        case 'log10': return one ? peel(a[0], _ciB('pow', calcNum(10), rhs)) : [];
+        case 'sin':  return one ? peel(a[0], _ciCall('asin', rhs)) : [];
+        case 'cos':  return one ? peel(a[0], _ciCall('acos', rhs)) : [];
+        case 'tan':  return one ? peel(a[0], _ciCall('atan', rhs)) : [];
+        case 'asin': return one ? peel(a[0], _ciCall('sin', rhs)) : [];
+        case 'acos': return one ? peel(a[0], _ciCall('cos', rhs)) : [];
+        case 'atan': return one ? peel(a[0], _ciCall('tan', rhs)) : [];
+        case 'abs':  return one ? peel(a[0], rhs).concat(peel(a[0], { type: 'neg', x: rhs })) : [];
+        case 'logn': case 'logbase':
+          return (a.length === 2 && hasX(a[0]) && !hasX(a[1])) ? peel(a[0], _ciB('pow', a[1], rhs)) : [];
+        case 'nthroot':
+          return (a.length === 2 && hasX(a[0]) && !hasX(a[1])) ? peel(a[0], _ciB('pow', rhs, a[1])) : [];
+        default: return [];
+      }
+    }
+    default: return [];
+  }
+}
+
+// Kandidaten bei mehrfachem x: gebrochen-linear und quadratisch.
+function calcInvSpecial(ast) {
+  const X = calcId('x');
+  const out = [];
+  try {
+    // m x + k  →  x = (y − k)/m
+    const L1 = calcIsLinear(ast, 'x');
+    if (L1) { const lc = _ciB('div', _ciB('sub', X, L1.k), L1.m); lc.__keep = true; out.push(lc); return out; }
+    // (a x + b)/(c x + d)  →  x = (b − d y)/(c y − a)
+    if (ast.type === 'div') {
+      const A = calcIsLinear(ast.a, 'x'), B = calcIsLinear(ast.b, 'x');
+      if (A && B) {
+        out.push(_ciB('div', _ciB('sub', A.k, _ciB('mul', B.k, X)), _ciB('sub', _ciB('mul', B.m, X), A.m)));
+        return out;
+      }
+    }
+    // a x² + b x + c  →  x = h ± √((y − k)/a),  h = −b/(2a),  k = c − b²/(4a)
+    const d1 = calcDiffOwn(ast, 'x');
+    const lin = calcIsLinear(d1, 'x');
+    if (lin) {
+      const a = calcSimplify(_ciB('div', lin.m, calcNum(2)));
+      const b = lin.k;
+      const c = calcSimplify(calcSubstitute(ast, 'x', calcNum(0)));
+      if (!calcContainsVar(a, 'x') && !calcContainsVar(c, 'x')) {
+        const h = _ciB('div', { type: 'neg', x: b }, _ciB('mul', calcNum(2), a));
+        const k = _ciB('sub', c, _ciB('div', _ciB('pow', b, calcNum(2)), _ciB('mul', calcNum(4), a)));
+        const root = _ciCall('sqrt', _ciB('div', _ciB('sub', X, k), a));
+        out.push(_ciB('add', h, root));
+        out.push(_ciB('sub', h, root));
+      }
+    }
+  } catch (ex) { /* keine Sonderform */ }
+  return out;
+}
+
+// Rundet Intervallgrenzen auf «schöne» Werte (Vielfache von π/12, 6 Dezimalen).
+function calcInvSnap(v) {
+  if (!isFinite(v)) return v;
+  const u = Math.PI / 12, m = Math.round(v / u);
+  if (Math.abs(v - m * u) < 3e-6) return m * u;
+  for (const d of [1e2, 1e4, 1e6]) {
+    const r = Math.round(v * d) / d;
+    if (Math.abs(r - v) < 3e-6) return r;
+  }
+  return v;
+}
+
+// Kosmetik am Ergebnis: x−(−1) → x+1, x+(−2) → x−2, 0+t → t u.ä. (ändert den Wert nicht).
+function calcInvTidy(node) {
+  if (!node) return node;
+  const negNum = n => n && n.type === 'num' && parseFloat(n.v) < 0;
+  const absNum = n => calcNum(-parseFloat(n.v));
+  switch (node.type) {
+    case 'num': case 'id': return node;
+    case 'neg': {
+      const x = calcInvTidy(node.x);
+      if (x.type === 'neg') return x.x;
+      return { type: 'neg', x };
+    }
+    case 'call': return { type: 'call', name: node.name, args: node.args.map(calcInvTidy) };
+    default: {
+      let a = calcInvTidy(node.a), b = calcInvTidy(node.b);
+      if (node.type === 'div') {
+        const bv = calcNumVal(b);
+        if (bv === 1) return a;
+        if (bv === -1) return { type: 'neg', x: a };
+      }
+      if (node.type === 'sub') {
+        if (b.type === 'neg') return calcInvTidy({ type: 'add', a, b: b.x });
+        if (negNum(b)) return { type: 'add', a, b: absNum(b) };
+      }
+      if (node.type === 'add') {
+        if (b.type === 'neg') return { type: 'sub', a, b: b.x };
+        if (negNum(b)) return { type: 'sub', a, b: absNum(b) };
+        if (a.type === 'neg' && b.type !== 'neg') return { type: 'sub', a: b, b: a.x };
+      }
+      return { type: node.type, a, b };
+    }
+  }
+}
+
+// Hauptfunktion. fn: Funktionsobjekt {expr, domainMin, domainMax, …}.
+// Rückgabe:
+//   { status:'ok', raw, ast }                     – Term gefunden und geprüft
+//   { status:'noninj', intervals:[{lo,hi},…] }    – auf dem aktuellen D nicht umkehrbar;
+//                                                   intervals: mögliche Einschränkungen
+//   { status:'unsupported' }                       – kein Term bildbar (Spiegelbild trotzdem möglich)
+//   { status:'error' }                             – Ausdruck nicht lesbar / nicht auswertbar
+function calcInverse(fn) {
+  let ast;
+  try { ast = miParseRaw(fn.expr); } catch (e) { return { status: 'error' }; }
+  if (calcCountVar(ast, 'x') === 0) return { status: 'noninj', intervals: [], constant: true };
+
+  let cands = [];
+  const linSpecial = calcInvSpecial(ast);
+  if (calcCountVar(ast, 'x') === 1) cands = linSpecial.concat(calcInvPeel(ast, calcId('x')));
+  else cands = linSpecial;
+  cands = cands.slice(0, 8).map(c => {
+    try { const s = calcInvTidy(c.__keep ? c : calcSimplify(c)); const raw = miToRaw(s, 0); return { ast: s, raw }; } catch (e) { return null; }
+  }).filter(Boolean);
+
+  // Probebereich: der aktuelle Definitionsbereich (sonst −20 … 20)
+  const dMin = fn.domainMin != null ? fn.domainMin : null, dMax = fn.domainMax != null ? fn.domainMax : null;
+  const L = dMin != null ? dMin : (dMax != null ? dMax - 40 : -20);
+  const H = dMax != null ? dMax : (dMin != null ? dMin + 40 : 20);
+  const N = 801;
+  const xs = [], ys = [];
+  for (let i = 0; i <= N; i++) {
+    let x = L + (H - L) * i / N;
+    if (i === 0 && dMin != null) x = L + (H - L) * 1e-6;       // Randpunkte minimal nach innen
+    if (i === N && dMax != null) x = H - (H - L) * 1e-6;
+    const y = safeEval(fn.expr, x);
+    if (isFinite(y)) { xs.push(x); ys.push(y); }
+  }
+  if (xs.length < 20) return { status: 'error' };
+
+  const passAt = (c, x, y) => {
+    const g = safeEval(c.raw, y);
+    return isFinite(g) && Math.abs(g - x) <= 1e-6 * Math.max(1, Math.abs(x));
+  };
+  // 1) Kandidat, der überall stimmt?
+  for (const c of cands) {
+    let ok = true;
+    for (let i = 0; i < xs.length && ok; i++) if (!passAt(c, xs[i], ys[i])) ok = false;
+    if (ok) return { status: 'ok', raw: c.raw, ast: c.ast };
+  }
+  // 2) Teilintervalle bestimmen, auf denen ein Kandidat stimmt (→ Einschränkungen vorschlagen)
+  const intervals = [];
+  cands.forEach(c => {
+    const pass = xs.map((x, i) => passAt(c, x, ys[i]));
+    let i = 0;
+    while (i < xs.length) {
+      if (!pass[i]) { i++; continue; }
+      let j = i;
+      while (j + 1 < xs.length && pass[j + 1]) j++;
+      if (j - i >= 2) {
+        let lo = xs[i], hi = xs[j];
+        // Grenzen per Bisektion verfeinern (zwischen letztem guten und erstem schlechten Punkt)
+        const refine = (good, bad) => {
+          for (let k = 0; k < 50; k++) {
+            const m = (good + bad) / 2, ym = safeEval(fn.expr, m);
+            if (isFinite(ym) && passAt(c, m, ym)) good = m; else bad = m;
+          }
+          return good;
+        };
+        const atLeftEdge = i === 0, atRightEdge = j === xs.length - 1;
+        lo = atLeftEdge ? (dMin != null ? dMin : null) : calcInvSnap(refine(xs[i], xs[i - 1]));
+        hi = atRightEdge ? (dMax != null ? dMax : null) : calcInvSnap(refine(xs[j], xs[j + 1]));
+        intervals.push({ lo, hi, n: j - i + 1 });
+      }
+      i = j + 1;
+    }
+  });
+  if (intervals.length) {
+    intervals.sort((p, q) => q.n - p.n);
+    const uniq = [];
+    intervals.forEach(iv => { if (!uniq.some(u => u.lo === iv.lo && u.hi === iv.hi)) uniq.push(iv); });
+    return { status: 'noninj', intervals: uniq.slice(0, 4).map(iv => ({ lo: iv.lo, hi: iv.hi })) };
+  }
+  return { status: 'unsupported' };
+}
+
 if (typeof module !== 'undefined') {
   module.exports = {
     calcNum, calcId, calcContainsVar, calcSubstitute, calcEqual,
     calcSimplify, calcDesugar, calcDiff, calcIsLinear, calcIntegrate,
     calcDiffOwn, calcIntegrateOwn, calcDiffRaw, calcAntiderivRaw,
-    ndFromAst, ndParseRaw, ndFixup, calcIsNonNegative, calcNumericAgree
+    ndFromAst, ndParseRaw, ndFixup, calcIsNonNegative, calcNumericAgree,
+    calcInverse, calcInvPeel, calcCountVar
   };
 }

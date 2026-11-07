@@ -80,7 +80,7 @@
   // 1. Maskierung: Zahlen, Formeln, Platzhalter → {n}
   // ============================================================
   // Reihenfolge wichtig: {name}-Platzhalter, Zahlen, f(x)-Ausdrücke, Einzelzeichen < > { }, Emojis
-  const MASK_RE = /\{[A-Za-z_]\w*\}|\d+(?:[.,]\d+)*(?:[eE][+-]?\d+)?|\b[A-Za-z]'*\([^()\s][^()]{0,24}\)|[<>{}]|\p{Extended_Pictographic}️?/gu;
+  const MASK_RE = /\{[A-Za-z_]\w*\}|\d{1,3}(?:\u2009\d{3})+(?:[.,]\d+)*(?:[eE][+-]?\d+)?|\d+(?:[.,]\d+)*(?:[eE][+-]?\d+)?|\b[A-Za-z]'*\([^()\s][^()]{0,24}\)|[<>{}]|\p{Extended_Pictographic}️?/gu;
   const LET2 = /\p{L}{2,}/u;
   const SKIPWORD = /^(?:sin|cos|tan|cot|sec|csc|arcsin|arccos|arctan|sinh|cosh|tanh|ln|lg|log|exp|lim|sup|inf|abs|sgn|px|cm|mm|ms|dx|dy|dt|dz|Hz|kg|km|mod|det|rad|deg|ggT|kgV)$/i;
 
@@ -1002,14 +1002,26 @@
   }
   window.AI18N_renderStatus = renderStatus;
 
+  // Sprache des Browsers (bzw. Betriebssystems): erste unterstützte aus navigator.languages, z. B. «fr-CH» → fr; sonst Englisch.
+  // Das ist zuverlässiger als das Land: In der Schweiz gibt es vier Landessprachen, und wer im Ausland ist, behält seine Sprache.
+  function browserLang() {
+    let list = [];
+    try { list = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || navigator.userLanguage || '']).filter(Boolean); } catch (e) { list = []; }
+    for (const l of list) { const c = String(l).slice(0, 2).toLowerCase(); if (LANGUAGES[c]) return c; }
+    return LANGUAGES.en ? 'en' : SRC;
+  }
+  window.AI18N_browserLang = browserLang;
   // Start: gespeicherte Sprache wiederherstellen
   function boot() {
     startObserver();
     initSettingsUI();
     const saved = lsGet(LS_LANG);
     if (typeof LANGUAGES === 'undefined' || typeof setLang !== 'function') return;
-    // Gespeicherte Sprache wiederherstellen; auch für Deutsch einmal anwenden (setzt die Tooltips/Titel der Oberfläche)
-    setLang(saved && LANGUAGES[saved] ? saved : SRC);
+    // Reihenfolge: ?lang=xx in der Adresse (z. B. für Links an eine Klasse) → gespeicherte Wahl → Sprache des Browsers → Englisch.
+    // Gespeicherte Sprache auch für Deutsch einmal anwenden (setzt die Tooltips/Titel der Oberfläche).
+    let url = null; try { url = new URLSearchParams(location.search).get('lang'); } catch (e) { /* kein location */ }
+    url = url ? String(url).slice(0, 2).toLowerCase() : null;
+    setLang(url && LANGUAGES[url] ? url : saved && LANGUAGES[saved] ? saved : browserLang());
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();

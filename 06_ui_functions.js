@@ -221,7 +221,7 @@ function updatePanelDomainRanges() {
   _setPanelDW('quad-dw', quadFitFn && quadFitFn.visible !== false ? quadFitFn : null);
 
   // Exponential-/Logarithmusfunktionen: allgemeine Form mit Schiebern
-  _setPanelDW('exp-generalform-dw', _findByPattern('a*b^x+c'));
+  _setPanelDW('exp-generalform-dw', _findByPattern('a*b^x'));
   _setPanelDW('log-generalform-dw', _findByPattern('a*logn(x,b)+c'));
 
   // Potenz-/Wurzelfunktionen: allgemeine Form des GERADE im Panel gewählten
@@ -592,6 +592,7 @@ function renderFuncList() {
   }
   // Smart-Buttons nach Neuaufbau der Liste aktualisieren
   if (typeof updateSmartButtons === 'function') updateSmartButtons();
+  if (typeof fbSync === 'function') fbSync();   // Auswahl im Panel «Balken» (31_bars2d.js)
   updateFuncLabelsOverlay();
 }
 
@@ -752,6 +753,56 @@ function diffQuotSetup() {
   scheduleComputeSpecials();
   scheduleDraw();
 }
+
+// Setzt die x-Koordinate von Punkt A auf den im Feld #diffquot-xa-input eingegebenen Wert
+// (Zahl oder Ausdruck wie "1/2", "-3", "pi/2"). B behält seinen Abstand h = xB − xA (der
+// Differenzenquotient bleibt also "gleich fein"); ist f dort nicht definiert, wird eine
+// definierte Ersatzstelle für B gesucht. Ist noch nichts aufgeschaltet, wird zuerst die
+// Funktion aus dem Eingabefeld aufgeschaltet. Ungültige Eingabe → rote Umrandung, nichts ändert sich.
+function diffQuotSetXA() {
+  const inp = document.getElementById('diffquot-xa-input');
+  if (!inp) return;
+  const txt = inp.value.trim();
+  if (!txt) { inp.style.borderColor = ''; return; }
+  const x = parseParamExpr(txt.replace(/,/g, '.'));
+  if (x === null || !isFinite(x)) { inp.style.borderColor = '#e24b4a'; return; }
+  if (!diffQuot) { diffQuotSetup(); if (!diffQuot) { inp.style.borderColor = '#e24b4a'; return; } }
+  const fn = functions[diffQuot.fi];
+  if (!fn || !isFinite(safeEval(fn.expr, x))) { inp.style.borderColor = '#e24b4a'; return; }   // f(x) dort nicht definiert
+  inp.style.borderColor = '';
+  const hOld = diffQuot.xB - diffQuot.xA;
+  let xB = x + hOld;
+  if (!isFinite(safeEval(fn.expr, xB))) {
+    xB = [x + 1, x + 0.5, x - 1, x + 2, x - 0.5, x + 0.1].find(c => isFinite(safeEval(fn.expr, c)));
+    if (xB === undefined) xB = x;
+  }
+  diffQuot.xA = x; diffQuot.xB = xB;
+  // Liegt A oder B (bzw. die Kurve dort) ausserhalb des sichtbaren Ausschnitts → Ansicht passend wählen
+  const v = isoView || view;
+  const yA = safeEval(fn.expr, x), yB = safeEval(fn.expr, xB);
+  const inside = (px, py) => px >= v.xmin && px <= v.xmax && py >= v.ymin && py <= v.ymax;
+  if (!inside(x, yA) || !inside(xB, yB)) _dqFitView(x, xB, fn.expr);
+  syncInputs();
+  pushHistory();
+  scheduleDraw();
+  inp.blur();
+}
+
+// Verlässt man das Feld ohne gültige Eingabe, zeigt es wieder die aktuelle x-Koordinate von A (und die rote Umrandung verschwindet).
+function diffQuotRestoreXA() {
+  const inp = document.getElementById('diffquot-xa-input');
+  if (!inp) return;
+  inp.style.borderColor = '';
+  if (diffQuot) inp.value = String(parseFloat(diffQuot.xA.toFixed(6)));
+  else if (!inp.value.trim()) inp.value = '';
+}
+
+// Gitterlinien-Einrasten für Punkt A beim Ziehen: liegt die x-Koordinate innerhalb von 20 Pixeln neben
+// einer senkrechten Gitterlinie (gleicher Abstand wie das gezeichnete Gitter), springt sie auf diese Linie.
+// Dort wo die Kurve zugleich eine waagrechte Gitterlinie schneidet, ist A damit ein Gitterpunkt. Gesteuert
+// durch die Einstellung "Gitterpunkt-Snapping" (#chk-gridsnap). B rastet bewusst NICHT ein — sonst liesse
+// sich h nicht beliebig klein machen.
+function dqSnapX(x) { return snapGridLineX(x); }
 
 // Sucht ein Paar Startpunkte (xA, xB) für eine beliebige Funktion, an denen
 // beide Werte definiert (endlich) sind — nötig, da die früheren festen
@@ -1164,11 +1215,21 @@ function _riemannFindIntersections(expr1, expr2, xLo, xHi, steps) {
   // Toleranz für "trifft eine Stichprobe direkt (fast) exakt" — siehe unten.
   const EPS = 1e-6;
   const pushRoot = x => { if (!roots.some(r => Math.abs(r - x) < 1e-6)) roots.push(x); };
-  let pd = null, ppx = null;
+  // Stichproben vorab berechnen; Bereiche, in denen beide Funktionen (praktisch)
+  // identisch sind (z.B. (x²−4)/(x−2) und x+2), liefern keine Schnittpunkte
+  // (nur Rundungsrauschen) — siehe coincidentMask() in 04_analysis.js.
+  const Y1 = new Float64Array(steps + 1), Y2 = new Float64Array(steps + 1);
   for (let s = 0; s <= steps; s++) {
     const x = xLo + s * dx;
     const y1 = safeEval(expr1, x), y2 = safeEval(expr2, x);
-    if (!isFinite(y1) || !isFinite(y2)) { pd = null; continue; }
+    if (isFinite(y1) && isFinite(y2)) { Y1[s] = y1; Y2[s] = y2; } else { Y1[s] = NaN; Y2[s] = NaN; }
+  }
+  const coinc = (typeof coincidentMask === 'function') ? coincidentMask(Y1, Y2) : new Uint8Array(steps + 1);
+  let pd = null, ppx = null, pds = -1;
+  for (let s = 0; s <= steps; s++) {
+    const x = xLo + s * dx;
+    const y1 = Y1[s], y2 = Y2[s];
+    if (!isFinite(y1)) { pd = null; continue; }
     const d = y1 - y2;
     if (pd === null) {
       // Direkt nach einer Definitionslücke (oder ganz am Anfang des Bereichs)
@@ -1179,8 +1240,8 @@ function _riemannFindIntersections(expr1, expr2, xLo, xHi, steps) {
       // lücke bei x<0 endet exakt bei x=0, wo beide Funktionen ausserdem
       // übereinstimmen), würde dieser Schnittpunkt sonst NIE erkannt.
       // Deshalb separat auf "praktisch Null" prüfen.
-      if (Math.abs(d) < EPS) pushRoot(x);
-    } else if (Math.sign(d) !== Math.sign(pd) && pd !== 0) {
+      if (Math.abs(d) < EPS && !coinc[s]) pushRoot(x);
+    } else if (Math.sign(d) !== Math.sign(pd) && pd !== 0 && !coinc[s] && !coinc[pds]) {
       let lo = ppx, hi = x;
       for (let it = 0; it < 40; it++) {
         const m = (lo + hi) / 2;
@@ -1189,7 +1250,7 @@ function _riemannFindIntersections(expr1, expr2, xLo, xHi, steps) {
       }
       pushRoot((lo + hi) / 2);
     }
-    pd = d; ppx = x;
+    pd = d; ppx = x; pds = s;
   }
   return roots;
 }
@@ -1599,12 +1660,14 @@ function toggleDeleteMode() {
 // Priorität: freier Punkt → Graph-Punkt → Funktion (nächster Graph)
 // Gibt true zurück wenn etwas gelöscht wurde.
 function tryDeleteAt(mx, my) {
+  // Geometrie-Objekt? (27_geo_ui.js)
+  if (typeof geoDeleteAt === 'function' && geoDeleteAt(mx, my)) return true;
   // Freier Punkt?
   const pi = findNearPoint(mx, my);
   if (pi >= 0) { deletePoint(pi); pushHistory(); return true; }
   // Graph-Punkt?
   const gi = findNearGP(mx, my);
-  if (gi >= 0) { graphPoints.splice(gi, 1); scheduleDraw(); return true; }
+  if (gi >= 0) { graphPoints.splice(gi, 1); pushHistory(); scheduleDraw(); return true; }
   // Funktion (nächster Graph innerhalb 20px vertikal)?
   const pt = fromCanvas(mx, my);
   let bestFi = -1, bestDist = 20;
@@ -1783,7 +1846,7 @@ function updateSmartButtons() {
 // legen dabei jeweils eine NEUE Funktion an (siehe addDerivedFunction()),
 // statt nur eine Anzeige umzuschalten.
 // ═══════════════════════════════════════════════════════════════════
-const CALC_BTN_COLORS = { lim: '#0F766E', deriv: '#B45309', integral: '#6D28D9' };
+const CALC_BTN_COLORS = { lim: '#0F766E', deriv: '#B45309', integral: '#6D28D9', inv: '#BE185D' };
 
 function appendCalculusButtons(container, fn, i) {
   // Grenzwerte im Unendlichen (rein informativ, öffnet Tooltip)
@@ -1845,6 +1908,130 @@ function appendCalculusButtons(container, fn, i) {
     addDerivedFunction(raw);
   };
   container.appendChild(iBtn);
+
+  // Umkehrfunktion — blendet das Spiegelbild von f_i an der Winkelhalbierenden y = x ein
+  // (Toggle) und zeigt im Info-Feld den Term von f⁻¹ mit Knopf zum Einfügen als neue
+  // Funktion; bei nicht umkehrbaren Funktionen Vorschläge zur Einschränkung des D.
+  if (!/^x\s*=/.test(fn.expr.trim())) {
+    const vBtn = document.createElement('button');
+    vBtn.className = 'smart-btn' + (fn.mirror ? ' sb-active' : '');
+    vBtn.textContent = 'f⁻¹';
+    vBtn.style.borderColor = CALC_BTN_COLORS.inv;
+    if (fn.mirror) { vBtn.style.background = CALC_BTN_COLORS.inv; vBtn.style.color = '#fff'; }
+    else { vBtn.style.color = CALC_BTN_COLORS.inv; vBtn.style.background = 'transparent'; }
+    vBtn.title = `Umkehrfunktion von f${i+1}: Spiegelbild an y = x ${fn.mirror ? 'ausblenden' : 'einblenden'}`;
+    vBtn.onclick = () => {
+      fn.mirror = !fn.mirror;
+      pushHistory(); updateSmartButtons(); scheduleDraw();
+      const act = window._activeTooltipPt;
+      if (fn.mirror) showInverseInfo(i);
+      else if (act && act.fi === i && act.kind === 'inverse') hideSolveTooltip();
+    };
+    container.appendChild(vBtn);
+  }
+}
+
+// Info-Feld zur Umkehrfunktion von f_i (siehe calcInverse() in 16_calculus.js).
+function showInverseInfo(i) {
+  const fn = functions[i];
+  if (!fn) return;
+  const title = `f<sub>${i+1}</sub>&thinsp;Umkehrfunktion`;
+  const btnCss = 'font-size:11px;padding:2px 9px;border-radius:10px;border:1.5px solid ' + CALC_BTN_COLORS.inv +
+                 ';color:' + CALC_BTN_COLORS.inv + ';background:transparent;cursor:pointer;margin:2px 4px 2px 0;font-family:system-ui,sans-serif;';
+  let res;
+  try { res = calcInverse(fn); } catch (ex) { res = { status: 'error' }; }
+
+  const wrap = document.createElement('div');
+  const p = (html, css) => { const d = document.createElement('div'); d.style.cssText = css || 'margin-bottom:5px;'; d.innerHTML = html; wrap.appendChild(d); return d; };
+
+  p(`Der Graph der Umkehrfunktion entsteht durch Spiegeln von f<sub>${i+1}</sub> an der Winkelhalbierenden y&nbsp;=&nbsp;x (gestrichelt).`);
+
+  if (res.status === 'ok') {
+    let termHtml = res.raw;
+    try { termHtml = (typeof exprToMathLiveHtml === 'function') ? exprToMathLiveHtml(res.raw) : res.raw; } catch (ex) {}
+    p(`<span style="opacity:.75;">f<sub>${i+1}</sub><sup>−1</sup>(x)&nbsp;=</span> <span style="font-size:1.1em;">${termHtml}</span>`,
+      'margin:6px 0 6px;');
+    const row = document.createElement('div');
+    const add = document.createElement('button');
+    add.style.cssText = btnCss; add.textContent = 'Als neue Funktion einfügen';
+    add.onclick = () => { addInverseFunction(i, res.raw); hideSolveTooltip(); };
+    row.appendChild(add); wrap.appendChild(row);
+  } else if (res.status === 'noninj') {
+    if (res.constant) {
+      p('Eine konstante Funktion ist nicht umkehrbar (jeder y-Wert gehört zu allen x).', 'margin:6px 0;color:#B91C1C;');
+    } else {
+      p('Diese Funktion ist auf ihrem jetzigen Definitionsbereich <b>nicht umkehrbar</b>: Zu manchen y-Werten gibt es mehrere x-Werte, das Spiegelbild ist keine Funktion.', 'margin:6px 0;color:#B91C1C;');
+      if (res.intervals && res.intervals.length) {
+        p('Einschränken des Definitionsbereichs auf:', 'margin:4px 0 2px;');
+        const row = document.createElement('div');
+        res.intervals.forEach(iv => {
+          const b = document.createElement('button');
+          b.style.cssText = btnCss;
+          const lo = iv.lo != null ? niceNum(iv.lo) : '−∞', hi = iv.hi != null ? niceNum(iv.hi) : '+∞';
+          b.textContent = `[${lo}, ${hi}]`.replace('[−∞', '(−∞').replace('+∞]', '+∞)');
+          b.onclick = () => { restrictFunctionDomain(i, iv.lo, iv.hi); };
+          row.appendChild(b);
+        });
+        wrap.appendChild(row);
+      }
+    }
+  } else {
+    p('Für diese Funktion lässt sich kein einfacher Term der Umkehrfunktion bilden. Das Spiegelbild wird trotzdem gezeigt.', 'margin:6px 0;');
+  }
+
+  showCalcMessage(i, title, '');
+  const content = document.getElementById('solve-tooltip-content');
+  content.innerHTML = ''; content.appendChild(wrap);
+  window._activeTooltipPt = { fi: i, kind: 'inverse' };
+}
+
+// Setzt den Definitionsbereich von f_i (Grenzen null = unbeschränkt) und öffnet das Info-Feld neu.
+function restrictFunctionDomain(i, lo, hi) {
+  const fn = functions[i];
+  if (!fn) return;
+  _domSt(fn).userSet = true; clearTimeout(_domSt(fn).timer);
+  fn.domainMin = lo != null ? lo : null;
+  fn.domainMax = hi != null ? hi : null;
+  // Grenzen, an denen f nicht endlich/riesig wird (Pol), offen; sonst geschlossen
+  const openAt = x => { if (x == null) return false; const y = safeEval(fn.expr, x); return !isFinite(y) || Math.abs(y) > 1e8; };
+  fn.domainMinOpen = openAt(fn.domainMin); fn.domainMaxOpen = openAt(fn.domainMax);
+  clearEvalCache(); renderFuncList(); syncParams(); scheduleComputeSpecials();
+  pushHistory(); scheduleDraw();
+  showInverseInfo(i);
+}
+
+// Fügt die (geprüfte) Umkehrfunktion von f_i als neue Funktion ein. Ihr Definitionsbereich
+// ist die Wertemenge von f_i — sonst würde z.B. die Umkehrung von √x, nämlich x², auch
+// für x < 0 gezeichnet.
+function addInverseFunction(i, raw) {
+  const fn = functions[i];
+  const nf = { expr: raw, color: COLORS[functions.length % COLORS.length], visible: true };
+  // computeRange() rundet auf 2 Stellen — typische Schulwerte (π/2, 1/3 …) wieder exakt machen
+  const snapB = r => {
+    if (r == null || Number.isInteger(r)) return r;
+    const u4 = Math.PI / 4, m4 = Math.round(r / u4);
+    if (Math.abs(m4 * u4 - r) <= 0.0051) return m4 * u4;
+    const u12 = Math.PI / 12, m12 = Math.round(r / u12);
+    if (Math.abs(m12 * u12 - r) <= 0.0006) return m12 * u12;
+    for (let q = 2; q <= 12; q++) { const pp = Math.round(r * q); if (Math.abs(pp / q - r) <= 0.0051) return pp / q; }
+    return r;
+  };
+  try {
+    const rg = computeRange(fn.expr, fn.domainMin, fn.domainMax, fn.domainExcluded || [], fn.domainGaps || [], fn.domainMinOpen, fn.domainMaxOpen);
+    const ex = rg.rangeExcluded || [];
+    if (rg.rangeMin != null || rg.rangeMax != null) {
+      nf.domainMin = snapB(rg.rangeMin); nf.domainMax = snapB(rg.rangeMax);
+      nf.domainMinOpen = rg.rangeMin != null && ex.includes(rg.rangeMin);
+      nf.domainMaxOpen = rg.rangeMax != null && ex.includes(rg.rangeMax);
+      const det = computeDomain(raw);
+      nf.domainExcluded = (det.excluded || []).filter(v => (nf.domainMin == null || v >= nf.domainMin) && (nf.domainMax == null || v <= nf.domainMax));
+      nf.domainGaps = det.gaps || [];
+      _domSt(nf).userSet = true;
+    }
+  } catch (ex) { /* ohne Einschränkung einfügen: Automatik erkennt den Bereich selbst */ }
+  functions.push(nf);
+  clearEvalCache(); renderFuncList(); syncParams(); scheduleComputeSpecials();
+  pushHistory(); scheduleDraw();
 }
 
 // Zeigt lim x→−∞ und lim x→+∞ von f_i im bestehenden Lösungsweg-Tooltip an

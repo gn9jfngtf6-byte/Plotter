@@ -658,7 +658,7 @@ function drawLinOpt() {
 function findNearLoHandle(mx, my) {
   if (!loObjActive) return false;
   const h = loGetHandlePos(), c = toCanvas(h.x, h.y);
-  const HIT = ('ontouchstart' in window) ? 22 : 14;
+  const HIT = hitR(14);
   return Math.hypot(c.cx - mx, c.cy - my) < HIT;
 }
 
@@ -703,8 +703,12 @@ function loBuildObjRawFromAB(a, b) {
 // ═══════════════════════════════════════════════════════════════════
 
 function loShowSolution() {
-  const box = document.getElementById('lo-loesungsweg-box'); if (!box) return;
-  if (box.style.display === 'block') { box.style.display = ''; return; }
+  // Anzeige wie in allen Umgebungen rechts in der Lösungsweg-Karte (#solve-tooltip), nicht mehr in der Seitenleiste
+  const tip = document.getElementById('solve-tooltip'), tipT = document.getElementById('solve-tooltip-title'), tipC = document.getElementById('solve-tooltip-content');
+  if (!tip || !tipT || !tipC) return;
+  if (tip.style.display === 'block' && window._activeTooltipPt && window._activeTooltipPt.kind === 'lo') { hideSolveTooltip(); return; }
+  const old = document.getElementById('lo-loesungsweg-box'); if (old) { old.innerHTML = ''; old.style.display = ''; }
+  const box = { style: {}, set innerHTML(h) { tipT.textContent = (typeof t === 'function' && t('btn_solution') !== 'btn_solution' ? String(t('btn_solution')).replace(/^\W+\s*/, '') : 'Lösungsweg'); tipT.style.color = ''; tipC.innerHTML = '<div class="lw-box" style="display:block;border:none;background:none;padding:0;margin:0;">' + h + '</div>'; window._activeTooltipPt = { fi: -1, kind: 'lo' }; tip.style.display = 'block'; } };
 
   function lwLine(text, indent, heading) {
     const cls = ['lw-line', indent ? 'lw-indent' : '', heading ? 'lw-heading' : ''].filter(Boolean).join(' ');

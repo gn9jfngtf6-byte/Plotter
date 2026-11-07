@@ -45,7 +45,7 @@ function gcdInt(a, b) { a=Math.abs(Math.round(a)); b=Math.abs(Math.round(b)); wh
 function simplifyRadical(D) {
   if (D <= 0) return null;
   let p = 1, q = Math.round(D);
-  for (let k = 2; k * k <= q; k++) {
+  for (let k = 2; k * k <= q && k < 3e6; k++) {   // Obergrenze: schützt vor Milliarden Schleifendurchläufen bei riesigen Diskriminanten
     while (q % (k*k) === 0) { q = q/(k*k); p *= k; }
   }
   return { coef: p, radicand: q };
@@ -490,6 +490,25 @@ function tryAnalyticalZerosEx(fi_idx, expr) {
   return [z1, z2];
 }
 
+// Markiert Stichproben, die in einem Lauf von mindestens 3 aufeinanderfolgenden
+// Punkten liegen, an denen zwei Funktionen (praktisch) identisch sind
+// (|yi−yj| ≤ 1e-9·max(1,|yi|,|yj|)). Nicht definierte Stellen (NaN) unterbrechen
+// einen Lauf. Einzelne (zufällige) Nullstellen von yi−yj bleiben unmarkiert und
+// werden weiterhin als Schnittpunkte erkannt.
+function coincidentMask(YI, YJ) {
+  const n = YI.length, mask = new Uint8Array(n);
+  let runStart = -1;
+  const flush = end => { if (runStart >= 0 && end - runStart >= 3) for (let k = runStart; k < end; k++) mask[k] = 1; runStart = -1; };
+  for (let s = 0; s < n; s++) {
+    const a = YI[s], b = YJ[s];
+    if (isFinite(a) && isFinite(b) && Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b))) {
+      if (runStart < 0) runStart = s;
+    } else flush(s);
+  }
+  flush(n);
+  return mask;
+}
+
 async function computeSpecials(myToken) {
   // D_f/W_f-Anzeige direkt in den Funktionstyp-Panels (siehe
   // updatePanelDomainRanges() in 06_ui_functions.js) — als allererstes und
@@ -516,6 +535,7 @@ async function computeSpecials(myToken) {
   };
   const cancelled = () => myToken !== _specialsRunToken;
 
+  try { limitView(getW(), getH()); } catch (e) {}   // Zoom-Grenzen auch hier garantieren (dx unten darf nie 0/NaN sein)
   const acc = []; // lokaler Akkumulator — erst am Ende in specials schreiben
   const steps = 3000;
   const dx = (view.xmax - view.xmin) / steps;
@@ -618,33 +638,46 @@ async function computeSpecials(myToken) {
     // ── Schnittpunkte zwischen Funktionen ──────────────────────────
     for (let fj_idx = fi_idx + 1; fj_idx < functions.length; fj_idx++) {
       const fj = functions[fj_idx]; if (!fj.expr.trim()) continue;
-      let pd = null, ppx2 = null;
+      // Stichproben beider Funktionen einmal berechnen (NaN = nicht definiert) und
+      // für beide Scans (Vorzeichenwechsel, Berührung) wiederverwenden.
+      const YI = new Float64Array(steps + 1), YJ = new Float64Array(steps + 1);
       for (let s = 0; s <= steps; s++) {
         { const _yp = yieldIfNeeded(); if (_yp) { await _yp; _lastYield = performance.now(); if (cancelled()) return; } }
         const x = view.xmin + s * dx, yi = safeEval(fi.expr, x), yj = safeEval(fj.expr, x);
-        if (!isFinite(yi) || !isFinite(yj)) { pd = null; continue; }
+        if (isFinite(yi) && isFinite(yj)) { YI[s] = yi; YJ[s] = yj; } else { YI[s] = NaN; YJ[s] = NaN; }
+      }
+      // Stellen, an denen die Funktionen (fast) identisch sind (z.B. (x²−4)/(x−2) und
+      // x+2, ausser bei x=2): dort sind Vorzeichenwechsel / Minima von f_i−f_j reines
+      // Rundungsrauschen → keine Schnittpunkte.
+      const coinc = coincidentMask(YI, YJ);
+
+      let pd = null, ppx2 = null, pds = -1;
+      for (let s = 0; s <= steps; s++) {
+        const yi = YI[s], yj = YJ[s];
+        if (!isFinite(yi)) { pd = null; continue; }
+        const x = view.xmin + s * dx;
         const d = yi - yj;
-        if (pd !== null && Math.sign(d) !== Math.sign(pd) && pd !== 0) {
+        if (pd !== null && Math.sign(d) !== Math.sign(pd) && pd !== 0 && !coinc[s] && !coinc[pds]) {
           let lo = ppx2, hi = x;
           for (let it = 0; it < 40; it++) { const m = (lo+hi)/2, dm = safeEval(fi.expr, m) - safeEval(fj.expr, m); if (Math.sign(dm) === Math.sign(pd)) lo = m; else hi = m; }
           const mx = (lo+hi)/2, my = safeEval(fi.expr, mx);
           if (!acc.some(p => p.kind==='isect' && p.fi===fi_idx && p.fj===fj_idx && Math.abs(p.x-mx)<tol))
             acc.push({ kind:'isect', fi:fi_idx, fj:fj_idx, x:mx, y:my, col });
         }
-        pd = d; ppx2 = x;
+        pd = d; ppx2 = x; pds = s;
       }
 
       { const _yp = yieldIfNeeded(); if (_yp) { await _yp; _lastYield = performance.now(); if (cancelled()) return; } }
 
       // ── Berührungs-Schnittpunkte ──────────────────────────────────
-      { let da = null, db = null, xa = null, xb = null;
+      { let da = null, db = null, xa = null, xb = null, sa = -1, sb = -1;
         for (let s = 0; s <= steps; s++) {
-          { const _yp = yieldIfNeeded(); if (_yp) { await _yp; _lastYield = performance.now(); if (cancelled()) return; } }
+          if ((s & 255) === 0) { const _yp = yieldIfNeeded(); if (_yp) { await _yp; _lastYield = performance.now(); if (cancelled()) return; } }
           const xc = view.xmin + s * dx;
-          const yi = safeEval(fi.expr, xc), yj = safeEval(fj.expr, xc);
-          if (!isFinite(yi) || !isFinite(yj)) { da = db = xa = xb = null; continue; }
+          const yi = YI[s], yj = YJ[s];
+          if (!isFinite(yi)) { da = db = xa = xb = null; continue; }
           const dc = Math.abs(yi - yj);
-          if (da !== null && db !== null && db < da && db < dc) {
+          if (da !== null && db !== null && db < da && db < dc && !coinc[s] && !coinc[sb] && !coinc[sa]) {
             let lo = xa, hi = xc;
             for (let it = 0; it < 60; it++) {
               const m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3;
@@ -660,7 +693,7 @@ async function computeSpecials(myToken) {
                 !acc.some(p => p.kind === 'isect' && p.fi === fi_idx && p.fj === fj_idx && Math.abs(p.x - mx) < tol))
               acc.push({ kind: 'isect', fi: fi_idx, fj: fj_idx, x: mx, y: my_i, col });
           }
-          da = db; db = dc; xa = xb; xb = xc;
+          da = db; db = dc; xa = xb; xb = xc; sa = sb; sb = s;
         }
       }
     }

@@ -427,6 +427,41 @@ let isoView = null;
 
 // Richtet den Canvas für High-DPI-Displays ein und erkennt Grössenänderungen.
 // Bei Grössenänderung wird der View proportional ausgeweitet (mehr sehen, nicht strecken).
+// ─────────────── Zoom-Grenzen (Schutz vor Einfrieren/Rechenfehlern) ───────────────
+// Fliesskommazahlen haben nur ~15-16 Stellen. Zoomt man weit hinein, während man weit von
+// der y-Achse entfernt ist (z.B. x ≈ -8 oder x ≈ -1e6), wird der Gitterabstand kleiner als der
+// Abstand zweier benachbarter Zahlen: "gx += Schritt" ändert gx dann nicht mehr, und jede
+// Gitter-/Beschriftungs-Schleife läuft endlos (= Programm friert ein). Darum wird der
+// Ausschnitt in JEDEM Frame (setupCanvas) auf einen sicheren Bereich begrenzt:
+//   • Spanne mindestens VIEW_MIN_REL × |Mitte| (≈ 1e-11 relativ, ~4500 Zahlenschritte pro Gitterlinie)
+//     bzw. absolut VIEW_MIN_ABS (nahe 0 darf man sehr tief hinein),
+//   • Spanne höchstens VIEW_MAX_SPAN (darüber wird alles zu Pixelbrei und Zahlen laufen über).
+// Da die Ansicht isometrisch ist (gleicher Massstab in x und y), wird der Massstab (Pixel pro
+// Einheit) begrenzt und beide Spannen werden gemeinsam um die Mitte skaliert.
+const VIEW_MIN_REL = 1e-11, VIEW_MIN_ABS = 1e-200, VIEW_MAX_SPAN = 1e13;
+function limitView(w, h) {
+  const v = view;
+  let xs = v.xmax - v.xmin, ys = v.ymax - v.ymin;
+  if (!isFinite(v.xmin) || !isFinite(v.xmax) || !isFinite(v.ymin) || !isFinite(v.ymax) || !(xs > 0) || !(ys > 0)) {
+    v.xmin = -10; v.xmax = 10; v.ymin = -6; v.ymax = 6;   // kaputter Ausschnitt (NaN/∞/umgedreht) → Startansicht
+    return true;
+  }
+  const xC = (v.xmin + v.xmax) / 2, yC = (v.ymin + v.ymax) / 2;
+  const minX = Math.max(Math.abs(xC) * VIEW_MIN_REL, VIEW_MIN_ABS);
+  const minY = Math.max(Math.abs(yC) * VIEW_MIN_REL, VIEW_MIN_ABS);
+  const ppu = Math.min(w / xs, h / ys);
+  const ppuMax = Math.min(w / minX, h / minY);
+  const ppuMin = Math.max(w, h) / VIEW_MAX_SPAN;
+  let s = 1;
+  if (ppu > ppuMax) s = ppu / ppuMax;         // zu weit hineingezoomt → aufweiten
+  else if (ppu < ppuMin) s = ppu / ppuMin;    // zu weit hinaus → zusammenziehen
+  if (s === 1 || !isFinite(s)) return false;
+  xs *= s; ys *= s;
+  v.xmin = xC - xs / 2; v.xmax = xC + xs / 2;
+  v.ymin = yC - ys / 2; v.ymax = yC + ys / 2;
+  return true;
+}
+
 function setupCanvas() {
   const dpr = window.devicePixelRatio || 1; // Pixeldichte (z.B. 2 für Retina)
   const wrap = document.getElementById('canvas-wrap');
@@ -448,6 +483,7 @@ function setupCanvas() {
   if (canvas.width !== tw || canvas.height !== th) { canvas.width = tw; canvas.height = th; }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // Skalierungsmatrix
 
+  if (limitView(w, h)) { try { syncInputs(); } catch (e) {} }   // Zoom-Grenzen (siehe oben)
   isoView = getIsoView(w, h); // isometrischen View für diesen Frame berechnen
   return { w, h };
 }
@@ -466,6 +502,12 @@ function _measureWrap() {
 }
 function getW() { if (!_wrapW) _measureWrap(); return _wrapW || 600; }
 function getH() { if (!_wrapH) _measureWrap(); return _wrapH || 500; }
+
+// Zuletzt benutztes Eingabegerät: true nach einer Touch-Berührung, false nach Mausbewegung/-klick.
+// Steuert die Grösse der Trefferflächen (hitR) und die Lage des Live-Tooltips (09_events.js).
+let inputIsTouch = false;
+// Trefferradius in Pixeln: Maus = base, Finger = base + 12 (ein Fingertipp ist viel ungenauer als ein Mauszeiger).
+function hitR(base) { return inputIsTouch ? base + 12 : base; }
 
 // Mausposition relativ zum Canvas-Element (in CSS-Pixeln)
 function mousePos(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
@@ -489,13 +531,47 @@ function fromCanvas(cx, cy) {
   };
 }
 
+// ───────────────── Gitter-Snapping (zentral, Einstellung "Gitter-Snapping" = #chk-gridsnap) ─────────────────
+// Ein einziger Schalter steuert ALLES Einrasten. Regeln:
+//   • freie Punkte (setzen/ziehen, Fit-Punkte, Punkte der 2-Punkte-Gerade): rasten immer auf den nächsten
+//     GITTERPUNKT ein (snapToGrid(), 05_points.js),
+//   • Punkte, die an einen Graphen/eine Achse gebunden sind (Graph-Punkte, Steigungsdreieck, Differenzenquotient-
+//     Punkt A, Grenzen a/b der Ober-/Untersummen und Flächen): rasten auf die nächste GITTERLINIE ein, sobald sie
+//     höchstens 20 Pixel daneben liegen (man kann sich also wieder davon lösen).
+// WICHTIG: Der Schritt ist exakt der des GEZEICHNETEN Gitters (draw(): kleinere Seite des isometrischen Ausschnitts) —
+// früher rechnete ein Teil der Ereignisse mit der Breite statt der kleineren Seite und rastete dadurch auf
+// Linien ein, die gar nicht gezeichnet waren.
+function gridSnapOn() { const c = document.getElementById('chk-gridsnap'); return !!(c && c.checked); }
+function gridSnapStep() {
+  const v = isoView || view;
+  return gridStep(Math.min(v.xmax - v.xmin, v.ymax - v.ymin));
+}
+const GRID_SNAP_PX = 20;
+function snapGridLineX(x) {
+  if (!gridSnapOn() || !isFinite(x)) return x;
+  const v = isoView || view, xs = gridSnapStep();
+  const pxPerUnit = getW() / (v.xmax - v.xmin);
+  if (!(xs > 0) || !(pxPerUnit > 0)) return x;
+  const s = Math.round(x / xs) * xs;
+  return Math.abs(x - s) < GRID_SNAP_PX / pxPerUnit ? parseFloat(s.toPrecision(12)) : x;
+}
+function snapGridLineY(y) {
+  if (!gridSnapOn() || !isFinite(y)) return y;
+  const v = isoView || view, ys = gridSnapStep();
+  const pxPerUnit = getH() / (v.ymax - v.ymin);
+  if (!(ys > 0) || !(pxPerUnit > 0)) return y;
+  const s = Math.round(y / ys) * ys;
+  return Math.abs(y - s) < GRID_SNAP_PX / pxPerUnit ? parseFloat(s.toPrecision(12)) : y;
+}
+
 // Berechnet einen schönen Gitternetz-Abstand für einen gegebenen Bereich.
 // Ziel: ca. so viele Gitterlinien sichtbar wie in "Gitternetz-Feinheit" eingestellt
 // (Default: 10, fein). Ergebnis ist immer 1, 2 oder 5 × 10^n.
 // range: z.B. view.xmax - view.xmin = 20 → gridStep = 2 oder 5
 function gridStep(range) {
   const density = parseInt(document.getElementById('grid-density')?.value || 10);
-  const raw = range / density;
+  const raw = range / (density > 0 ? density : 10);
+  if (!(raw > 0) || !isFinite(raw)) return 1;   // Schutz: kaputter Bereich → harmloser Standardabstand
   const mag = Math.pow(10, Math.floor(Math.log10(raw)));
   const r = raw / mag;
   if (r < 1.5) return mag;

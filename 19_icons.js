@@ -16,6 +16,10 @@
   const ICONS = {
     '📐': '<path d="M3 20 20 3v17z"/><path d="M14 20v-4 M17 20v-8"/>',
     '📏': '<path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0z"/><path d="m14.5 12.5 2-2 M11.5 9.5l2-2 M8.5 6.5l2-2 M17.5 15.5l2-2"/>',
+    '🔺': '<path d="M12 3 22 20H2z"/>',
+    '🟣': '<circle cx="5" cy="18" r="1.7"/><circle cx="10" cy="12.5" r="1.7"/><circle cx="15" cy="9" r="1.7"/><circle cx="20" cy="6.5" r="1.7"/><path d="M3 21h18 M3 3v18"/>',
+    '🧩': '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M14 3v18 M3 10h18"/>',
+    '🧊': '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5 M12 13v8"/>',
     '📈': '<path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/>',
     '📉': '<path d="M22 17 13.5 8.5 8.5 13.5 2 7"/><path d="M16 17h6v-6"/>',
     '📊': '<path d="M12 20V10 M18 20V4 M6 20v-4"/>',
@@ -50,9 +54,10 @@
     // Nur am Anfang eines Panel-Titels (sonst Mathe-Zeichen im Text!)
     'ƒ': '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 17c2 0 2-1 2-3V9c0-2 .5-3 3-3 M8 12h6"/>',
     '∑': '<path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2"/>',
-    '∿': '<path d="M2 12c2.5-8 5.5-8 8 0s5.5 8 8 0 M18 12h4"/>'
+    '∿': '<path d="M2 12c2.5-8 5.5-8 8 0s5.5 8 8 0 M18 12h4"/>',
+    '△': '<path d="M12 3 22 20H2z"/><circle cx="12" cy="3" r="1.3" fill="currentColor"/><circle cx="22" cy="20" r="1.3" fill="currentColor"/><circle cx="2" cy="20" r="1.3" fill="currentColor"/>'
   };
-  const TITLE_ONLY = new Set(['ƒ', '∑', '∿']);
+  const TITLE_ONLY = new Set(['ƒ', '∑', '∿', '△']);
 
   const esc = c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const RX = new RegExp('(' + Object.keys(ICONS).map(esc).join('|') + ')\\uFE0F?\\s?', 'u');

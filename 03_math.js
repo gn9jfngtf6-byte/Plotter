@@ -70,7 +70,10 @@ function useFracMode() {
   const el = document.getElementById('frac-mode');
   return el && el.value === 'fraction';
 }
-function gcd(a, b) { return b < 0.0001 ? Math.round(a) : gcd(b, a % b); }
+function gcd(a, b) {   // iterativ mit Schutz (früher rekursiv: bei riesigen Zahlen "Maximum call stack size exceeded")
+  for (let i = 0; i < 200 && b >= 0.0001; i++) { const t = a % b; a = b; b = t; }
+  return Math.round(a);
+}
 
 // Erkennt Werte der Form p·√n / q (Wurzelausdrücke) und gibt einen hübschen String zurück.
 // Beispiele: √2/2, √3/2, √5/5, 2√3/3, √6/3, √10/5 …
@@ -82,6 +85,9 @@ function gcd(a, b) { return b < 0.0001 ? Math.round(a) : gcd(b, a % b); }
 // verhalten sich unverändert.
 function asSurd(v, latex) {
   if (!isFinite(v) || Math.abs(v) < 1e-9) return null;
+  // Schutz: bei grossen Werten (Zoom weit hinaus) wäre die Faktorzerlegung unten eine Schleife über
+  // bis zu Milliarden Zahlen (= Einfrieren), und ein Wurzelausdruck ist dort ohnehin nicht sinnvoll.
+  if (Math.abs(v) > 1000) return null;
   const neg = v < 0 ? '-' : '';
   const abs = Math.abs(v);
   const sq = abs * abs;
@@ -99,9 +105,9 @@ function asSurd(v, latex) {
     if (Math.abs(sqrtp - Math.round(sqrtp)) < 1e-9 && Math.abs(sqrtq - Math.round(sqrtq)) < 1e-9) continue;
     // Quadratische Faktoren aus pp und qq herausziehen: pp = a²·r, qq = b²·s
     let r = pp, a = 1;
-    for (let d = 2; d * d <= r; d++) { while (r % (d*d) === 0) { r = r/(d*d); a *= d; } }
+    for (let d = 2; d * d <= r && d < 20000; d++) { while (r % (d*d) === 0) { r = r/(d*d); a *= d; } }
     let s = qq, b = 1;
-    for (let d = 2; d * d <= s; d++) { while (s % (d*d) === 0) { s = s/(d*d); b *= d; } }
+    for (let d = 2; d * d <= s && d < 20000; d++) { while (s % (d*d) === 0) { s = s/(d*d); b *= d; } }
     // v = (a/b)·√(r/s) = a·√(r·s) / (b·s)
     const radicand = r * s;
     if (radicand === 1 || radicand > 250) continue; // rational oder zu komplex
@@ -857,7 +863,12 @@ function syncParams() {
     const row1 = document.createElement('div'); row1.className = 'param-row';
     const nm = document.createElement('span'); nm.className = 'param-name'; nm.textContent = p + ' =';
     const mi = document.createElement('input'); mi.type = 'number'; mi.inputMode = 'decimal'; mi.value = pr.min; mi.step = '1'; mi.style.width = '42px';
-    mi.onchange = () => { pr.min = parseParamExpr(mi.value) ?? pr.min; sl.min = pr.min; };
+    mi.onchange = () => {
+      let mv = parseParamExpr(mi.value) ?? pr.min;
+      if (pr.positive && !(mv > 0)) mv = 0.1;          // nur-positive Parameter (z.B. a, b bei y = a·bˣ): Minimum bleibt > 0
+      pr.min = mv; mi.value = mv; sl.min = pr.min;
+      if (pr.val < pr.min) { pr.val = pr.min; sl.value = pr.val; clearEvalCache(); scheduleComputeSpecials(); scheduleDraw(); }
+    };
     const sl = document.createElement('input'); sl.type = 'range'; sl.min = pr.min; sl.max = pr.max; sl.step = pr.step; sl.value = pr.val; sl.style.flex = '1';
     const ma = document.createElement('input'); ma.type = 'number'; ma.inputMode = 'decimal'; ma.value = pr.max; ma.step = '1'; ma.style.width = '42px';
     ma.onchange = () => { pr.max = parseParamExpr(ma.value) ?? pr.max; sl.max = pr.max; };
@@ -868,7 +879,9 @@ function syncParams() {
     const vInp = document.createElement('input'); vInp.type = 'text'; vInp.inputMode = 'decimal'; vInp.className = 'param-val-inp';
     vInp.value = pr.val.toFixed(Math.max(precision, 3)); vInp.placeholder = 'z.B. pi, 1.5';
     vInp.onchange = () => {
-      const v = parseParamExpr(vInp.value);
+      let v = parseParamExpr(vInp.value);
+      if (pr.positive && v !== null && !(v > 0)) v = null;   // nur positive Werte zulassen (alter Wert bleibt)
+      if (v === null) vInp.value = pr.val.toFixed(Math.max(precision, 3));
       if (v !== null) {
         if (v > pr.max) { pr.max = Math.ceil(v); sl.max = pr.max; ma.value = pr.max; }
         if (v < pr.min) { pr.min = Math.floor(v); sl.min = pr.min; mi.value = pr.min; }

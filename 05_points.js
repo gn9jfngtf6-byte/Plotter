@@ -12,9 +12,8 @@
 // Verwendet denselben Schritt für x und y wie der Draw-Loop (Math.min der beiden Bereiche),
 // damit der Snap exakt auf die sichtbaren Gitterpunkte trifft.
 function snapToGrid(x, y) {
-  if (!document.getElementById('chk-gridsnap').checked) return { x, y };
-  const v = isoView || view;
-  const gs = gridStep(Math.min(v.xmax - v.xmin, v.ymax - v.ymin));
+  if (!gridSnapOn()) return { x, y };
+  const gs = gridSnapStep();
   const sx = parseFloat((Math.round(x / gs) * gs).toFixed(10));
   const sy = parseFloat((Math.round(y / gs) * gs).toFixed(10));
   return { x: sx, y: sy };
@@ -192,8 +191,8 @@ function updateAllLinkedLines() {
 // Gibt Index zurück oder -1 wenn keiner nahe genug ist.
 // Snap-Radius: 14px — anpassen für grössere/kleinere Trefferfläche
 function findNearPoint(mx, my, excludeIdx = -1) {
-  // Auf Touch-Geräten größere Trefferfläche (Finger > Mauszeiger)
-  const HIT = ('ontouchstart' in window) ? 22 : 14;
+  // Bei Touch größere Trefferfläche (Finger > Mauszeiger), siehe hitR() in 02_core.js
+  const HIT = hitR(14);
   for (let i = points.length - 1; i >= 0; i--) { // rückwärts = oben liegende zuerst
     if (i === excludeIdx) continue;
     const { cx, cy } = toCanvas(points[i].x, points[i].y);
@@ -268,7 +267,7 @@ function line2ptPickClick(mx, my) {
       // Neuen freien Punkt setzen (mit Grid-Snap wenn Checkbox aktiv)
       let pt = fromCanvas(mx, my);
       if (document.getElementById('chk-gridsnap')?.checked) {
-        const gs = gridStep(isoView ? (isoView.xmax - isoView.xmin) : (view.xmax - view.xmin));
+        const gs = gridSnapStep();   // = Schritt des gezeichneten Gitters
         pt = { x: Math.round(pt.x / gs) * gs, y: Math.round(pt.y / gs) * gs };
       }
       const ni = points.length;
@@ -281,13 +280,14 @@ function line2ptPickClick(mx, my) {
 
   if (line2ptPts.length === 2) {
     const i1 = line2ptPts[0].idx, i2 = line2ptPts[1].idx;
-    if (i1 === i2) { document.getElementById('line2pt-status').textContent = t('status_same'); line2ptPts = []; scheduleDraw(); return; }
+    if (i1 === i2) { document.getElementById('line2pt-status').textContent = t('status_same'); if (typeof guideWarn === 'function') guideWarn(t('status_same')); line2ptPts = []; scheduleDraw(); return; }
 
     const p1 = points[i1], p2 = points[i2];
     if (!p1 || !p2) { line2ptPts = []; return; }
 
     if (Math.abs(p2.x - p1.x) < 1e-10) {
       document.getElementById('line2pt-status').textContent = t('status_vert');
+      if (typeof guideWarn === 'function') guideWarn(t('status_vert'));
       line2ptPts = []; return;
     }
 
@@ -324,6 +324,7 @@ function line2ptPickClick(mx, my) {
       slopeTriPtsMap[fi] = [...slopeTriPts];
       document.getElementById('chk-slopetri').checked = true;
     }
+    if (typeof guideFlash === 'function') guideFlash('✓ ' + `f${fnIdx}(x) = ${built.label}`);
     pushHistory(); scheduleDraw();
   } else {
     scheduleDraw(); // P1-Vorschau zeichnen

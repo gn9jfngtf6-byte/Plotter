@@ -81,6 +81,7 @@ function slopeTriPickClick(mx, my) {
   }
   if (bestFi < 0) {
     document.getElementById('slopetri-pick-status').textContent = t('msg_no_line_pt');
+    if (typeof guideWarn === 'function') guideWarn(t('msg_no_line_pt'));
     return;
   }
   if (slopeTriPts.length === 0) {
@@ -90,11 +91,13 @@ function slopeTriPickClick(mx, my) {
   } else {
     if (bestFi !== slopeTriFi) {
       document.getElementById('slopetri-pick-status').textContent = '⚠ ' + t('slope_same_line');
+      if (typeof guideWarn === 'function') guideWarn('⚠ ' + t('slope_same_line'));
       return;
     }
     slopeTriPts.push({ x: pt.x, fi: bestFi });
     slopeTriPtsMap[bestFi] = [...slopeTriPts];
     slopeTriStopPick();
+    if (typeof guideFlash === 'function') guideFlash('✓ ' + t('slope_done'));
     scheduleDraw();
   }
 }
@@ -258,7 +261,12 @@ function fitPickClick(mx, my) {
   pd.pickNext++;
   if (pd.pickNext >= pd.nPts) {
     genericStopPick();
+    const prevLen = functions.length;
     pd.computeFn(); // automatisch berechnen wenn alle Punkte gesetzt
+    if (typeof guideFlash === 'function') {
+      if (functions.length > prevLen) guideFlash('✓ f' + functions.length + '(x)' + t('msg_added'));
+      else { const re = pd.resultId && document.getElementById(pd.resultId); guideFlash('⚠ ' + ((re && re.textContent.trim()) || t('msg_fill_all')), true); }
+    }
   } else {
     genericUpdatePickStatus();
   }
@@ -751,7 +759,7 @@ function _perpFlowStop() {
 function _perpFlowUpdateStatus(errKey) {
   const status = document.getElementById('perp-pick-status');
   if (!status) return;
-  if (errKey) { status.textContent = t(errKey); return; }
+  if (errKey) { status.textContent = t(errKey); if (typeof guideWarn === 'function') guideWarn(t(errKey)); return; }
   if (perpFlowKind === 'perp') {
     status.textContent = t(perpFlowStep === 1 ? 'perp_step1_point' : 'perp_step2_line');
   } else if (perpFlowKind === 'bisector') {
@@ -818,6 +826,11 @@ function perpFlowPickClick(mx, my) {
     linAddBisector(perpFlowPt1, pt2);
   }
   _perpFlowStop();
+  if (typeof guideFlash === 'function') {
+    const re = document.getElementById('lin-perp-result'), txt = re && re.textContent.trim();
+    const bad = !!re && /226,\s*75,\s*74|#e24b4a/i.test(re.style.color || '');
+    if (txt) guideFlash((bad ? '⚠ ' : '✓ ') + txt.replace(/^[✓⚠]\s*/, ''), bad);
+  }
   scheduleDraw();
 }
 
@@ -921,10 +934,20 @@ function quadUpdateInputs() {
       }
     }
   }
-  // Pick-Status-Hinweis (wenn nicht gerade im Pick-Modus)
+  // Beschriftung des Klick-Knopfs + Erklärzeile: sagen, was entsteht und was man anklickt (Texte wie in 28_guide.js)
+  const QUAD_PICK = {
+    quadratic: ['✏ Parabel durch 3 Punkte', 'So geht’s: 3 Punkte im Plot anklicken'],
+    vertex: ['✏ Parabel aus Scheitelpunkt und Punkt', 'So geht’s: erst den Scheitelpunkt, dann einen weiteren Punkt anklicken'],
+    roots: ['✏ Parabel aus Nullstellen und Punkt', 'So geht’s: 2 Nullstellen auf der x-Achse, dann einen weiteren Punkt anklicken']
+  };
+  const qp = QUAD_PICK[subtype] || QUAD_PICK.quadratic;
+  const qLab = document.getElementById('quad-pick-label'), qHint = document.getElementById('quad-pick-hint');
+  if (qLab) qLab.textContent = qp[0];
+  if (qHint) qHint.textContent = qp[1];
+  // Pick-Status (blau) nur noch während des Klickens — die Erklärzeile sagt vorher, was zu tun ist
   if (!fitPickMode || fitPickPanel !== quadPanelDef) {
     const statusEl = document.getElementById('quad-pick-status');
-    if (statusEl) statusEl.textContent = tf('lw_pick_n_pts', {n: cfg.pts});
+    if (statusEl) statusEl.textContent = '';
   }
   const res = document.getElementById('quad-result');
   if (res) res.textContent = '';
@@ -989,7 +1012,7 @@ function quadAddVertexForm() {
   if (typeof updatePanelDomainRanges === 'function') updatePanelDomainRanges();
 }
 
-// ── Exponentialfunktionen: allgemeine Form y = a·bˣ + c mit Schiebereglern
+// ── Exponentialfunktionen: allgemeine Form y = a·bˣ (a, b > 0) mit Schiebereglern
 // (Unterrichts-Feature) ─────────────────────────────────────────────
 // Ersetzt die frühere Punkte-Berechnung (2/3-Punkte-Fit) vollständig: statt
 // eine Kurve aus konkreten Punkten zu berechnen, fügt dies die ALLGEMEINE
@@ -1001,16 +1024,27 @@ function quadAddVertexForm() {
 // exakt dieselbe Dedup-Logik.
 function expAddGeneralForm() {
   const norm = e => e.replace(/\s+/g, '');
-  const existingFi = functions.findIndex(fn => norm(fn.expr) === 'a*b^x+c');
+  const existingFi = functions.findIndex(fn => norm(fn.expr) === 'a*b^x');
   let fi;
   if (existingFi === -1) {
-    // Unterrichts-taugliche Startwerte: a=1, b=2, c=0 → Startkurve y=2ˣ
-    // (leicht nachvollziehbar). b bewusst auf (0, 5] begrenzt — für b≤0 ist
-    // bˣ für nicht-ganzzahlige x nicht reell definiert.
-    if (!params.a) params.a = { val: 1, min: -5, max: 5, step: 0.5 };
-    if (!params.b) params.b = { val: 2, min: 0.1, max: 5, step: 0.1 };
-    if (!params.c) params.c = { val: 0, min: -5, max: 5, step: 0.5 };
-    functions.push({ expr: 'a*b^x+c', color: COLORS[functions.length % COLORS.length], visible: true });
+    // Form y = a·bˣ mit a > 0 und b > 0 (Nutzerwunsch): Startwerte a=1, b=2 → Startkurve y=2ˣ.
+    // Beide Parameter sind nur positiv wählbar (positive:true, siehe syncParams() in 03_math.js):
+    // a ist der Anfangswert, b der Wachstums-/Abnahmefaktor; für b≤0 ist bˣ bei nicht-
+    // ganzzahligen x nicht reell definiert. a und b teilen sich die Buchstaben mit der
+    // Logarithmusfunktion — ein bereits vorhandenes Parameterpaar wird deshalb auf den
+    // positiven Bereich eingeschränkt (Wert, Minimum und Schrittweite angepasst).
+    const posParam = (nm, def) => {
+      const p = params[nm];
+      if (!p) { params[nm] = def; return; }
+      p.positive = true;
+      if (!(p.min > 0)) p.min = 0.1;
+      if (!(p.max > p.min)) p.max = def.max;
+      p.step = def.step;   // 0.1-Raster passt zum Minimum 0.1 (sonst rastet der Schieber auf 1.1, 1.6 …)
+      if (!(p.val > 0)) p.val = def.val;
+    };
+    posParam('a', { val: 1, min: 0.1, max: 10, step: 0.1, positive: true });
+    posParam('b', { val: 2, min: 0.1, max: 5, step: 0.1, positive: true });
+    functions.push({ expr: 'a*b^x', color: COLORS[functions.length % COLORS.length], visible: true });
     fi = functions.length - 1;
     clearEvalCache(); renderFuncList(); syncParams(); scheduleComputeSpecials();
     pushHistory();
@@ -1384,7 +1418,7 @@ function trigAddGeneralForm() {
 
 // Sucht den nächstgelegenen Fit-Punkt aller Funktionen (14px Radius)
 function findNearFitPt(mx, my) {
-  let best = null, bestDist = 14;
+  let best = null, bestDist = hitR(14);
   functions.forEach((fn, fi) => {
     if (!fn.fitPts || fn.visible === false) return;
     fn.fitPts.forEach((pt, pi) => {
@@ -1746,7 +1780,7 @@ function showQuadNullstellen() {
     const sqN = Math.sqrt(n);
     if (Math.abs(sqN - Math.round(sqN)) < 1e-6) return String(Math.round(sqN));
     let factor = 1, rest = n;
-    for (let k = 2; k * k <= rest; k++) {
+    for (let k = 2; k * k <= rest && k < 3e6; k++) {
       while (rest % (k * k) === 0) { factor *= k; rest = rest / (k * k); }
     }
     return (rest === 1) ? String(factor) : (factor > 1 ? `${factor}·√${rest}` : `√${n}`);

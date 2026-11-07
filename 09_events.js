@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
 // MODUL: events — Maus-, Touch-Events & Undo/Redo
 // Enthält:  canvas mousedown/move/up/wheel
-//           Touch-Pinch-Zoom, Pan, Punkt-Drag
+//           Touch: Pinch-Zoom, Verschieben, Ziehen (nutzt dieselben Funktionen wie die Maus)
 //           commitAndUndo(), commitAndRedo(), pushHistory()
 // Ändern:  Zoom-Geschwindigkeit → wheelDelta-Faktor in wheel-Handler
 // ═══════════════════════════════════════════════════════════════════
@@ -30,9 +30,22 @@ function findNearSlopeTriB(mx, my) {
     const yB = safeEval(fn.expr, xB);
     if (!isFinite(yB)) continue;
     const { cx, cy } = toCanvas(xB, yB);
-    if (Math.hypot(cx - mx, cy - my) < 10) return fi;
+    if (Math.hypot(cx - mx, cy - my) < hitR(10)) return fi;
   }
   return -1;
+}
+
+// Position des Live-Tooltips (Koordinaten beim Ziehen): bei der Maus rechts oben vom Zeiger,
+// bei Touch deutlich ÜBER dem Finger, damit er nicht vom Finger verdeckt wird.
+function placeDragTip(tip, m) {
+  tip.style.display = 'block';
+  if (inputIsTouch) {
+    tip.style.left = Math.max(4, Math.min(m.x - 45, getW() - 140)) + 'px';
+    tip.style.top = Math.max(4, m.y - 78) + 'px';
+  } else {
+    tip.style.left = (m.x + 15) + 'px';
+    tip.style.top = (m.y - 25) + 'px';
+  }
 }
 
 canvas.addEventListener('pointermove', e => {
@@ -49,12 +62,26 @@ canvas.addEventListener('pointerleave', e => {
 
 canvas.addEventListener('mousedown', e => {
   e.preventDefault();
+  inputIsTouch = false;
   // Pointer-Modus: alle anderen Interaktionen blockieren
   if (pointerMode) return;
-  const m = mousePos(e);
+  canvasPress(mousePos(e));
+});
+
+// Gemeinsame Logik für MAUS und TOUCH: «Finger/Maus gedrückt an Position m».
+// Wird vom mousedown-Handler (direkt) und vom touchstart-Handler (unten, nach
+// kurzer Wartezeit, damit ein zweiter Finger noch einen Pinch statt einer
+// Punkt-Aktion auslösen kann) aufgerufen. Früher gab es für Touch eine zweite,
+// von Hand nachgepflegte Kopie dieser Logik — die hinkte der Maus-Variante
+// hinterher (kein Löschen-Kreuz bei Graph-Punkten, keine Koordinaten-Anzeige
+// beim Ziehen, andere Reihenfolge der Modi …). Jetzt gibt es nur noch EINE.
+function canvasPress(m) {
 
   // 0. Lösch-Modus: Objekt löschen
   if (deleteMode) { tryDeleteAt(m.x, m.y); return; }
+
+  // 0a. Geometrie (27_geo_ui.js): aktives Werkzeug, Punkte der Konstruktion ziehen
+  if (typeof geoPress === 'function' && geoPress(m)) return;
 
   // 0b. Graph-Punkte immer ziehbar (auch ohne graphPtMode) — Löschen per X.
   // WICHTIG: Diese Prüfung muss VOR dem Einheitskreis-Klick-Handler (unten)
@@ -63,16 +90,11 @@ canvas.addEventListener('mousedown', e => {
   // entfernt (Radius=1 ≈ Funktionswert), sonst würde ein Klick darauf
   // stattdessen fälschlich einen neuen Einheitskreis-Punkt setzen.
   {
+    // Löschen-Kreuz: nur ausserhalb des Punktkörpers (siehe findGraphPtDeleteHit(), 08_draw.js)
+    const gdel = findGraphPtDeleteHit(m.x, m.y);
+    if (gdel >= 0) { graphPoints.splice(gdel, 1); pushHistory(); scheduleDraw(); return; }
     const gi0 = findNearGP(m.x, m.y);
-    if (gi0 >= 0) {
-      const gp0 = graphPoints[gi0]; const fn0 = functions[gp0.fi];
-      const y0 = safeEval(fn0?.expr || '', gp0.x);
-      if (isFinite(y0)) {
-        const { cx: cx0, cy: cy0 } = toCanvas(gp0.x, y0);
-        if (Math.hypot(cx0+8-m.x, cy0-6-m.y) < 10) { graphPoints.splice(gi0, 1); scheduleDraw(); return; }
-      }
-      drag = { type:'graphpt', idx:gi0 }; canvas.style.cursor = 'grabbing'; return;
-    }
+    if (gi0 >= 0) { drag = { type:'graphpt', idx:gi0 }; canvas.style.cursor = 'grabbing'; return; }
   }
 
   // 0c. Einheitskreis-Punkt selbst ODER seine Projektion auf dem Graphen
@@ -208,250 +230,269 @@ canvas.addEventListener('mousedown', e => {
   // 5. Alt+Klick oder Punkt-Modus: neuen freien Punkt setzen
   if (altDown || pointMode) { addPointAt(fromCanvas(m.x, m.y).x, fromCanvas(m.x, m.y).y); return; }
 
+  // 5b. Geometrie: ganze Figur (Strecke, Kreis, Vieleck …) ziehen
+  if (typeof geoPressBody === 'function' && geoPressBody(m)) return;
+
   // 6. View draggen (Standard: Klick auf leere Fläche)
   cancelComputeSpecials(); // laufende Berechnung abbrechen während Pan
-  drag = { type:'view', startM:m, startView:{...view} }; canvas.style.cursor = 'grabbing';
-});
+  // isoView beim Start merken: Pan-Geschwindigkeit muss sich auf den ANGEZEIGTEN (isometrischen)
+  // Ausschnitt beziehen, sonst ist das Verschieben im Hochformat (Handy/Tablet) viel zu langsam.
+  drag = { type:'view', startM:m, startView:{...view}, startIso: isoView ? {...isoView} : {...view} };
+  canvas.style.cursor = 'grabbing';
+}
 
 // mousemove: Drag-Handler für alle Drag-Typen + Hover-Tracking
-canvas.addEventListener('mousemove', e => {
-  const m = mousePos(e);
-  if (drag) {
-    if (drag.type === 'view') {
-      // View verschieben: Delta in Canvas-Pixeln → Mathe-Koordinaten umrechnen
-      const w = getW(), h = getH();
-      const dx = (m.x - drag.startM.x) / w * (drag.startView.xmax - drag.startView.xmin);
-      const dy = (m.y - drag.startM.y) / h * (drag.startView.ymax - drag.startView.ymin);
-      view.xmin = drag.startView.xmin - dx; view.xmax = drag.startView.xmax - dx;
-      view.ymin = drag.startView.ymin + dy; view.ymax = drag.startView.ymax + dy; // y invertiert!
-      syncInputs(); hoverPt = null; scheduleDraw(); // kein scheduleComputeSpecials während Pan
+function canvasDragMove(m) {
+  if (!drag) return false;
+  canvasDragMoveBody(m);
+  return true;
+}
+function canvasDragMoveBody(m) {
+  if (drag.type === 'geo') { if (typeof geoDragMove === 'function') geoDragMove(m); return; }
+  if (drag.type === 'view') {
+    // View verschieben: Delta in Canvas-Pixeln → Mathe-Koordinaten umrechnen
+    const w = getW(), h = getH();
+    const si = drag.startIso || drag.startView;
+    const dx = (m.x - drag.startM.x) / w * (si.xmax - si.xmin);
+    const dy = (m.y - drag.startM.y) / h * (si.ymax - si.ymin);
+    view.xmin = drag.startView.xmin - dx; view.xmax = drag.startView.xmax - dx;
+    view.ymin = drag.startView.ymin + dy; view.ymax = drag.startView.ymax + dy; // y invertiert!
+    syncInputs(); hoverPt = null; scheduleDraw(); // kein scheduleComputeSpecials während Pan
 
-    } else if (drag.type === 'point') {
-      // Freien Punkt verschieben: direkte Koordinaten-Übertragung
-      const raw = fromCanvas(m.x, m.y);
-      const pt2 = snapToGrid(raw.x, raw.y);
-      points[drag.idx].x = pt2.x; points[drag.idx].y = pt2.y;
-      // Alle verknüpften Geraden live aktualisieren
-      updateAllLinkedLines();
-      renderPointList(); // Koordinaten in Sidebar aktualisieren
-      scheduleComputeSpecials(); // Spezielle Punkte neu berechnen (verzögert)
-      // Tooltip mit aktuellen Koordinaten zeigen
+  } else if (drag.type === 'point') {
+    // Freien Punkt verschieben: direkte Koordinaten-Übertragung
+    const raw = fromCanvas(m.x, m.y);
+    const pt2 = snapToGrid(raw.x, raw.y);
+    points[drag.idx].x = pt2.x; points[drag.idx].y = pt2.y;
+    // Alle verknüpften Geraden live aktualisieren
+    updateAllLinkedLines();
+    renderPointList(); // Koordinaten in Sidebar aktualisieren
+    scheduleComputeSpecials(); // Spezielle Punkte neu berechnen (verzögert)
+    // Tooltip mit aktuellen Koordinaten zeigen
+    const tip = document.getElementById('tooltip');
+    tip.style.display = 'block'; placeDragTip(tip, m);
+    // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
+    // (kein Bruch-Wechsel, Nutzerwunsch).
+    tip.textContent = niceCoordDec(pt2.x, pt2.y, false, 2);
+    scheduleDraw();
+
+  } else if (drag.type === 'graphpt') {
+    // Graph-Punkt entlang Kurve verschieben: x-Koordinate ändern, y folgt der Funktion
+    let newX = fromCanvas(m.x, m.y).x;
+    let snapKind = '';
+    const gp2 = graphPoints[drag.idx], fn2 = functions[gp2.fi];
+    {
+      const SNAP_PX = 20;
+      const v2 = isoView || view;
+      const pxPerUnit = getW() / (v2.xmax - v2.xmin);
+      const snapDist = SNAP_PX / pxPerUnit;
+      const mouseXMath = newX;
+      // Immer: Snap zu Sonderpunkten (Extrema, Nullstellen, Schnittpunkte)
+      let snapToSpecial = false;
+      for (const sp of specials) {
+        if (sp.fi !== gp2.fi && sp.fj !== gp2.fi) continue;
+        if (Math.abs(mouseXMath - sp.x) < snapDist) {
+          newX = sp.x; snapToSpecial = true; snapKind = sp.kind; break;
+        }
+      }
+      // Gitter-Snapping nur wenn Checkbox aktiviert
+      if (!snapToSpecial && document.getElementById('chk-gridsnap').checked) {
+        const xs = gridSnapStep();
+        const snappedX = Math.round(mouseXMath / xs) * xs;
+        if (Math.abs(mouseXMath - snappedX) < snapDist) newX = snappedX;
+      }
+    }
+    graphPoints[drag.idx].x = gpResolveX(graphPoints[drag.idx], newX, fromCanvas(m.x, m.y).x);
+    const gp = graphPoints[drag.idx], fn = functions[gp.fi];
+    if (fn) {
+      const y = safeEval(fn.expr, gp.x);
       const tip = document.getElementById('tooltip');
-      tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
+      const kindLabel = snapKind ? ` [${snapKind}]` : '';
+      tip.style.display = 'block'; placeDragTip(tip, m);
+      // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
+      // (kein Bruch-Wechsel, Nutzerwunsch).
+      tip.textContent = `f${gp.fi+1}: ${niceCoordDec(gp.x, isFinite(y) ? y : NaN, false, 2)}${kindLabel}`;
+    }
+    scheduleDraw();
+
+  } else if (drag.type === 'circlept') {
+    // Einheitskreis-Punkt entlang Kreis drehen: Winkel aus Mausposition
+    unitCirclePts[drag.idx].angle = circleAngleFromCanvas(m.x, m.y);
+    scheduleDraw();
+
+  } else if (drag.type === 'loobj') {
+    // Zielfunktions-Gerade parallel verschieben (Wert k), mit Snapping an
+    // die Eckpunkte des Planungspolygons — siehe loUpdateFromDrag() in
+    // 17_linopt.js.
+    loUpdateFromDrag(m.x, m.y);
+    const tip = document.getElementById('tooltip');
+    tip.style.display = 'block'; placeDragTip(tip, m);
+    // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
+    // (kein Bruch-Wechsel, Nutzerwunsch).
+    tip.textContent = `z = ${niceNumDec(loObjK, false, 2)}`;
+    scheduleDraw();
+
+  } else if (drag.type === 'trigproj') {
+    // Denselben Einheitskreis-Punkt über seine Projektion auf dem Graphen
+    // verschieben — Umkehrformel je nach Funktionstyp (siehe
+    // findNearTrigProjDot() in 08_draw.js: sin/tan xG=a, cos xG=a−π/2).
+    const xG = fromCanvas(m.x, m.y).x;
+    const a = drag.kind === 'cos' ? xG + PI / 2 : xG;
+    unitCirclePts[drag.ucpIdx].angle = ((a % (2 * PI)) + (2 * PI)) % (2 * PI);
+    scheduleDraw();
+
+  } else if (drag.type === 'fitpt') {
+    const fn = functions[drag.fi];
+    if (fn && fn.fitPts) {
+      const raw = fromCanvas(m.x, m.y);
+      let pt2 = snapToGrid(raw.x, raw.y);
+      // Nullstellenform: erste zwei Punkte auf x-Achse fixieren
+      if (fn.fitType === 'roots' && drag.pi < 2) pt2 = { x: pt2.x, y: 0 };
+      // Exp/Log 2-Punkte: Punkte dürfen nicht exakt gleiche x-Koordinate haben
+      // (dx=0 → b=∞). Beim Überqueren Neuberechnung kurz überspringen — danach
+      // rechnet die Formel auf der anderen Seite wieder korrekt.
+      if (fn.fitPts.length >= 2 &&
+          (fn.fitType === 'exponential' || fn.fitType === 'logarithm')) {
+        const otherX = fn.fitPts[drag.pi === 0 ? 1 : 0].x;
+        if (Math.abs(pt2.x - otherX) < 0.02) {
+          // Punkt trotzdem verschieben, aber Neuberechnung weglassen
+          fn.fitPts[drag.pi].x = pt2.x;
+          fn.fitPts[drag.pi].y = pt2.y;
+          scheduleDraw();
+          return;
+        }
+      }
+      fn.fitPts[drag.pi].x = pt2.x;
+      fn.fitPts[drag.pi].y = pt2.y;
+      recomputeFitFn(drag.fi);
+      scheduleComputeSpecials();
+      const tip = document.getElementById('tooltip');
+      tip.style.display = 'block'; placeDragTip(tip, m);
       // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
       // (kein Bruch-Wechsel, Nutzerwunsch).
       tip.textContent = niceCoordDec(pt2.x, pt2.y, false, 2);
       scheduleDraw();
+    }
 
-    } else if (drag.type === 'graphpt') {
-      // Graph-Punkt entlang Kurve verschieben: x-Koordinate ändern, y folgt der Funktion
+  } else if (drag.type === 'slopetript') {
+    // Steigungsdreieck-Punkt B entlang der Funktion verschieben (ändert Δx,
+    // Punkt A bleibt unangetastet bei seinem fixen x-Wert, z.B. 0).
+    let newX = fromCanvas(m.x, m.y).x;
+    const fnS = functions[drag.fi], ptsS = slopeTriPtsMap[drag.fi];
+    if (fnS && ptsS) {
+      const xA = ptsS[0].x;
+      const v2 = isoView || view;
+      const pxPerUnit = getW() / (v2.xmax - v2.xmin);
+      const snapDist = 20 / pxPerUnit;
+      if (document.getElementById('chk-gridsnap').checked) {
+        const xs = gridSnapStep();
+        const snappedX = Math.round(newX / xs) * xs;
+        if (Math.abs(newX - snappedX) < snapDist) newX = snappedX;
+      }
+      // Mindestabstand zu Punkt A, damit das Dreieck nicht auf Δx=0 kollabiert
+      if (Math.abs(newX - xA) < 0.05) newX = xA + (newX >= xA ? 0.05 : -0.05);
+      ptsS[1].x = newX;
+      const yB = safeEval(fnS.expr, newX);
+      const tip = document.getElementById('tooltip');
+      tip.style.display = 'block'; placeDragTip(tip, m);
+      // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
+      // (kein Bruch-Wechsel, Nutzerwunsch).
+      tip.textContent = niceCoordDec(newX, isFinite(yB) ? yB : NaN, false, 2);
+    }
+    scheduleDraw();
+
+  } else if (drag.type === 'diffquotpt') {
+    // Differenzenquotient-Applet: den gezogenen Punkt (A ODER B, siehe
+    // drag.which) entlang der Funktion verschieben — ändert h=Δx. Der
+    // gezogene Punkt darf den jeweils ANDEREN Punkt beim Ziehen NICHT
+    // überspringen — stattdessen fällt er mit ihm zusammen (h=0 exakt
+    // erlaubt, Sekante=Tangente) und bleibt danach auf der Seite, auf der
+    // das Ziehen begonnen hat (drag.side, s. mousedown).
+    if (diffQuot) {
       let newX = fromCanvas(m.x, m.y).x;
-      let snapKind = '';
-      const gp2 = graphPoints[drag.idx], fn2 = functions[gp2.fi];
-      {
+      const fnD = functions[diffQuot.fi];
+      const which = drag.which || 'B';
+      const otherX = which === 'A' ? diffQuot.xB : diffQuot.xA;
+      if (which === 'A') newX = dqSnapX(newX);   // A rastet an senkrechten Gitterlinien ein
+      newX = drag.side >= 0 ? Math.max(newX, otherX) : Math.min(newX, otherX);
+      if (which === 'A') diffQuot.xA = newX; else diffQuot.xB = newX;
+      if (fnD) {
+        const yNew = safeEval(fnD.expr, newX);
+        const tip = document.getElementById('tooltip');
+        tip.style.display = 'block'; placeDragTip(tip, m);
+        // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
+        // (kein Bruch-Wechsel, Nutzerwunsch).
+        tip.textContent = `${which}: ${niceCoordDec(newX, isFinite(yNew) ? yNew : NaN, false, 2)}`;
+      }
+    }
+    scheduleDraw();
+
+  } else if (drag.type === 'riemannpt') {
+    // Ober-/Untersummen-Applet: die gezogene Intervallgrenze (a ODER b,
+    // siehe drag.which) auf der x-Achse verschieben — exakt gleiches
+    // "kann nicht überspringen, darf zusammenfallen"-Muster wie bei
+    // diffquotpt oben, aber ohne Kurven-Bezug (die Grenzen liegen auf y=0).
+    // Kein Schnittpunkt-Snapping hier (riemann ist seit dem Auftrennen in
+    // "Ober-/Untersummen" und "Flächen" immer Einzelfunktions-Modus gegen
+    // die x-Achse — die Schnittpunkt-Fläche lebt jetzt im Flächen-Applet,
+    // siehe drag.type==='flaechept' unten).
+    if (riemann) {
+      let newX = fromCanvas(m.x, m.y).x;
+      const which = drag.which || 'B';
+      const otherX = which === 'A' ? riemann.xB : riemann.xA;
+      newX = snapGridLineX(newX);   // Gitterlinien-Snapping (Einstellung "Gitter-Snapping")
+      newX = drag.side >= 0 ? Math.max(newX, otherX) : Math.min(newX, otherX);
+      if (which === 'A') riemann.xA = newX; else riemann.xB = newX;
+      const tip = document.getElementById('tooltip');
+      tip.style.display = 'block'; placeDragTip(tip, m);
+      tip.textContent = `${which === 'A' ? 'a' : 'b'} = ${niceNumDec(newX)}`;
+    }
+    scheduleDraw();
+
+  } else if (drag.type === 'flaechept') {
+    // Flächen-Applet: die gezogene Grenze (a ODER b, siehe drag.which)
+    // verschieben — bei axis 'x'/'g' auf der x-Achse (identisches Muster
+    // wie riemannpt oben, inkl. Schnittpunkt-Snapping), bei axis 'y' AUF
+    // DER Y-ACHSE (freie vertikale Bewegung, kein Snapping, siehe
+    // drag.isects oben in mousedown). Das Snapping bei 'x'/'g' greift nur
+    // INNERHALB eines Pixel-Radius um einen Schnittpunkt (SNAP_PX, gleiche
+    // Konvention wie z.B. graphpt oben) — weit genug weggezogen, löst sich
+    // der Punkt wieder vom Schnittpunkt und folgt frei der Maus
+    // (Nutzerwunsch: "snappen, aber auch wieder verlassen können"). a und
+    // b dürfen sich dabei frei überholen (siehe _riemannSnapX(),
+    // 06_ui_functions.js, für die Begründung).
+    if (flaeche) {
+      const which = drag.which || 'B';
+      let newV;
+      if (drag.axis === 'y') {
+        newV = snapGridLineY(fromCanvas(m.x, m.y).y);
+      } else {
+        newV = fromCanvas(m.x, m.y).x;
         const SNAP_PX = 20;
         const v2 = isoView || view;
         const pxPerUnit = getW() / (v2.xmax - v2.xmin);
         const snapDist = SNAP_PX / pxPerUnit;
-        const mouseXMath = newX;
-        // Immer: Snap zu Sonderpunkten (Extrema, Nullstellen, Schnittpunkte)
-        let snapToSpecial = false;
-        for (const sp of specials) {
-          if (sp.fi !== gp2.fi && sp.fj !== gp2.fi) continue;
-          if (Math.abs(mouseXMath - sp.x) < snapDist) {
-            newX = sp.x; snapToSpecial = true; snapKind = sp.kind; break;
-          }
-        }
-        // Gitter-Snapping nur wenn Checkbox aktiviert
-        if (!snapToSpecial && document.getElementById('chk-gridsnap').checked) {
-          const xs = gridStep(v2.xmax - v2.xmin);
-          const snappedX = Math.round(mouseXMath / xs) * xs;
-          if (Math.abs(mouseXMath - snappedX) < snapDist) newX = snappedX;
-        }
+        const rawV = newV;
+        newV = _riemannSnapX(newV, drag.isects, snapDist);
+        if (newV === rawV) newV = snapGridLineX(newV);   // kein Schnittpunkt in der Nähe → Gitterlinie
       }
-      graphPoints[drag.idx].x = newX;
-      const gp = graphPoints[drag.idx], fn = functions[gp.fi];
-      if (fn) {
-        const y = safeEval(fn.expr, gp.x);
-        const tip = document.getElementById('tooltip');
-        const kindLabel = snapKind ? ` [${snapKind}]` : '';
-        tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-        // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
-        // (kein Bruch-Wechsel, Nutzerwunsch).
-        tip.textContent = `f${gp.fi+1}: ${niceCoordDec(gp.x, isFinite(y) ? y : NaN, false, 2)}${kindLabel}`;
-      }
-      scheduleDraw();
-
-    } else if (drag.type === 'circlept') {
-      // Einheitskreis-Punkt entlang Kreis drehen: Winkel aus Mausposition
-      unitCirclePts[drag.idx].angle = circleAngleFromCanvas(m.x, m.y);
-      scheduleDraw();
-
-    } else if (drag.type === 'loobj') {
-      // Zielfunktions-Gerade parallel verschieben (Wert k), mit Snapping an
-      // die Eckpunkte des Planungspolygons — siehe loUpdateFromDrag() in
-      // 17_linopt.js.
-      loUpdateFromDrag(m.x, m.y);
+      if (which === 'A') flaeche.a = newV; else flaeche.b = newV;
+      const aInp = document.getElementById('flaeche-a-input');
+      const bInp = document.getElementById('flaeche-b-input');
+      if (which === 'A' && aInp) aInp.value = niceNumDec(newV);
+      if (which === 'B' && bInp) bInp.value = niceNumDec(newV);
       const tip = document.getElementById('tooltip');
-      tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-      // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
-      // (kein Bruch-Wechsel, Nutzerwunsch).
-      tip.textContent = `z = ${niceNumDec(loObjK, false, 2)}`;
-      scheduleDraw();
-
-    } else if (drag.type === 'trigproj') {
-      // Denselben Einheitskreis-Punkt über seine Projektion auf dem Graphen
-      // verschieben — Umkehrformel je nach Funktionstyp (siehe
-      // findNearTrigProjDot() in 08_draw.js: sin/tan xG=a, cos xG=a−π/2).
-      const xG = fromCanvas(m.x, m.y).x;
-      const a = drag.kind === 'cos' ? xG + PI / 2 : xG;
-      unitCirclePts[drag.ucpIdx].angle = ((a % (2 * PI)) + (2 * PI)) % (2 * PI);
-      scheduleDraw();
-
-    } else if (drag.type === 'fitpt') {
-      const fn = functions[drag.fi];
-      if (fn && fn.fitPts) {
-        const raw = fromCanvas(m.x, m.y);
-        let pt2 = snapToGrid(raw.x, raw.y);
-        // Nullstellenform: erste zwei Punkte auf x-Achse fixieren
-        if (fn.fitType === 'roots' && drag.pi < 2) pt2 = { x: pt2.x, y: 0 };
-        // Exp/Log 2-Punkte: Punkte dürfen nicht exakt gleiche x-Koordinate haben
-        // (dx=0 → b=∞). Beim Überqueren Neuberechnung kurz überspringen — danach
-        // rechnet die Formel auf der anderen Seite wieder korrekt.
-        if (fn.fitPts.length >= 2 &&
-            (fn.fitType === 'exponential' || fn.fitType === 'logarithm')) {
-          const otherX = fn.fitPts[drag.pi === 0 ? 1 : 0].x;
-          if (Math.abs(pt2.x - otherX) < 0.02) {
-            // Punkt trotzdem verschieben, aber Neuberechnung weglassen
-            fn.fitPts[drag.pi].x = pt2.x;
-            fn.fitPts[drag.pi].y = pt2.y;
-            scheduleDraw();
-            return;
-          }
-        }
-        fn.fitPts[drag.pi].x = pt2.x;
-        fn.fitPts[drag.pi].y = pt2.y;
-        recomputeFitFn(drag.fi);
-        scheduleComputeSpecials();
-        const tip = document.getElementById('tooltip');
-        tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-        // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
-        // (kein Bruch-Wechsel, Nutzerwunsch).
-        tip.textContent = niceCoordDec(pt2.x, pt2.y, false, 2);
-        scheduleDraw();
-      }
-
-    } else if (drag.type === 'slopetript') {
-      // Steigungsdreieck-Punkt B entlang der Funktion verschieben (ändert Δx,
-      // Punkt A bleibt unangetastet bei seinem fixen x-Wert, z.B. 0).
-      let newX = fromCanvas(m.x, m.y).x;
-      const fnS = functions[drag.fi], ptsS = slopeTriPtsMap[drag.fi];
-      if (fnS && ptsS) {
-        const xA = ptsS[0].x;
-        const v2 = isoView || view;
-        const pxPerUnit = getW() / (v2.xmax - v2.xmin);
-        const snapDist = 20 / pxPerUnit;
-        if (document.getElementById('chk-gridsnap').checked) {
-          const xs = gridStep(v2.xmax - v2.xmin);
-          const snappedX = Math.round(newX / xs) * xs;
-          if (Math.abs(newX - snappedX) < snapDist) newX = snappedX;
-        }
-        // Mindestabstand zu Punkt A, damit das Dreieck nicht auf Δx=0 kollabiert
-        if (Math.abs(newX - xA) < 0.05) newX = xA + (newX >= xA ? 0.05 : -0.05);
-        ptsS[1].x = newX;
-        const yB = safeEval(fnS.expr, newX);
-        const tip = document.getElementById('tooltip');
-        tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-        // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
-        // (kein Bruch-Wechsel, Nutzerwunsch).
-        tip.textContent = niceCoordDec(newX, isFinite(yB) ? yB : NaN, false, 2);
-      }
-      scheduleDraw();
-
-    } else if (drag.type === 'diffquotpt') {
-      // Differenzenquotient-Applet: den gezogenen Punkt (A ODER B, siehe
-      // drag.which) entlang der Funktion verschieben — ändert h=Δx. Der
-      // gezogene Punkt darf den jeweils ANDEREN Punkt beim Ziehen NICHT
-      // überspringen — stattdessen fällt er mit ihm zusammen (h=0 exakt
-      // erlaubt, Sekante=Tangente) und bleibt danach auf der Seite, auf der
-      // das Ziehen begonnen hat (drag.side, s. mousedown).
-      if (diffQuot) {
-        let newX = fromCanvas(m.x, m.y).x;
-        const fnD = functions[diffQuot.fi];
-        const which = drag.which || 'B';
-        const otherX = which === 'A' ? diffQuot.xB : diffQuot.xA;
-        newX = drag.side >= 0 ? Math.max(newX, otherX) : Math.min(newX, otherX);
-        if (which === 'A') diffQuot.xA = newX; else diffQuot.xB = newX;
-        if (fnD) {
-          const yNew = safeEval(fnD.expr, newX);
-          const tip = document.getElementById('tooltip');
-          tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-          // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
-          // (kein Bruch-Wechsel, Nutzerwunsch).
-          tip.textContent = `${which}: ${niceCoordDec(newX, isFinite(yNew) ? yNew : NaN, false, 2)}`;
-        }
-      }
-      scheduleDraw();
-
-    } else if (drag.type === 'riemannpt') {
-      // Ober-/Untersummen-Applet: die gezogene Intervallgrenze (a ODER b,
-      // siehe drag.which) auf der x-Achse verschieben — exakt gleiches
-      // "kann nicht überspringen, darf zusammenfallen"-Muster wie bei
-      // diffquotpt oben, aber ohne Kurven-Bezug (die Grenzen liegen auf y=0).
-      // Kein Schnittpunkt-Snapping hier (riemann ist seit dem Auftrennen in
-      // "Ober-/Untersummen" und "Flächen" immer Einzelfunktions-Modus gegen
-      // die x-Achse — die Schnittpunkt-Fläche lebt jetzt im Flächen-Applet,
-      // siehe drag.type==='flaechept' unten).
-      if (riemann) {
-        let newX = fromCanvas(m.x, m.y).x;
-        const which = drag.which || 'B';
-        const otherX = which === 'A' ? riemann.xB : riemann.xA;
-        newX = drag.side >= 0 ? Math.max(newX, otherX) : Math.min(newX, otherX);
-        if (which === 'A') riemann.xA = newX; else riemann.xB = newX;
-        const tip = document.getElementById('tooltip');
-        tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-        tip.textContent = `${which === 'A' ? 'a' : 'b'} = ${niceNumDec(newX)}`;
-      }
-      scheduleDraw();
-
-    } else if (drag.type === 'flaechept') {
-      // Flächen-Applet: die gezogene Grenze (a ODER b, siehe drag.which)
-      // verschieben — bei axis 'x'/'g' auf der x-Achse (identisches Muster
-      // wie riemannpt oben, inkl. Schnittpunkt-Snapping), bei axis 'y' AUF
-      // DER Y-ACHSE (freie vertikale Bewegung, kein Snapping, siehe
-      // drag.isects oben in mousedown). Das Snapping bei 'x'/'g' greift nur
-      // INNERHALB eines Pixel-Radius um einen Schnittpunkt (SNAP_PX, gleiche
-      // Konvention wie z.B. graphpt oben) — weit genug weggezogen, löst sich
-      // der Punkt wieder vom Schnittpunkt und folgt frei der Maus
-      // (Nutzerwunsch: "snappen, aber auch wieder verlassen können"). a und
-      // b dürfen sich dabei frei überholen (siehe _riemannSnapX(),
-      // 06_ui_functions.js, für die Begründung).
-      if (flaeche) {
-        const which = drag.which || 'B';
-        let newV;
-        if (drag.axis === 'y') {
-          newV = fromCanvas(m.x, m.y).y;
-        } else {
-          newV = fromCanvas(m.x, m.y).x;
-          const SNAP_PX = 20;
-          const v2 = isoView || view;
-          const pxPerUnit = getW() / (v2.xmax - v2.xmin);
-          const snapDist = SNAP_PX / pxPerUnit;
-          newV = _riemannSnapX(newV, drag.isects, snapDist);
-        }
-        if (which === 'A') flaeche.a = newV; else flaeche.b = newV;
-        const aInp = document.getElementById('flaeche-a-input');
-        const bInp = document.getElementById('flaeche-b-input');
-        if (which === 'A' && aInp) aInp.value = niceNumDec(newV);
-        if (which === 'B' && bInp) bInp.value = niceNumDec(newV);
-        const tip = document.getElementById('tooltip');
-        tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-        tip.textContent = `${which === 'A' ? 'a' : 'b'} = ${niceNumDec(newV)}`;
-      }
-      scheduleDraw();
+      tip.style.display = 'block'; placeDragTip(tip, m);
+      tip.textContent = `${which === 'A' ? 'a' : 'b'} = ${niceNumDec(newV)}`;
     }
-    return; // kein Hover während Drag
+    scheduleDraw();
   }
+}
+
+canvas.addEventListener('mousemove', e => {
+  inputIsTouch = false;
+  const m = mousePos(e);
+  if (canvasDragMove(m)) return; // kein Hover während Drag
 
   // Kein Drag: Hover-Position tracken und Cursor anpassen
   hoverPt = fromCanvas(m.x, m.y).x;
@@ -464,27 +505,33 @@ canvas.addEventListener('mousemove', e => {
   const nearFP = typeof findNearFitPt === 'function' && !!findNearFitPt(m.x, m.y);
   const nearSTB = findNearSlopeTriB(m.x, m.y) >= 0;
   const nearLO = typeof findNearLoHandle === 'function' && findNearLoHandle(m.x, m.y);
+  const nearGeo = typeof geoHover === 'function' && geoHover(m);
   const nearDQ = !!findNearDiffQuotHit(m.x, m.y);
   const nearRS = typeof findNearRiemannHit === 'function' && !!findNearRiemannHit(m.x, m.y);
   const nearFS = typeof findNearFlaecheHit === 'function' && !!findNearFlaecheHit(m.x, m.y);
   // Grab-Cursor wenn Maus über ziehendem Element
-  canvas.style.cursor = (nearPt || nearGP || nearCP || nearTP || nearFP || nearSTB || nearLO || nearDQ || nearRS || nearFS) ? 'grab' : 'default';
+  canvas.style.cursor = (nearPt || nearGP || nearCP || nearTP || nearFP || nearSTB || nearLO || nearDQ || nearRS || nearFS || nearGeo) ? 'grab' : 'default';
+  if (typeof geoToolActive === 'function' && geoToolActive()) canvas.style.cursor = nearGeo ? 'pointer' : 'crosshair';
   scheduleDraw();
 });
 
 // mouseup: Drag beenden, Tooltip verstecken, Cursor zurücksetzen
-canvas.addEventListener('mouseup', e => {
+canvas.addEventListener('mouseup', () => canvasRelease());
+function canvasRelease() {
   // Undo-Eintrag nach Drag (Punkt verschieben) — muss VOR drag=null sein
-  if (drag && (drag.type === 'point' || drag.type === 'graphpt' || drag.type === 'fitpt' || drag.type === 'slopetript' || drag.type === 'trigproj' || drag.type === 'loobj' || drag.type === 'diffquotpt' || drag.type === 'riemannpt' || drag.type === 'flaechept')) pushHistory();
+  if (drag && (drag.type === 'point' || drag.type === 'graphpt' || drag.type === 'fitpt' || drag.type === 'slopetript' || drag.type === 'trigproj' || drag.type === 'loobj' || drag.type === 'diffquotpt' || drag.type === 'riemannpt' || drag.type === 'flaechept' || drag.type === 'geo')) pushHistory();
   // Nach Pan/Zoom: Sonderpunkte jetzt (einmalig) neu berechnen
   const wasPan = drag && drag.type === 'view';
+  // Geometrie-Werkzeug: Klick ins Leere (Ansicht wurde nicht verschoben) → Punkt anlegen (27_geo_ui.js)
+  const geoClk = (drag && drag.type === 'view' && drag.geoClick && drag.startView && view.xmin === drag.startView.xmin && view.xmax === drag.startView.xmax && view.ymin === drag.startView.ymin) ? drag.geoClick : null;
   drag = null;
   document.getElementById('tooltip').style.display = 'none';
   // Cursor je nach aktivem Modus
   canvas.style.cursor = pointMode || graphPtMode || line2ptPicking ? 'crosshair' : 'grab';
   if (wasPan) scheduleComputeSpecials();
+  if (geoClk && typeof geoToolClick === 'function') geoToolClick(geoClk);
   scheduleDraw();
-});
+}
 
 // mouseleave: Hover-Linie ausblenden wenn Maus den Canvas verlässt
 canvas.addEventListener('mouseleave', () => {
@@ -508,135 +555,91 @@ canvas.addEventListener('wheel', e => {
 }, { passive: false });
 
 // ═══════════════════════════════════════════════════════════════════
-// TOUCH-SUPPORT (Pinch-Zoom, Pan, Punkt-Drag)
+// TOUCH-SUPPORT (Ein-Finger: Objekt ziehen / verschieben, Zwei-Finger: Zoomen + Verschieben)
+// ───────────────────────────────────────────────────────────────────
+// Die Ein-Finger-Aktionen laufen über dieselben Funktionen wie die Maus
+// (canvasPress / canvasDragMove / canvasRelease, siehe oben). Touch-spezifisch:
+//  • Die erste Berührung wird kurz (TOUCH_PRESS_DELAY ms) zurückgehalten: landet in dieser
+//    Zeit ein zweiter Finger, ist es ein Pinch — es wird KEIN Punkt gesetzt/gelöscht.
+//    Bewegt sich der Finger oder wird er gehoben, wird die Aktion sofort ausgeführt.
+//  • Pinch: Zoom UND Verschieben gleichzeitig, der Punkt unter der Mitte der beiden Finger
+//    bleibt unter den Fingern (bezogen auf den isometrischen Ausschnitt).
+//  • Wird bei einem Pinch ein Finger gehoben, bleibt der andere zum Verschieben aktiv.
+//  • touchcancel / Fensterwechsel / Drehen setzen den Zustand zurück (sonst «klebt» ein Zug).
 // ═══════════════════════════════════════════════════════════════════
 
-let touchState = null; // { type:'pan'|'pinch'|'drag', ... }
+let touchState = null; // null | {type:'pending'} | {type:'drag'} | {type:'tap'} | {type:'pinch', …}
+let _pendingPress = null; // { m, timer }
+const TOUCH_PRESS_DELAY = 70;
 
 function touchPos(t) {
   const r = canvas.getBoundingClientRect();
   return { x: t.clientX - r.left, y: t.clientY - r.top };
 }
 
+// Führt die zurückgehaltene erste Berührung jetzt aus.
+function _flushTouchPress() {
+  if (!_pendingPress) return;
+  clearTimeout(_pendingPress.timer);
+  const m = _pendingPress.m;
+  _pendingPress = null;
+  canvasPress(m);
+  touchState = { type: drag ? 'drag' : 'tap' };
+}
+function _dropTouchPress() {
+  if (_pendingPress) { clearTimeout(_pendingPress.timer); _pendingPress = null; }
+}
+
+// Beendet jede laufende Touch-Aktion sauber (History-Eintrag, Tooltip, Sonderpunkte).
+function _endTouchAll() {
+  _dropTouchPress();
+  if (drag) canvasRelease();
+  touchState = null;
+  const tip = document.getElementById('tooltip'); if (tip) tip.style.display = 'none';
+  scheduleDraw();
+}
+
+function _startPinch(touches) {
+  const a = touchPos(touches[0]), b2 = touchPos(touches[1]);
+  const cx = (a.x + b2.x) / 2, cy = (a.y + b2.y) / 2;
+  touchState = {
+    type: 'pinch',
+    startDist: Math.max(Math.hypot(a.x - b2.x, a.y - b2.y), 1),
+    startIso: isoView ? { ...isoView } : { ...view },
+    centerM: { x: cx, y: cy }, centerPt: fromCanvas(cx, cy),
+    active: false          // wird true, sobald die Finger sich merklich bewegt haben (Totzone)
+  };
+}
+
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
+  inputIsTouch = true;
   // Pointer-Modus: Touch-Interaktion blockieren (pointermove übernimmt Position)
   if (pointerMode) return;
   const touches = e.touches;
 
+  // Tippen auf die Zeichenfläche beendet die Texteingabe: Eingabefeld verlassen und Bildschirmtastatur
+  // einklappen (preventDefault oben verhindert sonst das normale Verlassen des Fokus).
   if (touches.length === 1) {
-    const m = touchPos(touches[0]);
-
-    // 0. Lösch-Modus: Objekt löschen
-    if (deleteMode) { tryDeleteAt(m.x, m.y); return; }
-
-    // 0b. Graph-Punkte immer ziehbar — VOR dem Einheitskreis-Klick-Handler
-    // (s. mousedown 0b): Punkte auf sin/cos/tan (trigAddFunction()) liegen
-    // oft nur wenige Pixel vom Einheitskreis entfernt.
-    const gi0 = findNearGP(m.x, m.y);
-    if (gi0 >= 0) { drag = { type:'graphpt', idx:gi0 }; touchState = { type:'drag' }; return; }
-
-    // 0c. Einheitskreis-Punkt selbst ODER seine Projektion auf dem Graphen
-    // (siehe mousedown 0c) — per Distanzvergleich, welches Ziel näher liegt.
-    if (document.getElementById('chk-unitcircle').checked) {
-      const hit0t = findNearCircleOrTrigHit(m.x, m.y);
-      if (hit0t && hit0t.type === 'circlept') { drag = { type:'circlept', idx: hit0t.idx }; touchState = { type:'drag' }; return; }
-      if (hit0t && hit0t.type === 'trigproj') { drag = { type:'trigproj', ucpIdx: hit0t.ucpIdx, kind: hit0t.kind }; touchState = { type:'drag' }; return; }
-    }
-
-    // 0d. Zielfunktions-Griff (siehe mousedown 0d)
-    if (typeof findNearLoHandle === 'function' && findNearLoHandle(m.x, m.y)) {
-      drag = { type:'loobj' }; touchState = { type:'drag' }; return;
-    }
-
-    // Einheitskreis: Klick nahe dem Ring, aber auf keinen bestehenden Punkt
-    // (schon oben abgefangen) → neuen Punkt setzen/löschen.
-    if (document.getElementById('chk-unitcircle').checked) {
-      if (unitCircleHandleClick(m.x, m.y)) return;
-    }
-
-    // 1b. Fit-Pick-Modus: Koordinaten in das nächste leere Punktfeld eintragen
-    if (fitPickMode) { fitPickClick(m.x, m.y); return; }
-
-    // 1c. Steigungsdreieck-Pick-Modus
-    if (slopeTriPickMode) { slopeTriPickClick(m.x, m.y); return; }
-
-    // 1d. Senkrechte/Mittelsenkrechte: 2-Schritt-Klick-Ablauf (siehe oben)
-    if (perpFlowKind) { perpFlowPickClick(m.x, m.y); return; }
-
-    // 2-Punkt-Picking?
-    if (line2ptPicking) { line2ptPickClick(m.x, m.y); return; }
-
-    // Steigungsdreieck-Punkt B ziehen? (vor Graph-Punkt-Checks, s. mousedown)
-    const sfiT = findNearSlopeTriB(m.x, m.y);
-    if (sfiT >= 0) { drag = { type:'slopetript', fi: sfiT, pi: 1 }; touchState = { type:'drag' }; return; }
-
-    // Differenzenquotient-Applet: Punkt A ODER B ziehen (s. mousedown 2c)
-    {
-      const dqHitT = findNearDiffQuotHit(m.x, m.y);
-      if (dqHitT) {
-        const otherXT = dqHitT === 'A' ? diffQuot.xB : diffQuot.xA;
-        const ownXT = dqHitT === 'A' ? diffQuot.xA : diffQuot.xB;
-        const sideT = ownXT >= otherXT ? 1 : -1;
-        drag = { type:'diffquotpt', which: dqHitT, side: sideT }; touchState = { type:'drag' }; return;
-      }
-    }
-
-    // Ober-/Untersummen-Applet: Intervallgrenze a ODER b ziehen (s. mousedown 2d)
-    {
-      const rHitT = typeof findNearRiemannHit === 'function' ? findNearRiemannHit(m.x, m.y) : null;
-      if (rHitT) {
-        const otherXT = rHitT === 'A' ? riemann.xB : riemann.xA;
-        const ownXT = rHitT === 'A' ? riemann.xA : riemann.xB;
-        const sideT = ownXT >= otherXT ? 1 : -1;
-        drag = { type:'riemannpt', which: rHitT, side: sideT, isects: null }; touchState = { type:'drag' }; return;
-      }
-    }
-
-    // Flächen-Applet: Grenze a ODER b ziehen (s. mousedown 2e — kein
-    // "nicht überspringen"-Constraint, a/b dürfen sich frei überholen)
-    {
-      const fHitT = typeof findNearFlaecheHit === 'function' ? findNearFlaecheHit(m.x, m.y) : null;
-      if (fHitT) {
-        let isectsT = null;
-        if (flaeche.axis !== 'y' && functions[flaeche.fi1]) {
-          const expr2T = flaeche.axis === 'g' ? (functions[flaeche.fi2] && functions[flaeche.fi2].expr) : '0';
-          if (expr2T !== undefined && expr2T !== null) {
-            const [loT, hiT] = _riemannIsectSearchRange();
-            isectsT = _riemannFindIntersections(functions[flaeche.fi1].expr, expr2T, loT, hiT);
-          }
-        }
-        drag = { type:'flaechept', which: fHitT, isects: isectsT, axis: flaeche.axis }; touchState = { type:'drag' }; return;
-      }
-    }
-
-    // Fit-Punkt ziehen?
-    const fpt = typeof findNearFitPt === 'function' ? findNearFitPt(m.x, m.y) : null;
-    if (fpt) { drag = { type:'fitpt', fi: fpt.fi, pi: fpt.pi }; touchState = { type:'drag' }; return; }
-
-    // Freier Punkt ziehen?
-    const pi = findNearPoint(m.x, m.y);
-    if (pi >= 0) { drag = { type:'point', idx:pi }; touchState = { type:'drag' }; return; }
-
-    // Punkt-setzen-Modus?
-    if (pointMode) { addPointAt(fromCanvas(m.x, m.y).x, fromCanvas(m.x, m.y).y); return; }
-    if (graphPtMode) { addGraphPoint(m.x, m.y); return; }
-
-    // Pan — isoView beim Start merken für korrekte Panning-Geschwindigkeit
-    // Ohne das ist vertikales Panning im Hochformat viel zu langsam,
-    // da isoView.yrange >> view.yrange wenn Canvas hochformatig ist.
-    const isoAtStart = isoView ? {...isoView} : {...view};
-    touchState = { type:'pan', startM: m, startView: {...view}, startIso: isoAtStart };
+    const ae = document.activeElement;
+    if (ae && ae !== document.body && typeof ae.blur === 'function' && /^(MATH-FIELD|INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) ae.blur();
+    try { if (window.mathVirtualKeyboard && window.mathVirtualKeyboard.visible) window.mathVirtualKeyboard.hide(); } catch (ex) { /* ignorieren */ }
+  }
+  if (touches.length === 1) {
+    // Veralteter Zustand (z.B. verpasstes touchend)? → erst sauber beenden
+    if (touchState) _endTouchAll();
+    touchState = { type: 'pending' };
+    _pendingPress = { m: touchPos(touches[0]), timer: setTimeout(_flushTouchPress, TOUCH_PRESS_DELAY) };
 
   } else if (touches.length === 2) {
-    const a = touchPos(touches[0]), b2 = touchPos(touches[1]);
-    const dist = Math.hypot(a.x - b2.x, a.y - b2.y);
-    const cx = (a.x + b2.x) / 2, cy2 = (a.y + b2.y) / 2;
+    // Zweiter Finger: zurückgehaltene Berührung verwerfen, laufenden Zug (Punkt …) abschliessen
+    _dropTouchPress();
+    if (drag) canvasRelease();
     drag = null;
-    touchState = { type:'pinch', startDist: dist, startView: {...view},
-                   centerM: {x: cx, y: cy2}, centerPt: fromCanvas(cx, cy2),
-                   gesture: null }; // wird auf 'zoom' oder 'pan' gesperrt
+    const tip = document.getElementById('tooltip'); if (tip) tip.style.display = 'none';
+    _startPinch(touches);
   }
+  // 3 oder mehr Finger: ignorieren (der Pinch läuft mit den ersten zwei weiter)
 }, { passive: false });
 
 canvas.addEventListener('touchmove', e => {
@@ -644,193 +647,85 @@ canvas.addEventListener('touchmove', e => {
   if (!touchState) return;
   const touches = e.touches;
 
-  if (touchState.type === 'drag' && drag && touches.length === 1) {
-    const m = touchPos(touches[0]);
-    // Dieselbe Logik wie mousemove
-    if (drag.type === 'point') {
-      const raw = fromCanvas(m.x, m.y);
-      const pt2 = snapToGrid(raw.x, raw.y);
-      points[drag.idx].x = pt2.x; points[drag.idx].y = pt2.y;
-      updateAllLinkedLines(); renderPointList(); scheduleComputeSpecials();
-      const tip = document.getElementById('tooltip');
-      tip.style.display = 'block'; tip.style.left = (m.x+15)+'px'; tip.style.top = (m.y-25)+'px';
-      // Live-Tooltip während des Ziehens → fest dezimal, 2 Nachkommastellen
-      // (kein Bruch-Wechsel, Nutzerwunsch).
-      tip.textContent = niceCoordDec(pt2.x, pt2.y, false, 2);
-    } else if (drag.type === 'graphpt') {
-      let newX = fromCanvas(m.x, m.y).x;
-      const gp2t = graphPoints[drag.idx];
-      if (gp2t) {
-        const SNAP_PX = 20;
-        const v2 = isoView || view;
-        const pxPerUnit = getW() / (v2.xmax - v2.xmin);
-        const snapDist = SNAP_PX / pxPerUnit;
-        const mouseXMath = newX;
-        let snapped = false;
-        for (const sp of specials) {
-          if (sp.fi !== gp2t.fi && sp.fj !== gp2t.fi) continue;
-          if (Math.abs(mouseXMath - sp.x) < snapDist) { newX = sp.x; snapped = true; break; }
-        }
-        if (!snapped && document.getElementById('chk-gridsnap').checked) {
-          const xs = gridStep(v2.xmax - v2.xmin);
-          const snappedX = Math.round(mouseXMath / xs) * xs;
-          if (Math.abs(mouseXMath - snappedX) < snapDist) newX = snappedX;
-        }
-      }
-      graphPoints[drag.idx].x = newX;
-    } else if (drag.type === 'circlept') {
-      unitCirclePts[drag.idx].angle = circleAngleFromCanvas(m.x, m.y);
-    } else if (drag.type === 'trigproj') {
-      const xGt = fromCanvas(m.x, m.y).x;
-      const at = drag.kind === 'cos' ? xGt + PI / 2 : xGt;
-      unitCirclePts[drag.ucpIdx].angle = ((at % (2 * PI)) + (2 * PI)) % (2 * PI);
-    } else if (drag.type === 'loobj') {
-      loUpdateFromDrag(m.x, m.y);
-    } else if (drag.type === 'fitpt') {
-      const fn = functions[drag.fi];
-      if (fn && fn.fitPts) {
-        const raw = fromCanvas(m.x, m.y);
-        let pt2 = snapToGrid(raw.x, raw.y);
-        if (fn.fitType === 'roots' && drag.pi < 2) pt2 = { x: pt2.x, y: 0 };
-        // Exp/Log 2-Punkte: Überqueren erlaubt, nur bei dx≈0 Neuberechnung überspringen
-        if (fn.fitPts.length >= 2 &&
-            (fn.fitType === 'exponential' || fn.fitType === 'logarithm')) {
-          const otherX = fn.fitPts[drag.pi === 0 ? 1 : 0].x;
-          if (Math.abs(pt2.x - otherX) < 0.02) {
-            fn.fitPts[drag.pi].x = pt2.x;
-            fn.fitPts[drag.pi].y = pt2.y;
-            scheduleDraw();
-            return;
-          }
-        }
-        fn.fitPts[drag.pi].x = pt2.x;
-        fn.fitPts[drag.pi].y = pt2.y;
-        recomputeFitFn(drag.fi);
-        scheduleComputeSpecials();
-      }
-    } else if (drag.type === 'slopetript') {
-      let newX = fromCanvas(m.x, m.y).x;
-      const fnS = functions[drag.fi], ptsS = slopeTriPtsMap[drag.fi];
-      if (fnS && ptsS) {
-        const xA = ptsS[0].x;
-        const v2 = isoView || view;
-        const pxPerUnit = getW() / (v2.xmax - v2.xmin);
-        const snapDist = 20 / pxPerUnit;
-        if (document.getElementById('chk-gridsnap').checked) {
-          const xs = gridStep(v2.xmax - v2.xmin);
-          const snappedX = Math.round(newX / xs) * xs;
-          if (Math.abs(newX - snappedX) < snapDist) newX = snappedX;
-        }
-        if (Math.abs(newX - xA) < 0.05) newX = xA + (newX >= xA ? 0.05 : -0.05);
-        ptsS[1].x = newX;
-      }
-    } else if (drag.type === 'diffquotpt') {
-      // Differenzenquotient-Applet: Punkt A ODER B ziehen (s. mousemove-
-      // Handler oben — darf den anderen Punkt nicht überspringen, bleibt auf
-      // drag.side und darf mit ihm zusammenfallen, h=0 exakt erlaubt)
-      if (diffQuot) {
-        let newX = fromCanvas(m.x, m.y).x;
-        const which = drag.which || 'B';
-        const otherX = which === 'A' ? diffQuot.xB : diffQuot.xA;
-        newX = drag.side >= 0 ? Math.max(newX, otherX) : Math.min(newX, otherX);
-        if (which === 'A') diffQuot.xA = newX; else diffQuot.xB = newX;
-      }
-    } else if (drag.type === 'riemannpt') {
-      // Ober-/Untersummen-Applet: Intervallgrenze a ODER b ziehen (s.
-      // mousemove-Handler oben — gleiches Muster wie diffquotpt, aber ohne
-      // Kurven-Bezug, da a/b auf der x-Achse liegen)
-      if (riemann) {
-        let newX = fromCanvas(m.x, m.y).x;
-        const which = drag.which || 'B';
-        const otherX = which === 'A' ? riemann.xB : riemann.xA;
-        newX = drag.side >= 0 ? Math.max(newX, otherX) : Math.min(newX, otherX);
-        if (which === 'A') riemann.xA = newX; else riemann.xB = newX;
-      }
-    } else if (drag.type === 'flaechept') {
-      // Flächen-Applet: Grenze a ODER b ziehen (s. mousemove-Handler oben —
-      // axis 'x'/'g' auf der x-Achse mit Schnittpunkt-Snapping INNERHALB
-      // eines Pixel-Radius (verlässt den Schnittpunkt wieder, wenn man
-      // weiterzieht), axis 'y' auf der y-Achse ohne Snapping)
-      if (flaeche) {
-        const which = drag.which || 'B';
-        let newV;
-        if (drag.axis === 'y') {
-          newV = fromCanvas(m.x, m.y).y;
-        } else {
-          newV = fromCanvas(m.x, m.y).x;
-          const SNAP_PX = 20;
-          const v2 = isoView || view;
-          const pxPerUnit = getW() / (v2.xmax - v2.xmin);
-          const snapDist = SNAP_PX / pxPerUnit;
-          newV = _riemannSnapX(newV, drag.isects, snapDist);
-        }
-        if (which === 'A') flaeche.a = newV; else flaeche.b = newV;
-        const aInp = document.getElementById('flaeche-a-input');
-        const bInp = document.getElementById('flaeche-b-input');
-        if (which === 'A' && aInp) aInp.value = niceNumDec(newV);
-        if (which === 'B' && bInp) bInp.value = niceNumDec(newV);
-      }
-    }
-    scheduleDraw();
+  if (touchState.type === 'pending') {
+    if (touches.length !== 1) return;
+    _flushTouchPress();            // Finger bewegt sich → Aktion (Ziehen/Verschieben) beginnt jetzt
+  }
 
-  } else if (touchState.type === 'pan' && touches.length === 1) {
-    const m = touchPos(touches[0]);
-    const w = getW(), h = getH();
-    const sv = touchState.startView;
-    const si = touchState.startIso || sv; // isoView beim Pan-Start → korrekte Geschwindigkeit
-    // Absolutes Delta vom Pan-Startpunkt (verhindert Akkumulations-Fehler)
-    const dx = (m.x - touchState.startM.x) / w * (si.xmax - si.xmin);
-    const dy = (m.y - touchState.startM.y) / h * (si.ymax - si.ymin);
-    view.xmin = sv.xmin - dx; view.xmax = sv.xmax - dx;
-    view.ymin = sv.ymin + dy; view.ymax = sv.ymax + dy;
-    syncInputs(); scheduleDraw(); // kein scheduleComputeSpecials während Touch-Pan
+  if (touchState.type === 'drag' && touches.length >= 1) {
+    canvasDragMove(touchPos(touches[0]));
 
-  } else if (touchState.type === 'pinch' && touches.length === 2) {
+  } else if (touchState.type === 'pinch' && touches.length >= 2) {
+    const st = touchState;
     const a = touchPos(touches[0]), b2 = touchPos(touches[1]);
-    const dist = Math.hypot(a.x - b2.x, a.y - b2.y);
+    const dist = Math.max(Math.hypot(a.x - b2.x, a.y - b2.y), 1);
     const cx = (a.x + b2.x) / 2, cy = (a.y + b2.y) / 2;
     const w = getW(), h = getH();
-    const sv = touchState.startView;
 
-    // Geste bestimmen (einmalig sperren), sobald eine Schwelle überschritten wird
-    if (!touchState.gesture) {
-      const zoomDelta = Math.abs(dist / touchState.startDist - 1);
-      const panDelta  = Math.hypot(cx - touchState.centerM.x, cy - touchState.centerM.y);
-      if      (zoomDelta > 0.04) touchState.gesture = 'zoom';
-      else if (panDelta  > 8)    touchState.gesture = 'pan';
-      else return; // noch unklar — warten
+    if (!st.active) {
+      const zoomDelta = Math.abs(dist / st.startDist - 1);
+      const panDelta = Math.hypot(cx - st.centerM.x, cy - st.centerM.y);
+      if (zoomDelta > 0.03 || panDelta > 6) st.active = true; else return;
     }
-
-    if (touchState.gesture === 'zoom') {
-      // Zoom um den festen Startmittelpunkt
-      const factor = touchState.startDist / dist;
-      const cp = touchState.centerPt;
-      view.xmin = cp.x + (sv.xmin - cp.x) * factor;
-      view.xmax = cp.x + (sv.xmax - cp.x) * factor;
-      view.ymin = cp.y + (sv.ymin - cp.y) * factor;
-      view.ymax = cp.y + (sv.ymax - cp.y) * factor;
-    } else {
-      // Pan: Versatz des Finger-Mittelpunkts relativ zum Startpunkt (stabil, kein Drift)
-      const dxMath = (cx - touchState.centerM.x) / w * (sv.xmax - sv.xmin);
-      const dyMath = (cy - touchState.centerM.y) / h * (sv.ymax - sv.ymin);
-      view.xmin = sv.xmin - dxMath; view.xmax = sv.xmax - dxMath;
-      view.ymin = sv.ymin + dyMath; view.ymax = sv.ymax + dyMath;
-    }
-
+    // Neuer Ausschnitt: Spannweite = Start-Spannweite × Faktor, und der Mathe-Punkt, der beim
+    // Start unter der Fingermitte lag, liegt jetzt unter der AKTUELLEN Fingermitte.
+    const factor = st.startDist / dist;
+    const si = st.startIso, cp = st.centerPt;
+    const spanX = (si.xmax - si.xmin) * factor, spanY = (si.ymax - si.ymin) * factor;
+    view.xmin = cp.x - (cx / w) * spanX;          view.xmax = view.xmin + spanX;
+    view.ymin = cp.y - (1 - cy / h) * spanY;      view.ymax = view.ymin + spanY;
     syncInputs(); scheduleDraw(); // kein scheduleComputeSpecials während Pinch
   }
 }, { passive: false });
 
-canvas.addEventListener('touchend', e => {
+// Gemeinsame Behandlung von touchend / touchcancel
+function _touchEnded(e, cancelled) {
   e.preventDefault();
-  if (drag && (drag.type === 'point' || drag.type === 'graphpt' || drag.type === 'fitpt' || drag.type === 'slopetript' || drag.type === 'trigproj' || drag.type === 'loobj' || drag.type === 'diffquotpt' || drag.type === 'riemannpt' || drag.type === 'flaechept')) pushHistory();
-  const wasPanOrPinch = touchState && (touchState.type === 'pan' || touchState.type === 'pinch');
-  drag = null; touchState = null;
-  document.getElementById('tooltip').style.display = 'none';
-  // Nach Pan/Pinch: Sonderpunkte einmalig neu berechnen
-  if (wasPanOrPinch) scheduleComputeSpecials();
-  scheduleDraw();
-}, { passive: false });
+  if (!touchState) return;
+  const n = e.touches.length;
+
+  if (touchState.type === 'pinch') {
+    if (n >= 2) { _startPinch(e.touches); return; }          // 3 → 2 Finger: neu aufsetzen
+    if (n === 1 && !cancelled) {
+      // Ein Finger bleibt liegen → damit weiter verschieben (Ausgangspunkt = jetzige Position)
+      cancelComputeSpecials();
+      drag = { type: 'view', startM: touchPos(e.touches[0]), startView: { ...view },
+               startIso: isoView ? { ...isoView } : { ...view } };
+      touchState = { type: 'drag' };
+      return;
+    }
+    touchState = null;
+    scheduleComputeSpecials(); scheduleDraw();               // Nach Pinch: Sonderpunkte einmalig neu berechnen
+    return;
+  }
+  if (touchState.type === 'pending') {
+    if (cancelled) _dropTouchPress(); else _flushTouchPress();  // kurzes Antippen: Aktion jetzt ausführen
+  }
+  if (n === 0 || cancelled || touchState) _endTouchAll();
+}
+canvas.addEventListener('touchend', e => _touchEnded(e, false), { passive: false });
+canvas.addEventListener('touchcancel', e => _touchEnded(e, true), { passive: false });
+// Fenster verliert den Fokus / Bildschirm wird gedreht → kein hängender Zug
+window.addEventListener('blur', () => { if (touchState) _endTouchAll(); });
+window.addEventListener('orientationchange', () => { if (touchState) _endTouchAll(); });
+// Safari (iOS und Mac): Seiten-Zoom per Pinch/Doppeltipp verhindern — auf der ganzen Seite, nicht nur auf der
+// Zeichenfläche. Safari merkt sich die Seiten-Zoomstufe pro Website und wendet sie beim nächsten Laden an; die
+// Pinch-Geste über der Zeichenfläche soll nur den Plot zoomen und diese gespeicherte Stufe nicht verändern.
+['gesturestart', 'gesturechange', 'gestureend'].forEach(ev =>
+  document.addEventListener(ev, e => e.preventDefault(), { passive: false, capture: true }));
+// Trackpad-Pinch kommt in Chrome/Firefox (und teils Safari) als Mausrad mit Ctrl: ebenfalls kein Seiten-Zoom
+document.addEventListener('wheel', e => { if (e.ctrlKey && e.cancelable) e.preventDefault(); }, { passive: false, capture: true });
+// Falls Safari trotzdem mit gespeicherter Zoomstufe startet: Hinweis, wie man sie zurücksetzt (Cmd+0)
+window.addEventListener('load', () => setTimeout(() => {
+  try {
+    const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome|Chromium|Edg|OPR/.test(navigator.userAgent);
+    const z = window.outerWidth / Math.max(1, window.innerWidth);
+    if (isSafari && z >= 1.45 && window.EGGS && EGGS.toast)
+      EGGS.toast('Safari zeigt die Seite vergrössert an (gespeicherte Zoomstufe). Mit ⌘0 (Darstellung → Tatsächliche Grösse) stimmt es wieder.', 9000);
+  } catch (err) {}
+}, 1200));
+// Langes Drücken (Kontextmenü / Textauswahl) auf der Zeichenfläche per Touch unterdrücken
+canvas.addEventListener('contextmenu', e => { if (inputIsTouch) e.preventDefault(); });
 
 // Alt-Taste tracken (Alt+Klick = Punkt setzen)
 document.addEventListener('keydown', e => {
@@ -895,7 +790,36 @@ function captureState() {
     // Lineare Optimierung (siehe 17_linopt.js) — optional-verkettet, da ältere
     // gespeicherte Zustände (vor Einführung dieses Features) diese Felder
     // nicht kennen; applyState() unten setzt dann einfach die Defaults.
-    loConstraints, loObjA, loObjB, loObjK, loObjActive, loMode, loObjKMin, loObjKMax
+    loConstraints, loObjA, loObjB, loObjK, loObjActive, loMode, loObjKMin, loObjKMax,
+    // Geometrie (siehe 26_geo.js) — fehlt in älteren Zuständen, dann leer
+    geo: typeof geoCapture === 'function' ? geoCapture() : undefined,
+    // 3D-Raum (siehe 29_3d.js / 30_3d_ui.js)
+    td3d: typeof tdCapture === 'function' ? tdCapture() : undefined,
+    // Balken bei Funktionen (siehe 31_bars2d.js)
+    bars2d: typeof fbCapture === 'function' ? fbCapture() : undefined,
+    // Umgebung (siehe 32_env.js): welches Thema, plus die Zusatzdaten der Anwendungen
+    // (Differenzenquotient, Integral, Folgen, besondere Punkte …)
+    // Algebra (siehe 33_alg_core.js / 34_alg_ui.js)
+    alg: typeof algCapture === 'function' ? algCapture() : undefined,
+    // Wahrscheinlichkeit und Statistik (siehe 40_stat.js / 42_stat_ui.js)
+    stat: typeof statCapture === 'function' ? statCapture() : undefined,
+    // Finanzmathematik (siehe 50_fin.js / 52_fin_ui.js)
+    fin: typeof finCapture === 'function' ? finCapture() : undefined,
+    // Differentialrechnung (siehe 62_dif_ui.js)
+    dif: typeof difCapture === 'function' ? difCapture() : undefined,
+    itg: typeof itgCapture === 'function' ? itgCapture() : undefined,
+    lin: typeof linCapture === 'function' ? linCapture() : undefined,
+    quad: typeof quadCapture === 'function' ? quadCapture() : undefined,
+    pow: typeof powCapture === 'function' ? powCapture() : undefined,
+    exp: typeof expCapture === 'function' ? expCapture() : undefined,
+    trig: typeof trigCapture === 'function' ? trigCapture() : undefined,
+    inv: typeof invCapture === 'function' ? invCapture() : undefined,
+    intro: typeof funCapture === 'function' ? funCapture() : undefined,
+    sim: typeof simCapture === 'function' ? simCapture() : undefined,
+    seqx: typeof seqCapture === 'function' ? seqCapture() : undefined,
+    lox: typeof lopCapture === 'function' ? lopCapture() : undefined,
+    env: typeof ENV !== 'undefined' ? ENV.cur : undefined,
+    ext: typeof envCaptureExt === 'function' ? envCaptureExt() : undefined
   }));
 }
 
@@ -904,6 +828,8 @@ function applyState(s) {
   historyPaused = true;
   // Deep Copy! Ohne dies würden Live-Mutations die History-Einträge korrumpieren.
   const sc = JSON.parse(JSON.stringify(s));
+  // Gehört der Zustand zu einer anderen Umgebung (z. B. beim Laden einer Datei), zuerst dorthin wechseln
+  if (typeof envEnsure === 'function' && typeof envGuess === 'function') envEnsure(envGuess(sc));
   // Fallbacks: ältere/fremde .plotter-Dateien kennen nicht alle Felder.
   functions = sc.functions || []; params = sc.params || {}; points = sc.points || [];
   linkedLines = sc.linkedLines || []; graphPoints = sc.graphPoints || [];
@@ -913,6 +839,25 @@ function applyState(s) {
   loConstraints = sc.loConstraints || []; loObjA = sc.loObjA ?? 1; loObjB = sc.loObjB ?? 1;
   loObjK = sc.loObjK ?? 0; loObjActive = sc.loObjActive || false; loMode = sc.loMode || 'max';
   loObjKMin = sc.loObjKMin ?? -10; loObjKMax = sc.loObjKMax ?? 10;
+  if (typeof geoApply === 'function') { geoApply(sc.geo); if (typeof geoAfterApply === 'function') geoAfterApply(); }
+  if (typeof tdApply === 'function') tdApply(sc.td3d);
+  if (typeof fbApply === 'function') fbApply(sc.bars2d);
+  if (typeof algApply === 'function') algApply(sc.alg);
+  if (typeof statApply === 'function') statApply(sc.stat);
+  if (typeof finApply === 'function') finApply(sc.fin);
+  if (typeof difApply === 'function') difApply(sc.dif);
+  if (typeof itgApply === 'function') itgApply(sc.itg);
+  if (typeof linApply === 'function') linApply(sc.lin);
+  if (typeof quadApply === 'function') quadApply(sc.quad);
+  if (typeof powApply === 'function') powApply(sc.pow);
+  if (typeof expApply === 'function') expApply(sc.exp);
+  if (typeof trigApply === 'function') trigApply(sc.trig);
+  if (typeof invApply === 'function') invApply(sc.inv);
+  if (typeof funApply === 'function') funApply(sc.intro);
+  if (typeof simApply === 'function') simApply(sc.sim);
+  if (typeof seqApply === 'function') seqApply(sc.seqx);
+  if (typeof lopApply === 'function') lopApply(sc.lox);
+  if (typeof envApplyExt === 'function') envApplyExt(sc.ext);
   if (typeof clearLoEvalCache === 'function') clearLoEvalCache();
   if (typeof renderLoConstraints === 'function') renderLoConstraints();
   const loInp = document.getElementById('lo-obj-input');

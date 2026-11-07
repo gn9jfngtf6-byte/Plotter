@@ -23,7 +23,13 @@ function addGraphPoint(mx, my) {
     if (dist < bestDist) { bestDist = dist; bestFi = i; bestX = pt.x; }
   });
   if (bestFi < 0 || bestDist > 50) return; // zu weit weg von jeder Kurve
+  // Gitter-Snapping: neuer Punkt rastet auf eine nahe senkrechte Gitterlinie ein (falls f dort definiert ist)
+  const _sx = snapGridLineX(bestX);
+  if (_sx !== bestX && isFinite(safeEval(functions[bestFi].expr, _sx))) bestX = _sx;
+  // Kein zweiter Punkt direkt auf einem bestehenden (sonst liegen zwei Punkte exakt übereinander)
+  if (graphPoints.some(g => g.fi === bestFi && Math.abs(toCanvas(g.x, 0).cx - toCanvas(bestX, 0).cx) < 8)) return;
   graphPoints.push({ fi: bestFi, x: bestX, color: functions[bestFi].color });
+  pushHistory();
   scheduleDraw();
 }
 
@@ -31,11 +37,11 @@ function addGraphPoint(mx, my) {
 // Gibt Index zurück oder -1.
 function findNearGP(mx, my) {
   for (let i = graphPoints.length - 1; i >= 0; i--) {
-    const gp = graphPoints[i]; const fn = functions[gp.fi]; if (!fn || !fn.expr.trim()) continue;
+    const gp = graphPoints[i]; const fn = functions[gp.fi]; if (!fn || !fn.expr.trim() || fn.visible === false) continue;   // ausgeblendete Funktion: Punkt ist nicht sichtbar → auch nicht klickbar
     const y = safeEval(fn.expr, gp.x); if (!isFinite(y)) continue;
     const { cx, cy } = toCanvas(gp.x, y);
-    // Auf Touch-Geräten größere Trefferfläche (22px statt 14px)
-    const HIT_GP = ('ontouchstart' in window) ? 22 : 14;
+    // Bei Touch größere Trefferfläche (hitR(), 02_core.js)
+    const HIT_GP = hitR(14);
     if (Math.hypot(cx - mx, cy - my) < HIT_GP) return i;
   }
   return -1;
@@ -72,13 +78,49 @@ function drawGraphPoints() {
     drawLabel(ctx, niceCoordDec(gp.x, y, false, 2), cx, cy, gp.color, 'r', coordHtml(gp.x, y, true, 2));
     ctx.restore();
 
-    // Löschen-X (nur anzeigen wenn nicht gerade gezogen)
+    // Löschen-X (nur anzeigen wenn nicht gerade gezogen). Es sitzt AUSSERHALB des Punktkörpers
+    // (siehe GP_DEL_* und findGraphPtDeleteHit()), damit ein Klick auf den Punkt selbst ihn nie löscht.
     const dragging = drag && drag.type === 'graphpt' && drag.idx === i;
     if (!dragging) {
-      ctx.font = 'bold 10px system-ui'; ctx.fillStyle = '#e24b4a'; ctx.textAlign = 'center';
-      ctx.fillText('×', cx + 8, cy - 6);
+      ctx.save();
+      ctx.font = 'bold 12px system-ui'; ctx.fillStyle = '#e24b4a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('×', cx + GP_DEL_DX, cy + GP_DEL_DY);
+      ctx.restore();
     }
   });
+}
+
+// Löschen-Kreuz der Graph-Punkte: Lage relativ zum Punktmittelpunkt, Trefferradius und Radius des
+// Punktkörpers. FRÜHER lag das Kreuz 8 px rechts/6 px über dem Mittelpunkt mit 10 px Trefferradius —
+// dieser Kreis überdeckte die halbe obere rechte Seite des Punktes selbst: wer den Punkt zum Ziehen
+// anklickte und dabei etwas rechts oben traf, löschte ihn ("der Punkt verschwindet manchmal").
+const GP_DEL_DX = 13, GP_DEL_DY = -11, GP_DEL_HIT = 6, GP_BODY_R = 10;
+function gpScreenPos(gp) {
+  const fn = functions[gp.fi]; if (!fn || !fn.expr.trim() || fn.visible === false) return null;
+  const y = safeEval(fn.expr, gp.x); if (!isFinite(y)) return null;
+  return toCanvas(gp.x, y);
+}
+// Index des Graph-Punkts, dessen Löschen-Kreuz bei (mx,my) getroffen wurde, sonst -1.
+// Ein Klick im Punktkörper (≤ GP_BODY_R vom Mittelpunkt) zählt NIE als Löschen.
+function findGraphPtDeleteHit(mx, my) {
+  for (let i = graphPoints.length - 1; i >= 0; i--) {
+    const p = gpScreenPos(graphPoints[i]); if (!p) continue;
+    // Bei Touch: grösserer Punktkörper (nie Löschen) und etwas grössere Kreuz-Trefferfläche
+    if (Math.hypot(mx - p.cx, my - p.cy) <= (inputIsTouch ? 14 : GP_BODY_R)) continue;
+    if (Math.hypot(mx - (p.cx + GP_DEL_DX), my - (p.cy + GP_DEL_DY)) <= (inputIsTouch ? 9 : GP_DEL_HIT)) return i;
+  }
+  return -1;
+}
+// Neue x-Position eines gezogenen Graph-Punkts: Wunschwert (ggf. aufs Gitter/Sonderpunkt eingerastet),
+// sonst die rohe Mausposition, sonst bleibt der Punkt wo er ist — NIE auf eine Stelle setzen, an der f
+// nicht definiert ist (dort würde der Punkt unsichtbar: "verschwindet").
+function gpResolveX(gp, wantedX, rawX) {
+  const fn = functions[gp.fi]; if (!fn) return gp.x;
+  const ok = x => isFinite(x) && isFinite(safeEval(fn.expr, x)) &&
+    !((fn.domainMin != null && x < fn.domainMin - 1e-9) || (fn.domainMax != null && x > fn.domainMax + 1e-9));
+  if (ok(wantedX)) return wantedX;
+  if (ok(rawX)) return rawX;
+  return gp.x;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -101,7 +143,7 @@ function findNearCirclePt(mx, my) {
     const a = unitCirclePts[i].angle;
     // Punkt liegt bei (ox + r*cos(a), oy - r*sin(a)) — y invertiert!
     const px = ox + r * Math.cos(a), py = oy - r * Math.sin(a);
-    if (Math.hypot(px - mx, py - my) < 14) return i;
+    if (Math.hypot(px - mx, py - my) < hitR(14)) return i;
   }
   return -1;
 }
@@ -416,7 +458,7 @@ function dqConstrColor() { return C.anno; }
 function findNearDiffQuotHit(mx, my) {
   if (!diffQuot) return null;
   const fn = functions[diffQuot.fi]; if (!fn || fn.visible === false) return null;
-  const HIT = ('ontouchstart' in window) ? 22 : 14;
+  const HIT = hitR(14);
   const yA = safeEval(fn.expr, diffQuot.xA), yB = safeEval(fn.expr, diffQuot.xB);
   let best = null, bestDist = Infinity;
   if (isFinite(yA)) {
@@ -464,6 +506,9 @@ function drawDiffQuot(w, h) {
 
   const v = isoView || view;
   const xA = diffQuot.xA, xB = diffQuot.xB;
+  // Eingabefeld für x_A aktuell halten (nicht überschreiben, solange der Nutzer darin tippt)
+  const xaInp = document.getElementById('diffquot-xa-input');
+  if (xaInp && document.activeElement !== xaInp) xaInp.value = String(parseFloat(xA.toFixed(6)));
   const yA = safeEval(fn.expr, xA), yB = safeEval(fn.expr, xB);
   if (!isFinite(yA) || !isFinite(yB)) return;
   const hVal = xB - xA;               // h = Δx
@@ -642,7 +687,7 @@ const RIEMANN_SAMPLES_PER_STRIP = 24;
 function findNearRiemannHit(mx, my) {
   if (!riemann) return null;
   const fn = functions[riemann.fi1]; if (!fn || fn.visible === false) return null;
-  const HIT = ('ontouchstart' in window) ? 22 : 14;
+  const HIT = hitR(14);
   let best = null, bestDist = Infinity;
   {
     const { cx, cy } = toCanvas(riemann.xA, 0);
@@ -849,7 +894,7 @@ function drawRiemann(w, h) {
 function findNearFlaecheHit(mx, my) {
   if (!flaeche) return null;
   const fn = functions[flaeche.fi1]; if (!fn || fn.visible === false) return null;
-  const HIT = ('ontouchstart' in window) ? 22 : 14;
+  const HIT = hitR(14);
   let best = null, bestDist = Infinity;
   const ptA = flaeche.axis === 'y' ? toCanvas(0, flaeche.a) : toCanvas(flaeche.a, 0);
   const ptB = flaeche.axis === 'y' ? toCanvas(0, flaeche.b) : toCanvas(flaeche.b, 0);
@@ -1435,7 +1480,7 @@ function drawUnitCircle(w, h) {
 // damit findNearCircleOrTrigHit() unten zuverlässig vergleichen kann.
 function findNearTrigProjDot(mx, my) {
   const { ox, oy, r } = getCircleParams(); if (r < 2) return null;
-  const HIT = ('ontouchstart' in window) ? 22 : 14;
+  const HIT = hitR(14);
   let best = null, bestDist = Infinity;
   for (let i = unitCirclePts.length - 1; i >= 0; i--) {
     const a = unitCirclePts[i].angle;
@@ -1696,8 +1741,38 @@ function drawSpecialDot(cx, cy, kind, col) {
 // 11. Manuelle Punkte
 // 12. Graph-Punkte
 // 13. Hover-Linie
+// Gitter-/Beschriftungswerte als Liste (ganzzahliger Index × Schritt statt "gx += Schritt"):
+// kann nie endlos laufen, auch wenn Schritt < Zahlenabstand ist; höchstens maxN Werte
+// (bei mehr wird gleichmässig ausgedünnt).
+function gridTickValues(lo, hi, step, maxN) {
+  const out = [];
+  maxN = maxN || 600;
+  if (!(step > 0) || !isFinite(lo) || !isFinite(hi) || !isFinite(step)) return out;
+  const k0 = Math.ceil(lo / step), k1 = Math.floor((hi + step * 0.01) / step);
+  if (!isFinite(k0) || !isFinite(k1) || k1 < k0) return out;
+  const stride = Math.max(1, Math.ceil((k1 - k0 + 1) / maxN));
+  for (let k = k0; k <= k1; k += stride) out.push(k * step);
+  return out;
+}
+
 function draw() {
   const { w, h } = setupCanvas();
+  if (typeof td3dActive === 'function' && td3dActive()) { td3dDraw(w, h); return; } // 3D-Raum (30_3d_ui.js)
+  if (typeof algActive === 'function' && algActive()) { algDraw(w, h); return; } // Algebra (34_alg_ui.js)
+  if (typeof statActive === 'function' && statActive()) { statDraw(w, h); return; } // Wahrscheinlichkeit und Statistik (42_stat_ui.js)
+  if (typeof finActive === 'function' && finActive()) { finDraw(w, h); return; }   // Finanzmathematik (52_fin_ui.js)
+  if (typeof difActive === 'function' && difActive()) { difDraw(w, h); return; }   // Differentialrechnung (62_dif_ui.js)
+  if (typeof itgActive === 'function' && itgActive()) { itgDraw(w, h); return; }   // Integralrechnung (72_int_ui.js)
+  if (typeof linActive === 'function' && linActive()) { linDraw(w, h); return; }   // Lineare Funktionen (82_lin_ui.js)
+  if (typeof quadActive === 'function' && quadActive()) { quadDraw(w, h); return; }   // Quadratische Funktionen (87_quad_ui.js)
+  if (typeof powActive === 'function' && powActive()) { powDraw(w, h); return; }   // Potenz- und Wurzelfunktionen (92_pow_ui.js)
+  if (typeof expActive === 'function' && expActive()) { expDraw(w, h); return; }   // Exponential- und Logarithmusfunktionen (95_exp_ui.js)
+  if (typeof trigActive === 'function' && trigActive()) { trigDraw(w, h); return; }   // Trigonometrische Funktionen (98_trig_ui.js)
+  if (typeof invActive === 'function' && invActive()) { invDraw(w, h); return; }   // Umkehrfunktionen (99d_inv_ui.js)
+  if (typeof funActive === 'function' && funActive()) { funDraw(w, h); return; }   // Funktionen: Einführung (102_fun_ui.js)
+  if (typeof simActive === 'function' && simActive()) { simDraw(w, h); return; }   // Ähnlichkeit (105_sim_ui.js)
+  if (typeof seqActive === 'function' && seqActive()) { seqDraw(w, h); return; }   // Folgen und Reihen (108_seq_ui.js)
+  if (typeof lopActive === 'function' && lopActive()) { lopDraw(w, h); return; }   // Lineare Optimierung (111_lop_ui.js)
   const v = isoView || view; // isometrischer View für diesen Frame
   try { if (window.EGGS) EGGS.onView(v); } catch (e) {} // Easter-Egg: extremes Zoomen (24_eggs.js)
   const axisFontSize = bf(parseInt(document.getElementById('axis-font-size')?.value || 12));
@@ -1721,11 +1796,11 @@ function draw() {
   const xyStep = gridStep(Math.min(v.xmax - v.xmin, v.ymax - v.ymin));
   const xStep = xyStep, yStep = xyStep;
   // Vertikale Gitterlinien
-  for (let gx = Math.ceil(v.xmin/xStep)*xStep; gx <= v.xmax + xStep*0.01; gx += xStep) {
+  for (const gx of gridTickValues(v.xmin, v.xmax, xStep)) {
     const { cx } = toCanvas(gx, 0); ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
   }
   // Horizontale Gitterlinien
-  for (let gy = Math.ceil(v.ymin/yStep)*yStep; gy <= v.ymax + yStep*0.01; gy += yStep) {
+  for (const gy of gridTickValues(v.ymin, v.ymax, yStep)) {
     const { cy } = toCanvas(0, gy); ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.stroke();
   }
 
@@ -1771,12 +1846,12 @@ function draw() {
     // sind unterschiedlich breit) — ein einheitlicher Ausdünnungs-Faktor
     // wirkt gleichmässiger als ein pro Tick unterschiedlicher.
     let maxXLblW = 0;
-    for (let gx = Math.ceil(v.xmin/xStep)*xStep; gx <= v.xmax + xStep*0.01; gx += xStep) {
+    for (const gx of gridTickValues(v.xmin, v.xmax, xStep)) {
       if (Math.abs(gx) > xStep * 0.01) maxXLblW = Math.max(maxXLblW, ctx.measureText(niceNum(gx, true)).width);
     }
     const xPxPerStep = Math.abs(toCanvas(xStep, 0).cx - toCanvas(0, 0).cx);
     const xSkip = computeLabelSkip(maxXLblW, xPxPerStep, bf(10));
-    for (let gx = Math.ceil(v.xmin/xStep)*xStep; gx <= v.xmax + xStep*0.01; gx += xStep) {
+    for (const gx of gridTickValues(v.xmin, v.xmax, xStep)) {
       if (Math.abs(gx) > xStep * 0.01) {
         const idx = Math.round(gx / xStep);
         if (idx % xSkip !== 0) continue;
@@ -1797,7 +1872,7 @@ function draw() {
     const yLblH = axisFontSize + bf(4);
     const yPxPerStep = Math.abs(toCanvas(0, yStep).cy - toCanvas(0, 0).cy);
     const ySkip = computeLabelSkip(yLblH, yPxPerStep, bf(4));
-    for (let gy = Math.ceil(v.ymin/yStep)*yStep; gy <= v.ymax + yStep*0.01; gy += yStep) {
+    for (const gy of gridTickValues(v.ymin, v.ymax, yStep)) {
       if (Math.abs(gy) > yStep * 0.01) {
         const idx = Math.round(gy / yStep);
         if (idx % ySkip !== 0) continue;
@@ -1849,8 +1924,12 @@ function draw() {
   const steps = Math.round(w * 2);
   const yRange = v.ymax - v.ymin;
   const yClamp = yRange * 200; // verhindert Canvas int32-Overflow bei grossen Potenzen
+  // 7a. Balken bei Funktionen (31_bars2d.js): unter der Kurve gezeichnet
+  if (typeof fbDraw === 'function') fbDraw(w, h);
   functions.forEach(fn => {
     if (!fn.expr.trim() || fn.visible === false) return;
+    // Kurve entfällt, solange für diese Funktion Balken gezeigt werden (Abstand > 0)
+    if (typeof fbHides === 'function' && fbHides(fn)) return;
     // x=N: vertikale gestrichelte Linie
     const _vm = fn.expr.trim().match(/^x\s*=\s*(-?[\d.]+(?:\/[\d.]+)?)$/);
     if (_vm) {
@@ -1910,6 +1989,48 @@ function draw() {
       ctx.restore();
     }
   });
+
+  // ── 7b. Umkehrfunktion: Spiegelbild an y = x ──────────────────
+  // Für jede Funktion mit fn.mirror (Knopf «f⁻¹») wird der an der Winkelhalbierenden
+  // y = x gespiegelte Graph gestrichelt gezeichnet: Punkte (f(t), t). Die Ansicht ist
+  // isometrisch, die Spiegelung sieht daher auch geometrisch richtig aus.
+  const _mirrored = functions.filter(fn => fn.mirror && fn.expr && fn.expr.trim() && fn.visible !== false &&
+                                           !/^x\s*=/.test(fn.expr.trim()));
+  if (_mirrored.length) {
+    // Winkelhalbierende y = x
+    ctx.save();
+    ctx.strokeStyle = '#9ca3af'; ctx.lineWidth = bw(1.3); ctx.setLineDash([3, 4]);
+    // y = x über den gesamten sichtbaren Bereich (Endpunkte weit ausserhalb der Ansicht)
+    const _span = Math.max(v.xmax - v.xmin, v.ymax - v.ymin) * 2;
+    const _mx = (v.xmin + v.xmax) / 2, _my = (v.ymin + v.ymax) / 2, _m = (_mx + _my) / 2;
+    const p1 = toCanvas(_m - _span, _m - _span), p2 = toCanvas(_m + _span, _m + _span);
+    ctx.beginPath(); ctx.moveTo(p1.cx, p1.cy); ctx.lineTo(p2.cx, p2.cy); ctx.stroke();
+    ctx.restore();
+
+    const xRange = v.xmax - v.xmin;
+    const xClampM = xRange * 200;
+    const stepsM = Math.round(h * 2);
+    _mirrored.forEach(fn => {
+      ctx.save();
+      ctx.strokeStyle = fn.color; ctx.lineWidth = bw(2.2); ctx.setLineDash([7, 4]);
+      ctx.beginPath();
+      let started = false, prevU = null;
+      for (let i = 0; i <= stepsM; i++) {
+        const t = v.ymin + (i / stepsM) * (v.ymax - v.ymin);   // t = x-Wert von f = y-Wert der Spiegelkurve
+        if ((fn.domainMin != null && t < fn.domainMin - 1e-9) ||
+            (fn.domainMax != null && t > fn.domainMax + 1e-9)) { started = false; prevU = null; continue; }
+        const u = safeEval(fn.expr, t);                          // u = f(t) = x-Wert der Spiegelkurve
+        if (!isFinite(u)) { started = false; prevU = null; continue; }
+        if (prevU !== null && Math.abs(u - prevU) > xRange * 5) started = false;
+        const uD = u < v.xmin - xClampM ? v.xmin - xClampM : u > v.xmax + xClampM ? v.xmax + xClampM : u;
+        const { cx, cy } = toCanvas(uD, t);
+        if (!started) { ctx.moveTo(cx, cy); started = true; } else ctx.lineTo(cx, cy);
+        prevU = u;
+      }
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
 
   // ── 8. Steigungsdreieck ───────────────────────────────────────
   if (document.getElementById('chk-slopetri').checked) drawSlopeTri(w, h);
@@ -2098,6 +2219,9 @@ function draw() {
     }
   }
 
+  // ── 11b. Geometrie (Punkte, Strecken, Kreise, Vektoren …, siehe 26_geo.js / 27_geo_ui.js) ──
+  if (typeof drawGeo === 'function') drawGeo();
+
   // ── 12. Graph-Punkte ──────────────────────────────────────────
   drawGraphPoints();
 
@@ -2133,6 +2257,11 @@ function draw() {
   }
 
   // ── 14. Laserpointer ────────────────────────────────────────────
+  drawLaserPointer();
+}
+
+// Laserpointer (auch im 3D-Raum aufgerufen)
+function drawLaserPointer() {
   if (pointerMode && pointerPos) {
     const px = pointerPos.x, py = pointerPos.y;
     ctx.save();

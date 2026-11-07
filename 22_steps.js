@@ -17,7 +17,8 @@ const ST = (function () {
 
   // ───────────────────── HTML-Darstellung eines Doc ─────────────────────
   const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const ML = latex => (typeof latexToMathLiveHtml === 'function') ? latexToMathLiveHtml(latex) : esc(latex);
+  // MathLive kennt \dots/\dotsc nicht (rot markiert): als \ldots setzen
+  const ML = latex => { latex = String(latex).replace(/\\dots(c|b|m|i|o)?(?![a-zA-Z])/g, '\\ldots'); return (typeof latexToMathLiveHtml === 'function') ? latexToMathLiveHtml(latex) : esc(latex); };
   function inline(t) {
     return String(t).split(/(\$[^$]+\$)/).map(part => {
       if (part.length > 1 && part.charAt(0) === '$' && part.charAt(part.length - 1) === '$') return '<span class="sv-m">' + ML(part.slice(1, -1)) + '</span>';
@@ -34,6 +35,8 @@ const ST = (function () {
         case 'res': return '<div class="sv-res">' + inline(b.t) + '</div>';
         case 'note': return '<div class="sv-note">' + inline(b.t) + '</div>';
         case 'sub': return '<div class="sv-sub">' + renderBlocks(b.b) + '</div>';
+        case 'tab': return '<div class="sv-tabw"><table class="sv-tab"><tr>' + b.head.map(c => '<th>' + inline(c) + '</th>').join('') + '</tr>' +
+          b.rows.map(r => '<tr>' + r.map((c, i) => '<td' + (i === 0 ? ' class="sv-th"' : '') + '>' + inline(c) + '</td>').join('') + '</tr>').join('') + '</table></div>';
         default: return '';
       }
     }).join('');
