@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Funktionenplotter</title>
+<title>J√10</title>
 
 <!-- Für MathLive.convertLatexToMarkup() — statisches Formel-Rendering ausserhalb
      eines <math-field> (Legende, Kurven-Beschriftungen, ...), siehe
@@ -81,8 +81,11 @@ body { background: var(--bg-app); font-family: var(--font-ui); font-size: 13px; 
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 54px; min-height: 54px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 3; background: var(--bg-sidebar); }
 .brand-logo { width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, #5b92ff 0%, #7c5cff 100%); display: grid; place-items: center; box-shadow: 0 2px 8px rgba(91,110,255,0.35); flex-shrink: 0; }
 .brand-logo svg { width: 20px; height: 20px; display: block; }
-.brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); line-height: 1.1; }
-.brand-sub { font-size: 10.5px; color: var(--text-label); font-weight: 500; margin-top: 2px; }
+.brand-name { color: var(--text); display: flex; align-items: center; }
+#home-btn { margin-left:auto; font-size:12px; font-weight:600; padding:6px 10px; border-radius:999px; border:1px solid var(--border-input); background:var(--accent-soft); color:var(--accent); box-shadow:none; }
+#home-btn:hover { background:var(--accent); color:#fff; }
+.brand-mark { width: 66px; height: 34px; flex: none; background: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2258%22 height=%2230%22 viewBox=%220 0 270.1 140.5%22%3E%3Cdefs%3E%3ClinearGradient id=%22g%22 x1=%220%22 y1=%221%22 x2=%221%22 y2=%220%22%3E%3Cstop offset=%220%22 stop-color=%22%235b92ff%22/%3E%3Cstop offset=%221%22 stop-color=%22%237c5cff%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg transform=%22translate(8.5,130.0)%22%3E%3Cg transform=%22scale(1,-1)%22%3E%3Cpath fill=%22none%22 stroke-width=%2213.0%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke=%22url(%23g)%22 d=%22M6.5 26.0A26.0 26.0 0 0 1 58.5 26.0V100.0H78.5L95.5 2.0L133.1 119.5H253.1%22/%3E%3Cpath fill=%22none%22 stroke-width=%2213.0%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke=%22%231a2033%22 d=%22M150.6 83.0L169.6 100.0M169.6 100.0V0 M193.1 50.0A30.0 50.0 0 1 0 253.1 50.0A30.0 50.0 0 1 0 193.1 50.0Z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") no-repeat center / 66px 34px; }
+body.dark .brand-mark { background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2258%22 height=%2230%22 viewBox=%220 0 270.1 140.5%22%3E%3Cdefs%3E%3ClinearGradient id=%22g%22 x1=%220%22 y1=%221%22 x2=%221%22 y2=%220%22%3E%3Cstop offset=%220%22 stop-color=%22%235b92ff%22/%3E%3Cstop offset=%221%22 stop-color=%22%237c5cff%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg transform=%22translate(8.5,130.0)%22%3E%3Cg transform=%22scale(1,-1)%22%3E%3Cpath fill=%22none%22 stroke-width=%2213.0%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke=%22url(%23g)%22 d=%22M6.5 26.0A26.0 26.0 0 0 1 58.5 26.0V100.0H78.5L95.5 2.0L133.1 119.5H253.1%22/%3E%3Cpath fill=%22none%22 stroke-width=%2213.0%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke=%22%23e8ebf4%22 d=%22M150.6 83.0L169.6 100.0M169.6 100.0V0 M193.1 50.0A30.0 50.0 0 1 0 253.1 50.0A30.0 50.0 0 1 0 193.1 50.0Z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
 
 .panel { padding: 12px 16px; border-bottom: 1px solid var(--border); transition: background 0.15s; }
 .panel.collapsed:hover { background: var(--btn-hover); }
@@ -293,8 +296,10 @@ body.dark button.delete-mode-btn.active-btn, body.dark .tb-group > button.delete
   line-height: 1;
 }
 
+/* Lösungsweg-Karte (#solve-tooltip) steht wie in allen Umgebungen rechts; ist sie offen, rückt die Funktionsliste nach links. */
+body:has(#solve-tooltip[style*="display: block"]) #func-labels-overlay { right:auto; left:12px; }
 /* ── Funktions-Label-Overlay (oben rechts im Canvas) ──────── */
-#func-labels-overlay {
+#func-labels-overlay, #td-legend {
   position: absolute;
   top: 12px;
   right: 12px;
@@ -331,7 +336,7 @@ body.dark button.delete-mode-btn.active-btn, body.dark .tb-group > button.delete
   font-size: 13px;
 }
 /* Im Beamer-Modus: Overlay grösser */
-body.beam #func-labels-overlay {
+body.beam #func-labels-overlay, body.beam #td-legend {
   font-size: 20px;
   padding: 7px 14px 8px;
   border-radius: 10px;
@@ -586,10 +591,10 @@ input[type=password] { font-family: var(--font-ui); font-size: 12px; padding: 6p
 input[type=password]:focus { border-color: var(--accent); box-shadow: var(--ring); }
 
 /* — Export-Panel: gleiche Gestaltung wie die Einstellungen (Raster, Chips, Variablen-Farben) — */
-#export-panel .ex-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
-#export-panel .ex-actions button { padding: 7px 4px; font-size: 12px; justify-content: center; }
-#export-panel .ex-actions button.ex-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-#export-panel .ex-actions button.ex-primary:hover { filter: brightness(1.1); }
+#export-panel .ex-actions , #td-panel .ex-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
+#export-panel .ex-actions button , #td-panel .ex-actions button { padding: 7px 4px; font-size: 12px; justify-content: center; }
+#export-panel .ex-actions button.ex-primary , #td-panel .ex-actions button.ex-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+#export-panel .ex-actions button.ex-primary:hover , #td-panel .ex-actions button.ex-primary:hover { filter: brightness(1.1); }
 #export-panel .ex-label { font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text-label); margin: 2px 0 7px; }
 #export-panel .ex-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 14px; }
 #export-panel .ex-chips label { display: flex; align-items: center; gap: 7px; padding: 6px 9px; font-size: 11.5px; color: var(--text); background: var(--bg-input); border: 1px solid var(--border-input); border-radius: var(--radius-sm); cursor: pointer; user-select: none; transition: background .12s, border-color .12s; min-width: 0; }
@@ -601,9 +606,9 @@ input[type=password]:focus { border-color: var(--accent); box-shadow: var(--ring
 #export-panel .ex-field.ex-full { grid-column: 1 / -1; }
 #export-panel .ex-field label { font-size: 11px; color: var(--text-muted); }
 #export-panel .ex-field input[type=number], #export-panel .ex-field select { width: 100%; font-size: 12px; padding: 6px 9px; }
-#export-panel .ex-out { width: 100%; height: 96px; resize: vertical; font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Fira Mono', monospace; font-size: 11px; line-height: 1.5; padding: 9px 10px; border: 1px solid var(--border-input); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text); outline: none; transition: border-color .12s, box-shadow .12s; }
-#export-panel .ex-out:focus { border-color: var(--accent); box-shadow: var(--ring); }
-#export-panel .ex-msg { font-size: 11px; color: #1D9E75; margin-top: 5px; min-height: 14px; }
+#export-panel .ex-out , #td-panel .ex-out { width: 100%; height: 96px; resize: vertical; font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Fira Mono', monospace; font-size: 11px; line-height: 1.5; padding: 9px 10px; border: 1px solid var(--border-input); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--text); outline: none; transition: border-color .12s, box-shadow .12s; }
+#export-panel .ex-out:focus , #td-panel .ex-out:focus { border-color: var(--accent); box-shadow: var(--ring); }
+#export-panel .ex-msg , #td-panel .ex-msg { font-size: 11px; color: #1D9E75; margin-top: 5px; min-height: 14px; }
 body.beam #export-panel .ex-chips { grid-template-columns: 1fr; }
 body.beam #export-panel .ex-chips label, body.beam #export-panel .ex-field label, body.beam #export-panel .ex-label { font-size: 15px; }
 body.beam #export-panel .ex-field input[type=number], body.beam #export-panel .ex-field select { font-size: 15px; }
@@ -687,6 +692,11 @@ body.beam .sv span, body.beam .sv label { font-size: inherit; }
 body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !important; }
 .sv-note { margin: 5px 0; color: var(--text-muted); font-size: 0.88em; font-style: italic; }
 .sv-sub { margin: 3px 0 3px 4px; padding-left: 10px; border-left: 2px solid var(--border); }
+.sv-tabw { margin: 6px 0; overflow-x: auto; scrollbar-width: thin; }
+.sv-tab { border-collapse: collapse; font-size: 0.92em; }
+.sv-tab th, .sv-tab td { border: 1px solid var(--border-input); padding: 3px 8px; text-align: center; white-space: nowrap; }
+.sv-tab th { background: var(--accent-soft); font-weight: 600; }
+.sv-tab td.sv-th { background: var(--accent-soft); font-weight: 600; text-align: left; }
 .sv-m { display: inline-block; }
 .sv-eq .sv-m { display: inline; }
 @media (max-width: 700px) {
@@ -734,6 +744,312 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
     font-size: 16px !important;
   }
 }
+
+/* ── Touch-Bedienung ───────────────────────────────────────────────
+   • Doppeltipp-Zoom der Seite aus (touch-action: manipulation), kein graues Tipp-Aufblitzen.
+   • Zeichenfläche: kein Kontextmenü/keine Textauswahl durch langes Drücken.
+   • Bei Fingerbedienung (pointer: coarse) grössere Tippflächen (Richtwert ≥ 36 px Höhe). */
+html, body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+#canvas-wrap, #canvas { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+@media (pointer: coarse) {
+  .tb-group > button, .tb-group > div > button { min-height: 38px; padding-top: 8px; padding-bottom: 8px; }
+  .smart-btn { padding: 6px 13px !important; font-size: 12px !important; border-radius: 14px !important; margin: 1px 0; }
+  .smart-btn-row { gap: 6px !important; }
+  .del-btn { padding: 8px 12px !important; font-size: 14px !important; }
+  .panel-title { min-height: 38px; padding: 6px 0; }
+  input[type=range] { min-height: 30px; }
+  input[type=number], input[type=text], select { min-height: 34px; }
+  /* Schliessen-Kreuz des Lösungsweg-Fensters: grosse unsichtbare Tippfläche */
+  #solve-tooltip > div > span[onclick] { padding: 10px 12px; margin: -10px -12px -10px 0; font-size: 18px !important; opacity: .55 !important; }
+}
+
+/* ── Umgebungen (32_env.js): je Thema nur die zugehörigen Panels (data-envs) ── */
+body[data-env="func"] #sidebar > .panel:not([data-envs~="func"]),
+body[data-env="diff"] #sidebar > .panel:not([data-envs~="diff"]),
+body[data-env="int"] #sidebar > .panel:not([data-envs~="int"]),
+body[data-env="lin"] #sidebar > .panel:not([data-envs~="lin"]),
+body[data-env="quad"] #sidebar > .panel:not([data-envs~="quad"]),
+body[data-env="pow"] #sidebar > .panel:not([data-envs~="pow"]),
+body[data-env="exp"] #sidebar > .panel:not([data-envs~="exp"]),
+body[data-env="trig"] #sidebar > .panel:not([data-envs~="trig"]),
+body[data-env="inv"] #sidebar > .panel:not([data-envs~="inv"]),
+body[data-env="intro"] #sidebar > .panel:not([data-envs~="intro"]),
+body[data-env="sim"] #sidebar > .panel:not([data-envs~="sim"]),
+body[data-env="lo"] #sidebar > .panel:not([data-envs~="lo"]),
+body[data-env="geo"] #sidebar > .panel:not([data-envs~="geo"]),
+body[data-env="seq"] #sidebar > .panel:not([data-envs~="seq"]),
+body[data-env="3d"] #sidebar > .panel:not([data-envs~="3d"]),
+body[data-env="stat"] #sidebar > .panel:not([data-envs~="stat"]),
+body[data-env="fin"] #sidebar > .panel:not([data-envs~="fin"]),
+body[data-env="alg"] #sidebar > .panel:not([data-envs~="alg"]) { display:none !important; }
+body[data-env="3d"] .tb-2d button:not(#pointer-mode-btn), body[data-env="alg"] .tb-2d button:not(#pointer-mode-btn), body[data-env="stat"] .tb-2d button:not(#pointer-mode-btn), body[data-env="fin"] .tb-2d button:not(#pointer-mode-btn), body[data-env="diff"] .tb-2d button:not(#pointer-mode-btn), body[data-env="int"] .tb-2d button:not(#pointer-mode-btn), body[data-env="lin"] .tb-2d button:not(#pointer-mode-btn), body[data-env="quad"] .tb-2d button:not(#pointer-mode-btn), body[data-env="pow"] .tb-2d button:not(#pointer-mode-btn), body[data-env="exp"] .tb-2d button:not(#pointer-mode-btn), body[data-env="trig"] .tb-2d button:not(#pointer-mode-btn), body[data-env="inv"] .tb-2d button:not(#pointer-mode-btn), body[data-env="intro"] .tb-2d button:not(#pointer-mode-btn), body[data-env="sim"] .tb-2d button:not(#pointer-mode-btn) , body[data-env="seq"] .tb-2d button:not(#pointer-mode-btn), body[data-env="lo"] .tb-2d button:not(#pointer-mode-btn) { display:none !important; }
+body[data-env="alg"] #canvas-label-overlay, body[data-env="alg"] #func-labels-overlay, body[data-env="alg"] #solve-tooltip, body[data-env="alg"] #tooltip,
+body[data-env="stat"] #canvas-label-overlay, body[data-env="stat"] #func-labels-overlay, body[data-env="stat"] #solve-tooltip, body[data-env="stat"] #tooltip,
+body[data-env="fin"] #canvas-label-overlay, body[data-env="fin"] #func-labels-overlay, body[data-env="fin"] #solve-tooltip, body[data-env="fin"] #tooltip,
+body[data-env="diff"] #canvas-label-overlay, body[data-env="diff"] #func-labels-overlay, body[data-env="diff"] #solve-tooltip, body[data-env="diff"] #tooltip,
+body[data-env="int"] #canvas-label-overlay, body[data-env="int"] #func-labels-overlay, body[data-env="int"] #solve-tooltip, body[data-env="int"] #tooltip,
+body[data-env="lin"] #canvas-label-overlay, body[data-env="lin"] #func-labels-overlay, body[data-env="lin"] #solve-tooltip, body[data-env="lin"] #tooltip,
+body[data-env="quad"] #canvas-label-overlay, body[data-env="quad"] #func-labels-overlay, body[data-env="quad"] #solve-tooltip, body[data-env="quad"] #tooltip,
+body[data-env="pow"] #canvas-label-overlay, body[data-env="pow"] #func-labels-overlay, body[data-env="pow"] #solve-tooltip, body[data-env="pow"] #tooltip,
+body[data-env="exp"] #canvas-label-overlay, body[data-env="exp"] #func-labels-overlay, body[data-env="exp"] #solve-tooltip, body[data-env="exp"] #tooltip,
+body[data-env="trig"] #canvas-label-overlay, body[data-env="trig"] #func-labels-overlay, body[data-env="trig"] #solve-tooltip, body[data-env="trig"] #tooltip,
+body[data-env="inv"] #canvas-label-overlay, body[data-env="inv"] #func-labels-overlay, body[data-env="inv"] #solve-tooltip, body[data-env="inv"] #tooltip,
+body[data-env="intro"] #canvas-label-overlay, body[data-env="intro"] #func-labels-overlay, body[data-env="intro"] #solve-tooltip, body[data-env="intro"] #tooltip,
+body[data-env="sim"] #canvas-label-overlay, body[data-env="sim"] #func-labels-overlay, body[data-env="sim"] #solve-tooltip, body[data-env="sim"] #tooltip,
+body[data-env="seq"] #canvas-label-overlay, body[data-env="seq"] #func-labels-overlay, body[data-env="seq"] #solve-tooltip, body[data-env="seq"] #tooltip,
+body[data-env="lo"] #canvas-label-overlay, body[data-env="lo"] #func-labels-overlay, body[data-env="lo"] #solve-tooltip, body[data-env="lo"] #tooltip { display:none !important; }
+/* ── Themenübersicht, Hilfe, Hinweise (33_topics.js) ── */
+.tp-overlay { position:fixed; inset:0; z-index:10000; background:rgba(20,28,50,0.45); backdrop-filter:blur(3px); display:none; align-items:flex-start; justify-content:center; overflow:auto; padding:28px 16px; }
+/* Startseite: ganze Seite statt Fenster (kein abgedunkelter Hintergrund) */
+#topics.tp-overlay { background:var(--bg-app); backdrop-filter:none; padding:22px 20px 40px; }
+#topics .tp-box { border:none; box-shadow:none; background:transparent; padding:0; animation:none; }
+#topics .tp-head { margin-bottom:10px; align-items:center; }
+#topics .tp-card { background:var(--bg-sidebar); }
+#topics .tp-view { background:var(--bg-app); }
+#topics .tp-hit { background:var(--bg-sidebar); }
+.tp-box { background:var(--bg-sidebar); color:var(--text); border:1px solid var(--border); border-radius:16px; box-shadow:0 18px 60px rgba(0,0,0,0.28); width:min(1120px, 100%); padding:18px 22px 16px; animation:ds-in .16s ease-out; }
+.tp-head { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:12px; }
+.tp-title { display:flex; flex-direction:column; gap:2px; min-width:160px; }
+.tp-title b { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.tp-mark-inline.brand-mark { display:inline-block; width:78px; height:40px; background-size:78px 40px; vertical-align:middle; }
+.tp-title b { font-size:26px; letter-spacing:-0.015em; line-height:1.15; }
+.tp-sub { font-size:14px; color:var(--text-muted); }
+.tp-search { display:flex; align-items:center; gap:10px; border:1.5px solid var(--border-input); background:var(--bg-input); border-radius:14px; padding:10px 16px; margin:6px 0 16px; box-shadow:var(--shadow-sm); max-width:760px; }
+.tp-search:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.tp-search input { flex:1; min-width:0; border:none; background:transparent; color:var(--text); font-size:16px; outline:none; }
+.tp-lupe { font-size:18px; }
+.tp-langs { margin-left:auto; position:relative; }
+.tp-langbtn { display:flex; align-items:center; gap:7px; font-size:13px; padding:6px 10px 6px 8px; border-radius:10px; border:1px solid var(--border-input); background:var(--bg-sidebar); color:var(--text); cursor:pointer; box-shadow:var(--shadow-sm); }
+.tp-langbtn .tp-flag { font-size:18px; line-height:1; }
+.tp-langbtn .tp-caret { font-size:10px; opacity:.6; }
+.tp-langmenu { position:absolute; right:0; top:calc(100% + 6px); min-width:190px; background:var(--bg-sidebar); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow-md); padding:5px; z-index:5; display:flex; flex-direction:column; gap:1px; animation:ds-in .13s ease-out; }
+.tp-lang { display:flex; align-items:center; gap:9px; width:100%; text-align:left; font-size:13px; padding:7px 10px; border-radius:8px; border:none; background:transparent; color:var(--text); cursor:pointer; box-shadow:none; }
+.tp-lang .tp-flag { font-size:17px; line-height:1; }
+.tp-lang:hover { background:var(--btn-hover); }
+.tp-lang.tp-lang-cur { background:var(--accent-soft); color:var(--accent); font-weight:600; }
+.tp-close { margin-left:4px; border:none; background:transparent; font-size:18px; color:var(--text-muted); cursor:pointer; padding:4px 8px; border-radius:8px; }
+.tp-close:hover { background:var(--btn-hover); color:var(--text); }
+.tp-welcome { margin:0 0 22px; display:flex; flex-direction:column; gap:12px; font-size:13px; }
+.tp-steps { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px; }
+.tp-step { display:flex; gap:12px; align-items:flex-start; border:1px solid var(--border); background:var(--bg-sidebar); border-radius:14px; padding:12px 14px; }
+.tp-step-ic { font-size:24px; line-height:1; flex:none; margin-top:2px; }
+.tp-step b { display:block; font-size:14px; margin-bottom:3px; }
+.tp-step span { color:var(--text-muted); line-height:1.4; }
+.tp-all { font-size:18px; margin:0 0 2px; }
+.tp-welcome-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:4px; }
+.tp-muted { font-size:11.5px; color:var(--text-muted); }
+.tp-group h2 { font-size:12px; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-label); margin:14px 0 8px; }
+.tp-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:10px; }
+.tp-card { border:1px solid var(--border); border-radius:12px; background:var(--bg-app); display:flex; flex-direction:column; overflow:hidden; }
+.tp-card.tp-cur { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+.tp-card-top { display:flex; gap:10px; align-items:flex-start; text-align:left; border:none; background:transparent; padding:10px 12px 8px; cursor:pointer; color:var(--text); font:inherit; white-space:normal; width:100%; box-shadow:none; }
+.tp-card-top:hover { background:var(--btn-hover); }
+.tp-ic { font-size:22px; line-height:1; flex:none; }
+.tp-txt { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.tp-txt b { font-size:14px; }
+.tp-txt small { font-size:11.5px; color:var(--text-muted); line-height:1.35; }
+.tp-views { display:flex; flex-wrap:wrap; gap:5px; padding:0 12px 11px; }
+.tp-view { font-size:11.5px; padding:4px 9px; border-radius:999px; border:1px solid var(--border); background:var(--bg-sidebar); color:var(--text); cursor:pointer; box-shadow:none; white-space:normal; text-align:left; }
+.tp-view:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+.tp-results { display:flex; flex-direction:column; gap:4px; margin-top:6px; }
+.tp-res-head { font-size:12px; color:var(--text-muted); margin:4px 0 2px; }
+.tp-hit { display:flex; gap:10px; align-items:flex-start; text-align:left; border:1px solid var(--border); background:var(--bg-app); border-radius:10px; padding:8px 12px; cursor:pointer; color:var(--text); font:inherit; white-space:normal; box-shadow:none; }
+.tp-hit:hover { border-color:var(--accent); background:var(--accent-soft); }
+.tp-none { color:var(--text-muted); font-size:13px; padding:10px 2px; }
+.tp-foot { font-size:11.5px; color:var(--text-muted); margin-top:14px; border-top:1px solid var(--border); padding-top:10px; }
+/* Startseite übersichtlich: Gruppen-Schnellwahl, kleine Gruppen nebeneinander, kompakte Karten */
+#topics .tp-box { width:min(1180px, 100%); }
+.tp-continue { display:flex; align-items:center; gap:7px; font-size:13px; padding:7px 12px; border-radius:10px; border:1px solid var(--accent); background:var(--accent-soft); color:var(--accent); cursor:pointer; box-shadow:none; max-width:340px; }
+.tp-continue b { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tp-continue:hover { background:var(--accent); color:#fff; }
+.tp-cont-l { opacity:.85; white-space:nowrap; }
+.tp-cont-arrow { font-size:15px; }
+.tp-nav { display:flex; flex-wrap:wrap; gap:6px; margin:-4px 0 14px; }
+.tp-navbtn { display:flex; align-items:center; gap:6px; font-size:12.5px; padding:5px 11px; border-radius:999px; border:1px solid var(--border); background:var(--bg-sidebar); color:var(--text); cursor:pointer; box-shadow:none; }
+.tp-navbtn small { font-size:10.5px; color:var(--text-muted); background:var(--bg-app); border-radius:999px; padding:0 6px; }
+.tp-navbtn:hover { border-color:var(--accent); color:var(--accent); }
+#topics .tp-welcome { margin:0 0 14px; }
+#topics .tp-steps { gap:8px; }
+#topics .tp-step { padding:8px 12px; border-radius:12px; gap:10px; align-items:center; }
+#topics .tp-step-ic { font-size:20px; margin-top:0; }
+#topics .tp-step b { font-size:13px; margin-bottom:1px; }
+#topics .tp-step span { font-size:12px; line-height:1.35; }
+#topics .tp-groups { display:flex; flex-wrap:wrap; gap:0 12px; align-items:flex-start; }
+#topics .tp-group { flex: var(--n) 1 calc(var(--n) * 240px); min-width:0; scroll-margin-top:12px; }
+#topics .tp-grid { grid-template-columns:repeat(var(--n), minmax(0, 1fr)); gap:10px; align-items:start; }
+#topics .tp-card { transition:box-shadow .15s, border-color .15s; position:relative; overflow:visible; }
+#topics .tp-card.tp-open { z-index:6; border-bottom-left-radius:0; border-bottom-right-radius:0; border-color:var(--accent); }
+#topics .tp-card:hover { border-color:var(--accent); }
+#topics .tp-card-top { padding:11px 12px 4px; align-items:center; }
+#topics .tp-card-top:hover { background:transparent; }
+#topics .tp-card-top:hover b { color:var(--accent); }
+#topics .tp-txt b { font-size:14.5px; line-height:1.25; min-height:2.5em; display:flex; align-items:center; }
+#topics .tp-txt small.tp-kw { display:none; }
+#topics .tp-about { margin:0; padding:0 12px; font-size:12px; line-height:1.45; color:var(--text-muted); height:5.8em; overflow:hidden; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; cursor:pointer; }
+.tp-more { display:flex; align-items:center; gap:7px; margin:8px 0 0; padding:7px 12px; border:none; border-top:1px solid var(--border); background:transparent; color:var(--text); font:inherit; font-size:12px; text-align:left; cursor:pointer; box-shadow:none; border-radius:0; width:100%; }
+.tp-more small { font-size:10.5px; color:var(--text-muted); background:var(--bg-app); border-radius:999px; padding:0 6px; }
+.tp-more .tp-caret { margin-left:auto; font-size:11px; opacity:.6; transition:transform .15s; }
+.tp-more:hover { background:var(--btn-hover); color:var(--accent); }
+#topics .tp-more { border-radius:0 0 11px 11px; }
+#topics .tp-card.tp-open .tp-more { border-radius:0; }
+.tp-card.tp-open .tp-more .tp-caret { transform:rotate(180deg); }
+.tp-card.tp-open .tp-more { color:var(--accent); }
+.tp-more-go .tp-caret { transform:none; }
+#topics .tp-views { display:flex; flex-direction:column; gap:1px; padding:4px 6px 8px; position:absolute; left:-1px; right:-1px; top:100%; background:var(--bg-sidebar); border:1px solid var(--accent); border-top:1px solid var(--border); border-radius:0 0 12px 12px; box-shadow:var(--shadow-md); max-height:60vh; overflow:auto; }
+#topics .tp-views[hidden] { display:none; }
+#topics .tp-view { display:flex; align-items:center; gap:8px; width:100%; font-size:12px; padding:5px 8px; border:none; border-radius:7px; background:transparent; text-align:left; }
+#topics .tp-view:hover { background:var(--accent-soft); color:var(--accent); }
+.tp-view-go { margin-left:auto; opacity:.45; }
+@media (max-width: 760px) {
+  #topics .tp-group { flex-basis:100%; }
+  #topics .tp-grid { grid-template-columns:1fr; }
+  #topics .tp-about { height:auto; }
+  #topics .tp-txt b { min-height:0; }
+  #topics .tp-views { position:static; border:none; border-top:1px solid var(--border); box-shadow:none; max-height:none; }
+  #topics .tp-card.tp-open { border-radius:12px; }
+  .tp-continue { max-width:100%; order:3; width:100%; justify-content:center; }
+}
+.tp-help { width:min(720px, 100%); }
+.tp-help-sec h2 { font-size:13px; margin:12px 0 4px; }
+.tp-help-sec ul { margin:0 0 0 18px; padding:0; display:flex; flex-direction:column; gap:4px; font-size:13px; line-height:1.45; }
+#topic-foot { margin:14px 10px 18px; padding:10px 12px; border:1px dashed var(--border); border-radius:10px; font-size:11.5px; color:var(--text-muted); line-height:1.4; }
+#topic-foot .tf-row { display:flex; gap:6px; margin-top:8px; }
+#topic-foot .tf-row button { flex:1; font-size:11.5px; padding:5px 8px; }
+#topic-tip { display:none; position:absolute; left:50%; bottom:14px; transform:translateX(-50%); max-width:min(640px, calc(100% - 24px)); align-items:center; gap:10px; background:var(--bg-sidebar); color:var(--text); border:1px solid var(--border); border-radius:12px; padding:8px 10px 8px 14px; box-shadow:var(--shadow-md); font-size:13px; line-height:1.4; z-index:45; pointer-events:auto; }
+#topic-tip button { border:none; background:transparent; color:var(--text-muted); cursor:pointer; font-size:14px; padding:2px 6px; box-shadow:none; }
+body.topics-open { overflow:hidden; }
+@media (max-width: 700px) { .tp-overlay { padding:8px; } #topics.tp-overlay { padding:12px 12px 30px; } .tp-box { padding:12px 12px 10px; border-radius:12px; } #topics .tp-box { padding:0; } .tp-grid { grid-template-columns:1fr; } .tp-title b { font-size:17px; } #topic-tip { bottom:52px; font-size:12px; } }
+/* ── Differentialrechnung (61_dif_draw.js / 62_dif_ui.js): Karte mit dem Rechenweg ── */
+.dif-card { display:none; position:absolute; top:0; right:0; bottom:0; width:420px; max-width:100%; flex-direction:column; background:var(--bg-sidebar); border-left:1.5px solid var(--border); z-index:40; box-sizing:border-box; }
+.dif-card.dif-card-sheet { top:auto; left:0; right:0; bottom:0; width:auto; max-width:none; border-left:0; border-top:1.5px solid var(--border); }
+.dif-card.dif-card-float { top:8px; right:8px; bottom:8px; width:min(460px, calc(100% - 16px)); border:1.5px solid var(--border); border-radius:10px; box-shadow:0 4px 18px rgba(0,0,0,.25); }
+.dif-card-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; border-bottom:1px solid var(--border); font-weight:700; font-size:13px; }
+.dif-card-head span.x { cursor:pointer; opacity:.5; font-size:15px; }
+#dif-card-body { overflow-y:auto; padding:6px 12px 14px; flex:1; font-size:13px; }
+/* ── Algebra (33_alg_core.js / 34_alg_ui.js) ── */
+.alg-modes { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:8px; }
+.alg-mode { padding:6px 4px; font-size:12px; justify-content:center; text-align:center; }
+.alg-inp-wrap { display:flex; margin-bottom:4px; }
+.alg-var { display:flex; align-items:center; gap:8px; margin:3px 0; }
+.alg-var-n { min-width:26px; font-weight:600; font-style:italic; }
+.alg-var input[type=range] { flex:1; min-width:60px; }
+.alg-var b { min-width:34px; text-align:right; font-variant-numeric:tabular-nums; }
+.alg-opts { margin-top:8px; display:flex; flex-direction:column; gap:6px; }
+.alg-opts label { cursor:pointer; }
+.alg-result { margin:10px 0 4px; padding:8px 10px; background:var(--accent-soft); border-radius:8px; overflow-x:auto; font-size:16px; }
+.alg-step { margin:6px 0; }
+.alg-sl { font-size:11px; color:var(--text-muted); margin-bottom:1px; }
+.alg-sf { overflow-x:auto; padding:1px 2px; }
+.alg-hint { margin-top:8px; }
+body.beam .alg-sl { font-size:14px; } body.beam .alg-sf, body.beam .alg-result { font-size:20px; }
+#env-btn { font-weight:600; gap:6px; }
+#env-btn .env-caret { font-size:10px; opacity:.6; margin-left:2px; }
+#env-menu { background:var(--bg-sidebar); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-md); padding:5px; min-width:290px; max-width:min(360px, calc(100vw - 16px)); animation:ds-in .13s ease-out; }
+.env-item { display:flex; align-items:flex-start; gap:10px; width:100%; text-align:left; padding:8px 10px; border:none; background:transparent; border-radius:8px; cursor:pointer; color:var(--text); font:inherit; white-space:normal; }
+.env-item:hover, .env-item:focus-visible { background:var(--btn-hover); outline:none; }
+.env-item[aria-checked="true"] { background:var(--accent-soft); }
+.env-item .env-ic { flex:none; margin-top:1px; color:var(--accent); }
+.env-item .env-txt { display:flex; flex-direction:column; gap:1px; min-width:0; }
+.env-item b { font-size:13px; font-weight:600; }
+.env-item small { font-size:11px; color:var(--text-muted); line-height:1.35; }
+body.beam .env-item b { font-size:17px; } body.beam .env-item small { font-size:14px; }
+/* ── 3D-Raum (29_3d.js / 30_3d_ui.js) ── im 3D-Modus nur das 3D-Panel, keine 2D-Werkzeuge */
+#td-panel { display:none; }
+body.mode3d #td-panel { display:block; }
+body.mode3d #sidebar > .panel:not(#td-panel):not(#begriffe-panel) { display:none !important; }
+body.mode3d .tb-2d button:not(#pointer-mode-btn), body.mode3d #canvas-label-overlay, body.mode3d #func-labels-overlay, body.mode3d #solve-tooltip, body.mode3d #tooltip { display:none !important; }
+#td-presetsel { width:100%; margin:6px 0 8px; }
+.td-addrow { display:flex; gap:6px; margin-bottom:4px; }
+.td-addrow .td-eq { flex:1; min-width:0; }
+.td-eq { font-family:inherit; font-size:13px; padding:5px 8px; }
+.td-sec { border-top:1px solid var(--border); margin-top:10px; padding-top:10px; }
+.td-sec.geo-box { padding-top:0; }
+#td-legend .flo-expr { white-space:nowrap; }
+.td-err { color:#c2262a; font-size:11px; line-height:1.35; min-height:0; margin:0 0 2px; }
+.td-err:empty { display:none; }
+.td-plane { margin-bottom:2px; }
+.td-parbox { padding:4px 0 2px 18px; }
+.td-par { display:flex; align-items:center; gap:6px; margin-top:3px; }
+.td-parname { font-size:12px; min-width:12px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+.td-parsl { flex:1; min-width:50px; }
+.td-parnum { width:58px; font-size:11.5px; padding:2px 4px; }
+.td-parstep { justify-content:space-between; }
+.td-parlab { font-size:11px; color:var(--text-muted); }
+.td-parsel { width:78px; font-size:11.5px; }
+.td-row { display:flex; align-items:center; gap:6px; margin-top:8px; }
+.td-row .td-eq { flex:1; min-width:0; }
+.td-name { font-size:12px; min-width:20px; }
+.td-off .td-eq, .td-off .td-name { opacity:.45; }
+.td-bad .td-eq { border-color:#c2262a; }
+.td-info { font-size:11px; color:var(--text-muted); line-height:1.5; padding:2px 0 0 18px; }
+.td-relrow { font-size:11.5px; line-height:1.5; margin-bottom:5px; overflow-wrap:anywhere; }
+.td-sub { font-size:11px; color:var(--text-muted); padding-left:10px; }
+.td-sub-opt { margin-left:18px; }
+.td-opts { flex-direction:column; align-items:flex-start; row-gap:3px; }
+.td-hint { position:absolute; left:12px; top:10px; z-index:20; font-size:11.5px; line-height:1.4; color:var(--text-muted); background:var(--bg-sidebar); border:1px solid var(--border); border-radius:8px; padding:5px 10px; max-width:min(70%,420px); pointer-events:none; opacity:.9; }
+.td-hint { transition:opacity .5s; }
+.td-hint.td-hint-done { opacity:0; }
+@media (max-width: 700px) { .td-hint { top:auto; bottom:10px; } }
+.td-h-touch { display:none; }
+@media (pointer: coarse) { .td-h-mouse { display:none; } .td-h-touch { display:block; } .td-hint { font-size:12.5px; } }
+
+/* ── Geometrie-Panel (26_geo.js / 27_geo_ui.js) ── Stil wie die übrigen Panels (Standard-Buttons, .dot, .del-btn) */
+#geo-presetsel { width:100%; margin-bottom:6px; }
+.geo-box { border-top:1px solid var(--border); }
+.geo-box:first-child { border-top:none; }
+.geo-box > summary { cursor:pointer; user-select:none; padding:6px 0; font-size:12px; font-weight:600; color:var(--text-muted); list-style:none; display:flex; align-items:center; gap:6px; }
+.geo-box > summary::-webkit-details-marker { display:none; }
+.geo-box > summary::before { content:'\25B8'; font-size:10px; color:var(--text-label); transition:transform .15s; }
+.geo-box[open] > summary::before { transform:rotate(90deg); }
+.geo-box > summary .geo-n { margin-left:auto; font-weight:400; font-size:10.5px; color:var(--text-label); }
+.geo-toolrow { display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:0 0 8px; }
+.geo-tool { white-space:normal; line-height:1.25; padding:6px 6px; min-height:30px; text-align:center; }
+#geo-status { min-height:30px; margin:6px 0 4px; line-height:1.4; }
+#geo-opts { margin-top:8px; flex-wrap:wrap; row-gap:3px; column-gap:12px; }
+#geo-clear { width:100%; margin-top:4px; }
+#geo-list { max-height:340px; overflow:auto; margin-top:10px; scrollbar-width:thin; }
+.geo-row { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-bottom:6px; font-size:11.5px; }
+.geo-col { appearance:none; -webkit-appearance:none; width:12px; height:12px; padding:0; border:none; border-radius:50%; background:none; flex-shrink:0; cursor:pointer; box-shadow:0 0 0 3px rgba(128,134,150,0.16); }
+.geo-col::-webkit-color-swatch-wrapper { padding:0; }
+.geo-col::-webkit-color-swatch { border:none; border-radius:50%; }
+.geo-col::-moz-color-swatch { border:none; border-radius:50%; }
+.geo-txt { flex:1; min-width:0; overflow-wrap:anywhere; line-height:1.35; color:var(--text); }
+.geo-nums { flex-basis:100%; display:flex; align-items:center; gap:6px; padding-left:18px; }
+.geo-lab { font-size:11px; color:var(--text-muted); min-width:24px; }
+.geo-rng { flex:1; min-width:60px; }
+.geo-num { width:64px; font-size:11px; padding:2px 4px; }
+.geo-hidden .geo-txt, .geo-hidden .geo-col { opacity:.4; }
+.geo-aux .geo-txt { color:var(--text-muted); }
+.geo-bad .geo-txt { color:#c2262a; }
+.geo-hint { position:absolute; left:50%; bottom:12px; transform:translateX(-50%); z-index:30; display:none; align-items:center; gap:8px;
+  max-width:calc(100% - 24px); padding:7px 8px 7px 14px; border-radius:20px; background:rgba(30,41,59,.92); color:#fff; font-size:12.5px; line-height:1.3;
+  box-shadow:0 4px 14px rgba(0,0,0,.25); }
+.geo-hint-msg { min-width:0; }
+.geo-hint-btn { flex-shrink:0; border:none; background:rgba(255,255,255,.18); color:#fff; border-radius:999px; padding:5px 12px; font-size:12px; cursor:pointer; box-shadow:none; }
+.geo-hint-btn:hover { background:rgba(255,255,255,.3); }
+/* Aktionsknopf mit Erklärung (Lineare/Quadratische Funktionen): Knopf = was entsteht, Zeile darunter = was man anklickt */
+.act { margin-bottom:8px; }
+.act-btn { width:100%; text-align:left; }
+.act-hint { font-size:10.5px; color:var(--text-muted); margin:3px 2px 0; line-height:1.35; }
+.act-more { margin-top:4px; }
+.act-more > summary { cursor:pointer; user-select:none; font-size:11px; color:var(--text-muted); padding:3px 2px; list-style:none; display:flex; align-items:center; gap:5px; }
+.act-more > summary::-webkit-details-marker { display:none; }
+.act-more > summary::before { content:'\25B8'; font-size:9px; transition:transform .15s; }
+.act-more[open] > summary::before { transform:rotate(90deg); }
+.act-more[open] { padding-bottom:2px; }
+.guide-step { flex-shrink:0; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; background:rgba(91,146,255,.55); color:#fff; letter-spacing:.02em; }
+.guide-bar { pointer-events:auto; }
+.guide-extra { flex-shrink:1; min-width:0; font-size:11.5px; padding:2px 8px; border-radius:8px; background:rgba(255,255,255,.14); color:#e2e8f0; font-variant-numeric:tabular-nums; }
+body.beam .guide-bar { font-size:16px; padding:9px 10px 9px 16px; }
+body.beam .guide-bar .geo-hint-btn { font-size:14px; }
+@media (pointer: coarse) { .geo-hint-btn { padding:9px 15px; } .geo-hint { font-size:13.5px; } }
+@media (pointer: coarse) {
+  .geo-tool { padding:8px 8px; min-height:40px; font-size:13px; }
+  .geo-box > summary { padding:10px 0; font-size:13px; }
+  .geo-col { width:18px; height:18px; }
+  .geo-row { margin-bottom:8px; }
+  .geo-num { width:74px; padding:5px 6px; }
+}
 </style>
 </head>
 <body>
@@ -744,20 +1060,15 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
 
   <!-- Kopfzeile: Logo + Name -->
   <div class="brand">
-    <div class="brand-logo" aria-hidden="true">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 20h18M4 4v16" stroke-width="1.6" opacity="0.55"/>
-        <path d="M4.5 17c3-.2 4-3 6-8s4-5.5 6.5-4.5" stroke-width="2.2"/>
-      </svg>
+    <div class="brand-name" role="img" aria-label="J Wurzel 10" translate="no">
+      <!-- Logo J√10: Name als eine durchgehende Linie (J und Wurzel im Blauverlauf, 10 in Textfarbe); überall gleich -->
+      <div class="brand-mark"></div>
     </div>
-    <div>
-      <div class="brand-name">Funktionenplotter</div>
-      <div class="brand-sub">Mathematik · Analysis</div>
-    </div>
+    <button type="button" id="home-btn" title="Startseite: alle Themen, Suche und Hilfe">🏠 Startseite</button>
   </div>
 
   <!-- PANEL 1: Funktionen eingeben + Mathematik-Tastatur -->
-  <div class="panel">
+  <div class="panel" id="func-panel" data-envs="func">
     <div class="panel-title" data-i18n="panel_functions">ƒ Funktionen</div>
     <div id="func-list"></div>
     <div class="toolbar">
@@ -773,7 +1084,7 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
 
   <!-- Tastatur: eigenes, einklappbares Panel (gleiche Höhe/Optik wie alle anderen Menüpunkte).
        Das Einklappen übernimmt der generische Panel-Code in 11_fitting.js. -->
-  <div class="panel" id="kbd-panel">
+  <div class="panel" id="kbd-panel" data-envs="func lin quad pow exp trig inv intro diff int seq alg">
     <div class="panel-title">⌨ Tastatur</div>
       <div id="kbd-body">
         <div class="kbd">
@@ -805,140 +1116,155 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
   </div>
 
   <!-- PANEL 2: Parameter-Schieber — direkt unter Funktionen -->
-  <div class="panel" id="param-section" style="display:none;">
+  <div class="panel" id="param-section" data-envs="func" style="display:none;">
     <div class="panel-title" data-i18n="panel_params">Parameter (Schieber)</div>
     <div id="param-list"></div>
   </div>
 
+  <!-- Die alten Panels «Lineare Funktionen», «Quadratische Funktionen» und «Potenz- und Wurzelfunktionen» der Umgebung
+       «Funktionen» sind ausgeblendet: Diese Themen haben eigene Umgebungen (lin, quad, pow). Die Elemente bleiben im DOM,
+       weil 06_ui_functions.js und 11_fitting.js ihre IDs noch kennen; der Wrapper ist «hidden». -->
+  <div id="func-legacy-panels" hidden>
   <!-- PANEL 3: Lineare Funktionen -->
-  <div class="panel" id="linear-panel">
+  <div class="panel" id="linear-panel" data-envs="func">
     <div class="panel-title" data-i18n="panel_linear">📏 Lineare Funktionen</div>
 
-    <!-- 1. Standardform y = m·x + q mit Schiebereglern — Unterrichts-Feature
-         zum Erkunden (statt Berechnen aus Punkten): m/q lassen sich nach dem
-         Aufschalten oben im Panel "Parameter (Schieber)" live verändern (das
-         direkt über diesem Panel erscheint, sobald diese Funktion
-         aufgeschaltet ist — daher bewusst als ERSTER Abschnitt hier). Die
-         Formel unten zeigt live die AKTUELLEN Schieberwerte eingesetzt
-         (siehe _setPanelFormula() in 06_ui_functions.js). Das Steigungs-
-         dreieck gehört inhaltlich zu genau dieser Geraden und steht daher
-         direkt hier mit im selben Abschnitt (kein eigener Unterabschnitt). -->
-    <div class="subpanel-label" data-i18n="lbl_lin_slopeform">Standardform</div>
-    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_slope_form">Gerade aufschalten, dann m und q oben mit den Schiebereglern verändern.</div>
-    <button onclick="linAddSlopeForm()" style="width:100%;" data-mlatex="y=mx+q">y = mx + q</button>
-    <div id="lin-slopeform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
-    <div id="lin-slopeform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
+    <!-- Aufbau: ein Abschnitt pro Ergebnis. Jeder Knopf heisst nach dem, was ENTSTEHT; die Zeile darunter sagt,
+         was man dafür im Plot anklickt («.act-hint»). Alle Klick-Abläufe zeigen ausserdem die Hinweisleiste unten im
+         Plot (28_guide.js). IDs/Handler sind unverändert (11_fitting.js, 06_ui_functions.js). -->
 
-    <div class="settings-row" style="margin-top:4px;">
-      <label><input type="checkbox" id="chk-slopetri" onchange="scheduleDraw()"> <span data-i18n="chk_slopetri">Steigungsdreieck</span></label>
+    <!-- 1. Gerade erzeugen -->
+    <div class="subpanel-label" style="margin-top:0;">Gerade erzeugen</div>
+    <div class="act">
+      <button onclick="linAddSlopeForm()" style="width:100%;" data-mlatex="y=mx+q">y = mx + q</button>
+      <div class="act-hint">Mit Schiebereglern für m und q (oben im Panel «Parameter»)</div>
+      <div id="lin-slopeform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
+      <div id="lin-slopeform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
     </div>
-    <div class="toolbar" style="margin-top:4px;gap:4px;flex-wrap:wrap;">
-      <button id="slopetri-pick-btn" onclick="slopeTriTogglePick()" data-i18n="btn_pick_tri" data-i18n-title="btn_pick_tri">✏ 2 Pkt. wählen</button>
-      <button onclick="showLoesungsweg()" id="loesungsweg-btn" data-i18n="btn_solution">📋 Lösungsweg</button>
-    </div>
-    <div id="slopetri-pick-status" style="font-size:10px;color:#378ADD;min-height:10px;margin-top:2px;"></div>
-    <div id="loesungsweg-box" class="lw-box"></div>
-
-    <!-- 2. Aus zwei Punkten berechnen -->
-    <div class="subpanel">
-      <div class="subpanel-label" data-i18n="lbl_lin_2pt">Aus zwei Punkten</div>
-      <div id="lin-inputs" style="margin-top:2px;"></div>
-
-      <div class="toolbar" style="margin-top:5px;">
-        <button id="lin-pick-btn" onclick="linTogglePick()" data-i18n="btn_click">✏ Im Plot klicken</button>
-        <button onclick="linCompute()" data-i18n="btn_calc">Berechnen</button>
-      </div>
+    <div class="act">
+      <button id="lin-pick-btn" onclick="linTogglePick()" class="act-btn">✏ Gerade durch 2 Punkte</button>
+      <div class="act-hint">So geht’s: 2 Punkte im Plot anklicken</div>
       <div id="lin-pick-status" style="font-size:11px;color:#378ADD;min-height:11px;margin-top:2px;"></div>
+      <details class="act-more">
+        <summary>Oder Koordinaten eintippen</summary>
+        <div id="lin-inputs" style="margin-top:4px;"></div>
+        <button onclick="linCompute()" style="width:100%;">Gerade zeichnen</button>
+      </details>
       <div id="lin-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:14px;"></div>
       <div id="lin-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
     </div>
 
-    <!-- 3. Senkrechte & Mittelsenkrechte (Unterrichts-Feature) — vollständig
-         klick-geführt (siehe _perpFlowToggle()/perpFlowPickClick() in
-         11_fitting.js): "⊥ Senkrechte" startet einen 2-Schritt-Ablauf (Punkt
-         im Plot wählen, dann eine Gerade im Plot anklicken), "⊥ Mittel-
-         senkrechte" ebenfalls 2 Schritte (Punkt 1, dann Punkt 2). Der
-         Lösungsweg inkl. Steigungsbeziehung m₁·m₂ = −1 zeigt der Knopf
-         "📋 Lösungsweg" direkt darunter (Karte oben rechts im Plot,
-         showPerpLoesungsweg() in 22c_steps_panels.js). -->
+    <!-- 2. Steigungsdreieck -->
     <div class="subpanel">
-      <div class="subpanel-label" data-i18n="lbl_lin_perp">Senkrechte &amp; Mittelsenkrechte</div>
-      <div class="hint" style="margin-bottom:5px;" data-i18n="perp_hint">Für die Senkrechte: Punkt und Gerade im Plot wählen. Für die Mittelsenkrechte: zwei Punkte wählen. Inkl. Lösungsweg und Beziehung der Steigungen (m₁·m₂ = −1).</div>
-      <div class="toolbar" style="margin-top:0;gap:4px;flex-wrap:wrap;">
-        <button id="perp-pick-btn" onclick="linPerpTogglePick()" style="flex:1;" data-i18n="btn_perp_pick" data-i18n-title="btn_perp_pick">⊥ Senkrechte</button>
-        <button id="bisector-pick-btn" onclick="linBisectorTogglePick()" style="flex:1;" data-i18n="btn_bisector_pick" data-i18n-title="btn_bisector_pick">⊥ Mittelsenkrechte (inkl. M)</button>
+      <div class="subpanel-label">Steigungsdreieck</div>
+      <div class="settings-row" style="margin-bottom:6px;">
+        <label><input type="checkbox" id="chk-slopetri" onchange="scheduleDraw()"> Steigungsdreieck anzeigen</label>
       </div>
-      <div class="toolbar" style="margin-top:4px;gap:4px;">
-        <button onclick="showPerpLoesungsweg()" id="perp-lw-btn" style="flex:1;" data-i18n="btn_solution">📋 Lösungsweg</button>
+      <div class="act">
+        <button id="slopetri-pick-btn" onclick="slopeTriTogglePick()" class="act-btn">△ Steigungsdreieck setzen</button>
+        <div class="act-hint">So geht’s: 2 Punkte auf einer Geraden anklicken</div>
+        <div id="slopetri-pick-status" style="font-size:10px;color:#378ADD;min-height:10px;margin-top:2px;"></div>
+      </div>
+      <div class="act">
+        <button onclick="showLoesungsweg()" id="loesungsweg-btn" style="width:100%;">📋 Lösungsweg zur Steigung</button>
+        <div class="act-hint">für alle Geraden im Plot</div>
+      </div>
+      <div id="loesungsweg-box" class="lw-box"></div>
+    </div>
+
+    <!-- 3. Senkrechte & Mittelsenkrechte (klick-geführt, siehe _perpFlowToggle()/perpFlowPickClick() in 11_fitting.js;
+         Lösungsweg inkl. m₁·m₂ = −1: showPerpLoesungsweg() in 22c_steps_panels.js) -->
+    <div class="subpanel">
+      <div class="subpanel-label">Senkrechte &amp; Mittelsenkrechte</div>
+      <div class="act">
+        <button id="perp-pick-btn" onclick="linPerpTogglePick()" class="act-btn">⊥ Senkrechte</button>
+        <div class="act-hint">So geht’s: einen Punkt, dann eine Gerade anklicken</div>
+      </div>
+      <div class="act">
+        <button id="bisector-pick-btn" onclick="linBisectorTogglePick()" class="act-btn">⊥ Mittelsenkrechte</button>
+        <div class="act-hint">So geht’s: 2 Punkte anklicken (mit Mittelpunkt M)</div>
       </div>
       <div id="perp-pick-status" style="font-size:10px;color:#378ADD;min-height:10px;margin-top:2px;"></div>
       <div id="lin-perp-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
+      <div class="act">
+        <button onclick="showPerpLoesungsweg()" id="perp-lw-btn" style="width:100%;">📋 Lösungsweg zur Senkrechten</button>
+      </div>
     </div>
   </div>
 
   <!-- PANEL 4: Quadratische Funktionen -->
-  <div class="panel" id="quad-panel">
+  <div class="panel" id="quad-panel-old" data-envs="func">
     <div class="panel-title" data-i18n="panel_quadratic">📈 Quadratische Funktionen</div>
 
-    <!-- 1. Standardform y=ax²+bx+c & Scheitelpunktsform y=a(x−v)²+h mit
-         Schiebereglern — Unterrichts-Feature zum Erkunden (analog zu
-         "y = mx + q" im Panel "Lineare Funktionen"): a,b,c bzw. a,v,h lassen
-         sich nach dem Aufschalten oben im Panel "Parameter (Schieber)" live
-         verändern (siehe quadAddStandardForm()/quadAddVertexForm() in
-         11_fitting.js). -->
-    <div class="subpanel-label" data-i18n="lbl_quad_forms">Formen (Schieberegler)</div>
-    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_quad_forms">Form aufschalten, dann a, b, c bzw. a, v, h oben mit den Schiebereglern verändern.</div>
-    <button onclick="quadAddStandardForm()" style="width:100%;" data-mlatex="y=ax^2+bx+c">y = ax² + bx + c</button>
-    <div id="quad-standardform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
-    <div id="quad-standardform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
-    <button onclick="quadAddVertexForm()" style="width:100%;margin-top:6px;" data-mlatex="y=a(x-v)^2+h">y = a(x−v)² + h</button>
-    <div id="quad-vertexform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
-    <div id="quad-vertexform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
+    <!-- Aufbau wie bei den Linearen Funktionen: ein Abschnitt pro Ergebnis, Knopf = was entsteht,
+         Zeile darunter = was man anklickt (siehe quadUpdateInputs() in 11_fitting.js). -->
 
-    <!-- 2. Aus Punkten berechnen -->
+    <!-- 1. Parabel mit Schiebereglern -->
+    <div class="subpanel-label" style="margin-top:0;">Parabel erzeugen</div>
+    <div class="act">
+      <button onclick="quadAddStandardForm()" style="width:100%;" data-mlatex="y=ax^2+bx+c">y = ax² + bx + c</button>
+      <div class="act-hint">Mit Schiebereglern für a, b und c (oben im Panel «Parameter»)</div>
+      <div id="quad-standardform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
+      <div id="quad-standardform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
+    </div>
+    <div class="act">
+      <button onclick="quadAddVertexForm()" style="width:100%;" data-mlatex="y=a(x-v)^2+h">y = a(x−v)² + h</button>
+      <div class="act-hint">Mit Schiebereglern für a, v und h</div>
+      <div id="quad-vertexform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
+      <div id="quad-vertexform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
+    </div>
+
+    <!-- 2. Parabel aus Punkten -->
     <div class="subpanel">
-      <div class="subpanel-label" data-i18n="lbl_quad_frompoints">Aus Punkten berechnen</div>
+      <div class="subpanel-label">Parabel aus Punkten</div>
       <div class="settings-row" style="flex-wrap:wrap;gap:6px;">
-        <label style="font-size:11px;" data-i18n="lbl_type">Typ:</label>
+        <label style="font-size:11px;">Form:</label>
         <select id="quad-subtype" onchange="quadUpdateInputs()" style="flex:1;">
           <option value="quadratic" data-i18n="opt_quad_normal">Normalform  (ax²+bx+c)</option>
           <option value="vertex" data-i18n="opt_quad_vertex_f">Scheitelpunktsform a·(x−v)²+h</option>
           <option value="roots" data-i18n="opt_quad_roots_f">Nullstellenform  a·(x−x₁)·(x−x₂)</option>
         </select>
       </div>
-
-      <div id="quad-inputs" style="margin-top:6px;"></div>
-
-      <div class="toolbar" style="margin-top:5px;">
-        <button id="quad-pick-btn" onclick="quadTogglePick()" data-i18n="btn_click">✏ Im Plot klicken</button>
-        <button onclick="quadCompute()" data-i18n="btn_calc">Berechnen</button>
+      <div class="act">
+        <button id="quad-pick-btn" onclick="quadTogglePick()" class="act-btn"><span id="quad-pick-label">✏ Parabel durch 3 Punkte</span></button>
+        <div class="act-hint" id="quad-pick-hint">So geht’s: 3 Punkte im Plot anklicken</div>
+        <div id="quad-pick-status" style="font-size:11px;color:#378ADD;min-height:11px;margin-top:2px;"></div>
+        <details class="act-more">
+          <summary>Oder Koordinaten eintippen</summary>
+          <div id="quad-inputs" style="margin-top:4px;"></div>
+          <button onclick="quadCompute()" style="width:100%;">Parabel zeichnen</button>
+        </details>
+        <div id="quad-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:14px;"></div>
+        <div id="quad-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
       </div>
-      <div id="quad-pick-status" style="font-size:11px;color:#378ADD;min-height:11px;margin-top:2px;"></div>
-      <div id="quad-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:14px;"></div>
-      <div id="quad-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
     </div>
 
-    <!-- Lösungsweg: Scheitelpunkt + Nullstellen -->
+    <!-- 3. Lösungswege: Scheitelpunkt + Nullstellen (für alle Parabeln im Plot) -->
     <div class="subpanel">
+      <div class="subpanel-label">Rechenwege</div>
       <div class="toolbar" style="margin-top:0;gap:4px;">
-        <button onclick="showQuadScheitelpunkt()" id="quad-sp-btn" data-i18n="btn_vertex_form">📐 Scheitelpunkt</button>
-        <button onclick="showQuadNullstellen()" id="quad-ns-btn" data-i18n="btn_zeros_form">📋 Nullstellen</button>
+        <button onclick="showQuadScheitelpunkt()" id="quad-sp-btn" style="flex:1;">📐 Scheitelpunkt</button>
+        <button onclick="showQuadNullstellen()" id="quad-ns-btn" style="flex:1;">📋 Nullstellen</button>
       </div>
+      <div class="act-hint">Lösungsweg für alle Parabeln im Plot</div>
       <div id="quad-sp-box" class="lw-box"></div>
       <div id="quad-ns-box" class="lw-box"></div>
     </div>
   </div>
 
+  </div>
+  <!-- Die alten Panels «Exponentialfunktionen» und «Logarithmusfunktionen» sind ausgeblendet: eigene Umgebung «exp». -->
+  <div id="func-legacy-panels-3" hidden>
   <!-- PANEL 5: Exponentialfunktionen — nur noch die allgemeine Form
        y = a·bˣ + c als Unterrichts-Feature zum Erkunden (statt Berechnen aus
        Punkten): a, b, c werden nach dem Aufschalten zu normalen Parametern
        und lassen sich oben im Panel "Parameter (Schieber)" live verändern —
        exakt das gleiche Muster wie "y = mx + q" im Panel "Lineare Funktionen"
        (siehe linAddSlopeForm() in 11_fitting.js / expAddGeneralForm() dort). -->
-  <div class="panel" id="exp-panel">
+  <div class="panel" id="exp-panel-old" data-envs="func">
     <div class="panel-title" data-i18n="panel_exp_fn">📊 Exponentialfunktionen</div>
-    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_exp_form">y = a·bˣ + c live erkunden: Funktion aufschalten, dann a, b und c oben mit den Schiebereglern verändern.</div>
-    <button onclick="expAddGeneralForm()" style="width:100%;" data-mlatex="y=ab^x+c">y = a·bˣ + c</button>
+    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_exp_form">y = a·bˣ live erkunden: Funktion aufschalten, dann a und b oben mit den Schiebereglern verändern.</div>
+    <button onclick="expAddGeneralForm()" style="width:100%;" data-mlatex="y=ab^x">y = a·bˣ</button>
     <div id="exp-generalform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
     <div id="exp-generalform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
 
@@ -986,14 +1312,16 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
        normalen Parametern und lassen sich oben im Panel "Parameter
        (Schieber)" live verändern — exakt das gleiche Muster wie bei den
        Exponentialfunktionen (siehe logAddGeneralForm() in 11_fitting.js). -->
-  <div class="panel" id="log-panel">
+  <div class="panel" id="log-panel-old" data-envs="func">
     <div class="panel-title" data-i18n="panel_log_fn">📉 Logarithmusfunktionen</div>
     <div class="hint" style="margin-bottom:5px;" data-i18n="hint_log_form">y = a·log_b(x) live erkunden: Funktion aufschalten, dann a, b und c oben mit den Schiebereglern verändern.</div>
     <button onclick="logAddGeneralForm()" style="width:100%;" data-mlatex="y=a\log_b(x)+c">y = a·log_b(x) + c</button>
     <div id="log-generalform-result" style="margin-top:3px;font-size:12px;font-weight:500;min-height:13px;"></div>
     <div id="log-generalform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
   </div>
+  </div>
 
+  <div id="func-legacy-panels-2" hidden>
   <!-- PANEL 7: Potenz- und Wurzelfunktionen — nur noch die allgemeine Form
        y = a·(x−v)ⁿ + h als Unterrichts-Feature zum Erkunden (statt Berechnen
        aus Punkten): erst Fallunterscheidung für n (positiv/negativ, gerade/
@@ -1001,7 +1329,7 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
        normale Parameter und lassen sich oben im Panel "Parameter (Schieber)"
        live verändern — exakt das gleiche Muster wie bei den Exponential-/
        Logarithmusfunktionen (siehe powerAddGeneralForm() in 11_fitting.js). -->
-  <div class="panel" id="power-panel">
+  <div class="panel" id="power-panel" data-envs="func">
     <div class="panel-title" data-i18n="panel_power_fn">🔢 Potenz- und Wurzelfunktionen</div>
     <div class="hint" style="margin-bottom:5px;" data-i18n="hint_power_form">y = a·(x−v)ⁿ + h live erkunden: Fall wählen, aufschalten, dann a, v, n und h oben mit den Schiebereglern verändern.</div>
 
@@ -1022,6 +1350,9 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
     <div id="power-generalform-dw" style="font-size:11px;color:var(--text-muted);min-height:11px;"></div>
   </div>
 
+  </div>
+  <!-- Das alte Panel «Trigonometrische Funktionen» ist ausgeblendet: eigene Umgebung «trig». -->
+  <div id="func-legacy-panels-4" hidden>
   <!-- Trigonometrische Funktionen: sin/cos/tan "aufschalten" mit EINEM
        ziehbaren Punkt (dem normalen Einheitskreis-Punkt, unitCirclePts),
        der gleichzeitig auf dem Kreis und — über seine Projektion — auf dem
@@ -1029,7 +1360,7 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
        (Zusammenhang sin=Gegenkathete/Hypotenuse sichtbar machen) —
        Unterrichts-Feature, siehe trigAddFunction() in 06_ui_functions.js
        und findNearTrigProjDot()/drawUnitCircle() in 08_draw.js. -->
-  <div class="panel">
+  <div class="panel" id="trig-panel-old" data-envs="func">
     <div class="panel-title" data-i18n="panel_trig">∿ Trigonometrische Funktionen</div>
     <div class="hint" style="margin-bottom:5px;" data-i18n="hint_trig_circle">sin(x), cos(x) oder tan(x) aufschalten: ein ziehbarer Punkt auf dem Graphen zeigt den Zusammenhang mit dem Einheitskreis (sin = Gegenkathete/Hypotenuse).</div>
     <div class="toolbar" style="gap:4px;flex-wrap:wrap;">
@@ -1037,6 +1368,7 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
       <button onclick="trigAddFunction('cos')" data-mlatex="\cos(x)" style="flex:1;">cos(x)</button>
       <button onclick="trigAddFunction('tan')" data-mlatex="\tan(x)" style="flex:1;">tan(x)</button>
     </div>
+  </div>
     <div class="settings-row" style="margin-top:6px;flex-wrap:wrap;gap:6px;">
       <label><input type="checkbox" id="chk-unitcircle" autocomplete="off" onchange="scheduleDraw()"> <span data-i18n="chk_unitcircle">Einheitskreis</span></label>
       <!-- Winkel-Anzeige am Einheitskreis: Gradmaß (bisheriges Verhalten,
@@ -1073,24 +1405,235 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
     </div>
   </div>
 
-  <!-- Differenzenquotient-Applet: Einstieg ins Thema Differentialrechnung
-       (Unterrichts-Feature, Nutzerwunsch). Funktion FREI wählbar (Eingabefeld
-       #diffquot-fn-input, Fallback x²), ZWEI ziehbare Punkte A und B entlang
-       der Kurve. Zeigt Sekante durch A/B, Steigungsdreieck (mit Katheten-
-       Längenbeschriftung, dezimal) und den Differenzenquotienten; zieht man
-       A und B nahe zusammen, nähert sich m dem Differentialquotienten f'(xA)
-       an — siehe diffQuotSetup()/diffQuotSetupField() in 06_ui_functions.js,
-       drawDiffQuot() in 08_draw.js und drag.type==='diffquotpt' in
-       09_events.js. -->
-  <div class="panel">
-    <div class="panel-title" data-i18n="panel_diffquot">🧮 Differenzenquotient</div>
-    <div class="hint" style="margin-bottom:5px;" data-i18n="hint_diffquot">Funktion eingeben und aufschalten: Punkt A und Punkt B sind beide ziehbar. Ziehe A und B nahe zusammen — der Differenzenquotient nähert sich dann dem Differentialquotienten (der Ableitung) an.</div>
+  <!-- PANEL: Differentialrechnung (wird von 62_dif_ui.js gefüllt). Ein einziges f(x)-Feld (#diffquot-fn-input,
+       eingerichtet von diffQuotSetupField() in 06_ui_functions.js); Ansichten: Sekante → Tangente,
+       Graphisches Ableiten, Ableiten mit Regeln, Kurvendiskussion. -->
+  <div class="panel" id="dif-panel" data-envs="diff">
+    <div class="panel-title">📐 Differentialrechnung</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="dif-view" style="width:100%;"></select>
+    <div id="dif-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <div class="subpanel-label">Funktion</div>
     <div class="toolbar" style="gap:5px;align-items:center;flex-wrap:nowrap;">
       <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">f(x) =</span>
       <math-field id="diffquot-fn-input" class="func-inp-ce" placeholder="z.B. x^2" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
-      <button onclick="diffQuotSetup()" data-i18n="btn_lo_set_objective" style="flex-shrink:0;">Aufschalten</button>
+      <button type="button" id="dif-apply" style="flex-shrink:0;">Übernehmen</button>
     </div>
-    <div id="diffquot-dw" style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.6;"></div>
+    <div id="dif-err" class="act-hint" style="color:#d9486b;margin:4px 2px 0;"></div>
+    <select id="dif-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="dif-body" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- PANEL: Integralrechnung (wird von 72_int_ui.js gefüllt). Ein f(x)-Feld (#itg-fn-input), in der Ansicht
+       «Flächen zwischen Kurven» zusätzlich g(x) (#itg-g-input). Ansichten: Ober-/Untersumme → Integral,
+       Integralfunktion & Hauptsatz, Stammfunktion & Regeln, Flächen zwischen Kurven, Rotationskörper.
+       Die alten Panels «Ober- und Untersummen» / «Flächen» bleiben als unsichtbare Reste (data-envs="int-alt"). -->
+  <div class="panel" id="itg-panel" data-envs="int">
+    <div class="panel-title">∫ Integralrechnung</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="itg-view" style="width:100%;"></select>
+    <div id="itg-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <div class="subpanel-label">Funktion</div>
+    <div class="toolbar" style="gap:5px;align-items:center;flex-wrap:nowrap;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">f(x) =</span>
+      <math-field id="itg-fn-input" class="func-inp-ce" placeholder="z.B. x^2" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button type="button" id="itg-apply" style="flex-shrink:0;">Übernehmen</button>
+    </div>
+    <div id="itg-g-row" class="toolbar" style="gap:5px;align-items:center;flex-wrap:nowrap;margin-top:4px;display:none;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">g(x) =</span>
+      <math-field id="itg-g-input" class="func-inp-ce" placeholder="z.B. x" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button type="button" id="itg-g-apply" style="flex-shrink:0;">Übernehmen</button>
+    </div>
+    <div id="itg-err" class="act-hint" style="color:#d9486b;margin:4px 2px 0;"></div>
+    <select id="itg-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="itg-body" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- PANEL: Lineare Funktionen (wird von 82_lin_ui.js gefüllt). Felder f(x) (#lin-fn-input) und, beim Schnitt zweier
+       Geraden, g(x) (#lin-g-input); nur lineare Funktionen m·x + q. Ansichten: Steigung und y-Achsenabschnitt,
+       Gerade aufstellen, Schnitt zweier Geraden, Anwendungen, Nullstelle/Senkrechte/Mittelsenkrechte. -->
+  <div class="panel" id="lin-panel" data-envs="lin">
+    <div class="panel-title">📏 Lineare Funktionen</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="lin-view" style="width:100%;"></select>
+    <div id="lin-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <div class="subpanel-label" id="lin-field-head">Funktion</div>
+    <div class="toolbar" id="lin-f-row" style="gap:5px;align-items:center;flex-wrap:nowrap;">
+      <span id="lin-f-label" style="font-size:12px;color:var(--text-muted);flex-shrink:0;">f(x) =</span>
+      <math-field id="lin-fn-input" class="func-inp-ce" placeholder="z.B. 2x+1" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button type="button" id="lin-apply" style="flex-shrink:0;">Übernehmen</button>
+    </div>
+    <div id="lin-g-row" class="toolbar" style="gap:5px;align-items:center;flex-wrap:nowrap;margin-top:4px;display:none;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">g(x) =</span>
+      <math-field id="lin-g-input" class="func-inp-ce" placeholder="z.B. -x+5" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button type="button" id="lin-g-apply" style="flex-shrink:0;">Übernehmen</button>
+    </div>
+    <div id="lin-err" class="act-hint" style="color:#d9486b;margin:4px 2px 0;"></div>
+    <select id="lin-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="lin-body" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- PANEL: Quadratische Funktionen (wird von 87_quad_ui.js gefüllt). Feld f(x) (#quad-fn-input): ax² + bx + c.
+       Ansichten: Parameter und drei Formen, Scheitelpunkt und quadratische Ergänzung, Nullstellen und Diskriminante,
+       Parabel und Gerade / Parabel aus Punkten. -->
+  <div class="panel" id="quad-panel" data-envs="quad">
+    <div class="panel-title">🌉 Quadratische Funktionen</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="quad-view" style="width:100%;"></select>
+    <div id="quad-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <div class="subpanel-label" id="quad-field-head">Funktion</div>
+    <div class="toolbar" id="quad-f-row" style="gap:5px;align-items:center;flex-wrap:nowrap;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">f(x) =</span>
+      <math-field id="quad-fn-input" class="func-inp-ce" placeholder="z.B. x^2-2x-3" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button type="button" id="quad-apply" style="flex-shrink:0;">Übernehmen</button>
+    </div>
+    <div id="quad-err" class="act-hint" style="color:#d9486b;margin:4px 2px 0;"></div>
+    <select id="quad-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="quad-body" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- PANEL: Potenz- und Wurzelfunktionen (wird von 92_pow_ui.js gefüllt). Rechenkern 90_pow.js, Bilder 91_pow_draw.js.
+       Ansichten: Potenzfunktionen x^n, negative Exponenten, Wurzelfunktionen und Umkehrung, allgemeine Form, Gleichungen. -->
+  <div class="panel" id="pow-panel" data-envs="pow">
+    <div class="panel-title">🔢 Potenz- und Wurzelfunktionen</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="pow-view" style="width:100%;"></select>
+    <div id="pow-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <div class="subpanel-label" id="pow-field-head">Funktion</div>
+    <div class="toolbar" id="pow-f-row" style="gap:5px;align-items:center;flex-wrap:nowrap;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">f(x) =</span>
+      <math-field id="pow-fn-input" class="func-inp-ce" placeholder="z.B. 2(x-1)^3+1" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button type="button" id="pow-apply" style="flex-shrink:0;">Übernehmen</button>
+    </div>
+    <div id="pow-err" class="act-hint" style="color:#d9486b;margin:4px 2px 0;"></div>
+    <select id="pow-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="pow-body" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- PANEL: Exponential- und Logarithmusfunktionen (wird von 95_exp_ui.js gefüllt). Rechenkern 93_exp.js, Bilder 94_exp_draw.js.
+       Ansichten: Wachstum und Zerfall, die Zahl e, Logarithmus als Umkehrung, Exponentialgleichungen und Anwendungen. -->
+  <div class="panel" id="exp-panel" data-envs="exp">
+    <div class="panel-title">📈 Exponential- und Logarithmusfunktionen</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="exp-view" style="width:100%;"></select>
+    <div id="exp-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <div class="subpanel-label" id="exp-field-head">Funktion</div>
+    <div class="toolbar" id="exp-f-row" style="gap:5px;align-items:center;flex-wrap:nowrap;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">f(x) =</span>
+      <math-field id="exp-fn-input" class="func-inp-ce" placeholder="z.B. 3*2^x-1" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button type="button" id="exp-apply" style="flex-shrink:0;">Übernehmen</button>
+    </div>
+    <div id="exp-err" class="act-hint" style="color:#d9486b;margin:4px 2px 0;"></div>
+    <select id="exp-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="exp-body" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- PANEL: Trigonometrische Funktionen (wird von 98_trig_ui.js gefüllt). -->
+  <div class="panel" id="trig-panel" data-envs="trig">
+    <div class="panel-title">∿ Trigonometrische Funktionen</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="trig-view" style="width:100%;"></select>
+    <div id="trig-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <div class="subpanel-label" id="trig-field-head">Funktion</div>
+    <div class="toolbar" id="trig-f-row" style="gap:5px;align-items:center;flex-wrap:nowrap;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">f(x) =</span>
+      <math-field id="trig-fn-input" class="func-inp-ce" placeholder="z.B. 2sin(3(x-1))+1" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button type="button" id="trig-apply" style="flex-shrink:0;">Übernehmen</button>
+    </div>
+    <div id="trig-err" class="act-hint" style="color:#d9486b;margin:4px 2px 0;"></div>
+    <select id="trig-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="trig-body" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- PANEL: Umkehrfunktionen (wird von 99d_inv_ui.js gefüllt). -->
+  <div class="panel" id="inv-panel" data-envs="inv">
+    <div class="panel-title">↔ Umkehrfunktionen</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="inv-view" style="width:100%;"></select>
+    <div id="inv-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <div class="subpanel-label" id="inv-field-head">Funktion</div>
+    <div class="toolbar" id="inv-f-row" style="gap:5px;align-items:center;flex-wrap:nowrap;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">f(x) =</span>
+      <math-field id="inv-fn-input" class="func-inp-ce" placeholder="z.B. (x-1)^2+2" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button type="button" id="inv-apply" style="flex-shrink:0;">Übernehmen</button>
+    </div>
+    <div id="inv-err" class="act-hint" style="color:#d9486b;margin:4px 2px 0;"></div>
+    <select id="inv-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="inv-body" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- PANEL: Funktionen: Einführung (wird von 102_fun_ui.js gefüllt). -->
+  <div class="panel" id="intro-panel" data-envs="intro">
+    <div class="panel-title">📖 Funktionen: Einführung</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="intro-view" style="width:100%;"></select>
+    <div id="intro-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <div class="subpanel-label" id="intro-field-head">Funktion</div>
+    <div class="toolbar" id="intro-f-row" style="gap:5px;align-items:center;flex-wrap:nowrap;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">f(x) =</span>
+      <math-field id="intro-fn-input" class="func-inp-ce" placeholder="z.B. x^2-2x" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button type="button" id="intro-apply" style="flex-shrink:0;">Übernehmen</button>
+    </div>
+    <div id="intro-err" class="act-hint" style="color:#d9486b;margin:4px 2px 0;"></div>
+    <select id="intro-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="intro-body" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- PANEL: Folgen und Reihen (wird von 108_seq_ui.js gefüllt). -->
+  <div class="panel" id="seq-panel" data-envs="seq">
+    <div class="panel-title">∑ Folgen und Reihen</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="seq-view" style="width:100%;"></select>
+    <div id="seq-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <div class="subpanel-label" id="seq-field-head">Folge</div>
+    <div class="toolbar" id="seq-f-row" style="gap:5px;align-items:center;flex-wrap:nowrap;">
+      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">aₙ =</span>
+      <math-field id="seq-fn-input" class="func-inp-ce" placeholder="3n+1" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
+      <button type="button" id="seq-apply" style="flex-shrink:0;">Übernehmen</button>
+    </div>
+    <div id="seq-err" class="act-hint" style="color:#d9486b;margin:4px 2px 0;"></div>
+    <select id="seq-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="seq-body" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- PANEL: Lineare Optimierung (wird von 111_lop_ui.js gefüllt). -->
+  <div class="panel" id="lo-panel" data-envs="lo">
+    <div class="panel-title">📐 Lineare Optimierung</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="lo-view" style="width:100%;"></select>
+    <div id="lo-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <select id="lo-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="lo-body" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- PANEL: Ähnlichkeit (wird von 105_sim_ui.js gefüllt). -->
+  <div class="panel" id="sim-panel" data-envs="sim">
+    <div class="panel-title">△ Ähnlichkeit</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="sim-view" style="width:100%;"></select>
+    <div id="sim-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <select id="sim-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="sim-body" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- Balken bei Funktionen: Stellen x = k·h auswerten (31_bars2d.js). Schieber für den Abstand h;
+       bei h = 0 wird die ganze Funktion gezeichnet. -->
+  <div class="panel" id="fb-panel" data-envs="func">
+    <div class="panel-title">📊 Balken über den Stellen</div>
+    <div class="settings-row td-opts">
+      <label><input type="checkbox" id="fb-on"> Balken zeigen</label>
+      <label><input type="checkbox" id="fb-coords"> Koordinaten (x | y) der Stellen</label>
+      <label><input type="checkbox" id="fb-vals"> Funktionswerte beschriften</label>
+      <label><input type="checkbox" id="fb-dots"> Nur Punkte (ohne Balken)</label>
+      <label><input type="checkbox" id="fb-hide" checked> Kurve ausblenden</label>
+    </div>
+    <div class="act-hint" style="margin:4px 2px 6px;">Jeder Stelle x im gewählten Abstand gehört ein Funktionswert f(x). Der Balken reicht von der x-Achse bis zum Graphen. Verkleinere den Abstand: bei 0 erscheint die ganze Funktion.</div>
+    <div id="fb-none" class="hint" style="display:none;">Zuerst eine Funktion eingeben.</div>
+    <select id="fb-fn" style="width:100%;margin-bottom:6px;" translate="no"></select>
+    <div class="settings-row" style="gap:8px;"><label for="fb-step">Abstand der Stellen</label> <input type="range" id="fb-step" min="0" max="4" step="0.1" value="1" style="flex:1;min-width:60px;"> <b id="fb-stepv" translate="no" style="min-width:34px;text-align:right;font-size:12px;">1</b></div>
+    <div class="settings-row" style="gap:8px;"><label for="fb-sstep">Schrittweite des Schiebers</label>
+      <select id="fb-sstep" translate="no" style="width:78px;"><option value="0.01">0,01</option><option value="0.05">0,05</option><option value="0.1" selected>0,1</option><option value="0.25">0,25</option><option value="0.5">0,5</option><option value="1">1</option></select></div>
+    <div id="fb-note" class="act-hint" style="margin:2px 2px 4px;"></div>
   </div>
 
   <!-- Ober-/Untersummen-Applet: "Einstieg in den Integralbegriff" (Unterrichts-
@@ -1103,7 +1646,7 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
        das exakte Integral heran, Anzahl Teilintervalle n per Schieberegler).
        Siehe riemannSetup() in 06_ui_functions.js, drawRiemann() in
        08_draw.js und drag.type==='riemannpt' in 09_events.js. -->
-  <div class="panel">
+  <div class="panel" id="riemann-panel" data-envs="int-alt">
     <div class="panel-title" data-i18n="panel_riemann">📶 Ober- und Untersummen</div>
     <div class="hint" style="margin-bottom:5px;" data-i18n="hint_riemann">Funktion eingeben und aufschalten: die Intervallgrenzen a und b sind ziehbar. Ober-/Untersumme zwischen f und der x-Achse — erhöhe n, um dich dem exakten Integral anzunähern.</div>
     <div class="toolbar" style="gap:5px;align-items:center;flex-wrap:nowrap;">
@@ -1135,7 +1678,7 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
        "let flaeche" (02_core.js), flaecheSetup()/flaecheSetMode() in
        06_ui_functions.js, drawFlaeche() in 08_draw.js und
        drag.type==='flaechept' in 09_events.js. -->
-  <div class="panel">
+  <div class="panel" id="flaeche-panel" data-envs="int-alt">
     <div class="panel-title" data-i18n="panel_flaeche">🟦 Flächen</div>
     <div class="hint" style="margin-bottom:5px;" data-i18n="hint_flaeche">Funktion eingeben, Randart wählen und aufschalten: die Intervallgrenzen a und b sind ziehbar (und frei eintippbar).</div>
     <div class="toolbar" style="gap:5px;align-items:center;flex-wrap:nowrap;">
@@ -1169,7 +1712,7 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
        nur 1. Quadrant, x≥0/y≥0), Zielfunktion aufschalten & im Plot
        verschieben (snappt an die Eckpunkte), Lösungsweg mit Max/Min —
        siehe 17_linopt.js für die gesamte Logik. -->
-  <div class="panel">
+  <div class="panel" id="lo-old-panel" data-envs="lo-old">
     <div class="panel-title" data-i18n="panel_lo">📐 Lineare Optimierung</div>
     <div class="hint" style="margin-bottom:5px;" data-i18n="hint_lo_quadrant">Es wird automatisch nur der 1. Quadrant betrachtet (x ≥ 0, y ≥ 0).</div>
 
@@ -1231,6 +1774,100 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
     </div>
   </div>
 
+  <!-- Geometrie: Konstruieren mit Punkten, Strecken, Kreisen, Ellipsen, Dreiecken,
+       Vektoren und Abbildungen. Modell/Rechnung: 26_geo.js, Bedienung/Zeichnen:
+       27_geo_ui.js. Das Panel wird dort aufgebaut (Werkzeuge, Vorlagen, Liste). -->
+  <div class="panel" id="geo-panel" data-envs="geo">
+    <div class="panel-title">△ Geometrie <span id="geo-count" style="font-weight:400;color:var(--text-muted);font-size:11px;"></span></div>
+    <div class="hint" style="margin-bottom:6px;">Konstruieren, messen, ziehen: Alles Abgeleitete folgt, wenn man einen Punkt zieht.</div>
+    <select id="geo-presetsel"></select>
+    <div id="geo-tools"></div>
+    <div id="geo-status" class="hint"></div>
+    <button id="geo-finish" style="display:none;width:100%;margin-bottom:6px;">Vieleck fertig</button>
+    <div class="settings-row" id="geo-opts">
+      <label><input type="checkbox" id="geo-chk-names" checked> Namen anzeigen</label>
+      <label><input type="checkbox" id="geo-chk-vals" checked> Masse anzeigen</label>
+      <label><input type="checkbox" id="geo-chk-snap" checked> Am Gitter einrasten</label>
+    </div>
+    <button id="geo-clear">Alles löschen</button>
+    <div id="geo-list"></div>
+  </div>
+
+  <!-- 3D-Raum: Koordinatensystem und Ebenen in Koordinatenform. Rechnung: 29_3d.js,
+       Zeichnen/Drehen/Panel: 30_3d_ui.js. Sichtbar nur im 3D-Modus (body.mode3d). -->
+  <div class="panel" id="td-panel" data-envs="3d">
+    <div class="panel-title">🧊 3D-Raum</div>
+    <div class="subpanel-label" style="margin-top:0;">Ebene eingeben</div>
+    <div class="td-addrow">
+      <input type="text" id="td-input" class="td-eq" placeholder="2x + 3y − z = 6" translate="no" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <button id="td-add">+ Ebene</button>
+    </div>
+    <div id="td-add-err" class="td-err"></div>
+    <div class="act-hint" style="margin:0 2px 6px;">Ebenen in Koordinatenform eingeben. Ziehen dreht den Raum, das Mausrad zoomt.</div>
+    <div class="act-hint" style="margin:0 2px 6px;">Buchstaben (a, b, c, d …) gelten als Parameter: Bei z. B. <span translate="no">ax + by + cz = d</span> erscheinen Schieber.</div>
+    <select id="td-presetsel"></select>
+    <div id="td-list"></div>
+    <div id="td-relbox" class="td-sec" style="display:none;">
+      <div class="subpanel-label">Lage der Ebenen</div>
+      <div id="td-rel"></div>
+    </div>
+    <div class="td-sec">
+      <div class="subpanel-label">Ansicht</div>
+      <div class="geo-toolrow">
+        <button id="td-v-std" class="geo-tool">Standard</button>
+        <button id="td-v-top" class="geo-tool">Von oben</button>
+        <button id="td-v-front" class="geo-tool">Von vorn</button>
+        <button id="td-v-side" class="geo-tool">Von der Seite</button>
+      </div>
+      <div class="settings-row"><label for="td-range">Bereich ±</label> <input type="number" id="td-range" min="1" max="100" step="1" value="6" style="width:70px;"></div>
+    </div>
+    <div class="td-sec">
+      <div class="subpanel-label">Anzeigen</div>
+      <div class="settings-row td-opts">
+        <label><input type="checkbox" id="td-o-grid" checked> Gitter (Grundfläche)</label>
+        <label><input type="checkbox" id="td-o-gridxz"> Gitter xz-Ebene</label>
+        <label><input type="checkbox" id="td-o-gridyz"> Gitter yz-Ebene</label>
+        <label><input type="checkbox" id="td-o-box"> Rahmen</label>
+        <label><input type="checkbox" id="td-o-icpt" checked> Achsenabschnitte</label>
+        <label><input type="checkbox" id="td-o-traces" checked> Spurgeraden (Schnitt mit den Koordinatenebenen)</label>
+        <label class="td-sub-opt"><input type="checkbox" id="td-o-tracexy" checked> in der xy-Ebene</label>
+        <label class="td-sub-opt"><input type="checkbox" id="td-o-tracexz" checked> in der xz-Ebene</label>
+        <label class="td-sub-opt"><input type="checkbox" id="td-o-traceyz" checked> in der yz-Ebene</label>
+        <label><input type="checkbox" id="td-o-normal"> Normalenvektor</label>
+        <label><input type="checkbox" id="td-o-inter" checked> Schnittgeraden und -punkte</label>
+        <label><input type="checkbox" id="td-o-names" checked> Namen der Ebenen</label>
+      </div>
+    </div>
+    <div class="td-sec">
+      <div class="subpanel-label">Balken über dem Gitter</div>
+      <div class="settings-row td-opts">
+        <label><input type="checkbox" id="td-b-on"> Balken zeigen</label>
+        <label><input type="checkbox" id="td-b-coords"> Koordinaten (x | y) der Gitterpunkte</label>
+        <label><input type="checkbox" id="td-b-vals"> z-Werte beschriften</label>
+        <label><input type="checkbox" id="td-b-dots"> Nur Punkte (ohne Balken)</label>
+        <label><input type="checkbox" id="td-b-hide"> Ebene ausblenden</label>
+      </div>
+      <div class="act-hint" style="margin:4px 2px 6px;">Jedem Gitterpunkt der xy-Ebene gehört ein z-Wert der Ebene. Der Balken reicht vom Gitterpunkt bis zur Ebene.</div>
+      <select id="td-b-plane" style="width:100%;margin-bottom:6px;"></select>
+      <div class="settings-row" style="gap:8px;"><label for="td-b-step">Gitterabstand</label> <input type="range" id="td-b-step" min="0" max="4" step="0.1" value="1" style="flex:1;min-width:60px;"> <b id="td-b-stepv" translate="no" style="min-width:34px;text-align:right;font-size:12px;">1</b></div>
+      <div class="settings-row" style="gap:8px;"><label for="td-b-sstep">Schrittweite des Schiebers</label>
+        <select id="td-b-sstep" translate="no" style="width:78px;"><option value="0.01">0,01</option><option value="0.05">0,05</option><option value="0.1" selected>0,1</option><option value="0.25">0,25</option><option value="0.5">0,5</option><option value="1">1</option></select></div>
+      <div id="td-b-note2" class="act-hint" style="margin:2px 2px 4px;"></div>
+      <div id="td-b-note" class="td-err"></div>
+    </div>
+    <details class="geo-box td-sec">
+      <summary>Export</summary>
+      <div class="ex-actions">
+        <button id="td-jpeg">📷 JPEG</button>
+        <button id="td-latex" class="ex-primary">LaTeX</button>
+        <button id="td-latex-copy">Kopieren</button>
+      </div>
+      <textarea id="td-latex-out" class="ex-out" readonly placeholder="LaTeX-Code (TikZ) erscheint hier…"></textarea>
+      <div id="td-latex-msg" class="ex-msg"></div>
+    </details>
+    <button id="td-clear" style="width:100%;margin-top:6px;">Alles löschen</button>
+  </div>
+
   <!-- Manuelle Punkte (ausgeblendet) -->
   <div class="panel" style="display:none">
     <div class="panel-title" data-i18n="panel_points">· Punkte</div>
@@ -1246,7 +1883,7 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
   </div>
 
   <!-- Folgen -->
-  <div class="panel">
+  <div class="panel" id="seq-old-panel" data-envs="seq-old">
     <div class="panel-title" data-i18n="panel_sequences">∑ Folgen</div>
     <div id="seq-list"></div>
     <div class="toolbar">
@@ -1255,8 +1892,54 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
     <div class="hint" style="margin-top:4px;" data-i18n="seq_hint">n = natürliche Zahl &nbsp;|&nbsp; Beispiele: 1/n &nbsp; n^2 &nbsp; (-1)^n/n &nbsp; (1+1/n)^n</div>
   </div>
 
+  <!-- PANEL: Algebra (33_alg_core.js, 34_alg_ui.js) -->
+  <div class="panel" id="alg-panel" data-envs="alg">
+    <div class="panel-title">🧩 Algebra</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <div id="alg-modes" class="alg-modes"></div>
+    <details class="geo-box td-sec" id="alg-custom">
+      <summary>Eigene Aufgabe eingeben</summary>
+      <div id="alg-inp-wrap" class="alg-inp-wrap"></div>
+      <div id="alg-err" class="td-err"></div>
+      <div class="act-hint" id="alg-hint" style="margin:4px 2px 6px;">Mit Klammern wird ausmultipliziert, ohne Klammern kann man faktorisieren.</div>
+    </details>
+    <div id="alg-vars"></div>
+    <div class="alg-opts">
+      <div id="alg-style-row" class="settings-row" style="gap:8px;"><label for="alg-style">Bild</label>
+        <select id="alg-style"><option value="area">Fläche (abschneiden / umlegen)</option><option value="box">Kästchen (Tabelle)</option></select></div>
+      <div id="alg-tiles-row"><label><input type="checkbox" id="alg-tiles"> <span>Mit Kacheln (Algebra-Plättchen)</span></label>
+        <div id="alg-tiles-note" class="act-hint" style="display:none;margin:2px 2px 0;">Kacheln gibt es nur mit einer Variablen und ganzen Zahlen.</div></div>
+      <div id="alg-method-row" class="settings-row" style="gap:8px;"><label for="alg-method">Verfahren</label>
+        <select id="alg-method"><option value="add">Additionsverfahren</option><option value="sub">Einsetzungsverfahren</option><option value="eq">Gleichsetzungsverfahren</option><option value="gauss">Gauss-Verfahren</option></select></div>
+      <div id="alg-explode-row" class="settings-row" style="gap:8px;"><label for="alg-explode">Auseinanderziehen</label> <input type="range" id="alg-explode" min="0" max="1" step="0.05" value="0" style="flex:1;min-width:60px;"></div>
+    </div>
+    <div id="alg-steps"></div>
+    <details class="geo-box td-sec">
+      <summary>Export</summary>
+      <div class="ex-actions">
+        <button id="alg-jpeg">📷 JPEG</button>
+        <button id="alg-latex" class="ex-primary">LaTeX</button>
+        <button id="alg-latex-copy">Kopieren</button>
+      </div>
+      <textarea id="alg-latex-out" class="ex-out" readonly placeholder="LaTeX-Code (TikZ) erscheint hier…"></textarea>
+      <div id="alg-latex-msg" class="ex-msg"></div>
+    </details>
+  </div>
+
+  <!-- PANEL: Wahrscheinlichkeit und Statistik (wird von 42_stat_ui.js gefüllt) -->
+  <div class="panel" id="stat-panel" data-envs="stat">
+    <div class="panel-title">🎲 Wahrscheinlichkeit &amp; Statistik</div>
+    <div id="stat-body"></div>
+  </div>
+
+  <!-- PANEL: Finanzmathematik (wird von 52_fin_ui.js gefüllt) -->
+  <div class="panel" id="fin-panel" data-envs="fin">
+    <div class="panel-title">💰 Finanzmathematik</div>
+    <div id="fin-body"></div>
+  </div>
+
   <!-- PANEL: Begriffe (mathematisches Glossar) -->
-  <div class="panel" id="begriffe-panel">
+  <div class="panel" id="begriffe-panel" data-envs="func diff int geo 3d alg">
     <div class="panel-title">📖 Begriffe</div>
     <input id="begriffe-search" type="text"
       placeholder="Begriff suchen …"
@@ -1265,7 +1948,7 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
   </div>
 
   <!-- Export -->
-  <div class="panel" id="export-panel">
+  <div class="panel" id="export-panel" data-envs="func">
     <div class="panel-title" data-i18n="panel_export">📤 Export</div>
     <div class="ex-actions">
       <button onclick="exportJPEG()" data-i18n="btn_jpeg">📷 JPEG</button>
@@ -1334,7 +2017,10 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
       <button id="undo-btn" onmousedown="return false" onclick="commitAndUndo()" disabled>↩</button>
       <button id="redo-btn" onmousedown="return false" onclick="commitAndRedo()" disabled>↪</button>
     </div>
-    <div class="tb-group">
+    <div class="tb-group" id="env-group">
+      <button id="env-btn" onclick="topicsToggle()" aria-haspopup="dialog" aria-expanded="false" title="Thema wählen (Startseite mit allen Themen und Suche)">📈 Funktionen</button>
+    </div>
+    <div class="tb-group tb-2d">
       <button id="pointer-mode-btn" onclick="togglePointerMode()" title="Laserpointer (Maus / Stift / Touch)">🔴 Pointer</button>
       <button id="point-mode-btn" onclick="togglePointMode()" data-i18n="btn_point">⊙ Punkt setzen</button>
       <button id="graph-pt-btn" onclick="toggleGraphPtMode()" data-i18n="btn_ongraph">📍 Punkt auf Graph</button>
@@ -1342,6 +2028,7 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
     </div>
     <div class="tb-spacer"></div>
     <div class="tb-group">
+      <button onclick="helpOpen()" id="help-btn" title="Hilfe: So bedienst du J√10">? Hilfe</button>
       <button onclick="toggleDarkMode()" id="dark-btn" data-i18n="btn_darkmode" data-i18n-title="btn_darkmode" title="🌙 Dark Mode">🌙 Dark Mode</button>
       <button onclick="toggleBeamMode()" id="beam-btn" data-i18n="btn_beamer" title="Beamer-Modus EIN">📺 Beamer</button>
       <div style="position:relative;display:inline-block;">
@@ -1430,12 +2117,18 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
     </div><!-- Ende tb-group (Darstellung) -->
   </div><!-- Ende range-bar -->
 
+  <div id="env-menu" role="menu" style="display:none;position:fixed;z-index:9999;"></div>
+  <!-- Themenübersicht mit Suche (33_topics.js) -->
+  <div id="topics" class="tp-overlay" role="dialog" aria-label="Themenübersicht" style="display:none;"></div>
   <div id="canvas-wrap" style="flex:1; position:relative; min-height:0;">
     <canvas id="canvas"></canvas>
     <div class="tooltip" id="tooltip"></div>
+    <div id="td-hint" class="td-hint" style="display:none;"><div class="td-h-mouse">Ziehen: drehen · Mausrad: zoomen · Umschalt+Ziehen: verschieben · Doppelklick: Standardansicht</div><div class="td-h-touch">Ziehen: drehen · Zwei Finger: zoomen und verschieben</div></div>
     <div id="canvas-label-overlay"></div>
+    <div id="dif-card" class="dif-card"><div class="dif-card-head"><span id="dif-card-title">Rechenweg</span><span class="x" id="dif-card-close" title="Schliessen">✕</span></div><div id="dif-card-body"></div></div>
     <div id="func-labels-overlay" style="display:none;"></div>
-    <div id="solve-tooltip" style="display:none;position:absolute;top:8px;left:8px;z-index:50;width:300px;max-height:min(80vh, 560px);background:var(--bg-sidebar);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.16);padding:4px 10px 6px;font-size:10.5px;line-height:1.65;font-family:'KaTeX_Main','Cambria Math',Georgia,serif;white-space:normal;color:var(--text);">
+    <div id="td-legend" style="display:none;"></div>
+    <div id="solve-tooltip" style="display:none;position:absolute;top:8px;right:8px;z-index:50;width:300px;max-height:min(80vh, 560px);background:var(--bg-sidebar);border:1.5px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.16);padding:4px 10px 6px;font-size:10.5px;line-height:1.65;font-family:'KaTeX_Main','Cambria Math',Georgia,serif;white-space:normal;color:var(--text);">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;line-height:1.2;margin-bottom:2px;">
         <span id="solve-tooltip-title" style="font-weight:700;font-size:11px;white-space:nowrap;overflow:visible;"></span>
         <span onclick="hideSolveTooltip()" style="cursor:pointer;font-size:14px;opacity:0.4;flex-shrink:0;font-family:system-ui;line-height:1;" title="Schließen">✕</span>
@@ -1523,6 +2216,78 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="22c_steps_panels.js"></script><!-- Lösungswege der Panels: Gerade, Scheitelpunkt, Nullstellen (Parabel) im Karten-Stil -->
 <script src="12_begriffe.js"></script>
 <script src="13_sequences.js"></script>
+<script src="26_geo.js"></script><!-- Geometrie: Konstruktions-Modell und Rechnung (kein DOM) -->
+<script src="27_geo_ui.js"></script><!-- Geometrie: Werkzeuge, Zeichnen, Ziehen, Panel -->
+<script src="28_guide.js"></script><!-- gemeinsame Hinweisleiste («Was wähle ich gerade?») -->
+<script src="29_3d.js"></script><!-- 3D-Raum: Rechenkern (Ebenen, Schnitte, Projektion; kein DOM) -->
+<script src="30_3d_ui.js"></script><!-- 3D-Raum: Zeichnen, Drehen, Panel -->
+<script src="31_bars2d.js"></script><!-- Balken bei Funktionen (2D) -->
+<script src="33_alg_core.js"></script><!-- Algebra: Rechenkern (Terme, Binomische Formeln, Faktorisieren; kein DOM) -->
+<script src="35_alg_more.js"></script>
+<script src="36_alg_root.js"></script><!-- Algebra: Wurzeln -->
+<script src="37_alg_eq.js"></script><!-- Algebra: Gleichungen -->
+<script src="37b_alg_sys.js"></script><!-- Algebra: Gleichungssysteme -->
+<script src="38_alg_learn.js"></script><!-- Algebra: Beispiele, Merkblatt, Üben (Inhalt) -->
+<script src="39_alg_learn_ui.js"></script><!-- Algebra: Beispiele, Merkblatt, Üben (Oberfläche) -->
+<script src="34_alg_ui.js"></script><!-- Algebra: Panel, Zeichnung, Export -->
+<script src="40_stat.js"></script><!-- Wahrscheinlichkeit und Statistik: Rechenkern (Zufallsexperimente, Verteilungen; kein DOM) -->
+<script src="41_stat_draw.js"></script><!-- Wahrscheinlichkeit und Statistik: Bilder -->
+<script src="42_stat_ui.js"></script><!-- Wahrscheinlichkeit und Statistik: Panel, Animation, Export -->
+<script src="43_stat_urn.js"></script><!-- Urnenmodelle (Szenen) -->
+<script src="50_fin.js"></script><!-- Finanzmathematik: Rechenkern (Zeitwert, Sparplan, Kredit, Marchzins; kein DOM) -->
+<script src="51_fin_draw.js"></script><!-- Finanzmathematik: Bilder und Formelsatz -->
+<script src="52_fin_ui.js"></script><!-- Finanzmathematik: Panel, Zustand, Export -->
+<script src="60_dif.js"></script><!-- Differentialrechnung: Rechenkern (Funktion, Differenzenquotient; kein DOM) -->
+<script src="60b_dif_rules.js"></script><!-- Differentialrechnung: Ableitungsregeln, h-Methode, Tangente -->
+<script src="60c_dif_kd.js"></script><!-- Differentialrechnung: Kurvendiskussion -->
+<script src="61_dif_draw.js"></script><!-- Differentialrechnung: Bilder -->
+<script src="62_dif_ui.js"></script><!-- Differentialrechnung: Panel, Rechenweg-Karte, Maus, Export -->
+<script src="70_int.js"></script><!-- Integralrechnung: Rechenkern (Stammfunktion, Summen, Flächen, Volumen; kein DOM) -->
+<script src="70b_int_docs.js"></script><!-- Integralrechnung: Rechenwege -->
+<script src="71_int_draw.js"></script><!-- Integralrechnung: Szenen -->
+<script src="72_int_ui.js"></script><!-- Integralrechnung: Panel, Rechenweg-Karte, Maus, Export -->
+<script src="80_lin.js"></script><!-- Lineare Funktionen: Rechenkern -->
+<script src="80b_lin_docs.js"></script><!-- Lineare Funktionen: Rechenwege -->
+<script src="81_lin_draw.js"></script><!-- Lineare Funktionen: Bilder -->
+<script src="82_lin_ui.js"></script><!-- Lineare Funktionen: Panel, Karte, Maus, Export -->
+<script src="85_quad.js"></script><!-- Quadratische Funktionen: Rechenkern -->
+<script src="85b_quad_docs.js"></script><!-- Quadratische Funktionen: Rechenwege -->
+<script src="86_quad_draw.js"></script><!-- Quadratische Funktionen: Bilder -->
+<script src="87_quad_ui.js"></script><!-- Quadratische Funktionen: Panel, Karte, Maus, Export -->
+<script src="90_pow.js"></script><!-- Potenz- und Wurzelfunktionen: Rechenkern -->
+<script src="90b_pow_docs.js"></script><!-- Potenz- und Wurzelfunktionen: Rechenwege -->
+<script src="91_pow_draw.js"></script><!-- Potenz- und Wurzelfunktionen: Bilder -->
+<script src="92_pow_ui.js"></script><!-- Potenz- und Wurzelfunktionen: Panel, Karte, Maus -->
+<script src="93_exp.js"></script><!-- Exponential- und Logarithmusfunktionen: Rechenkern -->
+<script src="93b_exp_docs.js"></script><!-- Exponential- und Logarithmusfunktionen: Rechenwege -->
+<script src="94_exp_draw.js"></script><!-- Exponential- und Logarithmusfunktionen: Bilder -->
+<script src="95_exp_ui.js"></script><!-- Exponential- und Logarithmusfunktionen: Panel, Karte, Maus -->
+<script src="96_trig.js"></script><!-- Trigonometrische Funktionen: Rechenkern -->
+<script src="96b_trig_docs.js"></script><!-- Trigonometrische Funktionen: Rechenwege -->
+<script src="97_trig_draw.js"></script><!-- Trigonometrische Funktionen: Bilder -->
+<script src="98_trig_ui.js"></script><!-- Trigonometrische Funktionen: Panel, Karte, Maus -->
+<script src="99_inv.js"></script><!-- Umkehrfunktionen: Rechenkern -->
+<script src="99b_inv_docs.js"></script><!-- Umkehrfunktionen: Rechenwege -->
+<script src="99c_inv_draw.js"></script><!-- Umkehrfunktionen: Bilder -->
+<script src="99d_inv_ui.js"></script><!-- Umkehrfunktionen: Panel, Karte, Maus -->
+<script src="100_fun.js"></script><!-- Funktionen: Einführung: Rechenkern -->
+<script src="100b_fun_docs.js"></script><!-- Funktionen: Einführung: Rechenwege -->
+<script src="101_fun_draw.js"></script><!-- Funktionen: Einführung: Bilder -->
+<script src="102_fun_ui.js"></script><!-- Funktionen: Einführung: Panel, Karte, Maus -->
+<script src="103_sim.js"></script><!-- Ähnlichkeit: Rechenkern -->
+<script src="103b_sim_docs.js"></script><!-- Ähnlichkeit: Rechenwege -->
+<script src="104_sim_draw.js"></script><!-- Ähnlichkeit: Bilder -->
+<script src="105_sim_ui.js"></script><!-- Ähnlichkeit: Panel und Maus -->
+<script src="106_seq.js"></script><!-- Folgen und Reihen: Rechenkern -->
+<script src="106b_seq_docs.js"></script><!-- Folgen und Reihen: Rechenwege -->
+<script src="107_seq_draw.js"></script><!-- Folgen und Reihen: Bilder -->
+<script src="108_seq_ui.js"></script><!-- Folgen und Reihen: Panel und Maus -->
+<script src="109_lop.js"></script><!-- Lineare Optimierung: Rechenkern -->
+<script src="109b_lop_docs.js"></script><!-- Lineare Optimierung: Rechenwege -->
+<script src="110_lop_draw.js"></script><!-- Lineare Optimierung: Bilder -->
+<script src="111_lop_ui.js"></script><!-- Lineare Optimierung: Panel und Maus -->
+<script src="32_env.js"></script><!-- Umgebungen: Themenwahl, eigener Zustand je Thema -->
+<script src="33_topics.js"></script><!-- Themenübersicht, Suche, Willkommen, Hilfe, Hinweise -->
 <script src="19_icons.js"></script><!-- moderne Linien-Icons statt Emojis (ersetzt Emoji-Zeichen im DOM) -->
 <script src="25_menus.js"></script><!-- modernes Auswahl-Dropdown für alle <select> -->
 <script src="24_eggs.js"></script><!-- Easter-Eggs (optional, Schalter in den Einstellungen) -->
