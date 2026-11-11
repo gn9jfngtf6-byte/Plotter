@@ -58,7 +58,7 @@ const Pow = (function () {
     if (m < 0 && r === 0) return NaN;
     return Math.pow(r, m);
   }
-  const fOf = F => x => F.a * pw(x - F.v, F.m, F.n) + F.h;
+  const fOf = F => { const g = x => F.a * pw(x - F.v, F.m, F.n) + F.h; g.rawOf = () => { try { return raw(F); } catch (e) { return null; } }; return g; };
 
   // ── Definitionsbereich, Wertebereich, Symmetrie, Asymptoten ──
   function domain(F) {

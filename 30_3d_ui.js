@@ -22,6 +22,7 @@
 const TD_VIEW_DEFAULT = { az: 115, el: 25 };
 const TD = {
   on: false,
+  view: 'pl',          // Ansicht: 'pl' Ebenen entdecken, sonst Vektorgeometrie (31b_vg.js)
   az: TD_VIEW_DEFAULT.az, el: TD_VIEW_DEFAULT.el,
   zoom: 1, px: 0, py: 0,
   range: 6,
@@ -94,11 +95,12 @@ function tdChanged(noHist) {
 function tdCapture() {
   return JSON.parse(JSON.stringify({
     planes: TD.planes.map(p => ({ id: p.id, eq: p.eq, color: p.color, vis: p.vis, par: p.par || {}, pstep: p.pstep || 0.1 })),
-    seq: TD.seq, range: TD.range, opt: TD.opt, bar: TD.bar
+    seq: TD.seq, range: TD.range, opt: TD.opt, bar: TD.bar, view: TD.view || 'pl', vg: typeof vgCapture === 'function' ? vgCapture() : undefined
   }));
 }
 function tdApply(s) {
-  if (!s || !Array.isArray(s.planes)) { TD.planes = []; TD.seq = 0; }
+  // ohne gespeicherten Zustand (erster Besuch, «Zurücksetzen»): eine Beispielebene, damit das Bild nicht leer ist
+  if (!s || !Array.isArray(s.planes)) { TD.planes = []; TD.seq = 0; if (!s || !s.view || s.view === 'pl') tdAddPlane('2x+3y-z=6', true); }
   else {
     TD.planes = s.planes.filter(p => p && typeof p.eq === 'string').slice(0, 6)
       .map(p => { const q = { id: String(p.id || ''), eq: p.eq, color: p.color || TD_COLORS[0], vis: p.vis !== false, par: (p.par && typeof p.par === 'object') ? Object.assign({}, p.par) : {}, pstep: p.pstep > 0 ? p.pstep : 0.1 }; tdSyncPar(q); return q; });
@@ -107,6 +109,8 @@ function tdApply(s) {
     if (s.opt) Object.keys(TD.opt).forEach(k => { if (k in s.opt) TD.opt[k] = !!s.opt[k]; });
     if (s.bar) { TD.bar.on = !!s.bar.on; TD.bar.id = String(s.bar.id || ''); TD.bar.vals = !!s.bar.vals; TD.bar.coords = !!s.bar.coords; TD.bar.hide = !!s.bar.hide; TD.bar.dots = !!s.bar.dots; if (s.bar.step >= 0) TD.bar.step = s.bar.step; if (s.bar.sstep > 0) TD.bar.sstep = s.bar.sstep; }
   }
+  TD.view = s && typeof VG_VIEWS !== 'undefined' && VG_VIEWS.some(v => v[0] === s.view) ? s.view : 'pl';
+  if (typeof vgApply === 'function') vgApply(s && s.vg);
   tdKeepScroll(tdRenderPanel);
 }
 
@@ -145,7 +149,8 @@ function tdGeom(w, h) {
 }
 
 function td3dDraw(w, h) {
-  const g = tdGeom(w, h), R = g.R, P = g.P;
+  const dk = typeof vgDock === 'function' ? vgDock(w, h) : [0, 0];   // Rechenweg-Karte (Vektorgeometrie)
+  const g = tdGeom(w - dk[0], h - dk[1]), R = g.R, P = g.P;
   const dark = typeof darkMode !== 'undefined' && darkMode;
   const lw = x => (typeof bw === 'function' ? bw(x) : x);
   const fs = x => (typeof bf === 'function' ? bf(x) : x);
@@ -219,6 +224,13 @@ function td3dDraw(w, h) {
     text(ax.n, tp.x + dirx / dl * 11, tp.y + diry / dl * 11, C.anno, 14, 'center', true);
   });
   { const o = P([0, 0, 0]); text('O', o.x - 9, o.y + 9, C.label, 10); }
+  // Vektorgeometrie (31b_vg.js): eigene Objekte statt der Ebenen
+  if (TD.view && TD.view !== 'pl' && typeof vgDraw === 'function') {
+    vgDraw({ g, P, line, text, dot, arrow, lw, dark });
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    if (typeof drawLaserPointer === 'function') drawLaserPointer();
+    return g;
+  }
 
   // 3. Ebenen (hinten zuerst), halbtransparent
   const items = tdValid().map(it => {
@@ -227,8 +239,13 @@ function td3dDraw(w, h) {
     return Object.assign(it, { poly, cen, depth: cen ? P(cen).d : 0 });
   }).sort((a, b) => b.depth - a.depth);
   const hideId = tdBarHideId();
+  // verlinkte Überschrift (02_core.js envHint): Ebenen, Spurgeraden, Achsenabschnitte, Schnitte als hervorhebbare Linienzüge
+  const hS = typeof VG !== 'undefined' ? (VG.S = { pts: [], hl: [] }) : null;
+  const hlP = (id, pts3, close) => { if (hS) hS.hl.push({ id, pts: pts3.map(p => { const q = P(p); return [q.x, q.y]; }), close: !!close }); };
+  const hlC = (id, p3) => { if (hS) { const q = P(p3); hS.hl.push({ id, c: [q.x, q.y, 10] }); } };
   items.forEach(it => {
     if (it.poly.length < 3 || it.p.id === hideId) return;
+    hlP('E', it.poly, true);
     ctx.beginPath();
     it.poly.forEach((p3, k) => { const q = P(p3); if (k) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); });
     ctx.closePath();
@@ -274,11 +291,11 @@ function td3dDraw(w, h) {
   items.forEach(it => {
     if (it.poly.length < 3) return;
     const col = it.p.color;
-    if (TD.opt.traces) tdTraces(it.pl, box).forEach((t, k) => { if (t && TD.opt[['tracexy', 'tracexz', 'traceyz'][k]]) line(t.A, t.B, col, 3); });
+    if (TD.opt.traces) tdTraces(it.pl, box).forEach((t, k) => { if (t && TD.opt[['tracexy', 'tracexz', 'traceyz'][k]]) { line(t.A, t.B, col, 3); hlP('sp', [t.A, t.B]); } });
     if (TD.opt.icpt) tdIntercepts(it.pl).forEach(q => {
       if (!q || q.some(c => Math.abs(c) > R + 1e-9)) return;
       if (q.every(c => Math.abs(c) < 1e-12)) return;
-      dot(q, col, 4);
+      dot(q, col, 4); hlC('ac', q);
       const pp = P(q);
       text('(' + q.map(c => tdNum(c, 2)).join(' | ') + ')', pp.x + 6, pp.y - 12, col, 11, 'left');
     });
@@ -300,13 +317,13 @@ function td3dDraw(w, h) {
       if (!r.L) return;
       const t = tdClipLine(r.L.P, r.L.u, box); if (!t || t[1] - t[0] < 1e-9) return;
       const A = V3.add(r.L.P, V3.mul(r.L.u, t[0])), B = V3.add(r.L.P, V3.mul(r.L.u, t[1]));
-      line(A, B, C.anno, 3);
+      line(A, B, C.anno, 3); hlP('sg', [A, B]);
       const m = P(V3.add(A, V3.mul(V3.sub(B, A), 0.5)));
       text('g' + tdSub(r.a.i + 1) + tdSub(r.b.i + 1), m.x + 8, m.y - 10, C.anno, 12, 'left', true);
     });
     rel.triples.forEach(r => {
       if (!r.S || r.S.some(c => Math.abs(c) > R + 1e-9)) return;
-      dot(r.S, C.anno, 5);
+      dot(r.S, C.anno, 5); hlC('S', r.S);
       const pp = P(r.S);
       text('S(' + r.S.map(c => tdNum(c, 2)).join(' | ') + ')', pp.x + 8, pp.y - 12, C.anno, 12, 'left', true);
     });
@@ -410,6 +427,7 @@ function td3dLatex() {
     }
   });
 
+  if (TD.view && TD.view !== 'pl' && typeof vgTex === 'function') { vgTex(L, { c3, f, lbl, u }); L.push('\\end{tikzpicture}'); return L.join('\n'); }
   const hideId = tdBarHideId();
   items.forEach(it => {
     if (it.poly.length < 3) return;
@@ -653,7 +671,7 @@ function td3dSet(on) {
 function tdLegend() {
   const el = $td('td-legend'); if (!el) return;
   const chk = $td('chk-funclabels');
-  const items = TD.on && !(chk && chk.checked === false) ? TD.planes.map((p, i) => ({ p, i })).filter(o => o.p.vis && !tdPl(o.p).error) : [];
+  const items = TD.on && (TD.view || 'pl') === 'pl' && !(chk && chk.checked === false) ? TD.planes.map((p, i) => ({ p, i })).filter(o => o.p.vis && !tdPl(o.p).error) : [];
   if (!items.length) { el.style.display = 'none'; el.replaceChildren(); return; }
   const fr = document.createDocumentFragment();
   items.forEach(o => {
@@ -822,6 +840,7 @@ function tdRenderPanel() {
   }
   const rg = $td('td-range'); if (rg && document.activeElement !== rg) rg.value = TD.range;
   tdLegend();
+  if (typeof vgRefreshUI === 'function') vgRefreshUI();
 }
 
 // Anzeige neben dem Schieber und Hinweis, wenn das Gitter vergröbert gezeichnet wird

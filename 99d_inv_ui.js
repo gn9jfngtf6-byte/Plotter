@@ -9,10 +9,10 @@
 
 const INV_VIEWS = [['mirror', 'Begriff: Spiegelung an y = x'], ['test', 'Umkehrbarkeit und Einschränkung'], ['calc', 'Umkehrfunktion berechnen'], ['pairs', 'Bekannte Paare']];
 const INV_DESC = {
-  mirror: ['Die Umkehrfunktion f⁻¹ liest die Zuordnung rückwärts: Zu jedem Funktionswert y gehört wieder das x. In der Wertetabelle tauschen die Zeilen, im Graphen tauschen die Koordinaten – der Graph von f⁻¹ ist das Spiegelbild von f an der Winkelhalbierenden y = x.', 'Ziehe den Punkt P auf f: Sein Spiegelpunkt P′ liegt auf f⁻¹. Wähle oben eine andere Funktion oder tippe eine ein.'],
-  test: ['Umkehrbar ist eine Funktion nur, wenn jeder Wert höchstens einmal vorkommt: Jede waagrechte Gerade darf den Graphen höchstens einmal schneiden. Streng monotone Funktionen erfüllen das. Sonst hilft eine Einschränkung des Definitionsbereichs.', 'Ziehe die orange Gerade y = k auf und ab und zähle die Schnittpunkte. Bei x² und Co. kannst du die rote Grenze r der Einschränkung verschieben.'],
-  calc: ['Die Umkehrfunktion berechnet man in drei Schritten: y = f(x) nach x auflösen (Rechenschritte rückgängig machen), dann x und y vertauschen, dann Definitions- und Wertebereich tauschen.', 'Wähle oben eine Funktion oder tippe eine ein: linear, Potenz, Wurzel, Bruch, Exponential- oder Logarithmusfunktion. Der Rechenweg rechts passt sich an; ziehe P für die Probe.'],
-  pairs: ['Wichtige Paare: x² und √x, x³ und ³√x, 2ˣ und log₂ x, eˣ und ln x, 10ˣ und lg x, 1/x und 1/x, sin und arcsin, cos und arccos, tan und arctan. Die Verkettung f⁻¹(f(x)) = x ist die Definition der Umkehrung.', 'Wähle ein Paar und ziehe den Punkt P: Erst f, dann f⁻¹ führt wieder zum Ausgangswert. Beachte die eingeschränkten Bereiche bei x², sin, cos und tan.']
+  mirror: ['Ziehe den {{Punkt P|P}} auf dem {{Graphen von f|f}}: Sein Spiegelpunkt {{P′|Q}} an der {{Winkelhalbierenden y = x|diag}} liegt auf dem {{Graphen von f⁻¹|fi}}. Die Umkehrfunktion vertauscht x und y; «▶ Graph an y = x umklappen» zeigt die Spiegelung als Bewegung.', 'Die Umkehrfunktion f⁻¹ liest die Zuordnung rückwärts: Zu jedem Funktionswert y gehört wieder das x. In der Wertetabelle tauschen die Zeilen, im Graphen tauschen die Koordinaten – der Graph von f⁻¹ ist das Spiegelbild von f an der Winkelhalbierenden y = x.'],
+  test: ['Ziehe die {{waagrechte Gerade y = k|K,kl}} auf und ab und zähle ihre Schnittpunkte mit dem {{Graphen|f}}: Ist es nie mehr als einer, ist f umkehrbar. Sonst schränkt man den Definitionsbereich ein (rote Grenze r).', 'Umkehrbar ist eine Funktion nur, wenn jeder Wert höchstens einmal vorkommt: Jede waagrechte Gerade darf den Graphen höchstens einmal schneiden. Streng monotone Funktionen erfüllen das. Sonst hilft eine Einschränkung des Definitionsbereichs.'],
+  calc: ['Wähle eine Funktion: Rechts wird y = f(x) nach x aufgelöst, dann werden x und y vertauscht. Zur Probe ziehe {{P|P}} auf {{f|f}}: Der Spiegelpunkt {{P′|Q}} liegt auf {{f⁻¹|fi}}.', 'Die Umkehrfunktion berechnet man in drei Schritten: y = f(x) nach x auflösen (Rechenschritte rückgängig machen), dann x und y vertauschen, dann Definitions- und Wertebereich tauschen.'],
+  pairs: ['Wähle ein Paar und ziehe den {{Punkt P|P}} auf {{f|f}}: Sein Spiegelpunkt {{P′|Q}} liegt auf {{f⁻¹|fi}} – erst f, dann f⁻¹ führt zum Ausgangswert zurück. Beachte die eingeschränkten Bereiche bei x², sin, cos und tan.', 'Wichtige Paare: x² und √x, x³ und ³√x, 2ˣ und log₂ x, eˣ und ln x, 10ˣ und lg x, 1/x und 1/x, sin und arcsin, cos und arccos, tan und arctan. Die Verkettung f⁻¹(f(x)) = x ist die Definition der Umkehrung.']
 };
 // Beispiele [Rohausdruck, Anzeige]
 const INV_EX = [['2*x+1', '2x + 1'], ['(-1/2)*x+3', '−x/2 + 3'], ['x^3', 'x³'], ['x^2', 'x² (eingeschränkt)'], ['(x-1)^2+2', '(x − 1)² + 2 (eingeschränkt)'], ['sqrt(x-2)+1', '√(x − 2) + 1'], ['1/x', '1/x'], ['2/(x+1)-1', '2/(x + 1) − 1'], ['2^x', '2^x'], ['3*2^x-1', '3·2^x − 1'], ['EC^x', 'e^x'], ['log(x-1)', 'ln(x − 1)'], ['logn(x,2)', 'log₂ x'], ['2*log10(x)+1', '2·lg x + 1'], ['x^(1/3)', '³√x'], ['1/(x-1)^2', '1/(x − 1)² (eingeschränkt)'], ['x^4', 'x⁴ (eingeschränkt)']];
@@ -22,7 +22,7 @@ const INV_SHOW0 = { diag: true, inv: true, pts: true, card: true };
 function invDefaults() {
   return { view: 'mirror', fn: 'x^3', xp: 1.5, k: 2, r: null, pair: 'sq', x0: 2, win: Object.assign({}, INV_WIN0), show: Object.assign({}, INV_SHOW0) };
 }
-const INV = Object.assign(invDefaults(), { ui: null, S: null, drag: null, cardKey: '', cardT: 0, R: null });
+const INV = Object.assign(invDefaults(), { ui: null, S: null, drag: null, anim: null, cardKey: '', cardT: 0, R: null });
 function invActive() { return typeof ENV !== 'undefined' && ENV.cur === 'inv'; }
 const invR6 = x => Math.round(x * 1e6) / 1e6 + 0;
 function invParseRaw(raw) {
@@ -95,6 +95,7 @@ function invCardRender() {
 // ── Zustand sichern / laden ──
 function invCapture() { return difCopy({ view: INV.view, fn: INV.fn, xp: INV.xp, k: INV.k, r: INV.r, pair: INV.pair, x0: INV.x0, win: INV.win, show: INV.show }); }
 function invApply(s) {
+  INV.anim = null;                                                       // laufende Animation beenden (Rückgängig, Laden, Zurücksetzen)
   const d = invDefaults(), num = (v, def) => { v = Number(v); return isFinite(v) ? v : def; };
   if (s && typeof s === 'object') {
     if (INV_VIEWS.some(v => v[0] === s.view)) d.view = s.view;
@@ -115,10 +116,25 @@ function invApply(s) {
   invSyncFields(); invRefreshUI(); difRedraw(); invCardSoon();
 }
 
+// ── Animation: Der Graph von f klappt um die Winkelhalbierende und wird zum Graphen von f⁻¹ ──
+function invAnimToggle() {
+  if (INV.anim) { INV.anim = null; invRefreshUI(); difRedraw(); return; }
+  INV.show.diag = true;
+  INV.anim = { last: 0, u: 0, k: 1 }; invRefreshUI(); requestAnimationFrame(invAnimFrame);
+}
+function invAnimFrame(ts) {
+  const a = INV.anim; if (!a) return;
+  if (!invActive() || INV.view !== 'mirror') { INV.anim = null; return; }
+  const dt = a.last ? Math.min(0.1, (ts - a.last) / 1000) : 0.016; a.last = ts;
+  a.u = Math.min(1, a.u + dt / 4); const e = a.u * a.u * (3 - 2 * a.u); a.k = Math.cos(Math.PI * e);
+  if (a.u >= 1) { INV.anim = null; INV.show.inv = true; invRefreshUI(); difRedraw(); difCommit(); return; }
+  difRedraw(); requestAnimationFrame(invAnimFrame);
+}
+
 // ── Zeichnen ──
 function invCtx(W, H, exp) {
   const R = invR(), I = Inv.info(R);
-  return { view: INV.view, R, xp: INV.xp, k: INV.k, r: INV.r === null ? I.r0 : INV.r, pair: invPair(), x0: INV.x0, win: INV.win, fs: exp ? exp.fs : stSceneFs(W, H, 46), exp: !!exp, smooth: !exp, show: INV.show };
+  return { view: INV.view, R, xp: INV.xp, k: INV.k, r: INV.r === null ? I.r0 : INV.r, pair: invPair(), x0: INV.x0, win: INV.win, fs: exp ? exp.fs : stSceneFs(W, H, 46), exp: !!exp, smooth: !exp, show: INV.show, flip: INV.anim && !exp ? INV.anim.k : null };
 }
 const invDock = w => (INV.show.card && w >= 760 ? stCardW(w, 0.36) : 0);
 const invDockH = (w, h) => (INV.show.card && w < 760 ? Math.round(h * 0.5) : 0);
@@ -191,7 +207,7 @@ function invRefreshUI() {
   const ui = INV.ui; if (!ui) return;
   const v = INV.view, sh = INV.show, R = invR(), I = Inv.info(R);
   ui.sel.value = v;
-  const d = INV_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[0]), Object.assign(difEl('div', null, d[1]), { style: 'margin-top:5px;' }));
+  const d = INV_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[1])); if (typeof envHint === 'function') envHint('inv', d[0], () => INV.S);   // Hinweis als Überschrift über dem Bild
   const showF = v !== 'pairs';
   ['inv-f-row', 'inv-field-head'].forEach(id => { const e = $dif(id); if (e) e.style.display = showF ? '' : 'none'; });
   invSyncFields();
@@ -243,6 +259,7 @@ function invRefreshUI() {
     check('Winkelhalbierende y = x zeigen', () => sh.diag, x => { sh.diag = x; });
     check('Umkehrfunktion f⁻¹ zeigen', () => sh.inv, x => { sh.inv = x; });
     if (v === 'mirror') check('Punkte der Wertetabelle zeigen', () => sh.pts, x => { sh.pts = x; });
+    if (v === 'mirror') { const ab = difEl('div'); ab.style.cssText = 'margin-top:6px;'; ab.append(difBtn(INV.anim ? '⏸ Pause' : '▶ Graph an y = x umklappen', invAnimToggle)); P.appendChild(ab); }
   } else if (v === 'test') {
     const h = difEl('div', 'act-hint', 'Erkannt: ' + kindTxt + (I.inj ? ' – streng monoton, umkehrbar.' : ' – nicht umkehrbar; Einschränkung nötig.')); h.style.margin = '2px 2px 4px'; P.appendChild(h);
     group('Waagrechte Gerade y = k');
@@ -286,7 +303,7 @@ function invRefreshUI() {
   };
   const down = e => {
     if (!invActive()) return; e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault();
-    const S = INV.S; if (!S) return; const p = pos(e);
+    const S = INV.S; if (!S) return; const p = pos(e); if (INV.anim) { INV.anim = null; invRefreshUI(); difRedraw(); }
     const q = near(p);
     if (q) { INV.drag = { type: q.id }; if (INV.win.x0 === null) { INV.win = invResolvedWin(); INV.drag.auto = true; } }
     else if (inMap(S.maps.main, p)) INV.drag = { type: 'pan', px: p.x, py: p.y, w: invResolvedWin() };

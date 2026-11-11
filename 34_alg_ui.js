@@ -31,6 +31,7 @@ function algCapture() {
   return JSON.parse(JSON.stringify({ text: ALG.text, mode: ALG.mode, vals: ALG.vals, opt: ALG.opt }));
 }
 function algApply(s) {
+  ALG.anim = null;                                                       // laufende Animation beenden (Rückgängig, Laden, Zurücksetzen)
   const d = { text: '', mode: 'expand', vals: {}, opt: { tiles: false, style: 'area', explode: 0, method: 'add', card: true } };
   if (s && typeof s === 'object') {
     if (typeof s.text === 'string') d.text = s.text.slice(0, 300);
@@ -255,6 +256,13 @@ function algRenderOptions(res) {
   show('alg-tiles-row', tilesRelevant);
   show('alg-explode-row', ALG.mode === 'expand' && kind === 'cube' && !!res.fig);
   show('alg-method-row', ALG.mode === 'sys');
+  // Quadratische Ergänzung als Bewegung (Knopf wird beim ersten Mal angelegt)
+  let ar = $alg('alg-anim-row');
+  if (!ar) { const ref = $alg('alg-explode-row'); if (ref && ref.parentNode) { ar = document.createElement('div'); ar.id = 'alg-anim-row'; ar.className = 'settings-row'; const b = document.createElement('button'); b.type = 'button'; b.id = 'alg-anim-btn'; b.style.width = '100%'; b.addEventListener('click', algAnimToggle); ar.appendChild(b); ref.parentNode.insertBefore(ar, ref.nextSibling); } }
+  const canAnim = ALG.mode === 'complete' && !!(res.fig && res.fig.complete);
+  if (!canAnim && ALG.anim) ALG.anim = null;
+  show('alg-anim-row', canAnim);
+  const ab = $alg('alg-anim-btn'); if (ab) ab.textContent = ALG.anim ? '⏸ Pause' : '▶ Ergänzung als Bewegung zeigen';
   const mt = $alg('alg-method');
   if (mt && ALG.mode === 'sys') {
     const n3 = (res.n || (ALG.ui && ALG.ui.sysN)) === 3, want = n3 ? ['add', 'sub', 'gauss'] : ['add', 'sub', 'eq'];
@@ -268,6 +276,59 @@ function algRenderOptions(res) {
   const ex = $alg('alg-explode'); if (ex && parseFloat(ex.value) !== ALG.opt.explode) ex.value = ALG.opt.explode;
   const note = $alg('alg-tiles-note');
   if (note) note.style.display = (tilesRelevant && ALG.opt.tiles && res.ok && res.fig && !res.fig.tiles) ? '' : 'none';
+}
+
+// ── Animation: quadratische Ergänzung ──
+// Das Rechteck «b·x» neben dem Quadrat x² wird halbiert, eine Hälfte wandert unter das Quadrat; die offene Ecke ist die Ergänzung.
+function algAnimToggle() {
+  if (ALG.anim) { ALG.anim = null; algRenderOptions(ALG.res || {}); if (typeof scheduleDraw === 'function') scheduleDraw(); return; }
+  ALG.anim = { last: 0, u: 0 }; algRenderOptions(ALG.res || {}); requestAnimationFrame(algAnimFrame);
+}
+function algAnimFrame(ts) {
+  const a = ALG.anim; if (!a) return;
+  if (!algActive() || ALG.mode !== 'complete') { ALG.anim = null; return; }
+  const dt = a.last ? Math.min(0.1, (ts - a.last) / 1000) : 0.016; a.last = ts;
+  a.u = Math.min(1, a.u + dt / 8);
+  if (a.u >= 1) { ALG.anim = null; algRenderOptions(ALG.res || {}); }
+  if (typeof scheduleDraw === 'function') scheduleDraw();
+  if (ALG.anim) requestAnimationFrame(algAnimFrame);
+}
+// Bild der quadratischen Ergänzung zum Zeitpunkt u ∈ [0, 1]
+function algDrawCompleteAnim(res, u, mL, mT, aw, ah, P, fs) {
+  const fig = res.fig, R = fig.prims.filter(p => p.k === 'rect'), T = fig.prims.filter(p => p.k === 'text');
+  const sq = R[0], lo = R[1], ri = R[2], co = R[3]; if (!sq || !lo || !ri || !co) return false;
+  const xw = sq.w, hw = ri.w, W0 = fig.W, Wa = xw + 2 * hw + 0.3 * hw;
+  const uA = 0.16, uB = 0.34, uC = 0.80, ez = t => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+  const Wd = u < uC ? Wa : Wa + (W0 - Wa) * ez((u - uC) / (1 - uC));
+  const s = Math.min(aw / Wd, ah / fig.H), ox = mL + (aw - Wd * s) / 2, oy = mT + (ah - fig.H * s) / 2;
+  const cell = (cx, cy, w, h, ang, p, label, o) => {
+    o = o || {}; const col = ALG_HUES[p.hue % 6] || ALG_HUES[0], X = ox + cx * s, Y = oy + cy * s, rw = w * s, rh = h * s;
+    ctx.save(); ctx.translate(X, Y); ctx.rotate(ang || 0); ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha;
+    if (o.fresh) { ctx.fillStyle = algRgba(col, 0.16); ctx.fillRect(-rw / 2, -rh / 2, rw, rh); ctx.setLineDash([6, 4]); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.strokeRect(-rw / 2, -rh / 2, rw, rh); ctx.setLineDash([]); }
+    else { ctx.fillStyle = algRgba(col, p.neg ? P.alpha * 0.45 : P.alpha); ctx.fillRect(-rw / 2, -rh / 2, rw, rh); if (p.neg) algHatch(-rw / 2, -rh / 2, rw, rh, algRgba(col, 0.95), 7); ctx.strokeStyle = p.neg ? col : P.line; ctx.lineWidth = 1.6; ctx.strokeRect(-rw / 2, -rh / 2, rw, rh); }
+    ctx.restore();
+    if (label) { ctx.save(); ctx.globalAlpha = o.alpha === undefined ? 1 : o.alpha; const tx = algLabelTex(label), lim = Math.min(rw, rh); let fz = Math.min(fs * 1.5, lim * 0.5); while (fz > 9 && algMathW(tx, fz) > Math.max(rw, rh) - 6) fz -= 1; algDrawMath(tx, X, Y, fz, P.text, 'center', 'middle'); ctx.restore(); }
+  };
+  const top = (str, x, al) => { ctx.save(); ctx.globalAlpha = al === undefined ? 1 : al; algDrawMath(algLabelTex(str), ox + x * s, oy - 7, fs * 1.25, P.text, 'center', 'bottom'); ctx.restore(); };
+  const left = (str, y, al) => { ctx.save(); ctx.globalAlpha = al === undefined ? 1 : al; algDrawMath(algLabelTex(str), ox - 8, oy + y * s, fs * 1.25, P.text, 'right', 'middle'); ctx.restore(); };
+  const tX = T.find(t => t.dock === 'top' && t.x < xw), tH = T.find(t => t.dock === 'top' && t.x >= xw), lX = T.find(t => t.dock === 'left' && t.y < xw), lH = T.find(t => t.dock === 'left' && t.y >= xw);
+  let whole = '', wholeTop = '';
+  try { const cs = res.cs; whole = AlgCore.termStr({ c: cs.p, m: { [cs.v]: 1 } }, true, false); wholeTop = AlgCore.termStr({ c: cs.p, m: {} }, true, false); } catch (e) { whole = ''; }
+  cell(xw / 2, xw / 2, xw, xw, 0, sq, sq.label);
+  if (tX) top(tX.s, xw / 2); if (lX) left(lX.s, xw / 2);
+  if (u < uA) {                                                             // ein Rechteck b·x
+    cell(xw + hw, xw / 2, 2 * hw, xw, 0, ri, whole || ri.label); if (wholeTop) top(wholeTop, xw + hw);
+  } else if (u < uB) {                                                      // halbieren
+    const g = 0.3 * hw * ez((u - uA) / (uB - uA));
+    cell(xw + hw / 2, xw / 2, hw, xw, 0, ri, ri.label); cell(xw + hw * 1.5 + g, xw / 2, hw, xw, 0, lo, lo.label);
+    if (tH) { top(tH.s, xw + hw / 2); top(tH.s, xw + hw * 1.5 + g); }
+  } else {
+    const t = ez((u - uB) / (uC - uB)), c0 = [xw + hw * 1.5 + 0.3 * hw, xw / 2], c1 = [xw / 2, xw + hw / 2];
+    cell(xw + hw / 2, xw / 2, hw, xw, 0, ri, ri.label); if (tH) top(tH.s, xw + hw / 2);
+    cell(c0[0] + (c1[0] - c0[0]) * t, c0[1] + (c1[1] - c0[1]) * t + Math.sin(Math.PI * t) * 0.55 * Math.max(hw, xw), hw, xw, -Math.PI / 2 * t, lo, lo.label);   // eine Hälfte wandert nach unten
+    if (u >= uC) { const al = ez((u - uC) / (1 - uC) * 1.6); cell(xw + hw / 2, xw + hw / 2, hw, hw, 0, co, co.label, { fresh: true, alpha: al }); if (lH) left(lH.s, xw + hw / 2, al); }
+  }
+  return true;
 }
 
 // ── Zeichnen ─────────────────────────────────────────────────────────
@@ -729,8 +790,9 @@ function algDrawFigure(res, w, h, P, fs) {
     });
   } else {
     s = Math.min(aw / fig.W, ah / fig.H); ox = mL + (aw - fig.W * s) / 2; oy = mT + (ah - fig.H * s) / 2;
+    const anim = fig.complete && ALG.anim && !ALG._exporting && algDrawCompleteAnim(res, ALG.anim.u, mL, mT, aw, ah, P, fs);
     // erst Flächen, dann Texte
-    prims.forEach(p => {
+    if (!anim) prims.forEach(p => {
       if (p.k !== 'rect') return;
       const x = ox + p.x * s, y = oy + p.y * s, rw = p.w * s, rh = p.h * s;
       if (rw < 0.5 || rh < 0.5) return;
@@ -758,7 +820,7 @@ function algDrawFigure(res, w, h, P, fs) {
         }
       }
     });
-    prims.forEach(p => {
+    if (!anim) prims.forEach(p => {
       if (p.k !== 'text') return;
       const x = ox + p.x * s, y = oy + p.y * s;
       if (p.big) { algDrawText(p.s, x, y, fs * 2.2, P.muted, 'center', 'middle'); return; }
@@ -791,7 +853,7 @@ function algLatex() {
   const res = ALG.res, f = x => { const r = Math.round(x * 1e3) / 1e3; return String(Object.is(r, -0) ? 0 : r); };
   const L = [];
   if (res.error) return '% ' + res.error;
-  L.push('% Algebra aus J\\sqrt{10} — benötigt \\usepackage{tikz} und \\usetikzlibrary{patterns}');
+  L.push('% Algebra aus J\\sqrt{10} — benötigt \\usepackage{tikz}, \\usetikzlibrary{patterns} und \\usepackage{cancel}');
   L.push('% ' + (res.lineTxt || ''));
   if (!res.fig) {
     if (res.steps && res.steps.length > 1) {
@@ -807,7 +869,7 @@ function algLatex() {
   const isPascal = prims[0] && prims[0].k === 'cellnum', isPoly = prims[0] && prims[0].k === 'poly';
   const W = isPoly ? fig.W : fig.W, H = fig.H;
   const u = isPascal ? 0.95 : Math.min(8 / Math.max(W, 1e-6), 6 / Math.max(H, 1e-6));
-  const usedHues = new Set(); prims.forEach(p => { if (p.hue !== undefined) usedHues.add(p.hue % 6); });
+  const usedHues = new Set(); prims.forEach(p => { if (p.hue !== undefined) usedHues.add(p.hue % 6); if (p.k === 'cellnum' && p.hi) usedHues.add(0); });   // Pascal: markierte Zellen in Farbe 0
   if (fig.legend) fig.legend.forEach(l => usedHues.add(l.hue % 6));
   usedHues.forEach(h => { const n = parseInt(ALG_HUES[h].slice(1), 16); L.push('\\definecolor{algH' + h + '}{RGB}{' + [n >> 16, (n >> 8) & 255, n & 255].join(',') + '}'); });
   L.push('\\begin{tikzpicture}[x=' + f(u) + 'cm, y=' + f(u) + 'cm, line cap=round, line join=round, font=\\small]');

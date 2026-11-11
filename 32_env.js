@@ -37,23 +37,25 @@
 // ═══════════════════════════════════════════════════════════════════
 
 const ENV_LIST = [
-  { id: 'intro', icon: '📖', title: 'Funktionen: Einführung', desc: 'Einstieg in den Funktionsbegriff: Zuordnung und Wertetabelle, Balken über den Stellen werden zum Graphen, Definitions- und Wertebereich, Nullstellen, Monotonie, Anwendungen mit Einheiten', open: ['intro-panel'] },
+  { id: 'intro', icon: '📖', title: 'Funktionen: Einführung', desc: 'Einstieg in den Funktionsbegriff: Zuordnung und Wertetabelle, aus Punkten wird der Graph, Definitions- und Wertebereich, Nullstellen, Monotonie, Anwendungen mit Einheiten', open: ['intro-panel'] },
   { id: 'func', icon: 'ƒ', title: 'Funktionen: Werkzeug', desc: 'Beliebige Funktionen zeichnen und untersuchen: Nullstellen, Extrema, Ableitung, Stammfunktion, Parameter mit Schiebern, Balken über den Stellen, Punkte setzen', open: ['func-panel'] },
   { id: 'lin', icon: '📏', title: 'Lineare Funktionen', desc: 'Steigung und y-Achsenabschnitt, Gerade aufstellen, Schnitt zweier Geraden, Tarife und Bewegung, Nullstelle, Senkrechte und Mittelsenkrechte', open: ['lin-panel'] },
-  { id: 'quad', icon: '🌉', title: 'Quadratische Funktionen', desc: 'Parameter und drei Formen, Scheitelpunkt und quadratische Ergänzung, Nullstellen und Diskriminante, Parabel und Gerade, Parabel aus Punkten', open: ['quad-panel'] },
+  { id: 'quad', icon: '🌉', title: 'Quadratische Funktionen', desc: 'Parameter und drei Formen, Scheitelpunkt und quadratische Ergänzung, Nullstellen und Diskriminante, Parabel und Gerade, Parabel aus Punkten, Optimierung (Preis, Umsatz, Gewinn)', open: ['quad-panel'] },
   { id: 'pow', icon: '🔢', title: 'Potenz- und Wurzelfunktionen', desc: 'Potenzfunktionen x^n, negative Exponenten, Wurzelfunktionen als Umkehrung, allgemeine Form a(x−v)^n + h, Potenz- und Wurzelgleichungen', open: ['pow-panel'] },
-  { id: 'exp', icon: '📈', title: 'Exponential- und Logarithmusfunktionen', desc: 'Wachstum und Zerfall a·b^x, die Zahl e, Logarithmus als Umkehrung, Exponentialgleichungen und Anwendungen (Zinseszins, Zerfall, Abkühlung)', open: ['exp-panel'] },
-  { id: 'trig', icon: '∿', title: 'Trigonometrische Funktionen', desc: 'Einheitskreis mit Sinus und Kosinus, Bogenmass, allgemeine Sinusfunktion a·sin(b(x−c))+d mit Amplitude, Periode und Verschiebung, Tangens mit Polstellen und Beziehungen', open: ['trig-panel'] },
+  { id: 'exp', icon: '📈', title: 'Exponential- und Logarithmusfunktionen', desc: 'Wachstum und Zerfall a·b^x, die Zahl e, Logarithmus als Umkehrung, Exponentialgleichungen und Anwendungen (Zinseszins, Zerfall, Abkühlung), Prozentrechnung mit Faktoren', open: ['exp-panel'] },
+  { id: 'trig', icon: '∿', title: 'Trigonometrische Funktionen', desc: 'Einheitskreis mit Sinus und Kosinus, Bogenmass, allgemeine Sinusfunktion a·sin(b(x−c))+d mit Amplitude, Periode und Verschiebung, Tangens mit Polstellen und Beziehungen, rechtwinkliges Dreieck (sin, cos, tan), Sinus- und Kosinussatz, Vermessung', open: ['trig-panel'] },
   { id: 'inv', icon: '↔', title: 'Umkehrfunktionen', desc: 'Begriff der Umkehrfunktion (Spiegelung an y = x), Umkehrbarkeit und Einschränkung des Definitionsbereichs, Umkehrfunktion berechnen, bekannte Paare (x² und √x, 2^x und log₂ x, sin und arcsin …)', open: ['inv-panel'] },
-  { id: 'diff', icon: '🧮', title: 'Differentialrechnung', desc: 'Differenzenquotient, Sekante und Tangente, Graphisches Ableiten, Ableitungsregeln, Kurvendiskussion', open: ['dif-panel'] },
-  { id: 'int', icon: '📶', title: 'Integralrechnung', desc: 'Ober- und Untersummen, Integralfunktion und Hauptsatz, Stammfunktion mit Regeln, Flächen zwischen Kurven, Rotationskörper', open: ['itg-panel'] },
+  { id: 'diff', icon: '🧮', title: 'Differentialrechnung', desc: 'Grenzwerte von Funktionen, Differenzenquotient, Sekante und Tangente, Graphisches Ableiten, Ableitungsregeln, Kurvendiskussion, Extremwertprobleme, Polynom aus Bedingungen', open: ['dif-panel'] },
+  { id: 'int', icon: '📶', title: 'Integralrechnung', desc: 'Ober- und Untersummen, Integralfunktion und Hauptsatz, Stammfunktion mit Regeln, partielle Integration und Substitution als Bild, Flächen zwischen Kurven, Rotationskörper', open: ['itg-panel'] },
   { id: 'lo', icon: '📐', title: 'Lineare Optimierung', desc: 'Ungleichungen mit einer und zwei Variablen, Ungleichungssysteme und Planungspolygon, Zielfunktion, Niveaulinie und Optimum, Textaufgaben', open: ['lo-panel'] },
   { id: 'geo', icon: '🔺', title: 'Geometrie (2D)', desc: 'Konstruktionen mit Punkten, Geraden, Kreisen und Dreiecken', open: ['geo-panel'] },
   { id: 'sim', icon: '△', title: 'Ähnlichkeit', desc: 'Ähnlichkeitsabbildungen (Spiegeln, Drehen, Strecken, Verschieben), ähnliche Dreiecke, Seitenverhältnisse, Strahlensätze, rechtwinkliges Dreieck mit Höhe', open: ['sim-panel'] },
   { id: 'seq', icon: '∑', title: 'Folgen und Reihen', desc: 'Folgen explizit und rekursiv, arithmetische und geometrische Folgen, Reihen und Summenzeichen, Grenzwert, unendliche geometrische Reihe, vollständige Induktion', open: ['seq-panel'] },
+  { id: 'set', icon: '∪', title: 'Mengen und Intervalle', desc: 'Intervalle auf der Zahlengeraden in drei Schreibweisen (Intervall, Ungleichung, Mengenschreibweise), Schnittmenge, Vereinigung, Differenz und Komplement', open: ['set-panel'] },
   { id: 'alg', icon: '🧩', title: 'Algebra', desc: 'Binomische Formeln, Ausmultiplizieren, Faktorisieren, quadratische Ergänzung, Potenzen, Wurzeln, Logarithmen, Bruchterme, Gleichungen und Gleichungssysteme als Bild', open: ['alg-panel'] },
-  { id: '3d', icon: '🧊', title: '3D-Raum', desc: 'Ebenen in Koordinatenform, Schnitte, Balken', open: ['td-panel'] },
+  { id: '3d', icon: '🧊', title: '3D-Raum', desc: 'Ebenen in Koordinatenform, Schnitte, Balken; Vektorgeometrie: Punkte und Vektoren, Geraden (Lage, Schnittpunkt), Skalarprodukt und Winkel, Abstände, Kugel', open: ['td-panel'] },
   { id: 'stat', icon: '🎲', title: 'Wahrscheinlichkeit & Statistik', desc: 'Zufallsexperimente zum Mitverfolgen: Würfel, Galtonbrett, π, Ziegenproblem, Grenzwertsatz, Konfidenzintervalle', open: ['stat-panel'] },
+  { id: 'prob', icon: '📊', title: 'Statistik und Stochastik rechnen', desc: 'Datenanalyse (Mittelwert, Median, Quartile, Standardabweichung, Boxplot, Histogramm), Baumdiagramm und Pfadregeln, Binomialverteilung, Poissonverteilung, Erwartungswert und faire Spiele, Normalverteilung, Grenzwerte (Binomial → Poisson, Normal) mit Herleitung, Hypothesentest', open: ['prob-panel'] },
   { id: 'fin', icon: '💰', title: 'Finanzmathematik', desc: 'Zeitstrahl und Konten, Summenzeichen, Sparplan, Kredit mit Tilgungsplan, Zeitwert, Marchzins, konformer Zins', open: ['fin-panel'] }
 ];
 const ENV_DEFAULT_VIEW = { xmin: -10, xmax: 10, ymin: -6, ymax: 6 };
@@ -162,6 +164,7 @@ function envSwitch(id) {
     ENV.cur = id;
     document.body.setAttribute('data-env', id);
     applyState(w ? w.state : envBlankState(id));
+    if (typeof envHintShow === 'function') envHintShow();             // Überschrift des neuen Themas
     if (typeof td3dSet === 'function') td3dSet(id === '3d');
     view = w ? Object.assign({}, w.view) : Object.assign({}, ENV_DEFAULT_VIEW);
     if (typeof syncInputs === 'function') syncInputs();
@@ -236,6 +239,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') envCloseMenu
 
 document.body.setAttribute('data-env', ENV.cur);
 envUpdateButton();
+if (typeof envHintShow === 'function') envHintShow();
 // Erster Verlaufseintrag nochmals mit Umgebung und Zusatzdaten aufnehmen (sonst entsteht beim ersten Bearbeiten ein Scheineintrag)
 if (typeof undoStack !== 'undefined' && undoStack.length <= 1 && typeof captureState === 'function') { undoStack = [envCopy(captureState())]; historyIdx = 0; if (typeof updateUndoRedoBtns === 'function') updateUndoRedoBtns(); }
 
@@ -244,4 +248,19 @@ window.envSwitch = envSwitch; window.envEnsure = envEnsure; window.envToggleMenu
 window.envCaptureExt = envCaptureExt; window.envApplyExt = envApplyExt; window.envGuess = envGuess;
 window.envCurrent = () => ENV.cur;
 
+}
+
+// ── Zurücksetzen: Knopf in der Überschrift (#env-hint, 02_core.js) setzt die aktuelle Umgebung in den Anfangszustand
+//    zurück; die gewählte Ansicht bleibt. Rückgängig ist möglich (Verlauf). Eintrag: [Präfix der Funktionen, Ansichts-Schlüssel]
+const ENV_RESET = { intro: ['fun', 'view'], lin: ['lin', 'view'], quad: ['quad', 'view'], pow: ['pow', 'view'], exp: ['exp', 'view'], trig: ['trig', 'view'], inv: ['inv', 'view'],
+  diff: ['dif', 'view'], int: ['itg', 'view'], seq: ['seq', 'view'], lo: ['lop', 'view'], sim: ['sim', 'view'], set: ['set', 'view'], prob: ['prob', 'view'],
+  stat: ['stat', 'mode'], fin: ['fin', 'mode'], alg: ['alg', 'mode'], '3d': ['td', 'view'] };
+function envReset() {
+  const e = typeof ENV !== 'undefined' ? ENV.cur : null, r = ENV_RESET[e]; if (!r) return;
+  const cap = window[r[0] + 'Capture'], app = window[r[0] + 'Apply']; if (typeof app !== 'function') return;
+  const keep = {}; try { const c = typeof cap === 'function' ? cap() : null; if (c && r[1] in c) keep[r[1]] = c[r[1]]; } catch (err) { /* ohne Ansicht */ }
+  if (e === 'stat' && typeof statStopRun === 'function') statStopRun();
+  try { app(keep); } catch (err) { console.warn('Zurücksetzen', err); }
+  if (typeof scheduleDraw === 'function') scheduleDraw();
+  if (typeof pushHistory === 'function') pushHistory();
 }

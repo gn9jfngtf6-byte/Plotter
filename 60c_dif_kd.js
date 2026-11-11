@@ -29,15 +29,39 @@
   // Nullstellen von g im Fenster durch Vorzeichenwechsel (nur Stellen, an denen g stetig ist)
   function scanRoots(g, a, b, N) {
     N = N || 4000; const out = []; let px = a, pv = g(a);
+    // Rundungsrauschen (z. B. f'' von |x| ist ±1e-16 statt 0) ist kein Vorzeichenwechsel
+    let sc = 0; for (let i = 0; i <= 200; i++) { const v = g(a + (b - a) * i / 200); if (isFinite(v)) sc = Math.max(sc, Math.abs(v)); }
+    const noise = 1e-9 * (1 + sc);
     for (let i = 1; i <= N; i++) {
       const x = a + (b - a) * i / N, v = g(x);
-      if (isFinite(pv) && isFinite(v) && pv !== 0 && (pv < 0) !== (v < 0)) {
+      if (isFinite(pv) && isFinite(v) && pv !== 0 && (pv < 0) !== (v < 0) && Math.max(Math.abs(pv), Math.abs(v)) > noise) {
         const r = bisect(g, px, x, pv, v);
         if (isFinite(r) && Math.abs(g(r)) < 1e-6 * (1 + Math.abs(pv) + Math.abs(v)) + 1e-9) out.push(r);
-      } else if (isFinite(v) && v === 0 && isFinite(pv) && pv !== 0) out.push(x);
+      } else if (isFinite(v) && v === 0 && isFinite(pv) && Math.abs(pv) > noise) out.push(x);
       px = x; pv = v;
     }
     return out.filter((r, i) => !i || Math.abs(r - out[i - 1]) > 1e-8);
+  }
+  // Stellen, an denen f' das Vorzeichen sprunghaft wechselt, f aber stetig ist (Knick, z. B. |x| bei 0)
+  function scanKinks(f, g, a, b, N) {
+    N = N || 2000; const out = []; let px = a, pv = g(a);
+    for (let i = 1; i <= N; i++) {
+      const x = a + (b - a) * i / N, v = g(x);
+      if (!isFinite(v)) continue;                         // einzelne undefinierte Stelle (f' bei 0 für |x|) überspringen
+      if (isFinite(pv) && (pv < 0) !== (v < 0) && pv !== 0 && v !== 0) {
+        let lo = px, hi = x, gl = pv;
+        for (let k = 0; k < 80 && hi - lo > 1e-13 * (1 + Math.abs(lo)); k++) { const m = (lo + hi) / 2, gm = g(m); if (!isFinite(gm)) { lo = hi = m; break; } if ((gm < 0) === (gl < 0)) { lo = m; gl = gm; } else hi = m; }
+        const r = (lo + hi) / 2;
+        const jump = Math.abs(g(r - 1e-7) - g(r + 1e-7)) > 1e-3 * (1 + Math.abs(pv) + Math.abs(v));
+        const cont = isFinite(f(r)) && Math.abs(f(r - 1e-7) - f(r + 1e-7)) < 1e-5 * (1 + Math.abs(f(r)));
+        if (isFinite(r) && jump && cont) {
+          const rr = Math.abs(r - Math.round(r * 1e6) / 1e6) < 1e-8 ? Math.round(r * 1e6) / 1e6 : r;
+          out.push(rr);
+        }
+      }
+      px = x; pv = v;
+    }
+    return out;
   }
   const rootObj = (val, exactObj) => (exactObj || { val, tex: fmtT(val, 4), exact: false });
   function signAround(g, r, lo, hi) {                   // Vorzeichen links und rechts von r
@@ -98,13 +122,19 @@
       const [a, b] = win;
       K.zeros = scanRoots(f0, a, b).map(v => rootObj(v));
       const c1 = scanRoots(f1, a, b), c2 = scanRoots(f2, a, b);
+      const kinks = scanKinks(f0, f1, a, b).filter(x => !c1.some(c => Math.abs(c - x) < 1e-6));
       K.crit = c1.map((x, i) => {
         const y = f0(x), s2 = Math.sign(f2(x)); let type = s2 < 0 ? 'max' : s2 > 0 ? 'min' : 'saddle';
         const [l, r] = signAround(f1, x, i ? c1[i - 1] : a, i < c1.length - 1 ? c1[i + 1] : b);
         if (l > 0 && r < 0) type = 'max'; else if (l < 0 && r > 0) type = 'min'; else if (l * r > 0) type = 'saddle';
         return { x, xTex: fmtT(x, 4), y, yTex: fmtT(y, 4), exact: false, type, how: 'sign', s2 };
       }).filter(c => isFinite(c.y));
-      K.infl = c2.map(x => ({ x, xTex: fmtT(x, 4), y: f0(x), yTex: fmtT(f0(x), 4), slope: f1(x), slopeTex: fmtT(f1(x), 4), exact: false, saddle: Math.abs(f1(x)) < 1e-6 })).filter(c => isFinite(c.y));
+      kinks.forEach(x => {                                   // Knick: f' springt mit Vorzeichenwechsel → Extremum ohne waagrechte Tangente
+        const y = f0(x), [l, r] = [Math.sign(f1(x - 1e-6)), Math.sign(f1(x + 1e-6))];
+        if (isFinite(y) && l * r < 0) K.crit.push({ x, xTex: fmtT(x, 4), y, yTex: fmtT(y, 4), exact: false, type: l > 0 ? 'max' : 'min', how: 'kink', s2: NaN, kink: true, from: l, to: r });
+      });
+      K.crit.sort((p, q) => p.x - q.x);
+      K.infl = c2.filter(x => !kinks.some(k => Math.abs(k - x) < 1e-6)).map(x => ({ x, xTex: fmtT(x, 4), y: f0(x), yTex: fmtT(f0(x), 4), slope: f1(x), slopeTex: fmtT(f1(x), 4), exact: false, saddle: Math.abs(f1(x)) < 1e-6 })).filter(c => isFinite(c.y));
       K.fmin = F.f(0)(a);
     }
     // Intervalle (Monotonie / Krümmung)
@@ -143,7 +173,8 @@
     const pts = cs.slice().sort((a, b) => a.x - b.x);
     const head = ['$x$'], r1 = ['$' + g + '$'], r2 = ['$f$'];
     const sgnAt = i => { // Vorzeichen im Abschnitt i (vor pts[i])
-      const lo = i === 0 ? -Infinity : pts[i - 1].x, hi = i === pts.length ? Infinity : pts[i].x;
+      // numerische Analyse: die Intervalle reichen nur über das Fenster (nicht bis ±∞)
+      const lo = Math.max(i === 0 ? -Infinity : pts[i - 1].x, ints.length ? ints[0].lo : -Infinity), hi = Math.min(i === pts.length ? Infinity : pts[i].x, ints.length ? ints[ints.length - 1].hi : Infinity);
       const it = ints.find(q => q.lo <= lo + 1e-12 && q.hi >= hi - 1e-12);
       return it ? it.sign : 0;
     };
@@ -154,7 +185,7 @@
       const s = sgnAt(i);
       r1.push('$' + sgnStr(s) + '$'); r2.push(word(s));
       if (hi) {
-        head.push('$' + hi.xTex + '$'); r1.push('$0$');
+        head.push('$' + hi.xTex + '$'); r1.push(hi.kink ? 'n. d.' : '$0$');
         if (which === 'curv') r2.push(hi.saddle ? 'Terrassenpunkt' : 'Wendepunkt');
         else r2.push(TYPE[hi.type][1]);
       }
@@ -181,7 +212,7 @@
     const y0 = F.f(0)(0);
     if (isFinite(y0)) d.e('f(0)=' + (K.poly ? E.qTex(K.P[0]) : fmtT(y0, 4)), 'y-Achsenabschnitt');
     if (K.poly) { const sd = DOC(); d.sub(K.zerosRes.doc); }
-    if (K.zeros.length) d.res('Nullstellen: ' + K.zeros.map(z => '$x=' + (z.exact === false ? '\\approx ' : '') + z.tex + '$').join(', '));
+    if (K.zeros.length) d.res('Nullstellen: ' + K.zeros.map(z => '$x' + (z.exact === false ? '\\approx ' : '=') + z.tex + '$').join(', '));
     else d.res('Keine Nullstellen' + (K.poly ? '.' : ' im Fenster.'));
     // 3 Ableitungen
     d.h('3. Ableitungen');
@@ -198,7 +229,8 @@
       K.crit.forEach(c => {
         const sub = DOC();
         const x = c.xTex;
-        if (c.how === 'f2') sub.e("f''\\left(" + x + '\\right)=' + (K.poly && c.root.fe ? E.feTex(E.pEvalFe(K.P2, c.root.fe)) : fmtT(F.f(2)(c.x), 4)) + (c.s2 < 0 ? '<0' : '>0'), c.s2 < 0 ? 'Maximum' : 'Minimum');
+        if (c.how === 'kink') sub.p('Bei $x_0=' + x + '$ hat der Graph einen **Knick**: $f\'(x_0)$ existiert nicht, aber $f\'$ wechselt das Vorzeichen (von $' + sgnStr(c.from) + '$ nach $' + sgnStr(c.to) + '$) — ' + (c.type === 'max' ? 'Maximum' : 'Minimum') + ' ohne waagrechte Tangente.');
+        else if (c.how === 'f2') sub.e("f''\\left(" + x + '\\right)=' + (K.poly && c.root.fe ? E.feTex(E.pEvalFe(K.P2, c.root.fe)) : fmtT(F.f(2)(c.x), 4)) + (c.s2 < 0 ? '<0' : '>0'), c.s2 < 0 ? 'Maximum' : 'Minimum');
         else sub.p('Hier ist $f\'\'(x_0)=0$: der Vorzeichenwechsel von $f\'$ entscheidet — ' + (c.type === 'saddle' ? 'kein Vorzeichenwechsel: **Sattelpunkt** (waagrechte Tangente ohne Extremum).' : c.type === 'max' ? 'Wechsel von $+$ nach $-$: Maximum.' : 'Wechsel von $-$ nach $+$: Minimum.'));
         sub.e('f\\left(' + x + '\\right)=' + c.yTex + (c.exact ? '' : '\\ (\\text{Näherung})'), 'y-Koordinate mit f');
         sub.res(ptTexA(TYPE[c.type][0], c).replace(/^/, '$') + '$ — ' + TYPE[c.type][1]);

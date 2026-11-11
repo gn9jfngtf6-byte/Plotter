@@ -288,7 +288,7 @@ function statRefreshUI() {
   const ui = STAT.ui; if (!ui) return;
   const m = STAT.mode, P = STAT.P[m];
   ui.sel.value = m;
-  const d = STAT_DESC[m]; ui.desc.replaceChildren(statEl('div', null, d[0]), Object.assign(statEl('div', null, d[1]), { style: 'margin-top:5px;' }));
+  const d = STAT_DESC[m]; ui.desc.replaceChildren(statEl('div', null, d[1])); if (typeof envHint === 'function') envHint('stat', d[0], () => STAT.S);   // Hinweis als Überschrift über dem Bild
   // Einstellungen
   ui.params.replaceChildren();
   statControls(m, P).forEach(c => {
@@ -386,7 +386,7 @@ function statCtx(W, H, exp) {
 function statTr(s) { try { return (window.AI18N && AI18N.tr) ? AI18N.tr(s) : s; } catch (e) { return s; } }
 function statPaint(S, W, H) {
   const P = algPal(), FONT = '-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif';
-  const col = (c, fill) => (c === 'T' ? P.text : c === 'M' ? P.muted : c === 'L' ? P.line : c === 'G' ? (fill ? P.muted : (P.dark ? '#2f343e' : '#e6e8ec')) : c || P.text);
+  const col = (c, fill) => (c === 'W' ? P.bg : c === 'T' ? P.text : c === 'M' ? P.muted : c === 'L' ? P.line : c === 'G' ? (fill ? P.muted : (P.dark ? '#2f343e' : '#e6e8ec')) : c || P.text);
   stAutoClip(S);
   S.p.forEach(p => {
     ctx.save();
@@ -445,18 +445,149 @@ function statLatex() {
   const C = { mode: m, P, D, show: STAT.show, fs: fs0, st: { fx: [], play: STAT.play, playStats: STAT.playStats } };
   return stSceneTex(stBuildScene(W, H, C), W, H, (STAT_MODES.find(q => q[0] === m) || [0, ''])[1], fs0);
 }
+// ── Kurven als pgfplots-Term: AST (14_mathinput.js) → pgfmath-Ausdruck in x; null, wenn nicht übersetzbar ──
+function stPgfExpr(ast) {
+  const P = { add: 1, sub: 1, mul: 2, div: 2, neg: 3, pow: 4 };
+  const isConst = n => n.type === 'num' ? true : n.type === 'id' ? n.v !== 'x' : n.type === 'call' ? n.args.every(isConst) : n.type === 'neg' ? isConst(n.x) : !!(n.a && n.b) && isConst(n.a) && isConst(n.b);
+  const val = n => { try { return Dif.S.evalNum(n, 0); } catch (e) { return NaN; } };
+  const num = v => { if (!isFinite(v)) throw 0; let s = String(Math.round(v * 1e10) / 1e10); if (/e/.test(s)) s = v.toFixed(12).replace(/0+$/, '').replace(/\.$/, ''); return s; };
+  const pr = (n, ctx) => {                         // ctx: Rang des Elternknotens (Klammern, falls nötig)
+    let s, r;
+    switch (n.type) {
+      case 'num': s = n.v; r = 9; break;
+      case 'id':
+        if (n.v === 'x') { s = 'x'; r = 9; break; }
+        if (n.v === 'pi') { s = 'pi'; r = 9; break; }
+        if (n.v === 'EC' || n.v === 'e') { s = 'e'; r = 9; break; }
+        { const v = val(n); s = num(v); r = v < 0 ? 3 : 9; break; }    // Parameter: aktueller Zahlenwert
+      case 'neg': s = '-' + pr(n.x, 3.5); r = 3; break;
+      case 'add': { const t = pr(n.b, 1.5); s = pr(n.a, 1) + (t[0] === '-' ? t : '+' + t); r = 1; break; }
+      case 'sub': { const t = pr(n.b, 1.5); s = pr(n.a, 1) + (t[0] === '-' ? '+' + t.slice(1) : '-' + t); r = 1; break; }    // x-(-1) → x+1
+      case 'mul': case 'div': { const t = pr(n.b, 2.5); s = pr(n.a, 2) + (n.type === 'mul' ? '*' : '/') + (t[0] === '-' ? '(' + t + ')' : t); r = 2; break; }
+      case 'pow': {
+        // negative Basis mit Exponent p/q (q ungerade, z. B. x^(1/3)): wie im Programm reell rechnen
+        if (isConst(n.b)) {
+          const b = val(n.b);
+          if (Math.abs(b - Math.round(b)) > 1e-12) {
+            for (let q = 3; q <= 99; q += 2) {
+              const pq = b * q;
+              if (Math.abs(pq - Math.round(pq)) < 1e-9) { s = (Math.round(pq) % 2 ? 'sign(' + pr(n.a, 0) + ')*' : '') + 'abs(' + pr(n.a, 0) + ')^' + pr(n.b, 4.5); r = 2; break; }
+            }
+            if (s) break;
+          }
+        }
+        s = pr(n.a, 4.5) + '^' + pr(n.b, 4.5); r = 4; break;
+      }
+      case 'call': {
+        const A = n.args.map(a => pr(a, 0));
+        const F = { sin: 1, cos: 1, tan: 1, asin: 1, acos: 1, atan: 1, sqrt: 1, abs: 1, exp: 1, log10: 1 };
+        if (F[n.name]) s = n.name + '(' + A[0] + ')';
+        else if (n.name === 'log') s = 'ln(' + A[0] + ')';
+        else if (n.name === 'logn' || n.name === 'logbase') s = 'ln(' + A[0] + ')/ln(' + A[1] + ')';
+        else if (n.name === 'nthroot') { const k = val(n.args[1]); s = Math.round(k) % 2 ? 'sign(' + A[0] + ')*abs(' + A[0] + ')^(1/' + A[1] + ')' : '(' + A[0] + ')^(1/' + A[1] + ')'; }
+        else throw 0;
+        r = n.name === 'logn' || n.name === 'logbase' || n.name === 'nthroot' ? 2 : 9; break;
+      }
+      default: throw 0;
+    }
+    return r < ctx ? '(' + s + ')' : s;
+  };
+  try { return pr(ast, 0); } catch (e) { return null; }
+}
+// Kurve aus difCurve (61_dif_draw.js) als pgfplots-Achse genau über dem Rahmen: ein \addplot je Farbabschnitt,
+// mit dem Term, wenn er bekannt ist (dann lässt sich die Funktion im LaTeX direkt ändern), sonst mit Koordinaten.
+// Eine pgfplots-Achse genau über einem Rahmen aus difFrame (61_dif_draw.js): mit fr zeichnet sie Gitter, Rahmen und Skala selbst
+// (statt über hundert einzelner Linien), ohne fr liegt sie unsichtbar über dem Rahmen. Gs: Kurven aus difCurve – ein \addplot je
+// Farbabschnitt, mit dem Term, wenn er bekannt ist (dann lässt sich die Funktion im LaTeX direkt ändern), sonst mit Koordinaten.
+function stAxisTex(m, fr, Gs, k, H, cn, lwp) {
+  const w = m.win, f = v => String(Math.round(v * 1e4) / 1e4), hgt = w.y1 - w.y0;
+  const C = Gs.map(G => {
+    const { g, o, pts } = G; let ast = (g && g.ast) || null, expr = null;
+    const raw = o.raw || (g && (g.raw || (g.rawOf && g.rawOf())));
+    if (!ast && raw) { try { ast = miParseRaw(String(raw).replace(/\bln\s*\(/g, 'log(')); } catch (e) { ast = null; } }
+    if (ast) {
+      // Gegenprobe: der Term muss die gezeichnete Kurve sein
+      const xs = pts.filter((p, i) => i % 23 === 5 && p.ok);
+      const same = xs.length > 2 && xs.every(p => { const v = Dif.S.evalNum(ast, p.x); return isFinite(v) && Math.abs(v - p.y) <= 1e-7 * (1 + Math.abs(p.y)); });
+      if (same) expr = stPgfExpr(ast);
+    }
+    // sehr kurze Farbabschnitte (ein Abtastpunkt, z. B. «neutral» genau am Extremum) dem Nachbarn zuschlagen
+    const pcs = [];
+    G.pieces.forEach(pc => { const l = pcs[pcs.length - 1]; if (l && l.j === pc.i0 && (pc.j - pc.i0 <= 2 || l.col === pc.col)) { l.b = pc.b; l.j = pc.j; } else if (l && l.j === pc.i0 && l.j - l.i0 <= 2) { l.b = pc.b; l.j = pc.j; l.col = pc.col; } else pcs.push(Object.assign({}, pc)); });
+    return { G, expr, pcs };
+  }).filter(c => c.pcs.length);
+  if (!fr && !C.length) return [];
+  const anyExpr = C.some(c => c.expr), NM = ['f', 'g', 'h', 'k', 'u', 'v', 'w', 'p', 'q', 'r']; let ni = 0;
+  C.forEach(c => { if (c.expr && c.pcs.length > 1 && ni < NM.length) c.fn = NM[ni++]; });       // Term nur einmal schreiben (declare function)
+  const opt = [fr ? 'jframe' : 'jcurve', 'at={(' + f(m.L * k) + 'cm,' + f((H - m.B) * k) + 'cm)}', 'width=' + f((m.R - m.L) * k) + 'cm', 'height=' + f((m.B - m.T) * k) + 'cm',
+    'xmin=' + f(w.x0), 'xmax=' + f(w.x1), 'ymin=' + f(w.y0), 'ymax=' + f(w.y1)];
+  if (fr) {
+    if (fr.xt) { opt.push('xtick={' + fr.xt.map(t => f(t[0])).join(',') + '}'); opt.push('xticklabels={' + fr.xt.map(t => '{' + (typeof finRichTex === 'function' ? finRichTex(t[1]) : f(t[0])) + '}').join(',') + '}'); }
+    else opt.push('xtick distance=' + f(fr.sx));
+    opt.push('ytick distance=' + f(fr.sy));
+  }
+  if (anyExpr) opt.push('restrict y to domain=' + f(w.y0 - 3 * hgt) + ':' + f(w.y1 + 3 * hgt));
+  const fns = C.filter(c => c.fn).map(c => c.fn + '(\\x)=' + c.expr.replace(/\bx\b/g, '\\x') + ';');
+  if (fns.length) opt.push('declare function={' + fns.join(' ') + '}');
+  // Optionen auf Zeilen verteilen
+  const head = []; let ln = '\\begin{axis}[';
+  opt.forEach((q, i) => { const t = q + (i < opt.length - 1 ? ', ' : ']'); if (ln.length + t.length > 150 && ln.trim() !== '\\begin{axis}[') { head.push(ln.replace(/\s+$/, '')); ln = '  ' + t; } else ln += t; });
+  head.push(ln);
+  const out = head;
+  C.forEach(c => {
+    const o = c.G.o, sty = col => cn(col) + ', line width=' + lwp(o.lw || 2.2) + (o.dash ? ', dashed' : '') + (o.a !== undefined ? ', opacity=' + f(o.a) : '');
+    c.pcs.forEach(pc => {
+      if (c.expr) out.push('  \\addplot[' + sty(pc.col) + ', domain=' + f(pc.a) + ':' + f(pc.b) + '] {' + (c.fn ? c.fn + '(x)' : c.expr) + '};');
+      else {
+        let P = c.G.pts.slice(pc.i0, pc.j + 1); const st = Math.ceil(P.length / 150);
+        if (st > 1) P = P.filter((q, i) => i % st === 0 || i === P.length - 1);
+        const yl = w.y0 - 3 * hgt, yh = w.y1 + 3 * hgt;
+        out.push('  \\addplot[' + sty(pc.col) + '] coordinates {' + P.map(q => '(' + f(q.x) + ',' + f(Math.max(yl, Math.min(yh, q.y))) + ')').join(' ') + '};');
+      }
+    });
+  });
+  out.push('\\end{axis}');
+  return out;
+}
+// Stile der Achsen (einmal am Anfang des Bildes)
+const ST_PGF_STYLE = '\\pgfplotsset{jframe/.style={anchor=south west, scale only axis, enlargelimits=false, clip=true, grid=major, grid style={black!15}, axis line style={black!70},\n' +
+  '    tick style={black!70}, major tick length=2pt, tick align=outside, xtick pos=bottom, ytick pos=left, tick label style={font=\\tiny, text=black!55, /pgf/number format/1000 sep={}},\n' +
+  '    scaled ticks=false, extra x ticks={0}, extra y ticks={0}, extra x tick labels={}, extra y tick labels={}, extra tick style={grid style={black!70, line width=0.9pt}},\n' +
+  '    samples=201, trig format plots=rad, unbounded coords=jump},\n' +
+  '  jcurve/.style={jframe, hide axis}}   % jframe: Rahmen mit Gitter und Skala; jcurve: nur Kurven über einem Rahmen';
 // Szene → TikZ (gemeinsam mit der Finanzmathematik, 52_fin_ui.js)
 function stSceneTex(S, W, H, label, fs0) {
   const f = v => String(Math.round(v * 1000) / 1000), k = 16 / W, L = [], cols = {};
-  const pal = { T: 'black', M: 'black!55', G: 'black!15', L: 'black!70' };
+  const pal = { T: 'black', M: 'black!55', G: 'black!15', L: 'black!70', W: 'white' };   // W: Hintergrund (z.B. Loch im Graphen)
   const cn = c => { if (!c) return 'black'; if (pal[c]) return pal[c]; if (c === '#ffffff') return 'white'; if (!cols[c]) cols[c] = 'stC' + Object.keys(cols).length; return cols[c]; };
-  const X = x => f(x * k), Y = y => f((H - y) * k), pt = (x, y) => '(' + X(x) + ',' + Y(y) + ')', lwp = w => f((w || 1) * k * 28.45) + 'pt';
-  const body = [];
+  const cl = (v, D) => Math.max(-8 * D, Math.min(9 * D, v)), X = x => f(cl(x, W) * k), Y = y => f((H - cl(y, H)) * k), pt = (x, y) => '(' + X(x) + ',' + Y(y) + ')', lwp = w => f((w || 1) * k * 28.45) + 'pt';   // cl: weit ausserhalb liegende (ohnehin weggeschnittene) Teile begrenzen, sonst «Dimension too large»
+  const body = []; let usesPgf = false;
   stAutoClip(S);
   let clipKey = '';
   const closeClip = () => { if (clipKey) { body.push('\\end{scope}'); clipKey = ''; } };
-  S.p.forEach(p => {
-    const ck = p.clip ? stClipRects(p.clip).map(c => [X(c[0]), Y(c[1] + c[3]), X(c[0] + c[2]), Y(c[1])].join(',')).join(';') : '';
+  // Kurven desselben Rahmens, die ab Index i0 folgen, bevor etwas anderes in diesem Rahmen gezeichnet wird (Reihenfolge bleibt so gewahrt)
+  const done = new Set(), P = S.p;
+  const hits = (p, m) => { const b = stItemBox(p); return !!b && Math.min(b[2], m.R) - Math.max(b[0], m.L) > 0.5 && Math.min(b[3], m.B) - Math.max(b[1], m.T) > 0.5; };
+  const follow = (i0, m) => {
+    const out = [];
+    for (let i = i0; i < P.length; i++) {
+      const q = P[i]; if (q.fr || q.t === 'text') continue;
+      if (q.t === 'poly' && q.fgrp && !q.fill) { if (q.fgrp.m === m) { if (!done.has(q.fgrp)) { done.add(q.fgrp); out.push(q.fgrp); } } else if (hits(q, m)) break; continue; }
+      if (hits(q, m)) break;
+    }
+    return out;
+  };
+  S.p.forEach((p, pi) => {
+    if (p.fr) {                                                                  // Rahmen: eine Achse mit Gitter und Skala
+      if (done.has(p.fr)) return;
+      done.add(p.fr); closeClip(); usesPgf = true;
+      stAxisTex(p.fr.m, p.fr, follow(pi + 1, p.fr.m), k, H, cn, lwp).forEach(l => body.push(l));
+      return;
+    }
+    if (p.t === 'text' && p.rich && !String(p.s).trim()) return;                 // leere Beschriftung
+    // Zuschneiden nur, wenn das Element nicht ohnehin ganz in einem der Fenster liegt
+    const bx = p.clip ? stItemBox(p) : null, inside = !!bx && stClipRects(p.clip).some(c => bx[0] >= c[0] && bx[2] <= c[0] + c[2] && bx[1] >= c[1] && bx[3] <= c[1] + c[3]);
+    const ck = p.clip && !inside && !(p.fgrp && !p.fill) ? stClipRects(p.clip).map(c => [X(c[0]), Y(c[1] + c[3]), X(c[0] + c[2]), Y(c[1])].join(',')).join(';') : '';
     if (ck !== clipKey) { closeClip(); if (ck) { body.push('\\begin{scope}\\clip ' + stClipRects(p.clip).map(c => pt(c[0], c[1] + c[3]) + ' rectangle ' + pt(c[0] + c[2], c[1])).join(' ') + ';'); clipKey = ck; } }
     if (p.t === 'rect') {
       if (p.w <= 0 || p.h <= 0) return;
@@ -467,8 +598,15 @@ function stSceneTex(S, W, H, label, fs0) {
       body.push('\\draw[' + cn(p.col) + ', line width=' + lwp(p.lw) + (p.dash ? ', dashed' : '') + (p.a !== undefined ? ', opacity=' + f(p.a) : '') + '] ' + pt(p.x1, p.y1) + ' -- ' + pt(p.x2, p.y2) + ';');
     } else if (p.t === 'circ') {
       const r = f(p.r * k) + 'cm';
-      if (p.fill) body.push('\\fill[' + cn(p.fill === 'G' ? 'M' : p.fill) + (p.a !== undefined ? ', opacity=' + f(p.a) : '') + '] ' + pt(p.x, p.y) + ' circle (' + r + ');');
-      if (p.stroke) body.push('\\draw[' + cn(p.stroke) + ', line width=' + lwp(p.lw) + '] ' + pt(p.x, p.y) + ' circle (' + r + ');');
+      if (p.fill && p.stroke && p.a === undefined) body.push('\\filldraw[fill=' + cn(p.fill === 'G' ? 'M' : p.fill) + ', draw=' + cn(p.stroke) + ', line width=' + lwp(p.lw) + '] ' + pt(p.x, p.y) + ' circle (' + r + ');');
+      else {
+        if (p.fill) body.push('\\fill[' + cn(p.fill === 'G' ? 'M' : p.fill) + (p.a !== undefined ? ', opacity=' + f(p.a) : '') + '] ' + pt(p.x, p.y) + ' circle (' + r + ');');
+        if (p.stroke) body.push('\\draw[' + cn(p.stroke) + ', line width=' + lwp(p.lw) + '] ' + pt(p.x, p.y) + ' circle (' + r + ');');
+      }
+    } else if (p.t === 'poly' && p.fgrp && !p.fill) {
+      if (done.has(p.fgrp)) return;                                              // Kurve schon als Ganzes ausgegeben
+      done.add(p.fgrp); usesPgf = true;
+      stAxisTex(p.fgrp.m, null, [p.fgrp].concat(follow(pi + 1, p.fgrp.m)), k, H, cn, lwp).forEach(l => body.push(l));
     } else if (p.t === 'poly') {
       let pts = p.pts; if (pts.length > 160) { const stp = Math.ceil(pts.length / 160); pts = pts.filter((q, i) => i % stp === 0 || i === pts.length - 1); }
       if (pts.length < 2) return;
@@ -482,9 +620,15 @@ function stSceneTex(S, W, H, label, fs0) {
     }
   });
   closeClip();
-  L.push('% ' + label + ' aus J\\sqrt{10} — benötigt \\usepackage{tikz}');
+  // gleichartige Kreise hintereinander (Markierungen, Punkte einer Folge) in einem Befehl
+  for (let i = body.length - 1; i > 0; i--) {
+    const re = /^(\\(?:draw|fill|filldraw)\[[^\]]*\]) (\(.*\) circle \([^)]*\));$/, a1 = re.exec(body[i - 1]), b1 = re.exec(body[i]);
+    if (a1 && b1 && a1[1] === b1[1] && body[i - 1].length < 900) { body[i - 1] = a1[1] + ' ' + a1[2] + ' ' + b1[2] + ';'; body.splice(i, 1); }
+  }
+  L.push('% ' + label + ' aus J\\sqrt{10} — benötigt \\usepackage{tikz}' + (usesPgf ? ' sowie \\usepackage{pgfplots} und \\pgfplotsset{compat=1.18} (Funktionsgraphen als \\addplot)' : ''));
   Object.keys(cols).forEach(c => { const n = parseInt(c.slice(1), 16); L.push('\\definecolor{' + cols[c] + '}{RGB}{' + [n >> 16, (n >> 8) & 255, n & 255].join(',') + '}'); });
   L.push('\\begin{tikzpicture}[line cap=round, line join=round]');
+  if (usesPgf) L.push(ST_PGF_STYLE);
   return L.concat(body, ['\\end{tikzpicture}']).join('\n');
 }
 function statMakeLatex() { const ta = STAT.ui && STAT.ui.ta; if (!ta) return ''; try { ta.value = statLatex(); } catch (e) { ta.value = '% Fehler beim Erzeugen: ' + e.message; } return ta.value; }

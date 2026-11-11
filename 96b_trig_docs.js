@@ -108,6 +108,76 @@
     return out;
   }
   Trig.st = { circ, gen, tan };
+  // ── Trigonometrie im Dreieck ──
+  const RD = Math.PI / 180, dg = v => Dif.fmtT(Math.round(v * 100) / 100, 6) + '^\\circ', ln = v => Dif.fmtT(Math.round(v * 100) / 100, 6);
+  // Rechtwinkliges Dreieck: rechter Winkel bei C, Katheten a (gegenüber α) und b, Hypotenuse c; gv: gegebene Grössen
+  Trig.rtVals = (a, b) => { const c = Math.hypot(a, b), al = Math.atan2(a, b) / RD; return { a, b, c, al, be: 90 - al, A: a * b / 2 }; };
+  Trig.RT_GIVEN = [['ab', 'Katheten a und b'], ['ac', 'Kathete a und Hypotenuse c'], ['ca', 'Hypotenuse c und Winkel α'], ['aa', 'Kathete a und Winkel α'], ['ba', 'Kathete b und Winkel α']];
+  Trig.rtDoc = (a, b, gv) => {
+    const d = Dif.DOC(), V = Trig.rtVals(a, b);
+    d.h('Rechtwinkliges Dreieck');
+    d.p('Bezogen auf den Winkel $\\alpha$: $a$ ist die **Gegenkathete**, $b$ die **Ankathete**, $c$ die **Hypotenuse** (gegenüber dem rechten Winkel).');
+    d.e('\\sin\\alpha=\\frac{a}{c},\\qquad \\cos\\alpha=\\frac{b}{c},\\qquad \\tan\\alpha=\\frac{a}{b}');
+    const G = { ab: 'a=' + ln(a) + ',\\ b=' + ln(b), ac: 'a=' + ln(a) + ',\\ c=' + ln(V.c), ca: 'c=' + ln(V.c) + ',\\ \\alpha=' + dg(V.al), aa: 'a=' + ln(a) + ',\\ \\alpha=' + dg(V.al), ba: 'b=' + ln(b) + ',\\ \\alpha=' + dg(V.al) }[gv];
+    d.p('**Gegeben:**'); d.e(G);
+    d.p('**Rechnung:**');
+    if (gv === 'ab') { d.e('c=\\sqrt{a^2+b^2}=\\sqrt{' + ln(a) + '^2+' + ln(b) + '^2}=' + ln(V.c)); d.e('\\tan\\alpha=\\frac{a}{b}=\\frac{' + ln(a) + '}{' + ln(b) + '}\\ \\Rightarrow\\ \\alpha=\\arctan\\frac{' + ln(a) + '}{' + ln(b) + '}=' + dg(V.al)); }
+    else if (gv === 'ac') { d.e('b=\\sqrt{c^2-a^2}=\\sqrt{' + ln(V.c) + '^2-' + ln(a) + '^2}=' + ln(b)); d.e('\\sin\\alpha=\\frac{a}{c}=\\frac{' + ln(a) + '}{' + ln(V.c) + '}\\ \\Rightarrow\\ \\alpha=\\arcsin\\frac{' + ln(a) + '}{' + ln(V.c) + '}=' + dg(V.al)); }
+    else if (gv === 'ca') { d.e('a=c\\cdot\\sin\\alpha=' + ln(V.c) + '\\cdot\\sin ' + dg(V.al) + '=' + ln(a)); d.e('b=c\\cdot\\cos\\alpha=' + ln(V.c) + '\\cdot\\cos ' + dg(V.al) + '=' + ln(b)); }
+    else if (gv === 'aa') { d.e('c=\\frac{a}{\\sin\\alpha}=\\frac{' + ln(a) + '}{\\sin ' + dg(V.al) + '}=' + ln(V.c)); d.e('b=\\frac{a}{\\tan\\alpha}=\\frac{' + ln(a) + '}{\\tan ' + dg(V.al) + '}=' + ln(b)); }
+    else { d.e('a=b\\cdot\\tan\\alpha=' + ln(b) + '\\cdot\\tan ' + dg(V.al) + '=' + ln(a)); d.e('c=\\frac{b}{\\cos\\alpha}=\\frac{' + ln(b) + '}{\\cos ' + dg(V.al) + '}=' + ln(V.c)); }
+    d.e('\\beta=90^\\circ-\\alpha=' + dg(V.be));
+    d.e('\\text{Fläche: }A=\\frac{a\\cdot b}{2}=' + ln(V.A));
+    d.res('$a=' + ln(a) + '$, $b=' + ln(b) + '$, $c=' + ln(V.c) + '$, $\\alpha=' + dg(V.al) + '$, $\\beta=' + dg(V.be) + '$');
+    return d;
+  };
+  // Allgemeines Dreieck aus den Ecken; Fall: sss, sws (b, c, α), wsw (c, α, β), ssw (a, b, α)
+  Trig.triVals = (A, B, C) => {
+    const L = (P, Q) => Math.hypot(P[0] - Q[0], P[1] - Q[1]), a = L(B, C), b = L(C, A), c = L(A, B);
+    const ang = (x, y, z) => Math.acos(Math.max(-1, Math.min(1, (y * y + z * z - x * x) / (2 * y * z)))) / RD;
+    const al = ang(a, b, c), be = ang(b, a, c), ga = 180 - al - be;
+    return { a, b, c, al, be, ga, F: 0.5 * b * c * Math.sin(al * RD) };
+  };
+  Trig.TRI_CASES = [['sss', 'SSS: drei Seiten'], ['sws', 'SWS: zwei Seiten und Zwischenwinkel'], ['wsw', 'WSW: eine Seite und zwei Winkel'], ['ssw', 'SSW: zwei Seiten und ein Gegenwinkel']];
+  Trig.TRI_GIVEN = { sss: ['a', 'b', 'c'], sws: ['b', 'c', 'al'], wsw: ['c', 'al', 'be'], ssw: ['a', 'b', 'al'] };
+  Trig.triDoc = (A, B, C, cs) => {
+    const d = Dif.DOC(), V = Trig.triVals(A, B, C), a = V.a, b = V.b, c = V.c;
+    d.h('Allgemeines Dreieck');
+    d.p('**Sinussatz:** $\\frac{a}{\\sin\\alpha}=\\frac{b}{\\sin\\beta}=\\frac{c}{\\sin\\gamma}$. **Kosinussatz:** $a^2=b^2+c^2-2bc\\cos\\alpha$ (entsprechend für $b$ und $c$).');
+    const G = { sss: 'a=' + ln(a) + ',\\ b=' + ln(b) + ',\\ c=' + ln(c), sws: 'b=' + ln(b) + ',\\ c=' + ln(c) + ',\\ \\alpha=' + dg(V.al), wsw: 'c=' + ln(c) + ',\\ \\alpha=' + dg(V.al) + ',\\ \\beta=' + dg(V.be), ssw: 'a=' + ln(a) + ',\\ b=' + ln(b) + ',\\ \\alpha=' + dg(V.al) }[cs];
+    d.p('**Gegeben** (' + Trig.TRI_CASES.find(t => t[0] === cs)[1] + '):'); d.e(G);
+    d.p('**Rechnung:**');
+    if (cs === 'sss') {
+      d.p('Mit dem Kosinussatz nach den Winkeln aufgelöst:');
+      d.e('\\cos\\alpha=\\frac{b^2+c^2-a^2}{2bc}=\\frac{' + ln(b) + '^2+' + ln(c) + '^2-' + ln(a) + '^2}{2\\cdot ' + ln(b) + '\\cdot ' + ln(c) + '}'); d.e('\\alpha=' + dg(V.al));
+      d.e('\\cos\\beta=\\frac{a^2+c^2-b^2}{2ac}\\ \\Rightarrow\\ \\beta=' + dg(V.be));
+      d.e('\\gamma=180^\\circ-\\alpha-\\beta=' + dg(V.ga));
+    } else if (cs === 'sws') {
+      d.p('Kosinussatz für die dritte Seite:');
+      d.e('a=\\sqrt{b^2+c^2-2bc\\cos\\alpha}=\\sqrt{' + ln(b) + '^2+' + ln(c) + '^2-2\\cdot ' + ln(b) + '\\cdot ' + ln(c) + '\\cdot\\cos ' + dg(V.al) + '}=' + ln(a));
+      d.p('Dann ein weiterer Winkel mit dem Kosinussatz (eindeutig, auch bei stumpfen Winkeln):');
+      d.e('\\cos\\beta=\\frac{a^2+c^2-b^2}{2ac}\\ \\Rightarrow\\ \\beta=' + dg(V.be));
+      d.e('\\gamma=180^\\circ-\\alpha-\\beta=' + dg(V.ga));
+    } else if (cs === 'wsw') {
+      d.e('\\gamma=180^\\circ-\\alpha-\\beta=' + dg(V.ga));
+      d.p('Sinussatz für die beiden anderen Seiten:');
+      d.e('a=\\frac{c\\cdot\\sin\\alpha}{\\sin\\gamma}=\\frac{' + ln(c) + '\\cdot\\sin ' + dg(V.al) + '}{\\sin ' + dg(V.ga) + '}=' + ln(a));
+      d.e('b=\\frac{c\\cdot\\sin\\beta}{\\sin\\gamma}=' + ln(b));
+    } else {
+      const sb = b * Math.sin(V.al * RD) / a;
+      d.p('Sinussatz für den Winkel $\\beta$ (gegenüber von $b$):');
+      d.e('\\sin\\beta=\\frac{b\\cdot\\sin\\alpha}{a}=\\frac{' + ln(b) + '\\cdot\\sin ' + dg(V.al) + '}{' + ln(a) + '}=' + ln(Math.round(sb * 1e4) / 1e4));
+      if (sb > 1 + 1e-9) { d.note('$\\sin\\beta>1$: Es gibt kein solches Dreieck.'); return d; }
+      const b1 = Math.asin(Math.min(1, sb)) / RD, b2 = 180 - b1, two = a < b - 1e-9 && V.al + b2 < 180 - 1e-6;
+      d.e('\\beta_1=\\arcsin(' + ln(Math.round(sb * 1e4) / 1e4) + ')=' + dg(b1) + (two ? ',\\qquad \\beta_2=180^\\circ-\\beta_1=' + dg(b2) : ''));
+      if (two) d.note('Weil $a<b$ ist, gibt es **zwei** Dreiecke (mehrdeutiger Fall). Im Bild ist das Dreieck mit $\\beta=' + dg(V.be) + '$ gezeichnet; ziehe B, um das andere zu sehen.');
+      else d.p('Weil $a\\ge b$ ist, ist das Dreieck eindeutig.');
+      d.e('\\gamma=180^\\circ-\\alpha-\\beta=' + dg(V.ga) + ',\\qquad c=\\frac{a\\cdot\\sin\\gamma}{\\sin\\alpha}=' + ln(c));
+    }
+    d.e('\\text{Fläche: }A=\\frac12\\,b\\,c\\,\\sin\\alpha=' + ln(V.F));
+    d.res('$a=' + ln(a) + '$, $b=' + ln(b) + '$, $c=' + ln(c) + '$, $\\alpha=' + dg(V.al) + '$, $\\beta=' + dg(V.be) + '$, $\\gamma=' + dg(V.ga) + '$');
+    return d;
+  };
   Trig.doc = doc; Trig.sceneLines = sceneLines;
   Trig.circDoc = d => doc(circ(d)); Trig.genDoc = F => doc(gen(F)); Trig.tanDoc = d => doc(tan(d));
 })();

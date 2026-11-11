@@ -68,7 +68,14 @@
       const ft = Quad.factorTex(Q, 'f(x)');
       if (R.kind === 'two' && R.fe1 && !(opt && opt.noVieta)) {
         const s = E.feAdd(R.fe1, R.fe2), pr = E.feMul(R.fe1, R.fe2);
-        if (s && pr) { B.p('**Probe mit Vieta:** Für $ax^2+bx+c=0$ gilt $x_1+x_2=-\\frac{b}{a}$ und $x_1\\cdot x_2=\\frac{c}{a}$.'); B.e('x_1+x_2=' + FT(s) + '=-\\frac{' + T(Q.bq) + '}{' + T(Q.aq) + '},\\qquad x_1\\cdot x_2=' + FT(pr) + '=\\frac{' + T(Q.cq) + '}{' + T(Q.aq) + '}'); }
+        if (s && pr) {
+          // Brüche sauber: −(−2)/1 → 2, c/a mit a = 1 → c, negative Nenner in den Zähler
+          // Bruch mit den Originalzahlen (Klammern bei negativen), dann der Wert; bei a = 1 direkt der Wert
+          const par = q => (E.qSgn(q) < 0 ? '(' + T(q) + ')' : T(q));
+          const frac = (num, den, neg) => { const q = neg ? E.qNeg(E.qDiv(num, den)) : E.qDiv(num, den); return E.qSgn(den) === 1 && E.qNum(den) === 1 ? T(q) : (neg ? '-' : '') + '\\frac{' + par(num) + '}{' + par(den) + '}=' + T(q); };
+          B.p('**Probe mit Vieta:** Für $ax^2+bx+c=0$ gilt $x_1+x_2=-\\frac{b}{a}$ und $x_1\\cdot x_2=\\frac{c}{a}$.');
+          B.e('x_1+x_2=' + FT(s) + ',\\quad -\\frac{b}{a}=' + frac(Q.bq, Q.aq, true) + '\\ \\checkmark\\qquad x_1\\cdot x_2=' + FT(pr) + ',\\quad \\frac{c}{a}=' + frac(Q.cq, Q.aq, false) + '\\ \\checkmark');
+        }
       }
       if (ft) { B.p('**Nullstellenform:**'); B.e(ft, 'b'); }
       B.res(R.kind === 'two' ? 'Nullstellen $N_1(' + FT(R.fe1) + '\\,|\\,0)$ und $N_2(' + FT(R.fe2) + '\\,|\\,0)$' + (R.rat ? '' : ', also $x_1' + ap(R.x1) + '$ und $x_2' + ap(R.x2) + '$') : 'Eine (doppelte) Nullstelle $x_0=' + FT(R.fe1) + '$: Die Parabel berührt die $x$-Achse im Scheitel.');
@@ -271,5 +278,36 @@
   Quad.st = { vtx, roots, forms, line, tan, pts, vp, np };
   Quad.doc = doc; Quad.sceneLines = sceneLines;
   Quad.vtxDoc = (Q, o) => doc(vtx(Q, o)); Quad.rootsDoc = (Q, m) => doc(roots(Q, m)); Quad.formsDoc = Q => doc(forms(Q)); Quad.lineDoc = (Q, L) => doc(line(Q, L)); Quad.tanDoc = (Q, x) => doc(tan(Q, x));
+  // Quadratische Optimierung: Nachfrage x(p) = A − B·p, Kosten K = Kf + kv·x → Umsatz U(p) = p·x(p), Gewinn G(p) = U − K
+  Quad.optModel = (A, B, Kf, kv) => {
+    const U = p => p * (A - B * p), K = p => Kf + kv * (A - B * p), G = p => U(p) - K(p);
+    const ga = -B, gb = A + kv * B, gc = -(Kf + kv * A), D = gb * gb - 4 * ga * gc;
+    const z = D >= 0 ? [(-gb + Math.sqrt(D)) / (2 * ga), (-gb - Math.sqrt(D)) / (2 * ga)].sort((u, v) => u - v) : [];
+    return { A, B, Kf, kv, U, K, G, x: p => A - B * p, pMax: A / B, pU: A / (2 * B), pG: gb / (2 * B), ga, gb, gc, D, zeros: z };
+  };
+  Quad.optDoc = (A, B, Kf, kv) => {
+    const M = Quad.optModel(A, B, Kf, kv), d = DOC(), n = v => nv(v), sgN = v => (v < 0 ? '-' : '+') + n(Math.abs(v));
+    d.h('Preis, Umsatz und Gewinn');
+    d.p('**Nachfrage:** Je höher der Preis $p$, desto weniger wird verkauft:');
+    d.e('x(p)=' + n(A) + '-' + n(B) + 'p');
+    d.p('**Umsatz** = Preis · verkaufte Menge:');
+    d.e('U(p)=p\\cdot x(p)=p\\,(' + n(A) + '-' + n(B) + 'p)=-' + n(B) + 'p^2+' + n(A) + 'p');
+    d.p('**Kosten** = Fixkosten + variable Kosten pro Stück · Menge:');
+    d.e('K(p)=' + n(Kf) + '+' + n(kv) + '\\cdot(' + n(A) + '-' + n(B) + 'p)=' + n(Kf + kv * A) + sgN(-kv * B) + 'p');
+    d.p('**Gewinn** = Umsatz − Kosten:');
+    d.e('G(p)=U(p)-K(p)=' + n(M.ga) + 'p^2' + sgN(M.gb) + 'p' + sgN(M.gc));
+    d.p('**Umsatzmaximum:** Der Scheitel der Umsatzparabel liegt in der Mitte zwischen ihren Nullstellen $p=0$ und $p=' + n(M.pMax) + '$:');
+    d.e('p_U=\\frac{' + n(A) + '}{2\\cdot ' + n(B) + '}=' + n(M.pU)); d.e('x(p_U)=' + n(M.x(M.pU)) + ',\\qquad U_{max}=' + n(M.U(M.pU)));
+    d.p('**Gewinnmaximum:** Scheitel der Gewinnparabel, $p=-\\frac{b}{2a}$:');
+    d.e('p_G=-\\frac{' + n(M.gb) + '}{2\\cdot(' + n(M.ga) + ')}=' + n(M.pG)); d.e('x(p_G)=' + n(M.x(M.pG)) + ',\\qquad G_{max}=' + n(M.G(M.pG)));
+    d.p('**Gewinnschwelle und Gewinngrenze:** $G(p)=0$ mit der Lösungsformel:');
+    if (M.zeros.length) {
+      d.e('p_{1,2}=\\frac{-' + (M.gb < 0 ? '(' + n(M.gb) + ')' : n(M.gb)) + '\\pm\\sqrt{' + n(M.D) + '}}{2\\cdot(' + n(M.ga) + ')}'); d.e('p_1\\approx ' + n(M.zeros[0]) + ',\\qquad p_2\\approx ' + n(M.zeros[1]));
+      d.p('Zwischen diesen Preisen macht man Gewinn, ausserhalb Verlust.');
+    } else d.note('Die Diskriminante ist negativ: Bei keinem Preis wird Gewinn erzielt.');
+    d.res('Gewinnmaximaler Preis $p_G=' + n(M.pG) + '$ mit $G_{max}=' + n(M.G(M.pG)) + '$; umsatzmaximaler Preis $p_U=' + n(M.pU) + '$.');
+    if (M.pG > M.pU + 1e-9) d.note('Der gewinnmaximale Preis ist höher als der umsatzmaximale: Wer weniger verkauft, hat auch weniger variable Kosten.');
+    return d;
+  };
   Quad.ptsDoc = (a, b, c) => doc(pts(a, b, c)); Quad.vpDoc = (S, P) => doc(vp(S, P)); Quad.npDoc = (a, b, P) => doc(np(a, b, P));
 })();

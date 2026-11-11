@@ -89,6 +89,7 @@ function linPt(S, m, id, x, y, C, o) {
   o = o || {};
   const P = difDot(S, m, x, y, { fill: o.fill || 'T', stroke: o.stroke || 'T', r: o.r || 5.2 }); if (!P) return null;
   if (id) S.pts.push({ id, x: P[0], y: P[1], r: 11 });
+  if (o.hl) shlC(S, o.hl, P[0], P[1], (o.r || 5.2) + 7);
   const rr = (o.r || 5.2) + 2;
   if (o.lab !== undefined) {
     const fs = C.fs, bx = typeof difCellBox === 'function' ? difCellBox(o.lab, fs) : { w: o.est || fs * 4, h: fs * 1.3 };
@@ -157,11 +158,11 @@ function linScenePar(S, W, H, C) {
   const m = difFrame(S, R[0], win, C, { title: '\\col{b}{' + Lin.lineTex(L, 'f(x)') + '}', xlab: 'x', ylab: 'y' });
   S.maps.main = m;
   const f = x => L.m * x + L.q;
-  linLine(S, m, L, { col: LIN_F, lw: 2.6 });
+  linLine(S, m, L, { hl: 'g', col: LIN_F, lw: 2.6 });
   // Steigungsdreieck bei P(xp | f(xp))
   const x1 = xp, y1 = f(xp), x2 = xp + dx, y2 = f(x2);
   if (C.show.tri !== false && isFinite(dx) && dx !== 0) {
-    difSeg(S, m, x1, y1, x2, y1, { col: LIN_DX, lw: 2.4 }); difSeg(S, m, x2, y1, x2, y2, { col: LIN_DY, lw: 2.4 });
+    difSeg(S, m, x1, y1, x2, y1, { hl: 'tri', col: LIN_DX, lw: 2.4 }); difSeg(S, m, x2, y1, x2, y2, { hl: 'tri', col: LIN_DY, lw: 2.4 });
     const px = m.X((x1 + x2) / 2), py = m.Y(y1);
     difLabel(S, m, px, py + (L.m >= 0 ? fs * 1.6 : -fs * 1.6), '\\col{b}{\\Delta x=' + linFmt(dx) + '}', C, { w: fs * 6 });
     difLabel(S, m, m.X(x2) + fs * 0.4, m.Y((y1 + y2) / 2), '\\col{r}{\\Delta y=' + linFmt(y2 - y1) + '}', C, { w: fs * 6, dx: fs * 3.2 });
@@ -194,19 +195,20 @@ function linSceneTwo(S, W, H, C) {
   const m = difFrame(S, R[0], win, C, { title: ps ? '\\text{Punkt und Steigung}' : '\\text{Zwei Punkte}', xlab: 'x', ylab: 'y' });
   S.maps.main = m;
   const L = ps ? Lin.fromPointSlope(p1[0], p1[1], C.tm) : Lin.fromPoints(p1[0], p1[1], p2[0], p2[1]);
-  linLine(S, m, L, { col: LIN_F, lw: 2.6 });
+  linLine(S, m, L, { hl: 'g', col: LIN_F, lw: 2.6 });
   if (!L.vert && !ps && p2[0] !== p1[0] && C.show.tri !== false) {
-    difSeg(S, m, p1[0], p1[1], p2[0], p1[1], { col: LIN_DX, lw: 2, dash: true }); difSeg(S, m, p2[0], p1[1], p2[0], p2[1], { col: LIN_DY, lw: 2, dash: true });
+    difSeg(S, m, p1[0], p1[1], p2[0], p1[1], { hl: 'tri', col: LIN_DX, lw: 2, dash: true }); difSeg(S, m, p2[0], p1[1], p2[0], p2[1], { hl: 'tri', col: LIN_DY, lw: 2, dash: true });
     difLabel(S, m, m.X((p1[0] + p2[0]) / 2), m.Y(p1[1]) + (p2[1] >= p1[1] ? fs * 1.1 : -fs * 1.1), '\\col{b}{\\Delta x=' + linFmt(p2[0] - p1[0]) + '}', C, { w: fs * 6 });
     if (p2[1] !== p1[1]) difLabel(S, m, m.X(p2[0]), m.Y((p1[1] + p2[1]) / 2), '\\col{r}{\\Delta y=' + linFmt(p2[1] - p1[1]) + '}', C, { w: fs * 6, dx: (p2[0] >= p1[0] ? 1 : -1) * fs * 3.6 });
   }
   if (ps) { difSeg(S, m, p1[0], p1[1], p1[0] + 1, p1[1], { col: LIN_DX, lw: 2, dash: true }); difSeg(S, m, p1[0] + 1, p1[1], p1[0] + 1, p1[1] + C.tm, { col: LIN_DY, lw: 2.2 }); difLabel(S, m, m.X(p1[0] + 1), m.Y(p1[1] + C.tm / 2), '\\col{r}{m=' + linFmt(C.tm) + '}', C, { w: fs * 6, dx: fs * 3 }); }
   let N = null, Rl = null;
-  if (C.show.par) { N = Lin.parallelThrough(L, C.R[0], C.R[1]); linLine(S, m, N, { col: ST_G, lw: 2.2 }); }
-  if (C.show.perp) { Rl = Lin.perpThrough(L, C.R[0], C.R[1]); linLine(S, m, Rl, { col: ST_O, lw: 2.2 }); }
-  linPt(S, m, 'P1', p1[0], p1[1], C, { fill: LIN_F, lab: linCoord('P', p1[0], p1[1]), w: fs * 8, lines: [linDir(L)] });
+  if (C.show.par) { N = Lin.parallelThrough(L, C.R[0], C.R[1]); linLine(S, m, N, { hl: 'par', col: ST_G, lw: 2.2 }); }
+  if (C.show.perp) { Rl = Lin.perpThrough(L, C.R[0], C.R[1]); linLine(S, m, Rl, { hl: 'perp', col: ST_O, lw: 2.2 }); }
+  const triOn = !L.vert && !ps && p2[0] !== p1[0] && C.show.tri !== false;   // Beschriftungen weichen auch dem Steigungsdreieck aus
+  linPt(S, m, 'P1', p1[0], p1[1], C, { fill: LIN_F, lab: linCoord('P', p1[0], p1[1]), w: fs * 8, lines: [linDir(L)].concat(triOn ? [[1, 0]] : []) });
   if (ps) linPt(S, m, 'P2', p2[0], p2[1], C, { fill: ST_V, r: 4.6 });
-  else linPt(S, m, 'P2', p2[0], p2[1], C, { fill: LIN_F, lab: linCoord('Q', p2[0], p2[1]), w: fs * 8, lines: [linDir(L)] });
+  else linPt(S, m, 'P2', p2[0], p2[1], C, { fill: LIN_F, lab: linCoord('Q', p2[0], p2[1]), w: fs * 8, lines: [linDir(L)].concat(triOn ? [[0, 1]] : []) });
   if (C.show.par || C.show.perp) linPt(S, m, 'R', C.R[0], C.R[1], C, { fill: 'T', lab: linCoord('R', C.R[0], C.R[1]), w: fs * 8, lines: [].concat(N ? [linDir(N)] : [], Rl ? [linDir(Rl)] : [[1, 0]]) });
   // rechts oben: Ergebnis, rechts unten: Rechnung
   const t1 = [], eq = L;
@@ -238,7 +240,7 @@ function linSceneSys(S, W, H, C) {
   const win = linWindow(C, R[0], need);
   const m = difFrame(S, R[0], win, C, { title: '\\col{b}{' + Lin.lineTex(L1, 'f(x)') + '}\\ \\ \\col{v}{' + Lin.lineTex(L2, 'g(x)') + '}', xlab: 'x', ylab: 'y' });
   S.maps.main = m;
-  linLine(S, m, L1, { col: LIN_F, lw: 2.6 }); linLine(S, m, L2, { col: LIN_G, lw: 2.6 });
+  linLine(S, m, L1, { hl: 'g1', col: LIN_F, lw: 2.6 }); linLine(S, m, L2, { hl: 'g2', col: LIN_G, lw: 2.6 });
   linPt(S, m, 'y1', 0, L1.q, C, { fill: LIN_F, r: 4.4 }); linPt(S, m, 'y2', 0, L2.q, C, { fill: LIN_G, r: 4.4 });
   if (I.kind === 'point') {
     difSeg(S, m, I.x, 0, I.x, I.y, { col: LIN_PT, lw: 1.4, dash: true }); difSeg(S, m, 0, I.y, I.x, I.y, { col: LIN_PT, lw: 1.4, dash: true });
@@ -282,7 +284,7 @@ function linSceneApp(S, W, H, C) {
   S.maps.main = m;
   const f = L => x => L.m * x + L.q;
   // Bereich, in dem A günstiger ist: dünner Streifen unter der Achse
-  linLine(S, m, A, { col: LIN_F, lw: 2.6 }); linLine(S, m, B, { col: LIN_G, lw: 2.6 });
+  linLine(S, m, A, { hl: 'g1', col: LIN_F, lw: 2.6 }); linLine(S, m, B, { hl: 'g2', col: LIN_G, lw: 2.6 });
   const xv = C.xv, ya = f(A)(xv), yb = f(B)(xv);
   difSeg(S, m, xv, win.y0, xv, Math.max(ya, yb), { col: 'M', lw: 1.2, dash: true });
   difDot(S, m, xv, ya, { fill: LIN_F, r: 4.6 }); difDot(S, m, xv, yb, { fill: LIN_G, r: 4.6 });
@@ -319,7 +321,7 @@ function linScenePerp(S, W, H, C) {
     const Z = Lin.zero(L), need = [[0, L.q]]; if (Z.kind === 'one') need.push([Z.x, 0]);
     const win = linWindow(C, R[0], need), m = difFrame(S, R[0], win, C, { title: '\\col{b}{' + Lin.lineTex(L, 'f(x)') + '}', xlab: 'x', ylab: 'y' }); S.maps.main = m;
     if (Z.kind === 'one' && L.q !== 0) S.poly([[m.X(0), m.Y(0)], [m.X(Z.x), m.Y(0)], [m.X(0), m.Y(L.q)]], { fill: ST_G, col: ST_G, a: 0.14, close: true, lw: 0.8 });
-    linLine(S, m, L, { col: LIN_F, lw: 2.6 });
+    linLine(S, m, L, { hl: 'g', col: LIN_F, lw: 2.6 });
     linPt(S, m, 'q', 0, L.q, C, { fill: ST_V, lab: '\\col{v}{S(0\\,|\\,' + linFmt(L.q) + ')}', w: fs * 7, lines: [[0, 1], linDir(L)] });
     if (Z.kind === 'one') linPt(S, m, 'N', Z.x, 0, C, { fill: LIN_PT, lab: '\\col{g}{N(' + linFmtS(Z.x) + '\\,|\\,0)}', w: fs * 7, lines: [[1, 0], linDir(L)] });
     lines.push({ s: '\\col{b}{' + Lin.lineTex(L, 'f(x)') + '}', bold: true });
@@ -328,8 +330,8 @@ function linScenePerp(S, W, H, C) {
   } else if (mode === 'perp') {
     const P = C.R, o = Lin.foot(L, P[0], P[1]), Fp = o.F, win = linWindow(C, R[0], [[0, L.q], P, [Fp.x, Fp.y]]);
     const m = difFrame(S, R[0], win, C, { title: '\\col{b}{' + Lin.lineTex(L, 'g') + '}\\quad \\col{o}{n\\colon\\ ' + Lin.lineTex(o.perp) + '}', xlab: 'x', ylab: 'y' }); S.maps.main = m;
-    linLine(S, m, L, { col: LIN_F, lw: 2.6 }); linLine(S, m, o.perp, { col: ST_O, lw: 2.2 });
-    difSeg(S, m, P[0], P[1], Fp.x, Fp.y, { col: LIN_DY, lw: 2.6 });
+    linLine(S, m, L, { hl: 'g', col: LIN_F, lw: 2.6 }); linLine(S, m, o.perp, { col: ST_O, lw: 2.2 });
+    difSeg(S, m, P[0], P[1], Fp.x, Fp.y, { hl: 'lot', col: LIN_DY, lw: 2.6 });
     linRightMark(S, m, Fp.x, Fp.y, [1, L.m], [P[0] - Fp.x, P[1] - Fp.y], Math.max(7, fs * 0.8), 'T');
     linPt(S, m, null, Fp.x, Fp.y, C, { fill: LIN_PT, r: 5.4, lab: '\\col{g}{F(' + linFmtS(Fp.x) + '\\,|\\,' + linFmtS(Fp.y) + ')}', w: fs * 8, lines: [linDir(L), linDir(o.perp)] });
     linPt(S, m, 'R', P[0], P[1], C, { fill: 'T', lab: linCoord('P', P[0], P[1]), w: fs * 8, lines: [linDir(o.perp)] });

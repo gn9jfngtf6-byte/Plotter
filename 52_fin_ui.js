@@ -17,7 +17,7 @@ const FIN_DEF = {
   conform: { given: 'p', p: 3, i: 0.25, m: 12, K: 1000 }
 };
 const FIN_DESC = {
-  line: ['Jede Zahlung liegt auf einem eigenen Konto: Sie wird einzeln auf den gesuchten Zeitpunkt auf- oder abgezinst. Am Schluss werden die Werte addiert.', 'Klicke auf einen Zeitpunkt der Achse, um eine Zahlung hinzuzufügen; Klick auf einen Pfeil entfernt sie. Die Beträge änderst du unten in der Liste.'],
+  line: ['Jede Zahlung liegt auf einem eigenen Konto: Sie wird einzeln auf den gesuchten Zeitpunkt auf- oder abgezinst. Am Schluss werden die Werte addiert. «▶ Zahlungen wandern lassen» zeigt Jahr für Jahr, wie jede Zahlung wächst oder schrumpft.', 'Klicke auf einen Zeitpunkt der Achse, um eine Zahlung hinzuzufügen; Klick auf einen Pfeil entfernt sie. Die Beträge änderst du unten in der Liste.'],
   sum: ['Regelmässige Raten als Summe: Der Exponent k jeder Zahlung ist die Anzahl Verzinsungen (Aufzinsen) bzw. Abzinsungen (Abzinsen).', 'Beobachte, wie sich die Summationsgrenzen verschieben, wenn die erste oder letzte Zahlung wandert.'],
   save: ['Ein Sparplan: Jede Periode wird dieselbe Rate eingezahlt. Gesucht ist der Endwert oder die nötige Rate.', 'Mit Raten pro Jahr wird mit dem konformen Zinssatz gerechnet.'],
   loan: ['Ein Kredit wird mit gleichen Raten (Annuität) zurückbezahlt. Der Barwert der Raten ist der Kredit.', 'Im Tilgungsplan sinkt der Zinsanteil, der Tilgungsanteil steigt.'],
@@ -80,7 +80,7 @@ const finCopy = o => JSON.parse(JSON.stringify(o));
 
 // ── Zustand ──
 function finDefaults() { return { mode: 'line', P: finCopy(FIN_DEF) }; }
-const FIN = Object.assign(finDefaults(), { hover: -1, hoverCal: null, calNext: 'd1', hits: [], ui: null });
+const FIN = Object.assign(finDefaults(), { hover: -1, hoverCal: null, calNext: 'd1', hits: [], ui: null, anim: null });
 
 function finCapture() { return finCopy({ mode: FIN.mode, P: FIN.P }); }
 function finSanitizeP(mode, src) {
@@ -109,6 +109,7 @@ function finSanitizeP(mode, src) {
   return P;
 }
 function finApply(s) {
+  FIN.anim = null;                                                       // laufende Animation beenden (Rückgängig, Laden, Zurücksetzen)
   const d = finDefaults();
   if (s && typeof s === 'object') {
     if (FIN_MODES.some(m => m[0] === s.mode)) d.mode = s.mode;
@@ -164,7 +165,7 @@ function finRefreshUI() {
   const ui = FIN.ui; if (!ui) return;
   const m = FIN.mode, P = FIN.P[m];
   ui.sel.value = m;
-  const d = FIN_DESC[m]; ui.desc.replaceChildren(finEl('div', null, d[0]), Object.assign(finEl('div', null, d[1]), { style: 'margin-top:5px;' }));
+  const d = FIN_DESC[m]; ui.desc.replaceChildren(finEl('div', null, d[1])); if (typeof envHint === 'function') envHint('fin', d[0], () => FIN.S);   // Hinweis als Überschrift über dem Bild
   ui.params.replaceChildren();
   finControls(m, P).forEach(c => {
     if (c.show === false) return;
@@ -209,6 +210,7 @@ function finRefreshExtra() {
   const m = FIN.mode, P = FIN.P[m];
   if (m === 'line') {
     const box = finEl('div', 'td-sec');
+    { const ab = finBtn(FIN.anim ? '⏸ Pause' : '▶ Zahlungen wandern lassen (auf-/abzinsen)', finAnimToggle); ab.style.cssText = 'width:100%;margin-bottom:6px;'; box.appendChild(ab); }
     box.appendChild(finEl('div', 'subpanel-label', 'Zahlungen'));
     P.pay.forEach((z, i) => {
       const row = finEl('div'); row.style.cssText = 'display:grid;grid-template-columns:1fr 1.2fr auto auto;gap:5px;align-items:center;margin-top:4px;';
@@ -249,12 +251,35 @@ function finAddPay(sign) {
 }
 
 // ── Zeichnen ──
+// ── Animation (Zeitstrahl und Konten): jede Zahlung wandert zum Zielzeitpunkt, nach jedem Jahr wird einmal mit r multipliziert bzw. dividiert ──
+function finAnimPay() { const P = FIN.P.line; return P.pay.map((z, i) => ({ t: z.t, i })).sort((a, b) => a.t - b.t || a.i - b.i); }
+function finAnimToggle() {
+  if (FIN.anim) { FIN.anim = null; finRefreshExtra(); finRedraw(); return; }
+  const pay = finAnimPay(); if (!pay.length) return;
+  FIN.anim = { last: 0, j: 0, tau: pay[0].t, wait: 0.8 }; FIN.hover = -1;
+  finRefreshExtra(); finRedraw(); requestAnimationFrame(finAnimFrame);
+}
+function finAnimFrame(ts) {
+  const a = FIN.anim; if (!a) return;
+  if (!finActive() || FIN.mode !== 'line') { FIN.anim = null; return; }
+  const dt = a.last ? Math.min(0.1, (ts - a.last) / 1000) : 0.016; a.last = ts;
+  if (a.wait > 0) { a.wait -= dt; requestAnimationFrame(finAnimFrame); return; }
+  const P = FIN.P.line, pay = finAnimPay(), z = pay[a.j];
+  if (!z) { FIN.anim = null; finRefreshExtra(); finRedraw(); return; }
+  const d = P.T - a.tau;
+  if (Math.abs(d) < 1e-9) { a.j++; if (a.j >= pay.length) { finRedraw(); setTimeout(() => { if (FIN.anim === a) { FIN.anim = null; finRefreshExtra(); finRedraw(); } }, 1500); return; } a.tau = pay[a.j].t; a.wait = 0.7; finRedraw(); requestAnimationFrame(finAnimFrame); return; }
+  const before = a.tau, st = dt * 1.1; a.tau += Math.sign(d) * Math.min(Math.abs(d), st);
+  const kb = Math.floor(Math.abs(before - z.t) + 1e-9), ka = Math.floor(Math.abs(a.tau - z.t) + 1e-9);
+  if (ka > kb) { a.tau = z.t + Math.sign(d) * ka; a.wait = 0.55; }               // nach jedem vollen Jahr kurz halten: ein Zinsschritt
+  finRedraw(); requestAnimationFrame(finAnimFrame);
+}
 function finCtx(W, H, exp) {
   const m = FIN.mode, P = FIN.P[m], C = { mode: m, P, hover: exp ? -1 : FIN.hover, hoverCal: exp ? null : FIN.hoverCal, calNext: FIN.calNext, fs: exp ? exp.fs : stSceneFs(W, H, 52) };
   if (m === 'line' && C.hover >= 0 && P.pay[C.hover]) {
     const z = P.pay[C.hover], q = Fin.factor(P.p), k = P.T - z.t, a = (P.solve && P.xi === C.hover) ? null : z.a;
     if (a !== null) C.hoverInfo = '\\col{v}{' + finAmtR(a) + (k === 0 ? '' : '\\cdot' + Fin.rText(P.p) + '^{' + k + '}') + '=' + finRM(a * Math.pow(q, k)) + '\\text{ CHF}}';
   }
+  if (m === 'line' && FIN.anim && !exp) C.lineAnim = { j: FIN.anim.j, tau: FIN.anim.tau };
   return C;
 }
 function finDraw(w, h) {

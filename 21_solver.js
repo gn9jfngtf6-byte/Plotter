@@ -83,9 +83,12 @@ const SV = (function () {
       case 'pow': {
         const a = evalNum(n.a, x), b = evalNum(n.b, x);
         if (a < 0 && Math.abs(b - Math.round(b)) > 1e-12) {
-          // ungerade Wurzel aus negativer Zahl (x^(1/3)) — wie nthroot
-          const inv = 1 / b;
-          if (Math.abs(inv - Math.round(inv)) < 1e-9 && Math.round(inv) % 2 !== 0) return -Math.pow(-a, b);
+          // ungerade Wurzel aus negativer Zahl (x^(1/3)) — wie nthroot; auch x^(2/3), x^(−2/3) (Ableitung von ∛x):
+          // Exponent p/q mit ungeradem q → reell, Vorzeichen (−1)^p
+          for (let q = 3; q <= 99; q += 2) {
+            const pq = b * q;
+            if (Math.abs(pq - Math.round(pq)) < 1e-9) { const r = Math.pow(-a, b); return Math.round(pq) % 2 !== 0 ? -r : r; }
+          }
         }
         return Math.pow(a, b);
       }

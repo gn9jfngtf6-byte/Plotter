@@ -6,12 +6,13 @@
 // Punkte, Ausschnitt, Optionen. Die Umgebung selbst (Umschalten) steht in 32_env.js (Eintrag «quad»).
 // ═══════════════════════════════════════════════════════════════════
 
-const QUAD_VIEWS = [['par', 'Parameter und drei Formen'], ['vtx', 'Scheitelpunkt und quadratische Ergänzung'], ['zer', 'Nullstellen und Diskriminante'], ['cmb', 'Parabel und Gerade, Parabel aus Punkten']];
+const QUAD_VIEWS = [['par', 'Parameter und drei Formen'], ['vtx', 'Scheitelpunkt und quadratische Ergänzung'], ['zer', 'Nullstellen und Diskriminante'], ['cmb', 'Parabel und Gerade, Parabel aus Punkten'], ['opt', 'Optimierung: Preis, Umsatz, Gewinn']];
 const QUAD_DESC = {
-  par: ['Eine quadratische Funktion f(x) = ax² + bx + c hat eine Parabel als Graph. Der Faktor a streckt die Normalparabel (bei a < 0 gespiegelt), der Scheitel S ist der höchste oder tiefste Punkt.', 'Ziehe den Scheitel S, den roten Punkt (a), den Achsenabschnitt c oder die Nullstellen N. Standard-, Scheitel- und Nullstellenform beschreiben dieselbe Parabel.'],
-  vtx: ['Mit der quadratischen Ergänzung wird aus der Standardform die Scheitelform. Das zeigt, wie die Parabel aus der Normalparabel entsteht: strecken, nach rechts oder links und nach oben oder unten schieben.', 'Bewege den Regler «Verschiebung» oder starte die Animation: Die Normalparabel wird Schritt für Schritt in die gewählte Parabel verwandelt.'],
-  zer: ['Die Nullstellen sind die Lösungen von ax² + bx + c = 0. Die Diskriminante D = b² − 4ac zeigt, ob es zwei, eine oder keine Lösung gibt.', 'Ziehe die Parabel (Punkt c oder Scheitel) und beobachte D. Wähle das Lösungsverfahren: Mitternachtsformel, quadratische Ergänzung oder Satz von Vieta.'],
-  cmb: ['Gerade und Parabel: Gleichsetzen gibt eine quadratische Gleichung, deren Diskriminante die Anzahl der Schnittpunkte bestimmt (Sekante, Tangente, Passante). Umgekehrt legen drei Punkte, oder Scheitel und Punkt, oder zwei Nullstellen und ein Punkt eine Parabel fest.', 'Ziehe die Punkte und Griffe. Mit «Gerade berühren lassen» wird die Gerade bei gleicher Steigung zur Tangente.']
+  opt: ['Ziehe den {{Preis p|p}} auf der Preisachse: Mit dem Preis sinkt die {{Nachfrage x(p)|xp}}. {{Umsatz U = p·x|U}} und {{Gewinn G = U − K|G}} sind Parabeln: Ihr Scheitel liefert den {{umsatzmaximalen|Um}} bzw. den {{gewinnmaximalen Preis|Gm}}, die Nullstellen von G die {{Gewinnschwelle und Gewinngrenze|GS,Gz}}.', 'Hängt die Nachfrage linear vom Preis ab, x(p) = A − B·p, so ist der Umsatz U(p) = p·x(p) eine nach unten geöffnete Parabel. Mit den Kosten K = Kf + kv·x (Fixkosten und variable Kosten pro Stück) ist auch der Gewinn G(p) = U(p) − K(p) eine Parabel; ihr Scheitel ist das Gewinnmaximum.'],
+  par: ['Ziehe den {{Scheitel S|S}}, den {{roten Punkt a|A}}, den {{Achsenabschnitt c|c}} oder die {{Nullstellen|N1,N2}}: Die {{Parabel|f}} verändert sich, und rechts stehen Standard-, Scheitel- und Nullstellenform derselben Funktion.', 'Eine quadratische Funktion f(x) = ax² + bx + c hat eine Parabel als Graph. Der Faktor a streckt die Normalparabel (bei a < 0 gespiegelt), der Scheitel S ist der höchste oder tiefste Punkt.'],
+  vtx: ['Bewege den Regler «Verschiebung» oder starte die Animation: Die {{Normalparabel|np}} wird Schritt für Schritt gestreckt und {{verschoben|sh}}, bis sie die gesuchte {{Parabel|f}} ist. Rechts entsteht dabei die Scheitelform.', 'Mit der quadratischen Ergänzung wird aus der Standardform die Scheitelform. Das zeigt, wie die Parabel aus der Normalparabel entsteht: strecken, nach rechts oder links und nach oben oder unten schieben.'],
+  zer: ['Ziehe die {{Parabel|f}} an {{c|c}} oder am {{Scheitel|S}} nach oben und unten: Die Diskriminante D entscheidet, ob es zwei, eine oder keine {{Nullstelle|N1,N2}} gibt. «▶ Parabel durch die x-Achse schieben» zeigt den Übergang von zwei über eine zu keiner Nullstelle: Nahe der x-Achse wird sie langsamer und hält bei D = 0 an, bis du «▶ weiter» drückst. Wähle das Lösungsverfahren für den Rechenweg.', 'Die Nullstellen sind die Lösungen von ax² + bx + c = 0. Die Diskriminante D = b² − 4ac zeigt, ob es zwei, eine oder keine Lösung gibt.'],
+  cmb: ['Ziehe die {{Gerade|L,y1,lm,lx}} und beobachte die Diskriminante: Sie schneidet die {{Parabel|f}} zweimal (Sekante), berührt sie (Tangente) oder verfehlt sie (Passante); «▶ Gerade parallel verschieben» fährt alle drei Fälle ab. Im zweiten Teil legen {{drei Punkte|P1,P2,P3}}, {{Scheitel|S}} und {{Punkt|P}} oder {{zwei Nullstellen|N1,N2}} eine Parabel fest.', 'Gerade und Parabel: Gleichsetzen gibt eine quadratische Gleichung, deren Diskriminante die Anzahl der Schnittpunkte bestimmt (Sekante, Tangente, Passante). Umgekehrt legen drei Punkte, oder Scheitel und Punkt, oder zwei Nullstellen und ein Punkt eine Parabel fest.']
 };
 // Beispiele: [a, b, c, Anzeige]
 const QUAD_EX = [[1, 0, 0, 'x²'], [-1, 0, 4, '−x² + 4'], [1, -2, -3, 'x² − 2x − 3'], [2, -4, -6, '2x² − 4x − 6'], [1, 2, 1, 'x² + 2x + 1'], [1, 0, 1, 'x² + 1'], [-0.5, 0, 3, '−½x² + 3'], [1, -2, -1, 'x² − 2x − 1'], [3, -12, 9, '3x² − 12x + 9'], [-1, 4, -3, '−x² + 4x − 3'], [0.5, -1, -1.5, '½x² − x − 3/2']];
@@ -20,12 +21,14 @@ const QUAD_LINE_EX = [[1, 0, 0, 2, -1, 'y = x²  und  y = 2x − 1'], [1, -2, -3
 const QUAD_PTS_EX = [[[0, 1], [1, 0], [2, 3]], [[-2, 0], [0, -4], [2, 0]], [[-3, 5], [0, -1], [2, 1]], [[-1, 2], [1, 2], [3, 10]]];
 const QUAD_VP_EX = [[[1, -4], [3, 0]], [[0, 3], [2, -1]], [[-2, 1], [0, -3]], [[2, 0], [4, 4]]];
 const QUAD_NP_EX = [[-1, 3, 0, -3], [-2, 2, 0, 4], [1, 5, 3, 2], [0, 4, 2, 3]];
+// Optimierung: [A, B, Kf, kv, Anzeige]  (Nachfrage x = A − B·p, Kosten K = Kf + kv·x)
+const QUAD_OPT_EX = [[1200, 20, 6000, 10, 'Konzert: x = 1200 − 20p, K = 6000 + 10x'], [300, 10, 500, 4, 'Velomiete: x = 300 − 10p, K = 500 + 4x'], [800, 100, 300, 1.2, 'Kaffeebar: x = 800 − 100p, K = 300 + 1.2x'], [5000, 500, 2000, 2, 'Zeitschrift: x = 5000 − 500p, K = 2000 + 2x']];
 const QUAD_WIN0 = { x0: null, x1: null, y0: null, y1: null };
 const QUAD_SHOW0 = { normal: true, axis: true, tan: false, card: true };
 const QUAD_METHODS = [['mnf', 'Mitternachtsformel'], ['qe', 'Quadratische Ergänzung'], ['vieta', 'Satz von Vieta']];
 
 function quadDefaults() {
-  return { view: 'par', a: 1, b: -2, c: -3, form: 'std', method: 'mnf', mode: 'line', lm: 1, lq: -1, x0: 1, P: [[0, 1], [1, 0], [2, 3]], sv: [1, -4], pp: [3, 0], n1: -1, n2: 3, tt: 1,
+  return { view: 'par', a: 1, b: -2, c: -3, form: 'std', method: 'mnf', mode: 'line', lm: 1, lq: -1, x0: 1, P: [[0, 1], [1, 0], [2, 3]], sv: [1, -4], pp: [3, 0], n1: -1, n2: 3, tt: 1, oA: 1200, oB: 20, oKf: 6000, okv: 10, op: 20,
     win: Object.assign({}, QUAD_WIN0), show: Object.assign({}, QUAD_SHOW0) };
 }
 const QUAD = Object.assign(quadDefaults(), { ui: null, S: null, drag: null, anim: null, cardKey: '', cardT: 0 });
@@ -94,6 +97,7 @@ function quadSetupFields() {
 function quadCardDoc() {
   try {
     const Q = quadQ(), v = QUAD.view;
+    if (v === 'opt') return { t: 'Rechenweg: Preis, Umsatz und Gewinn', d: Quad.optDoc(QUAD.oA, QUAD.oB, QUAD.oKf, QUAD.okv) };
     if (v === 'par') return { t: 'Rechenweg: Die drei Formen', d: Quad.formsDoc(Q) };
     if (v === 'vtx') return { t: 'Rechenweg: Quadratische Ergänzung', d: Quad.vtxDoc(Q) };
     if (v === 'zer') return { t: 'Rechenweg: Nullstellen', d: Quad.rootsDoc(Q, QUAD.method) };
@@ -106,7 +110,7 @@ function quadCardDoc() {
 }
 function quadCardKey() {
   const v = QUAD.view, S = QUAD.show, abc = [QUAD.a, QUAD.b, QUAD.c];
-  const k = { par: abc, vtx: abc, zer: [abc, QUAD.method], cmb: [QUAD.mode, QUAD.mode === 'line' ? [abc, QUAD.lm, QUAD.lq, S.tan, S.tan ? QUAD.x0 : ''] : QUAD.mode === 'pts' ? QUAD.P : QUAD.mode === 'vp' ? [QUAD.sv, QUAD.pp] : [QUAD.n1, QUAD.n2, QUAD.pp]] }[v];
+  const k = { opt: [QUAD.oA, QUAD.oB, QUAD.oKf, QUAD.okv], par: abc, vtx: abc, zer: [abc, QUAD.method], cmb: [QUAD.mode, QUAD.mode === 'line' ? [abc, QUAD.lm, QUAD.lq, S.tan, S.tan ? QUAD.x0 : ''] : QUAD.mode === 'pts' ? QUAD.P : QUAD.mode === 'vp' ? [QUAD.sv, QUAD.pp] : [QUAD.n1, QUAD.n2, QUAD.pp]] }[v];
   return v + '|' + JSON.stringify(k);
 }
 function quadCardSoon() { clearTimeout(QUAD.cardT); QUAD.cardT = setTimeout(quadCardRender, 40); }
@@ -125,12 +129,13 @@ function quadCardRender() {
 }
 
 // ── Zustand sichern / laden ──
-function quadCapture() { return difCopy({ view: QUAD.view, a: QUAD.a, b: QUAD.b, c: QUAD.c, form: QUAD.form, method: QUAD.method, mode: QUAD.mode, lm: QUAD.lm, lq: QUAD.lq, x0: QUAD.x0, P: QUAD.P, sv: QUAD.sv, pp: QUAD.pp, n1: QUAD.n1, n2: QUAD.n2, tt: QUAD.tt, win: QUAD.win, show: QUAD.show }); }
+function quadCapture() { return difCopy({ view: QUAD.view, a: QUAD.a, b: QUAD.b, c: QUAD.c, form: QUAD.form, method: QUAD.method, mode: QUAD.mode, lm: QUAD.lm, lq: QUAD.lq, x0: QUAD.x0, P: QUAD.P, sv: QUAD.sv, pp: QUAD.pp, n1: QUAD.n1, n2: QUAD.n2, tt: QUAD.tt, oA: QUAD.oA, oB: QUAD.oB, oKf: QUAD.oKf, okv: QUAD.okv, op: QUAD.op, win: QUAD.win, show: QUAD.show }); }
 function quadApply(s) {
   const d = quadDefaults(), num = (v, def) => { v = Number(v); return isFinite(v) ? v : def; }, pt = (a, def) => (Array.isArray(a) && a.length === 2 && isFinite(Number(a[0])) && isFinite(Number(a[1])) ? [Number(a[0]), Number(a[1])] : def);
   if (s && typeof s === 'object') {
     if (QUAD_VIEWS.some(v => v[0] === s.view)) d.view = s.view;
-    ['a', 'b', 'c', 'lm', 'lq', 'x0', 'n1', 'n2'].forEach(k => { d[k] = num(s[k], d[k]); });
+    ['a', 'b', 'c', 'lm', 'lq', 'x0', 'n1', 'n2', 'op', 'oKf', 'okv'].forEach(k => { d[k] = num(s[k], d[k]); });
+    ['oA', 'oB'].forEach(k => { const x = num(s[k], d[k]); if (x > 0) d[k] = x; });
     d.tt = Math.max(0, Math.min(1, num(s.tt, 1)));
     if (['std', 'vert', 'fact'].includes(s.form)) d.form = s.form;
     if (QUAD_METHODS.some(m => m[0] === s.method)) d.method = s.method;
@@ -153,7 +158,8 @@ function quadApply(s) {
 // ── Zeichnen ──
 function quadCtx(W, H, exp) {
   return { view: QUAD.view, Q: quadCurQ(), win: QUAD.win, fs: exp ? exp.fs : stSceneFs(W, H, 46), exp: !!exp, smooth: !exp, show: QUAD.show,
-    form: QUAD.form, method: QUAD.method, mode: QUAD.mode, L: quadLn(), x0: QUAD.x0, P: QUAD.P, sv: QUAD.sv, pp: QUAD.pp, n1: QUAD.n1, n2: QUAD.n2, tt: QUAD.tt };
+    zerAnim: QUAD.anim && QUAD.anim.sweep && !exp ? (QUAD.anim.pause ? 'stop' : 'run') : null,
+    form: QUAD.form, method: QUAD.method, mode: QUAD.mode, L: quadLn(), x0: QUAD.x0, P: QUAD.P, sv: QUAD.sv, pp: QUAD.pp, n1: QUAD.n1, n2: QUAD.n2, tt: QUAD.tt, oA: QUAD.oA, oB: QUAD.oB, oKf: QUAD.oKf, okv: QUAD.okv, op: QUAD.op };
 }
 const quadDock = w => (QUAD.show.card && w >= 760 ? stCardW(w, 0.36) : 0);
 const quadDockH = (w, h) => (QUAD.show.card && w < 760 ? Math.round(h * 0.5) : 0);
@@ -235,20 +241,21 @@ function quadRefreshUI() {
   const ui = QUAD.ui; if (!ui) return;
   const v = QUAD.view, sh = QUAD.show, mode = QUAD.mode;
   ui.sel.value = v;
-  const d = QUAD_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[0]), Object.assign(difEl('div', null, d[1]), { style: 'margin-top:5px;' }));
-  const showF = v !== 'cmb' || mode === 'line';
+  const d = QUAD_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[1])); if (typeof envHint === 'function') envHint('quad', d[0], () => QUAD.S);   // Hinweis als Überschrift über dem Bild
+  const showF = v !== 'opt' && (v !== 'cmb' || mode === 'line');
   ['quad-f-row', 'quad-field-head'].forEach(id => { const e = $dif(id); if (e) e.style.display = showF ? '' : 'none'; });
   quadSyncFields();
   // Beispiele
   ui.ex.replaceChildren(Object.assign(difEl('option', null, 'Beispiel wählen …'), { value: '' }));
-  const exs = v !== 'cmb' ? QUAD_EX.map(p => p[3]) : mode === 'line' ? QUAD_LINE_EX.map(p => p[5])
+  const exs = v === 'opt' ? QUAD_OPT_EX.map(p => p[4]) : v !== 'cmb' ? QUAD_EX.map(p => p[3]) : mode === 'line' ? QUAD_LINE_EX.map(p => p[5])
     : mode === 'pts' ? QUAD_PTS_EX.map(p => p.map((q, i) => 'P' + (i + 1) + '(' + q[0] + '|' + q[1] + ')').join(', '))
       : mode === 'vp' ? QUAD_VP_EX.map(p => 'S(' + p[0][0] + '|' + p[0][1] + '), P(' + p[1][0] + '|' + p[1][1] + ')')
         : QUAD_NP_EX.map(p => 'x₁ = ' + p[0] + ', x₂ = ' + p[1] + ', P(' + p[2] + '|' + p[3] + ')');
   exs.forEach((nm, i) => { const o = difEl('option', null, nm); o.value = String(i); o.setAttribute('translate', 'no'); ui.ex.appendChild(o); });
   ui.ex.onchange = () => {
     const i = ui.ex.value; ui.ex.value = ''; if (i === '') return; const k = +i;
-    if (v !== 'cmb') { const e = QUAD_EX[k]; QUAD.a = e[0]; QUAD.b = e[1]; QUAD.c = e[2]; }
+    if (v === 'opt') { const e = QUAD_OPT_EX[k]; QUAD.oA = e[0]; QUAD.oB = e[1]; QUAD.oKf = e[2]; QUAD.okv = e[3]; QUAD.op = quadR6(e[0] / e[1] / 3); }
+    else if (v !== 'cmb') { const e = QUAD_EX[k]; QUAD.a = e[0]; QUAD.b = e[1]; QUAD.c = e[2]; }
     else if (mode === 'line') { const e = QUAD_LINE_EX[k]; QUAD.a = e[0]; QUAD.b = e[1]; QUAD.c = e[2]; QUAD.lm = e[3]; QUAD.lq = e[4]; }
     else if (mode === 'pts') QUAD.P = QUAD_PTS_EX[k].map(p => p.slice());
     else if (mode === 'vp') { QUAD.sv = QUAD_VP_EX[k][0].slice(); QUAD.pp = QUAD_VP_EX[k][1].slice(); }
@@ -291,7 +298,10 @@ function quadRefreshUI() {
     top.append(lb, val);
     const sl = difEl('input'); sl.type = 'range'; sl.min = min; sl.max = max; sl.step = step; sl.value = Math.max(min, Math.min(max, get())); sl.style.width = '100%';
     sl.addEventListener('input', () => { QUAD.anim = null; set(quadR6(parseFloat(sl.value))); val.textContent = difFmtIn(get()); QUAD.cardKey = ''; difRedraw(); quadCardSoon(); quadSyncFields(); });
-    sl.addEventListener('change', () => { quadRefreshUI(); difCommit(); });
+    // Während des Ziehens bleibt der Ausschnitt stehen (sonst zoomt das Bild bei jedem Schritt); danach passt er sich einmal ruhig an
+    const hold = () => { if (QUAD.win.x0 === null) { QUAD.win = quadResolvedWin(); QUAD._slAuto = true; } };
+    ['pointerdown', 'mousedown', 'touchstart'].forEach(ev => sl.addEventListener(ev, hold, { passive: true }));
+    sl.addEventListener('change', () => { if (QUAD._slAuto) { QUAD.win = Object.assign({}, QUAD_WIN0); QUAD._slAuto = false; } quadRefreshUI(); difRedraw(); difCommit(); });
     wrap.append(top, sl); const r1 = difEl('div', 'settings-row'); r1.appendChild(wrap); P.appendChild(r1); return sl;
   };
   const group = txt => { const g = difEl('div', 'subpanel-label', txt); g.style.marginTop = '8px'; P.appendChild(g); };
@@ -305,7 +315,14 @@ function quadRefreshUI() {
   };
   const abcRows = () => { numRow('a', () => QUAD.a, setA, { step: 0.5 }); numRow('b', () => QUAD.b, x => { QUAD.b = x; }, { step: 1 }); numRow('c', () => QUAD.c, x => { QUAD.c = x; }, { step: 1 }); };
 
-  if (v === 'par') {
+  if (v === 'opt') {
+    group('Nachfrage x(p) = A − B·p');
+    numRow('A', () => QUAD.oA, x => { if (x > 0) QUAD.oA = x; }, { step: 10 }); numRow('B', () => QUAD.oB, x => { if (x > 0) QUAD.oB = x; }, { step: 1 });
+    group('Kosten K = Kf + kv·x');
+    numRow('Kf', () => QUAD.oKf, x => { QUAD.oKf = x; }, { step: 100 }); numRow('kv', () => QUAD.okv, x => { QUAD.okv = x; }, { step: 1 });
+    group('Preis');
+    numRow('p', () => QUAD.op, x => { QUAD.op = Math.max(0, Math.min(QUAD.oA / QUAD.oB, x)); }, { step: 1 });
+  } else if (v === 'par') {
     select('Parameter der', [['std', 'Standardform  ax² + bx + c'], ['vert', 'Scheitelform  a(x − xs)² + ys'], ['fact', 'Nullstellenform  a(x − x₁)(x − x₂)']], () => QUAD.form, x => { QUAD.form = x; });
     const Q = quadQ(), vt = Quad.vertex(Q), R = Quad.roots(Q);
     if (QUAD.form === 'std') { group('Parameter a, b, c'); abc(); }
@@ -340,12 +357,14 @@ function quadRefreshUI() {
     select('Lösungsverfahren', QUAD_METHODS, () => QUAD.method, x => { QUAD.method = x; });
     group('Parameter a, b, c');
     abc();
+    { const ab = difEl('div'); ab.style.cssText = 'margin-top:6px;'; ab.append(difBtn(QUAD.anim ? (QUAD.anim.pause ? '▶ weiter' : '⏸ Pause') : '▶ Parabel durch die x-Achse schieben', quadAnimToggle)); P.appendChild(ab); }
   } else {
     select('Thema', [['line', 'Parabel und Gerade'], ['pts', 'Parabel durch drei Punkte'], ['vp', 'Scheitelpunkt und ein Punkt'], ['np', 'Zwei Nullstellen und ein Punkt']], () => QUAD.mode, x => { QUAD.mode = x; QUAD.win = Object.assign({}, QUAD_WIN0); });
     if (mode === 'line') {
       group('Parabel'); abcRows();
       group('Gerade y = m·x + q');
       numRow('m', () => QUAD.lm, x => { QUAD.lm = x; }, { step: 0.5 }); numRow('q', () => QUAD.lq, x => { QUAD.lq = x; }, { step: 0.5 });
+      { const an = difEl('div'); an.style.cssText = 'margin-top:6px;'; an.append(difBtn(QUAD.anim ? (QUAD.anim.pause ? '▶ weiter' : '⏸ Pause') : '▶ Gerade parallel verschieben', quadAnimToggle)); P.appendChild(an); }
       const ab = difEl('div'); ab.style.cssText = 'margin-top:6px;'; ab.append(difBtn('Gerade berühren lassen (gleiche Steigung)', () => { const Q = quadQ(); if (!Q.deg) { QUAD.lq = quadR6(Dif.E.qNum(Quad.tangentIntercept(Q, QUAD.lm))); redo(); } })); P.appendChild(ab);
       group('Anzeige');
       check('Tangente in einem Punkt T zeigen', () => sh.tan, x => { sh.tan = x; });
@@ -367,9 +386,27 @@ function quadRefreshUI() {
   check('Rechenweg als Karte anzeigen', () => sh.card, x => { sh.card = x; });
 }
 
-// ── Animation: Normalparabel verschieben ──
+// ── Animationen ──
+// vtx: Normalparabel verschieben. zer: die Parabel wandert durch die x-Achse (zwei → eine → keine Nullstelle, D wechselt das Vorzeichen).
+// cmb/Gerade: die Gerade wandert parallel (Sekante → Tangente → Passante). Beide kehren am Schluss zum Ausgangswert zurück.
+function quadAnimEnd() { const a = QUAD.anim; if (a && a.auto) QUAD.win = Object.assign({}, QUAD_WIN0); QUAD.anim = null; }
 function quadAnimToggle() {
-  if (QUAD.anim) { QUAD.anim = null; quadRefreshUI(); difCommit(); return; }
+  if (QUAD.anim && QUAD.anim.pause) { QUAD.anim.pause = false; QUAD.anim.last = 0; quadRefreshUI(); difRedraw(); requestAnimationFrame(quadAnimFrame); return; }   // «▶ weiter» nach dem Halt
+  if (QUAD.anim) { quadAnimEnd(); quadRefreshUI(); difRedraw(); difCommit(); return; }
+  const Q = typeof quadQ === 'function' ? quadQ() : null, v = QUAD.view;
+  if ((v === 'zer' || (v === 'cmb' && QUAD.mode === 'line')) && Q && !Q.deg && Math.abs(QUAD.a) > 1e-9) {
+    const s = QUAD.a > 0 ? 1 : -1; let a;
+    if (v === 'zer') {
+      const k = QUAD.b * QUAD.b / (4 * QUAD.a), y0 = QUAD.c - k, A = Math.max(2, Math.abs(y0));       // y0: Höhe des Scheitels
+      a = { path: [-s * A, 0, s * 0.7 * A, y0], hold: [0.5, 0, 0.9, 0], stop: 1, slow: 0, A, cur: y0, sp: A / 2.2, set: y => { QUAD.c = quadR6(Math.round((y + k) * 100) / 100); }, exact: y => { QUAD.c = quadR6(y + k); } };
+    } else {
+      const qt = Dif.E.qNum(Quad.tangentIntercept(Q, QUAD.lm)), q0 = QUAD.lq, A = Math.max(2, Math.abs(q0 - qt));
+      a = { path: [qt + s * A, qt, qt - s * 0.7 * A, q0], hold: [0.5, 0, 0.9, 0], stop: 1, slow: qt, A, cur: q0, sp: A / 2.2, set: q => { QUAD.lq = quadR6(Math.round(q * 100) / 100); }, exact: q => { QUAD.lq = quadR6(q); } };
+    }
+    a.last = 0; a.i = 0; a.wait = 0; a.sweep = true;
+    if (QUAD.win.x0 === null) { QUAD.win = quadResolvedWin(); a.auto = true; }                           // Ausschnitt bleibt stehen
+    QUAD.anim = a; quadRefreshUI(); requestAnimationFrame(quadAnimFrame); return;
+  }
   if (QUAD.tt >= 1) QUAD.tt = 0;
   QUAD.anim = { last: 0 }; quadRefreshUI(); requestAnimationFrame(quadAnimFrame);
 }
@@ -377,6 +414,19 @@ function quadAnimFrame(ts) {
   const a = QUAD.anim; if (!a) return;
   if (!quadActive()) { QUAD.anim = null; return; }
   const dt = a.last ? Math.min(0.1, (ts - a.last) / 1000) : 0.016; a.last = ts;
+  if (a.sweep) {
+    if (a.wait > 0) { a.wait -= dt; requestAnimationFrame(quadAnimFrame); return; }
+    if (a.pause) return;                                                    // wartet am besonderen Fall, bis man «▶ weiter» drückt
+    // in der Nähe des besonderen Falls (Scheitel auf der x-Achse bzw. Berührung) immer langsamer
+    const near = Math.abs(a.cur - a.slow) / (0.45 * a.A), k = Math.max(0.1, Math.min(1, near));
+    const t = a.path[a.i], d = t - a.cur, st = a.sp * k * dt;
+    let stopped = false;
+    if (Math.abs(d) <= st) { a.cur = t; a.exact(t); a.wait = a.hold[a.i]; stopped = a.i === a.stop; a.i++; } else { a.cur += Math.sign(d) * st; a.set(a.cur); }
+    QUAD.cardKey = ''; quadSyncFields(); difRedraw(); quadCardSoon();
+    if (a.i >= a.path.length) { quadAnimEnd(); quadRefreshUI(); difRedraw(); difCommit(); return; }
+    if (stopped) { a.pause = true; quadRefreshUI(); difRedraw(); return; }
+    requestAnimationFrame(quadAnimFrame); return;
+  }
   QUAD.tt = Math.min(1, QUAD.tt + dt / 6);
   if (QUAD.tt >= 1) { QUAD.anim = null; quadRefreshUI(); difRedraw(); difCommit(); return; }
   const all = QUAD.ui && QUAD.ui.params.querySelectorAll('input[type=range]'); if (all && all.length) { all[all.length - 1].value = QUAD.tt; const b = all[all.length - 1].parentNode.querySelector('b'); if (b) b.textContent = difFmtIn(quadR6(QUAD.tt)); }
@@ -392,6 +442,7 @@ function quadAnimFrame(ts) {
   const setPt = (id, x, y, shift) => {
     const m = QUAD.S && QUAD.S.maps.main; if (!m) return;
     const st = Stat.niceStep(m.win.x1 - m.win.x0, 14), sx = quadR6(difSnap(x, st, shift)), sy = quadR6(difSnap(y, st, shift)), view = QUAD.view, mode = QUAD.mode;
+    if (view === 'opt') { if (id === 'p') QUAD.op = quadR6(Math.max(0, Math.min(QUAD.oA / QUAD.oB, difSnap(x, Stat.niceStep(m.win.x1 - m.win.x0, 40), shift)))); QUAD.cardKey = ''; return; }
     const Q = quadQ(), vt = Quad.vertex(Q);
     if (view !== 'cmb') {
       if (id === 'S' && vt) quadSetQ(Quad.fromVertex(Q.a, sx, sy));
@@ -407,7 +458,7 @@ function quadAnimFrame(ts) {
   };
   const down = e => {
     if (!quadActive()) return; e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault();
-    const S = QUAD.S; if (!S) return; const p = pos(e); if (QUAD.anim) { QUAD.anim = null; quadRefreshUI(); }
+    const S = QUAD.S; if (!S) return; const p = pos(e); if (QUAD.anim) { quadAnimEnd(); quadRefreshUI(); }
     const q = near(p);
     if (q) { QUAD.drag = { type: q.id }; if (QUAD.win.x0 === null) { QUAD.win = quadResolvedWin(); QUAD.drag.auto = true; } }   // Ausschnitt beim Ziehen festhalten
     else if (inMap(S.maps.main, p)) QUAD.drag = { type: 'pan', px: p.x, py: p.y, w: quadResolvedWin() };

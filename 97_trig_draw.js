@@ -93,8 +93,8 @@ function trigSceneCirc(S, W, H, C) {
   const ax = trigAxis(C, win, B.rg.w - fs * 3.9);
   const mg = difFrame(S, B.rg, win, C, Object.assign({ title: '\\col{r}{y=\\sin x}' + (C.show.cos ? '\\quad\\col{b}{y=\\cos x}' : ''), xlab: degU ? '\\varphi' : 'x', ylab: 'y' }, ax));
   S.maps.main = mg;
-  if (C.show.cos) difCurve(S, mg, t => Math.cos(t / k), { col: TR_C, lw: 2.2, exp: C.exp });
-  difCurve(S, mg, t => Math.sin(t / k), { col: TR_S, lw: 2.6, exp: C.exp });
+  if (C.show.cos) difCurve(S, mg, difRaw(t => Math.cos(t / k), Math.abs(k - 180 / Math.PI) < 1e-9 ? 'cos(x*pi/180)' : 'cos(x/' + difRN(k) + ')'), { hl: 'cos', col: TR_C, lw: 2.2, exp: C.exp });
+  difCurve(S, mg, difRaw(t => Math.sin(t / k), Math.abs(k - 180 / Math.PI) < 1e-9 ? 'sin(x*pi/180)' : 'sin(x/' + difRN(k) + ')'), { hl: 'sin', col: TR_S, lw: 2.6, exp: C.exp });
   difSeg(S, mg, X, win.y0, X, win.y1, { col: TR_A, lw: 1.2, dash: true, a: 0.8 });
   difSeg(S, mg, X, 0, X, sn, { col: TR_S, lw: 3.2 });
   if (C.show.cos) linPt(S, mg, 'GC', X, cs, C, { fill: TR_C, r: 5, lab: Math.abs(sn - cs) < 0.25 ? undefined : '\\col{b}{' + linFmtS(cs) + '}', lines: [[1, -Math.sin(x) * (degU ? 1 / k : 1)], [0, 1]], w: fs * 4 });
@@ -120,11 +120,11 @@ function trigSceneGen(S, W, H, C) {
   const m = difFrame(S, R[0], win, C, Object.assign({ title: stage, xlab: 'x', ylab: 'y' }, ax));
   S.maps.main = m;
   if (F.deg) { difLine(S, m, 0, F.d, 0, { col: TR_C, lw: 2.4 }); return; }
-  if (C.show.base) difCurve(S, m, x => (F.kind === 'cos' ? Math.cos(x) : Math.sin(x)), { col: 'M', lw: 1.4, dash: true, a: 0.7, exp: C.exp });
+  if (C.show.base) difCurve(S, m, difRaw(x => (F.kind === 'cos' ? Math.cos(x) : Math.sin(x)), F.kind + '(x)'), { hl: 'base', col: 'M', lw: 1.4, dash: true, a: 0.7, exp: C.exp });
   if (t < 1) difCurve(S, m, f, { col: TR_A, lw: 1.3, dash: true, a: 0.45, exp: C.exp });
   if (C.show.mid) { difLine(S, m, 0, d, 0, { col: TR_T, lw: 1.2, dash: true, a: 0.8 }); S.rich(m.R - fs * 0.4, m.Y(d) - fs * 0.8, '\\col{g}{y=' + linFmtS(d) + '}', { size: fs * 0.85, col: 'T', al: 'r', bs: 'm' }); }
   if (C.show.amp && t >= 1) { difLine(S, m, 0, P.max, 0, { col: TR_S, lw: 1, dash: true, a: 0.5 }); difLine(S, m, 0, P.min, 0, { col: TR_S, lw: 1, dash: true, a: 0.5 }); }
-  difCurve(S, m, g, { col: TR_C, lw: 2.8, exp: C.exp });
+  difCurve(S, m, g, { hl: 'f', col: TR_C, lw: 2.8, exp: C.exp });
   if (t >= 1) {
     // Periode als Strecke auf der Mittellinie, Amplitude als Pfeil
     if (C.show.per) { difSeg(S, m, F.c, F.d, F.c + T, F.d, { col: TR_A, lw: 2.6 }); S.rich(m.X(F.c + T / 2), m.Y(F.d) + fs * 1.1 * (F.a > 0 ? 1 : -1), '\\col{v}{T=' + P.TTex + '}', { size: fs * 0.95, col: 'T', al: 'c', bs: 'm' }); }
@@ -170,15 +170,79 @@ function trigSceneTan(S, W, H, C) {
   S.maps.main = mg;
   // Polstellen
   for (let j = -6; j <= 6; j++) { const xp = (Math.PI / 2 + j * Math.PI) * k; if (xp > win.x0 && xp < win.x1) difSeg(S, mg, xp, win.y0, xp, win.y1, { col: TR_S, lw: 1.2, dash: true, a: 0.7 }); }
-  if (C.show.sc) { difCurve(S, mg, t => Math.sin(t / k), { col: TR_S, lw: 1.3, a: 0.6, exp: C.exp }); difCurve(S, mg, t => Math.cos(t / k), { col: TR_C, lw: 1.3, a: 0.6, exp: C.exp }); }
-  difCurve(S, mg, t => Math.tan(t / k), { col: TR_T, lw: 2.6, exp: C.exp });
+  if (C.show.sc) { difCurve(S, mg, difRaw(t => Math.sin(t / k), Math.abs(k - 180 / Math.PI) < 1e-9 ? 'sin(x*pi/180)' : 'sin(x/' + difRN(k) + ')'), { col: TR_S, lw: 1.3, a: 0.6, exp: C.exp }); difCurve(S, mg, difRaw(t => Math.cos(t / k), Math.abs(k - 180 / Math.PI) < 1e-9 ? 'cos(x*pi/180)' : 'cos(x/' + difRN(k) + ')'), { col: TR_C, lw: 1.3, a: 0.6, exp: C.exp }); }
+  difCurve(S, mg, difRaw(t => Math.tan(t / k), Math.abs(k - 180 / Math.PI) < 1e-9 ? 'tan(x*pi/180)' : 'tan(x/' + difRN(k) + ')'), { hl: 'f', col: TR_T, lw: 2.6, exp: C.exp });
   difSeg(S, mg, X, win.y0, X, win.y1, { col: TR_A, lw: 1.2, dash: true, a: 0.8 });
   if (!v.pole && Math.abs(tn) < 100) { difSeg(S, mg, X, 0, X, tn, { col: TR_T, lw: 3.2 }); linPt(S, mg, 'G', X, tn, C, { fill: TR_T, r: 5.6, lab: '\\col{g}{\\tan\\varphi' + (v.exact ? '=' : '\\approx') + linFmtS(tn) + '}', lines: [[1, (1 + tn * tn) * (degU ? 1 / k : 1)], [0, 1], [1, 0]], w: fs * 7 }); }
   if (!v.pole && Math.abs(tn) <= big && X >= win.x0 && X <= win.x1) S.line(mc.X(1), mc.Y(tn), mg.X(X), mg.Y(tn), { col: TR_T, lw: 1.2, dash: true, a: 0.55, noclip: true });   // Tangentenabschnitt – Funktionswert
   if (B.rl) difLines(S, B.rl, Trig.sceneLines(Trig.st.tan(deg)), C, { max: fs * 1.12 });
 }
 
-const TRIG_SCENES = { circ: trigSceneCirc, gen: trigSceneGen, tan: trigSceneTan };
+// ═════════════ Trigonometrie im Dreieck ═════════════
+// Fenster mit gleichem Massstab in x und y um die Punkte (Kasten box), passend zur Zelle r
+function trigEqWin(r, fs, box, user) {
+  if (user && isFinite(user.x0) && isFinite(user.x1) && isFinite(user.y0) && isFinite(user.y1) && user.x1 > user.x0 && user.y1 > user.y0) return user;
+  const L = r.x + fs * 2.9, R = r.x + r.w - fs, T = r.y + fs * 2.6, B = r.y + r.h - fs * 1.9, asp = (R - L) / Math.max(1, B - T);
+  let [x0, x1, y0, y1] = box; const px = (x1 - x0) * 0.18 + 0.5, py = (y1 - y0) * 0.18 + 0.5; x0 -= px; x1 += px; y0 -= py; y1 += py;
+  const w = x1 - x0, h = y1 - y0;
+  if (w / h > asp) { const nh = w / asp, cy = (y0 + y1) / 2; y0 = cy - nh / 2; y1 = cy + nh / 2; } else { const nw = h * asp, cx = (x0 + x1) / 2; x0 = cx - nw / 2; x1 = cx + nw / 2; }
+  return { x0, x1, y0, y1 };
+}
+// Winkelbogen bei P zwischen den Richtungen zu Q und R (in Pixeln), Beschriftung
+function trigTriArc(S, m, P, Q, R, rad, col, lab, C, hl) {
+  const p = [m.X(P[0]), m.Y(P[1])], a1 = Math.atan2(m.Y(Q[1]) - p[1], m.X(Q[0]) - p[0]), a2 = Math.atan2(m.Y(R[1]) - p[1], m.X(R[0]) - p[0]);
+  let d = a2 - a1; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+  const pts = [p]; for (let i = 0; i <= 24; i++) { const t = a1 + d * i / 24; pts.push([p[0] + rad * Math.cos(t), p[1] + rad * Math.sin(t)]); }
+  S.poly(pts, { fill: col, col, a: 0.25, close: true, lw: 1.2 }); if (hl) shl(S, hl, pts, true);
+  const mid = a1 + d / 2; if (lab) difLabel(S, m, p[0] + (rad + C.fs * 1.4) * Math.cos(mid), p[1] + (rad + C.fs * 1.1) * Math.sin(mid), lab, C, { size: 0.9, hl });
+}
+const trigDg = v => linFmt(Math.round(v * 10) / 10) + '^\\circ', trigLn = v => linFmt(Math.round(v * 100) / 100);
+function trigSceneRt(S, W, H, C) {
+  const fs = C.fs, a = C.ra, b = C.rb, V = Trig.rtVals(a, b), gv = C.rgv;
+  const R = stLayout(W, H, [{ w: 0.62, rows: [1] }, { w: 0.38, rows: [1] }]);
+  const win = trigEqWin(R[0], fs, [0, b, 0, a], C.win);
+  const m = difFrame(S, R[0], win, C, { title: '\\text{Rechtwinkliges Dreieck – }\\col{v}{\\text{dick: gegeben}}', xlab: 'x', ylab: 'y' });
+  S.maps.main = m;
+  const Cc = [0, 0], A = [b, 0], B = [0, a], X = P => [m.X(P[0]), m.Y(P[1])];
+  S.poly([X(A), X(B), X(Cc)], { fill: ST_B, col: ST_B, a: 0.08, close: true, lw: 0.1 });
+  const giv = { ab: ['a', 'b'], ac: ['a', 'c'], ca: ['c', 'al'], aa: ['a', 'al'], ba: ['b', 'al'] }[gv] || [];
+  const side = (P, Q, col, nm, val, hl, off) => { const w = giv.indexOf(nm) >= 0 ? 4 : 2.4; S.line(X(P)[0], X(P)[1], X(Q)[0], X(Q)[1], { col, lw: w }); shl(S, hl, [X(P), X(Q)]); const mx = (X(P)[0] + X(Q)[0]) / 2 + off[0] * fs, my = (X(P)[1] + X(Q)[1]) / 2 + off[1] * fs; difLabel(S, m, mx, my, '\\col{' + ({ [ST_R]: 'r', [ST_B]: 'b', [ST_V]: 'v' }[col]) + '}{' + nm + '=' + trigLn(val) + '}', C, { size: 0.95, hl }); };
+  side(B, Cc, ST_R, 'a', a, 'gk', [-2.6, 0]); side(Cc, A, ST_B, 'b', b, 'ak', [0, 1.3]); side(A, B, ST_V, 'c', V.c, 'hy', [1.8, -1.1]);
+  const q = fs * 0.9; S.poly([[X(Cc)[0] + q, X(Cc)[1]], [X(Cc)[0] + q, X(Cc)[1] - q], [X(Cc)[0], X(Cc)[1] - q]], { col: 'T', lw: 1.2 });
+  trigTriArc(S, m, A, Cc, B, fs * 2.2, giv.indexOf('al') >= 0 ? ST_V : ST_O, (giv.indexOf('al') >= 0 ? '\\col{v}{\\alpha=' + trigDg(V.al) + '}' : '\\alpha=' + trigDg(V.al)), C, 'al');
+  trigTriArc(S, m, B, A, Cc, fs * 1.8, ST_G, '\\beta=' + trigDg(V.be), C, 'be');
+  [[A, 'A'], [B, 'B'], [Cc, 'C']].forEach(([P, nm]) => { const p = X(P); S.circ(p[0], p[1], nm === 'C' ? 3.5 : 5.6, { fill: nm === 'C' ? 'T' : ST_V, stroke: 'T', lw: 1.2 }); if (nm !== 'C') S.pts.push({ id: nm, x: p[0], y: p[1], r: 12 }); difLabel(S, m, p[0] + (nm === 'A' ? fs * 0.9 : -fs * 0.9), p[1] + (nm === 'B' ? -fs * 0.9 : fs * 1.0), nm, C, { size: 1 }); });
+  const r4 = v => linFmt(Math.round(v * 1e4) / 1e4);
+  difLines(S, R[1], [{ s: '\\text{bezogen auf }\\alpha\\text{:}', col: 'M', size: 0.9 },
+    { s: '\\sin\\alpha=\\frac{\\col{r}{a}}{\\col{v}{c}}=' + r4(a / V.c), hl: 'gk' }, { s: '\\cos\\alpha=\\frac{\\col{b}{b}}{\\col{v}{c}}=' + r4(b / V.c), hl: 'ak' }, { s: '\\tan\\alpha=\\frac{\\col{r}{a}}{\\col{b}{b}}=' + r4(a / b), hl: 'gk' }, null,
+    { s: '\\col{r}{a}\\text{: Gegenkathete},\\ \\col{b}{b}\\text{: Ankathete}', size: 0.85, col: 'M' }, { s: '\\col{v}{c}\\text{: Hypotenuse}', size: 0.85, col: 'M' }, null,
+    { s: 'c^2=a^2+b^2\\ \\text{(Pythagoras)}', size: 0.95 }, { s: '\\alpha+\\beta=90^\\circ', size: 0.95 }], C, { max: fs * 1.2 });
+}
+function trigSceneTri(S, W, H, C) {
+  const fs = C.fs, A = C.tA, B = C.tB, Cc = C.tC, V = Trig.triVals(A, B, Cc), giv = Trig.TRI_GIVEN[C.tg] || [];
+  const R = stLayout(W, H, [{ w: 0.64, rows: [1] }, { w: 0.36, rows: [1] }]);
+  const xs = [A[0], B[0], Cc[0]], ys = [A[1], B[1], Cc[1]];
+  const win = trigEqWin(R[0], fs, [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)], C.win);
+  const m = difFrame(S, R[0], win, C, { title: '\\text{Dreieck ABC – }\\col{v}{\\text{violett: gegeben}}', xlab: 'x', ylab: 'y' });
+  S.maps.main = m;
+  const X = P => [m.X(P[0]), m.Y(P[1])];
+  S.poly([X(A), X(B), X(Cc)], { fill: ST_B, col: ST_B, a: 0.08, close: true, lw: 0.1 });
+  const lab = (nm, v, deg) => (giv.indexOf(nm) >= 0 ? '\\col{v}{' : '') + ({ al: '\\alpha', be: '\\beta', ga: '\\gamma' }[nm] || nm) + '=' + (deg ? trigDg(v) : trigLn(v)) + (giv.indexOf(nm) >= 0 ? '}' : '');
+  const cx = (A[0] + B[0] + Cc[0]) / 3, cy = (A[1] + B[1] + Cc[1]) / 3;
+  const side = (P, Q, nm, v, col) => { const p = X(P), q = X(Q), w = giv.indexOf(nm) >= 0 ? 4 : 2.2; S.line(p[0], p[1], q[0], q[1], { col, lw: w }); shl(S, giv.indexOf(nm) >= 0 ? 'giv' : 'unk', [p, q]); const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2, ox = mx - m.X(cx), oy = my - m.Y(cy), ol = Math.hypot(ox, oy) || 1; difLabel(S, m, mx + ox / ol * fs * 1.6, my + oy / ol * fs * 1.2, (giv.indexOf(nm) >= 0 ? lab(nm, v) : '\\col{b}{' + lab(nm, v) + '}'), C, { size: 0.95 }); };
+  side(B, Cc, 'a', V.a, giv.indexOf('a') >= 0 ? ST_V : ST_B); side(Cc, A, 'b', V.b, giv.indexOf('b') >= 0 ? ST_V : ST_B); side(A, B, 'c', V.c, giv.indexOf('c') >= 0 ? ST_V : ST_B);
+  trigTriArc(S, m, A, B, Cc, fs * 2.0, giv.indexOf('al') >= 0 ? ST_V : ST_O, lab('al', V.al, 1), C, giv.indexOf('al') >= 0 ? 'giv' : 'unk');
+  trigTriArc(S, m, B, Cc, A, fs * 2.0, giv.indexOf('be') >= 0 ? ST_V : ST_O, lab('be', V.be, 1), C, giv.indexOf('be') >= 0 ? 'giv' : 'unk');
+  trigTriArc(S, m, Cc, A, B, fs * 2.0, ST_O, lab('ga', V.ga, 1), C, 'unk');
+  [[A, 'A'], [B, 'B'], [Cc, 'C']].forEach(([P, nm]) => { const p = X(P), ox = p[0] - m.X(cx), oy = p[1] - m.Y(cy), ol = Math.hypot(ox, oy) || 1; S.circ(p[0], p[1], 5.6, { fill: ST_V, stroke: 'T', lw: 1.2 }); S.pts.push({ id: nm, x: p[0], y: p[1], r: 12 }); difLabel(S, m, p[0] + ox / ol * fs * 1.1, p[1] + oy / ol * fs * 1.1, nm, C, { size: 1.05 }); });
+  const sb = V.b * Math.sin(V.al * Math.PI / 180) / V.a, amb = C.tg === 'ssw' && V.a < V.b - 1e-9 && sb < 1;
+  difLines(S, R[1], [{ s: '\\text{Sinussatz}', col: 'M', size: 0.9 }, { s: '\\frac{a}{\\sin\\alpha}=\\frac{b}{\\sin\\beta}=\\frac{c}{\\sin\\gamma}=' + trigLn(V.a / Math.sin(V.al * Math.PI / 180)), size: 0.95, hl: 'giv' }, null,
+    { s: '\\text{Kosinussatz}', col: 'M', size: 0.9 }, { s: 'a^2=b^2+c^2-2bc\\cos\\alpha', size: 0.95, hl: 'giv' }, null,
+    { s: '\\alpha+\\beta+\\gamma=180^\\circ', size: 0.95 }, { s: 'A=\\frac{1}{2}\\,bc\\sin\\alpha=' + trigLn(V.F), size: 0.95 },
+    amb ? { s: '\\text{SSW mit } a<b\\text{: zwei Dreiecke möglich}', col: ST_R, size: 0.9 } : null].filter(x => x !== undefined), C, { max: fs * 1.15 });
+}
+
+const TRIG_SCENES = { circ: trigSceneCirc, gen: trigSceneGen, tan: trigSceneTan, rt: trigSceneRt, tri: trigSceneTri };
 function trigBuildScene(W, H, C) {
   const S = linScene(), fn = TRIG_SCENES[C.view];
   if (fn) fn(S, W, H, C);

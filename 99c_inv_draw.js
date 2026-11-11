@@ -37,12 +37,12 @@ function invSquare(R0) { if (R0.w > R0.h * 1.3) { const nw = R0.h * 1.3; R0.x +=
 // f (blau) mit Einschränkung: der zugelassene Ast kräftig, der Rest grau
 function invDrawF(S, m, R, C, I) {
   const f = Inv.fOf(R);
-  if (I.inj) { difCurve(S, m, f, { col: IV_F, lw: 2.6, exp: C.exp }); return; }
+  if (I.inj) { difCurve(S, m, f, { hl: 'f', col: IV_F, lw: 2.6, exp: C.exp }); return; }
   const r = I.r;
-  difCurve(S, m, x => (x < r ? f(x) : NaN), { col: 'M', lw: 1.4, dash: true, a: 0.6, exp: C.exp });
-  difCurve(S, m, x => (x >= r ? f(x) : NaN), { col: IV_F, lw: 2.6, exp: C.exp });
+  difCurve(S, m, difRaw(x => (x < r ? f(x) : NaN), f.rawOf && f.rawOf()), { col: 'M', lw: 1.4, dash: true, a: 0.6, exp: C.exp });
+  difCurve(S, m, difRaw(x => (x >= r ? f(x) : NaN), f.rawOf && f.rawOf()), { hl: 'f', col: IV_F, lw: 2.6, exp: C.exp });
 }
-const invDrawG = (S, m, R, C, o) => difCurve(S, m, Inv.invOf(R), Object.assign({ col: IV_G, lw: 2.6, exp: C.exp }, o || {}));
+const invDrawG = (S, m, R, C, o) => difCurve(S, m, Inv.invOf(R), Object.assign({ col: IV_G, lw: 2.6, exp: C.exp, hl: 'fi' }, o || {}));
 // Stelle in den zugelassenen Bereich holen
 function invClampX(R, x) {
   const I = Inv.info(R), lo = I.inj ? I.D.lo : I.r;
@@ -61,16 +61,19 @@ function invSceneMirror(S, W, H, C) {
   const win = invWindow(C, Rl[0], need, { x: [-4, 4], y: [-4, 4], eq: true, key: 'mirror' + R.type });
   const m = difFrame(S, Rl[0], win, C, { title: '\\col{b}{' + Inv.fTex(R) + '}\\quad\\col{g}{' + Inv.invTex(R) + '}', xlab: 'x', ylab: 'y' });
   S.maps.main = m;
-  if (C.show.diag) difLine(S, m, 0, 0, 1, { col: 'M', lw: 1.2, dash: true, a: 0.7 });
+  if (C.show.diag) difLine(S, m, 0, 0, 1, { hl: 'diag', col: 'M', lw: 1.2, dash: true, a: 0.7 });
   invDrawF(S, m, R, C, I);
-  if (C.show.inv) invDrawG(S, m, R, C);
+  const fl = typeof C.flip === 'number';                                    // Animation: der Graph klappt um y = x
+  if (fl) difFlip(S, m, I.inj ? f : (x => (x >= I.r ? f(x) : NaN)), C.flip, { col: IV_G, lw: 2.6, a: 0.85 });
+  else if (C.show.inv) invDrawG(S, m, R, C);
   // Tabellenpunkte und ihre Spiegelbilder
   const xs = [-2, -1, 0, 1, 2, 3].map(k => invClampX(R, xp + k)).filter((v, i, a) => a.indexOf(v) === i);
-  if (C.show.pts) xs.forEach(x => { const y = f(x); if (!isFinite(y) || Math.abs(x - xp) < 1e-9) return; linPt(S, m, null, x, y, C, { fill: IV_F, r: 3.4, a: 0.7 }); if (C.show.inv) linPt(S, m, null, y, x, C, { fill: IV_G, r: 3.4 }); });
+  if (C.show.pts) xs.forEach(x => { const y = f(x); if (!isFinite(y) || Math.abs(x - xp) < 1e-9) return; linPt(S, m, null, x, y, C, { fill: IV_F, r: 3.4, a: 0.7 }); if (fl) { const s2 = (x + y) / 2, d2 = (x - y) / 2; linPt(S, m, null, s2 + C.flip * d2, s2 - C.flip * d2, C, { fill: IV_G, r: 3.4 }); } else if (C.show.inv) linPt(S, m, null, y, x, C, { fill: IV_G, r: 3.4 }); });
   if (isFinite(yp)) {
     difSeg(S, m, xp, yp, yp, xp, { col: IV_M, lw: 1.3, dash: true, a: 0.8 });
     linPt(S, m, 'P', xp, yp, C, { fill: IV_F, r: 5.8, lab: '\\col{b}{' + invCoord('P', xp, yp) + '}', lines: [invDir(f, xp), [1, 1]], w: fs * 8 });
-    if (C.show.inv) linPt(S, m, 'Q', yp, xp, C, Object.assign({ fill: IV_G, r: 5.8, lab: '\\col{g}{' + invCoord("P'", yp, xp) + '}', w: fs * 8 }, invLabQ(xp, yp, fs, [invDir(Inv.invOf(R), yp), [1, 1]])));
+    if (fl) { const s2 = (xp + yp) / 2, d2 = (xp - yp) / 2; linPt(S, m, null, s2 + C.flip * d2, s2 - C.flip * d2, C, { fill: IV_G, r: 5.8 }); }
+    else if (C.show.inv) linPt(S, m, 'Q', yp, xp, C, Object.assign({ fill: IV_G, r: 5.8, lab: '\\col{g}{' + invCoord("P'", yp, xp) + '}', w: fs * 8 }, invLabQ(xp, yp, fs, [invDir(Inv.invOf(R), yp), [1, 1]])));
   }
   difLines(S, Rl[1], Inv.sceneLines(Inv.st.mirror(R, xp)), C, { max: fs * 1.12 });
   if (!wide) return;
@@ -94,7 +97,7 @@ function invSceneTest(S, W, H, C) {
   if (!I.inj && C.show.inv) { difSeg(S, m, I.r, win.y0, I.r, win.y1, { col: IV_R, lw: 1.3, dash: true, a: 0.8 }); S.rich(m.X(I.r) + fs * 0.4, m.T + fs * 0.9, '\\col{r}{x\\ge' + linFmtS(I.r) + '}', { size: fs * 0.9, col: 'T', al: 'l', bs: 'm' }); }
   invDrawF(S, m, R, C, I);
   if (C.show.inv) { if (C.show.diag) difLine(S, m, 0, 0, 1, { col: 'M', lw: 1.1, dash: true, a: 0.6 }); invDrawG(S, m, R, C, { lw: 2, a: 0.85 }); }
-  difLine(S, m, 0, k, 0, { col: IV_K, lw: 2.2 });
+  difLine(S, m, 0, k, 0, { hl: 'kl', col: IV_K, lw: 2.2 });
   linPt(S, m, 'K', win.x0 + (win.x1 - win.x0) * 0.08, k, C, { fill: IV_K, r: 5.2, lab: '\\col{o}{y=' + linFmtS(k) + '}', dy: -fs * 1.4, dx: fs * 1.5, w: fs * 5 });
   hits.forEach((x, i) => {
     const ok = I.inj || x >= I.r - 1e-9;
@@ -119,7 +122,7 @@ function invSceneCalc(S, W, H, C) {
   const win = invWindow(C, Rl[0], need, { x: [-4, 4], y: [-4, 4], eq: true, key: 'calc' + R.type });
   const m = difFrame(S, Rl[0], win, C, { title: '\\col{b}{' + Inv.fTex(R) + '}\\quad\\col{g}{' + Inv.invTex(R) + '}', xlab: 'x', ylab: 'y' });
   S.maps.main = m;
-  if (C.show.diag) difLine(S, m, 0, 0, 1, { col: 'M', lw: 1.2, dash: true, a: 0.7 });
+  if (C.show.diag) difLine(S, m, 0, 0, 1, { hl: 'diag', col: 'M', lw: 1.2, dash: true, a: 0.7 });
   invDrawF(S, m, R, C, I); invDrawG(S, m, R, C);
   if (isFinite(y0)) {
     difSeg(S, m, x0, y0, y0, x0, { col: IV_M, lw: 1.3, dash: true, a: 0.8 });
@@ -141,11 +144,11 @@ function invScenePairs(S, W, H, C) {
   const win = invWindow(C, Rl[0], need, { x: [-3, 3], y: [-3, 3], eq: true, key: 'pair' + P.id });
   const m = difFrame(S, Rl[0], win, C, { title: '\\col{b}{' + P.fTex + '}\\quad\\col{g}{' + P.gTex + '}', xlab: 'x', ylab: 'y' });
   S.maps.main = m;
-  if (C.show.diag) difLine(S, m, 0, 0, 1, { col: 'M', lw: 1.2, dash: true, a: 0.7 });
+  if (C.show.diag) difLine(S, m, 0, 0, 1, { hl: 'diag', col: 'M', lw: 1.2, dash: true, a: 0.7 });
   if (P.gray) difCurve(S, m, P.gray, { col: 'M', lw: 1.3, dash: true, a: 0.6, exp: C.exp });
   if (P.xr) { P.xr.forEach(b => { if (b !== null) difSeg(S, m, b, win.y0, b, win.y1, { col: IV_R, lw: 1, dash: true, a: 0.5 }); }); }
-  difCurve(S, m, P.f, { col: IV_F, lw: 2.6, exp: C.exp });
-  difCurve(S, m, P.g, { col: IV_G, lw: 2.6, exp: C.exp });
+  difCurve(S, m, P.f, { hl: 'f', col: IV_F, lw: 2.6, exp: C.exp });
+  difCurve(S, m, P.g, { hl: 'fi', col: IV_G, lw: 2.6, exp: C.exp });
   if (isFinite(y0)) {
     difSeg(S, m, x0, y0, y0, x0, { col: IV_M, lw: 1.3, dash: true, a: 0.8 });
     linPt(S, m, 'P', x0, y0, C, { fill: IV_F, r: 5.8, lab: '\\col{b}{' + invCoord('P', x0, y0) + '}', lines: [invDir(P.f, x0), [1, 1]], w: fs * 8 });

@@ -80,7 +80,7 @@
     d.e('\\int_{' + at + '}^{' + btx + '}\\left(' + tx(F.ast) + '\\right)dx');
     if (!A) {
       const D = Int.def(F, a, b);
-      d.p('Für diese Funktion gibt es keine Stammfunktion in einfacher Form. Das Integral wird numerisch berechnet.');
+      d.p('Mit den Grundregeln (Potenz-, Summen-, Konstantenregel) findet das Programm hier keine Stammfunktion: Dafür bräuchte es partielle Integration oder Substitution, bei manchen Funktionen gibt es gar keine geschlossene Form. Das Integral wird numerisch berechnet.');
       if (isFinite(D.val)) d.res('$\\int_{' + at + '}^{' + btx + '}f(x)\\,dx\\approx' + nv(D.val) + '$');
       return d;
     }
@@ -178,7 +178,7 @@
       parts.push({ t, full });
     });
     if (!allOk) {
-      if (!total) { d.p('Für diese Funktion gibt es keine Stammfunktion in einfacher Form (z. B. $e^{-x^{2}}$ oder $\\frac{\\sin x}{x}$). Das bestimmte Integral wird numerisch berechnet.'); return d; }
+      if (!total) { d.p('Mit den Grundregeln (Potenz-, Summen-, Konstantenregel) findet das Programm hier keine Stammfunktion: Dafür bräuchte es partielle Integration oder Substitution (siehe die Ansichten dazu); bei manchen Funktionen wie $e^{-x^{2}}$ gibt es gar keine geschlossene Form. Das bestimmte Integral wird numerisch berechnet.'); return d; }
       used.add('other');
       body.e('\\int f(x)\\,dx=' + tx(total), names(['other']));
     }
@@ -203,7 +203,7 @@
     d.h('Integralfunktion und Hauptsatz');
     d.p('Die **Integralfunktion** sammelt die Fläche zwischen $f$ und der $x$-Achse ab der festen Stelle $a=' + at + '$. Oberhalb der Achse wächst sie, unterhalb nimmt sie ab.');
     d.e('F_a(x)=\\int_{' + at + '}^{x}f(t)\\,dt');
-    if (!A) { d.note('Für diese Funktion gibt es keine Stammfunktion in einfacher Form; die Integralfunktion wird numerisch berechnet.'); return d; }
+    if (!A) { d.note('Mit den Grundregeln findet das Programm hier keine Stammfunktion (partielle Integration oder Substitution nötig, oder es gibt keine geschlossene Form); die Integralfunktion wird numerisch berechnet.'); return d; }
     d.p('**Schritt 1:** Eine Stammfunktion $G$ von $f$ bestimmen.');
     d.e('G(x)=' + antiTex(F));
     d.p('**Schritt 2:** Hauptsatz der Differential- und Integralrechnung.');
@@ -290,5 +290,114 @@
     return d;
   }
 
-  Object.assign(Int, { sumDoc, defDoc, antiDoc, hsDoc, areaDoc, rotDoc, INT_RULES: RULES });
+  // ───────────────────── Partielle Integration (mit Bild) ─────────────────────
+  // U, V: Funktionen (Dif.makeFn) für u(x) und v(x); gesucht ∫ u·v′ dx auf [a; b]. pre (optional): {G, Gop} Stammfunktion
+  // von u′·v als Rohausdruck, falls die Regeln sie nicht finden (z.B. nochmals partiell integrieren oder Substitution).
+  function simpson(f, a, b, n) { n = n || 400; const h = (b - a) / n; let s = f(a) + f(b); for (let i = 1; i < n; i++) s += (i % 2 ? 4 : 2) * f(a + i * h); return s * h / 3; }
+  function piNums(U, V, a, b) {
+    const u = U.f(0), v = V.f(0), u1 = U.f(1), v1 = V.f(1);
+    const I1 = simpson(x => u(x) * v1(x), a, b), I2 = simpson(x => v(x) * u1(x), a, b);
+    return { ua: u(a), ub: u(b), va: v(a), vb: v(b), I1, I2 };
+  }
+  function piDoc(U, V, a, b, pre) {
+    const d = DOC(), bnd = x => (Math.abs(x - Math.E) < 1e-9 ? 'e' : bt(x)), A = bnd(a), B = bnd(b);
+    const u1 = U.deriv(1), v1 = V.deriv(1), N = piNums(U, V, a, b), par = t => (/^-/.test(t) ? lp(t) : t);
+    const eqv = v => (Math.abs(v * 1e4 - Math.round(v * 1e4)) < 1e-7 ? '=' : '\\approx ');        // «=» nur, wenn die Zahl nicht gerundet ist
+    const ut = tx(U.ast), vt = tx(V.ast), u1t = u1 ? tx(u1) : '?', v1t = v1 ? tx(v1) : '?';
+    const prodT = v1 ? tx(simp(bin('mul', U.ast, v1))) : par(ut) + '\\cdot ' + par(v1t);
+    d.h('Partielle Integration');
+    d.p('**Regel:** Aus der Produktregel $(u\\cdot v)\'=u\'\\cdot v+u\\cdot v\'$ folgt durch Integrieren von $a$ bis $b$:');
+    d.e('\\int_a^b u(x)\\,v\'(x)\\,dx=\\Big[u(x)\\cdot v(x)\\Big]_a^b-\\int_a^b u\'(x)\\,v(x)\\,dx');
+    d.p('**Im Bild:** Die Kurve mit den Punkten $(u(x)\\,|\\,v(x))$ läuft von $x=a$ bis $x=b$. Die blaue Fläche zwischen Kurve und $v$-Achse ist $\\int u\\,dv=\\int_a^b u\\,v\'\\,dx$, die grüne Fläche zwischen Kurve und $u$-Achse ist $\\int v\\,du=\\int_a^b v\\,u\'\\,dx$. Zusammen füllen sie das grosse Rechteck $u(b)\\cdot v(b)$ ohne das kleine Rechteck $u(a)\\cdot v(a)$:');
+    d.e('\\int u\\,dv+\\int v\\,du=u(b)\\,v(b)-u(a)\\,v(a)');
+    d.e(nv(N.I1) + '+' + par(nv(N.I2)) + '\\approx ' + nv(N.ub * N.vb) + '-' + par(nv(N.ua * N.va)));
+    const mono = (() => { const u = U.f(0), v = V.f(0); let pu = u(a), pv = v(a), ok = pu >= -1e-12 && pv >= -1e-12; for (let i = 1; i <= 60 && ok; i++) { const x = a + (b - a) * i / 60, cu = u(x), cv = v(x); if (!(cu >= pu - 1e-12 && cv >= pv - 1e-12 && cu >= -1e-12 && cv >= -1e-12)) ok = false; pu = cu; pv = cv; } return ok; })();
+    if (!mono) d.note('Hier sind $u$ oder $v$ nicht durchgehend positiv und wachsend: Die Flächen zählen dann mit Vorzeichen (oder überdecken sich), die Gleichung gilt trotzdem.');
+    d.p('**Zuordnung:** Den Faktor, der beim Ableiten einfacher wird, nimmt man als $u$; vom anderen Faktor $v\'$ braucht man eine Stammfunktion $v$.');
+    d.e('u(x)=' + ut + ',\\qquad v\'(x)=' + v1t);
+    d.e('u\'(x)=' + u1t + ',\\qquad v(x)=' + vt);
+    d.p('**Einsetzen:**');
+    const rest = u1 ? simp(bin('mul', u1, V.ast)) : null, restT = rest ? tx(rest) : par(u1t) + '\\cdot ' + par(vt);
+    d.e('\\int_{' + A + '}^{' + B + '}' + prodT + '\\,dx=\\Big[' + tx(simp(bin('mul', U.ast, V.ast))) + '\\Big]_{' + A + '}^{' + B + '}-\\int_{' + A + '}^{' + B + '}' + restT + '\\,dx');
+    const bd = N.ub * N.vb - N.ua * N.va;
+    d.p('**Randterm:**');
+    d.e('\\Big[u\\cdot v\\Big]_{' + A + '}^{' + B + '}=' + nv(N.ub * N.vb) + '-' + par(nv(N.ua * N.va)) + eqv(bd) + nv(bd));
+    // übriges Integral ∫ u′·v dx: mit den Regeln, sonst mit der mitgelieferten Stammfunktion, sonst numerisch
+    let Gast = null, Gop = '';
+    try { const W = rest ? Dif.makeFn(miToRaw(rest, 0)) : null; if (W) { const Ga = Int.anti(W); if (Ga) { Gast = W.P ? polyAst(W._PI) : Ga; Gop = 'Stammfunktion'; } } } catch (e) { Gast = null; }
+    if (!Gast && pre && pre.G) { const GF = Dif.makeFn(pre.G); if (GF) { Gast = GF.ast; Gop = pre.Gop || 'Stammfunktion'; } }
+    let I2 = N.I2;
+    d.p('**Übriges Integral:**');
+    if (Gast) {
+      const g = x => S.evalNum(Gast, x), val = g(b) - g(a);
+      if (isFinite(val) && Math.abs(val - N.I2) < 1e-5 * Math.max(1, Math.abs(N.I2))) {
+        I2 = val;
+        d.e('\\int ' + restT + '\\,dx=' + tx(Gast) + '+C', Gop);
+        d.e('\\int_{' + A + '}^{' + B + '}' + restT + '\\,dx=\\Big[' + tx(Gast) + '\\Big]_{' + A + '}^{' + B + '}=' + nv(g(b)) + '-' + par(nv(g(a))) + eqv(val) + nv(val));
+      } else Gast = null;
+    }
+    if (!Gast) {
+      d.e('\\int_{' + A + '}^{' + B + '}' + restT + '\\,dx\\approx ' + nv(N.I2));
+      d.note('Dieses Integral lässt sich hier nicht direkt mit den Grundregeln lösen; es wird numerisch berechnet. Oft hilft es, nochmals partiell zu integrieren.');
+    }
+    const I = bd - I2;
+    d.e('\\int_{' + A + '}^{' + B + '}' + prodT + '\\,dx=' + nv(bd) + '-' + par(nv(I2)) + eqv(I) + nv(I));
+    d.res('$\\int_{' + A + '}^{' + B + '}' + prodT + '\\,dx' + eqv(I) + nv(I) + '$ (blaue Fläche)');
+    return d;
+  }
+
+  // ───────────────────── Substitution (mit Streifen-Bild) ─────────────────────
+  // Fo: äussere Funktion f (in der Variablen x gespeichert, angezeigt mit u), G: innere Funktion g(x).
+  // subFn(Fo, G) → Funktion des Integranden f(g(x))·g′(x) (Dif.makeFn) oder null
+  function subAst(Fo, G) { const g1 = G.deriv(1); if (!g1) return null; return bin('mul', calcSubstitute(Fo.ast, 'x', G.ast), g1); }
+  function subFn(Fo, G) { try { const A = subAst(Fo, G); return A ? Dif.makeFn(miToRaw(A, 0)) : null; } catch (e) { return null; } }
+  const uTx = A => { try { return tx(calcSubstitute(A, 'x', idn('u'))); } catch (e) { return tx(A); } };
+  function subDoc(Fo, G, a, b) {
+    const d = DOC(), f = Fo.f(0), g = G.f(0), g1 = G.deriv(1), ga = g(a), gb = g(b);
+    const bnd = x => (Math.abs(x - Math.E) < 1e-9 ? 'e' : bt(x)), A = bnd(a), B = bnd(b);
+    const gB = (x, v) => {                                  // u-Grenze: Bruch, sonst g(x) symbolisch (z.B. ln(4)), sonst Näherung
+      if (Math.abs(v - Math.E) < 1e-9) return 'e';
+      const q = qOf(v); if (q && q.d <= 1000n) return E.qTex(q);
+      try { const qx = qOf(x), t = tx(simp(calcSubstitute(G.ast, 'x', qx ? E.astQ(qx) : num(String(x))))); if (t && !/NaN|undefined/.test(t)) return t; } catch (e) { /* Näherung */ }
+      return nv(v);
+    };
+    const GA = gB(a, ga), GB = gB(b, gb);
+    const eqv = v => (Math.abs(v * 1e4 - Math.round(v * 1e4)) < 1e-7 ? '=' : '\\approx ');
+    const par = t => (/^-/.test(t) ? lp(t) : t);
+    const In = subAst(Fo, G), inT = In ? tx(simp(In)) : '?', fT = uTx(Fo.ast), gT = tx(G.ast), g1T = g1 ? tx(g1) : '?';
+    const fOfg = tx(calcSubstitute(Fo.ast, 'x', G.ast));
+    const IF = subFn(Fo, G), Ix = IF ? simpson(IF.f(0), a, b, 600) : NaN, Iu = simpson(f, ga, gb, 600);
+    d.h('Substitution');
+    d.p('**Regel:** Steht im Integranden eine Verkettung $f(g(x))$ zusammen mit der inneren Ableitung $g\'(x)$, so ersetzt man $u=g(x)$:');
+    d.e('\\int_a^b f\\big(g(x)\\big)\\cdot g\'(x)\\,dx=\\int_{g(a)}^{g(b)} f(u)\\,du');
+    d.p('**Im Bild:** Links ist die Fläche unter $f(g(x))\\cdot g\'(x)$ in gleich breite Streifen der Breite $\\Delta x$ geteilt. Die Abbildung $u=g(x)$ in der Mitte bringt jeden Streifen nach rechts unter den Graphen von $f$. Dort ist er $g\'(x)$-mal so breit, aber nur $f(u)$ hoch statt $f(g(x))\\cdot g\'(x)$. Die Fläche bleibt gleich. Mit dem Regler «Verformung» sieht man den Übergang fliessend: Jeder Streifen wird $g\'(x)$-mal so breit und dafür $g\'(x)$-mal so niedrig.');
+    d.e('\\Delta u\\approx g\'(x)\\cdot\\Delta x\\quad\\Rightarrow\\quad f\\big(g(x)\\big)\\cdot g\'(x)\\cdot\\Delta x\\approx f(u)\\cdot\\Delta u');
+    d.p('**Substitution:**');
+    d.e('u=g(x)=' + gT + ',\\qquad \\frac{du}{dx}=g\'(x)=' + g1T + '\\quad\\Rightarrow\\quad du=' + par(g1T) + '\\,dx');
+    d.e('\\int_{' + A + '}^{' + B + '}' + inT + '\\,dx=\\int_{' + A + '}^{' + B + '}' + fOfg.replace(/^/, '') + '\\cdot ' + par(g1T) + '\\,dx');
+    d.p('**Grenzen umrechnen:**');
+    d.e('x=' + A + '\\ \\Rightarrow\\ u=g(' + A + ')' + eqv(ga) + nv(ga) + ',\\qquad x=' + B + '\\ \\Rightarrow\\ u=g(' + B + ')' + eqv(gb) + nv(gb));
+    d.e('\\int_{' + A + '}^{' + B + '}' + inT + '\\,dx=\\int_{' + GA + '}^{' + GB + '}' + fT + '\\,du');
+    d.p('**Integrieren:**');
+    let val = Iu, exact = false;
+    try {
+      const Fa = Int.anti(Fo);
+      if (Fa) {
+        const Fast = Fo.P ? polyAst(Fo._PI) : Fa, Fu = x => S.evalNum(Fast, x), v2 = Fu(gb) - Fu(ga);
+        if (isFinite(v2) && Math.abs(v2 - Iu) < 1e-5 * Math.max(1, Math.abs(Iu))) {
+          val = v2; exact = true;
+          const FT = uTx(Fast).replace(/^([^+\-]+?)\\cdot \\frac\{1\}\{(\d+)\}$/, '\\frac{$1}{$2}');
+          d.e('\\int ' + fT + '\\,du=' + FT + '+C', 'Stammfunktion');
+          d.e('\\int_{' + GA + '}^{' + GB + '}' + fT + '\\,du=\\Big[' + FT + '\\Big]_{' + GA + '}^{' + GB + '}=' + nv(Fu(gb)) + '-' + par(nv(Fu(ga))) + eqv(v2) + nv(v2));
+        }
+      }
+    } catch (e) { exact = false; }
+    if (!exact) { d.e('\\int_{' + GA + '}^{' + GB + '}' + fT + '\\,du\\approx ' + nv(Iu)); d.note('Für $f$ gibt es hier keine Stammfunktion mit den Grundregeln; der Wert wird numerisch berechnet.'); }
+    if (isFinite(Ix)) d.e('\\text{Probe: Fläche links}\\approx ' + nv(Ix) + ',\\qquad\\text{Fläche rechts}\\approx ' + nv(Iu));
+    if (gb < ga) d.note('Hier ist $g(b)<g(a)$: Die Grenzen rechts sind vertauscht, die Streifen werden dabei gespiegelt (Fläche mit Vorzeichen).');
+    d.res('$\\int_{' + A + '}^{' + B + '}' + inT + '\\,dx' + eqv(val) + nv(val) + '$');
+    return d;
+  }
+
+  Object.assign(Int, { sumDoc, defDoc, antiDoc, hsDoc, areaDoc, rotDoc, piDoc, piNums, subDoc, subFn, INT_RULES: RULES });
 })();

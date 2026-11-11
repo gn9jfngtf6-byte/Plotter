@@ -92,7 +92,7 @@
     const B = mkSt(), R = Expo.solve(F, c), C = R.C, xv = app ? app.xv : 'x', b = bT(F), bp = bP(F);
     if (R.kind === 'deg') { B.note('Für $a=0$ ist $f$ konstant.'); return { title: 'Exponentialgleichung', st: B.st }; }
     const fT = Expo.fTex(F, '', xv);
-    B.p('**Schritt 1:** Gleichung aufstellen. ' + (app ? app.q : 'Für welches $x$ ist $f(x)=' + T(C) + '$?'));
+    B.p('**Schritt 1:** Gleichung aufstellen.' + (app ? '' : ' Für welches $x$ ist $f(x)=' + T(C) + '$?'));   // bei Anwendungen steht die Frage im Kasten «Situation»
     B.e(fT + '=' + T(C), 'b');
     const steps = [];
     if (!isZ(F.dq)) steps.push('$' + T(E.qAbs(F.dq)) + '$ ' + (E.qSgn(F.dq) > 0 ? 'subtrahieren' : 'addieren'));
@@ -137,6 +137,35 @@
     });
     return out;
   }
+  // Prozentrechnung: Grundwert G, Veränderungen pc[] in Prozent, vorwärts (fw) oder rückwärts aus dem Endwert E (bw)
+  Expo.pctVals = (G, E, pc, bw) => {
+    const q = pc.map(p => 1 + p / 100), Q = q.reduce((a, b) => a * b, 1), g0 = bw ? E / Q : G, v = [g0];
+    q.forEach(f => v.push(v[v.length - 1] * f));
+    return { q, Q, v };
+  };
+  Expo.pctDoc = (G, E, pc, bw) => {
+    const d = Dif.DOC(), r = Expo.pctVals(G, E, pc, bw), n = v => Dif.fmtT(Math.round(v * 1e4) / 1e4, 6), pp = p => (p >= 0 ? '+' : '-') + n(Math.abs(p)) + '\\,\\%';
+    d.h('Prozente als Faktoren');
+    d.p('Eine **Zunahme** um $p\\,\\%$ heisst «mal $1+\\frac{p}{100}$», eine **Abnahme** um $p\\,\\%$ heisst «mal $1-\\frac{p}{100}$»:');
+    pc.forEach((p, i) => d.e(pp(p) + '\\quad\\Rightarrow\\quad q_{' + (i + 1) + '}=' + n(r.q[i])));
+    d.p('**Gesamtfaktor:** Die Faktoren werden multipliziert (nicht die Prozente addiert):');
+    d.e('q=' + r.q.map(n).join('\\cdot ') + '=' + n(r.Q));
+    const tot = (r.Q - 1) * 100;
+    d.e('\\text{Gesamtveränderung: }(' + n(r.Q) + '-1)\\cdot 100\\,\\%=' + pp(tot));
+    if (!bw) {
+      d.p('**Vorwärts:** Grundwert mal Faktor ergibt den neuen Wert:');
+      d.e(n(G) + '\\cdot ' + n(r.Q) + '=' + n(r.v[r.v.length - 1]));
+      d.res('Neuer Wert: $' + n(r.v[r.v.length - 1]) + '$ (' + (tot >= 0 ? 'Zunahme' : 'Abnahme') + ' um $' + n(Math.abs(tot)) + '\\,\\%$)');
+    } else {
+      d.p('**Rückwärts:** Den Grundwert findet man, indem man den Endwert durch den Gesamtfaktor teilt:');
+      d.e('G=\\frac{' + n(E) + '}{' + n(r.Q) + '}=' + n(r.v[0]));
+      d.res('Grundwert: $G=' + n(r.v[0]) + '$');
+      d.note('Achtung: Man darf nicht einfach $' + pp(-tot) + '$ rechnen – die Prozente beziehen sich auf einen anderen Grundwert.');
+    }
+    if (pc.length >= 2 && Math.abs(tot) > 1e-9 && Math.abs(pc.reduce((a, b) => a + b, 0)) < 1e-9) d.note('Die Prozente heben sich nicht auf: ' + pc.map(p => '$' + pp(p) + '$').join(' und ') + ' ergeben zusammen $' + pp(tot) + '$.');
+    if (pc.length >= 2 && pc.every(p => p === pc[0])) d.note('Gleiche Veränderung ' + pc.length + '-mal: Faktor $' + n(r.q[0]) + '^{' + pc.length + '}$ – das ist exponentielles Wachstum bzw. exponentielle Abnahme.');
+    return d;
+  };
   Expo.st = { grow, e: eDoc, log: logd, eq };
   Expo.doc = doc; Expo.sceneLines = sceneLines;
   Expo.growDoc = (F, x) => doc(grow(F, x)); Expo.eDoc = x => doc(eDoc(x)); Expo.logDoc = (F, x) => doc(logd(F, x)); Expo.eqDoc = (F, c, app) => doc(eq(F, c, app));

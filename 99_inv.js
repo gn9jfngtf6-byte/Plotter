@@ -39,13 +39,32 @@ const Inv = (function () {
   const restrict = (R, r) => Object.assign({}, R, { r: r === null || r === undefined ? null : Number(r) });
 
   // ── Funktionen ──
-  function fOf(R) {
+  function fOf(R) { const g = fOf0(R); if (!g.rawOf) g.rawOf = () => { try { return raw(R); } catch (e) { return null; } }; return g; }
+  // Term der Umkehrfunktion (für den LaTeX-Export; der Export prüft ihn gegen die gezeichneten Werte)
+  function invRaw(R) {
+    const N = v => String(+(+v).toPrecision(12));
+    const add = (t, c) => (Math.abs(c) < 1e-12 ? t : t + (c < 0 ? '-' : '+') + N(Math.abs(c)));       // t + c
+    const lin = (c, a) => { const u = Math.abs(c) < 1e-12 ? 'x' : '(' + add('x', -c) + ')'; return a === 1 ? u : a === -1 ? '-' + u : u + '/' + (a < 0 ? '(' + N(a) + ')' : N(a)); };   // (x − c)/a
+    const isE = b => Math.abs(b - Math.E) < 1e-12;
+    if (R.type === 'lin') return lin(R.q, R.m);
+    if (R.type === 'pow') {
+      const F = R.F; let n = F.n, m = F.m; if (m < 0) { n = -n; m = -m; }
+      const t = lin(F.h, F.a), tt = /^[x(]/.test(t) && !/[/]/.test(t) ? t : '(' + t + ')';
+      const core = n === m ? t : n === 1 && m === 2 ? 'sqrt(' + t.replace(/^\((.*)\)$/, '$1') + ')' : tt + '^(' + n + (m === 1 ? '' : '/' + m) + ')';
+      return Math.abs(F.v) < 1e-12 ? core : add(core, F.v);
+    }
+    if (R.type === 'exp') { const F = R.F, t = lin(F.d, F.a), L = 'log(' + t.replace(/^\((.*)\)$/, '$1') + ')'; return isE(F.b) ? L : L + '/log(' + N(F.b) + ')'; }
+    const t = lin(R.d, R.a), e = /^[x]$/.test(t) ? t : '(' + t + ')';
+    return add((R.e || isE(R.b) ? 'EC' : N(R.b)) + '^' + e, R.v);
+  }
+  function invOf(R) { const g = invOf0(R); g.rawOf = () => { try { return invRaw(R); } catch (e) { return null; } }; return g; }
+  function fOf0(R) {
     if (R.type === 'lin') return x => R.m * x + R.q;
     if (R.type === 'pow') return Pow.fOf(R.F);
     if (R.type === 'exp') return Expo.fOf(R.F);
     return x => (x > R.v ? R.a * Math.log(x - R.v) / Math.log(R.b) + R.d : NaN);
   }
-  function invOf(R) {
+  function invOf0(R) {
     if (R.type === 'lin') return y => (y - R.q) / R.m;
     if (R.type === 'pow') { const F = R.F; return y => F.v + Pow.pw((y - F.h) / F.a, F.n, F.m); }
     if (R.type === 'exp') { const F = R.F; return y => { const t = (y - F.d) / F.a; return t > 0 ? Math.log(t) / Math.log(F.b) : NaN; }; }

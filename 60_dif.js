@@ -124,11 +124,12 @@ const Dif = (function () {
   // Funktion aus Rohausdruck. null, falls ungültig oder nirgends definiert.
   function makeFn(raw) {
     let ast;
-    try { ast = miParseRaw(String(raw || '').trim()); } catch (e) { return null; }
+    // «ln» und «lg» in Rohsyntax erlauben (Rohsyntax kennt nur log = ln, log10)
+    try { ast = miParseRaw(String(raw || '').trim().replace(/\bln\s*\(/g, 'log(').replace(/\blg\s*\(/g, 'log10(')); } catch (e) { return null; }
     if (!ast) return null;
     let P = null; try { P = E.polyFromAst(ast, 'x'); } catch (e) { P = null; }
     const F = { raw: String(raw).trim(), ast, P, ders: [ast], fns: [] };
-    F.fns[0] = x => S.evalNum(ast, x);
+    F.fns[0] = x => S.evalNum(ast, x); F.fns[0].ast = ast;            // .ast: Term für den LaTeX-Export (pgfplots)
     // erlaubt nur den Ausdruck in x (keine freien Parameter)
     let ok = false;
     for (const x of [1, 2, 0.5, -1, 3, 0.1, -2, 0.7, 5]) { const v = F.fns[0](x); if (isFinite(v)) { ok = true; break; } }
@@ -145,7 +146,7 @@ const Dif = (function () {
       return F.ders[k];
     };
     F.f = k => {                                           // numerische Funktion der k-ten Ableitung
-      if (!F.fns[k]) { const a = F.deriv(k); if (!a) return () => NaN; F.fns[k] = x => S.evalNum(a, x); }
+      if (!F.fns[k]) { const a = F.deriv(k); if (!a) return () => NaN; F.fns[k] = x => S.evalNum(a, x); F.fns[k].ast = a; }
       return F.fns[k];
     };
     return F;

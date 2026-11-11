@@ -9,11 +9,11 @@
 
 const LIN_VIEWS = [['par', 'Steigung und y-Achsenabschnitt'], ['two', 'Gerade aufstellen'], ['sys', 'Schnitt zweier Geraden'], ['app', 'Anwendungen (Tarife, Bewegung)'], ['perp', 'Nullstelle, Senkrechte, Mittelsenkrechte']];
 const LIN_DESC = {
-  par: ['Eine lineare Funktion f(x) = m·x + q hat als Graph eine Gerade. Die Steigung m sagt, um wie viel y pro Schritt 1 nach rechts wächst (Steigungsdreieck), q ist der y-Achsenabschnitt.', 'Ziehe den violetten Punkt S, um q zu ändern, oder verändere m mit dem Regler. Die Wertetabelle zeigt, dass y bei jedem Schritt um m wächst.'],
-  two: ['Eine Gerade ist durch zwei Punkte oder durch einen Punkt und die Steigung festgelegt. Aus Δy und Δx folgt m, dann folgt q aus einem Punkt.', 'Ziehe die Punkte P und Q. Mit dem Punkt R kannst du die Parallele und die Senkrechte zur Geraden durch R zeigen.'],
-  sys: ['Der Schnittpunkt zweier Geraden löst beide Gleichungen gleichzeitig. Die Tabelle zeigt, wo die y-Werte von f und g übereinstimmen.', 'Ziehe die Punkte auf der y-Achse, um q1 und q2 zu ändern. Sind die Steigungen gleich, gibt es keinen Schnittpunkt (parallel) oder unendlich viele (identisch).'],
-  app: ['Zwei Modelle y = a + b·x werden verglichen: Preis oder Ort in Abhängigkeit von x. Der Schnittpunkt ist der Break-even bzw. der Treffpunkt.', 'Wähle ein Beispiel oder ändere die Zahlen. Ziehe den Punkt auf der x-Achse, um die Werte an einer Stelle zu vergleichen.'],
-  perp: ['Nullstelle: Wo schneidet die Gerade die x-Achse? Senkrechte: Die Steigung der Senkrechten ist −1/m, der Lotfusspunkt F ist der Fusspunkt des Lotes von P. Mittelsenkrechte: Alle Punkte mit gleichem Abstand zu A und B.', 'Ziehe die Punkte; bei der Nullstelle kannst du N entlang der x-Achse ziehen.']
+  par: ['Ziehe den {{Punkt S|q}} auf der y-Achse oder ändere m mit dem Regler: Die {{Gerade|g}} f(x) = m·x + q verschiebt oder dreht sich, und das {{Steigungsdreieck|tri,p}} zeigt, um wie viel y pro Schritt 1 nach rechts wächst.', 'Eine lineare Funktion f(x) = m·x + q hat als Graph eine Gerade. Die Steigung m sagt, um wie viel y pro Schritt 1 nach rechts wächst, q ist der y-Achsenabschnitt.'],
+  two: ['Ziehe die {{Punkte P und Q|P1,P2}}: Die {{Gerade|g}} durch beide wird neu berechnet, aus {{Δx und Δy|tri}} folgt die Steigung m. Mit {{R|R}} zeigst du die {{Parallele|par}} und die {{Senkrechte|perp}} durch R.', 'Eine Gerade ist durch zwei Punkte oder durch einen Punkt und die Steigung festgelegt. Aus Δy und Δx folgt m, dann folgt q aus einem Punkt.'],
+  sys: ['Ziehe die {{Punkte auf der y-Achse|y1,y2}}, um die Geraden {{f|g1}} und {{g|g2}} zu verschieben: Ihr Schnittpunkt löst beide Gleichungen gleichzeitig. Mit «▶ g drehen, bis sie parallel ist» läuft der Schnittpunkt davon: Bei gleicher Steigung gibt es keinen (oder unendlich viele) Schnittpunkte.', 'Der Schnittpunkt zweier Geraden löst beide Gleichungen gleichzeitig. Die Tabelle zeigt, wo die y-Werte von f und g übereinstimmen.'],
+  app: ['Wähle ein Beispiel und ziehe den {{Punkt auf der x-Achse|xv}}: Die beiden Modelle {{A|g1}} und {{B|g2}} werden an dieser Stelle verglichen. Ihr Schnittpunkt ist der Break-even bzw. der Treffpunkt.', 'Zwei Modelle y = a + b·x werden verglichen: Preis oder Ort in Abhängigkeit von x. Der Schnittpunkt ist der Break-even bzw. der Treffpunkt.'],
+  perp: ['Wähle die Aufgabe und ziehe die Punkte: bei der Nullstelle {{N|N}} auf der x-Achse, bei der Senkrechten den {{Punkt P|R}} (das {{Lot|lot}} trifft die {{Gerade|g}} im Fusspunkt F), bei der Mittelsenkrechten {{A|P1}} und {{B|P2}}.', 'Nullstelle: Wo schneidet die Gerade die x-Achse (N)? Senkrechte: Die Steigung der Senkrechten ist −1/m, der Lotfusspunkt F ist der Fusspunkt des Lotes von P. Mittelsenkrechte: Alle Punkte mit gleichem Abstand zu A und B.']
 };
 const LIN_EX = [['2*x+1', '2x + 1'], ['-x+3', '−x + 3'], ['0.5*x-2', '½x − 2'], ['-3/2*x+4', '−3/2·x + 4'], ['1/3*x-2/3', 'x/3 − 2/3'], ['x', 'x'], ['-2*x', '−2x'], ['3', '3']];
 const LIN_PAIRS = [['x+1', '-x+5'], ['2*x-1', '-0.5*x+4'], ['3*x', '-x+8'], ['0.5*x+2', '2*x-1'], ['2*x+1', '2*x-3'], ['x-2', 'x-2']];
@@ -93,6 +93,25 @@ function linSetPreset(i) {
 const linL = () => Lin.mk(LIN.m, LIN.q), linG = () => Lin.mk(LIN.m2, LIN.q2);
 
 // ── Rechenweg-Karte (teilt sich das Element #dif-card) ──
+// Sachverhalt der Anwendung (mit den aktuell eingestellten Zahlen)
+function linSituation() {
+  const p = linPre(), A = LIN.ap.A, B = LIN.ap.B, n = v => '$' + (p.kind === 'cost' && Math.abs(v - Math.round(v)) > 1e-9 && Math.abs(v * 100 - Math.round(v * 100)) < 1e-9 ? Math.abs(v).toFixed(2) : Dif.fmtT(Math.abs(v), 4)) + '$';   // Geldbeträge mit zwei Stellen (3.20 CHF)
+  const fee = (a, w) => (Math.abs(a) < 1e-12 ? 'keine ' + w : n(a) + ' CHF ' + w);
+  const dir = (b, unit) => n(b) + ' ' + unit + (b < 0 ? ' zurück in Richtung Ort 0' : '');
+  switch (p.id) {
+    case 'phone': return ['Zwei Handy-Abos im Vergleich. **Tarif A:** ' + fee(A.a, 'Grundgebühr') + ' pro Monat und ' + n(A.b) + ' CHF pro Gesprächsminute. **Tarif B:** ' + fee(B.a, 'Grundgebühr') + ' und ' + n(B.b) + ' CHF pro Minute. $x$ = Anzahl Minuten pro Monat, $A(x)$ und $B(x)$ = Monatskosten in CHF.',
+      'Bei wie vielen Minuten kosten beide Tarife gleich viel? Welcher Tarif ist für Wenig- und welcher für Vieltelefonierer günstiger?'];
+    case 'taxi': return ['Zwei Taxiunternehmen. **Taxi A:** ' + fee(A.a, 'Grundtaxe') + ' und ' + n(A.b) + ' CHF pro Kilometer. **Taxi B:** ' + fee(B.a, 'Grundtaxe') + ' und ' + n(B.b) + ' CHF pro Kilometer. $x$ = Fahrstrecke in km, $A(x)$ und $B(x)$ = Fahrpreis in CHF.',
+      'Bei welcher Fahrstrecke kosten beide gleich viel? Ab wann lohnt sich welches Taxi?'];
+    case 'gym': return ['Ein Fitnesscenter bietet zwei Abos an. **' + p.A.n + ':** ' + fee(A.a, 'einmalige Gebühr') + ' und ' + n(A.b) + ' CHF pro Monat. **' + p.B.n + ':** ' + fee(B.a, 'einmalige Gebühr') + ' und ' + n(B.b) + ' CHF pro Monat. $x$ = Anzahl Monate, $A(x)$ und $B(x)$ = Gesamtkosten in CHF.',
+      'Nach wie vielen Monaten sind beide Abos gleich teuer? Ab wann lohnt sich das ' + p.A.n + '?'];
+    case 'move': return ['Auf derselben Strasse: Ein **' + p.A.n + '** startet am Ort $' + Dif.fmtT(A.a, 4) + '$ km und fährt mit ' + dir(A.b, 'km/h') + '. Gleichzeitig startet ein **' + p.B.n + '** am Ort $' + Dif.fmtT(B.a, 4) + '$ km und fährt mit ' + dir(B.b, 'km/h') + '. $x$ = Zeit in Stunden, $A(x)$ und $B(x)$ = Ort in km.',
+      'Wann und wo treffen sich die beiden?'];
+    case 'chase': return ['Ein **' + p.B.n + '** startet am Ort $' + Dif.fmtT(B.a, 4) + '$ km und fährt mit ' + dir(B.b, 'km/h') + '. Gleichzeitig fährt ein **' + p.A.n + '** am Ort $' + Dif.fmtT(A.a, 4) + '$ km mit ' + dir(A.b, 'km/h') + ' in dieselbe Richtung los. $x$ = Zeit in Stunden, $A(x)$ und $B(x)$ = Ort in km.',
+      'Wann und wo holt der ' + p.A.n + ' das ' + p.B.n + ' ein?'];
+    default: return ['', ''];
+  }
+}
 function linCardDoc() {
   try {
     switch (LIN.view) {
@@ -106,7 +125,7 @@ function linCardDoc() {
         return { t: 'Rechenweg: Gerade aufstellen', d };
       }
       case 'sys': return { t: 'Rechenweg: Schnittpunkt', d: Lin.sysDoc(linL(), linG(), LIN.meth) };
-      case 'app': return { t: 'Rechenweg: ' + (linPre().kind === 'move' ? 'Treffpunkt' : 'Break-even'), d: Lin.appDoc(linAppObj(), linPre()) };
+      case 'app': { const S = linSituation(); return { t: 'Rechenweg: ' + (linPre().kind === 'move' ? 'Treffpunkt' : 'Break-even'), d: Dif.withSit(Lin.appDoc(linAppObj(), linPre()), S[0], S[1]) }; }
       case 'perp':
         if (LIN.pmode === 'zero') return { t: 'Rechenweg: Nullstelle', d: Lin.zeroDoc(linL()) };
         if (LIN.pmode === 'perp') return { t: 'Rechenweg: Senkrechte und Abstand', d: Lin.perpDoc(linL(), LIN.R[0], LIN.R[1]) };
@@ -251,7 +270,7 @@ function linRefreshUI() {
   const ui = LIN.ui; if (!ui) return;
   const v = LIN.view, sh = LIN.show;
   ui.sel.value = v;
-  const d = LIN_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[0]), Object.assign(difEl('div', null, d[1]), { style: 'margin-top:5px;' }));
+  const d = LIN_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[1])); if (typeof envHint === 'function') envHint('lin', d[0], () => LIN.S);   // Hinweis als Überschrift über dem Bild
   const frow = $dif('lin-f-row'), grow = $dif('lin-g-row'), fl = $dif('lin-f-label'), fh = $dif('lin-field-head');
   const showF = v === 'par' || v === 'sys' || (v === 'perp' && LIN.pmode !== 'mid');
   if (frow) frow.style.display = showF ? '' : 'none';
@@ -276,7 +295,7 @@ function linRefreshUI() {
     LIN.win = Object.assign({}, LIN_WIN0); const er = $dif('lin-err'); if (er) er.textContent = '';
     linSyncFields(); LIN.cardKey = ''; linRefreshUI(); difRedraw(); linCardSoon(); difCommit();
   };
-  ui.params.replaceChildren();
+  ui.params.replaceChildren(); ui.params._sync = [];   // Regler, die denselben Wert wie ein Zahlfeld zeigen, gleichen sich hier ab
   const P = ui.params;
   const redo = () => { linRefreshUI(); difRedraw(); linCardSoon(); difCommit(); };
   const check = (label, get, set) => {
@@ -298,9 +317,9 @@ function linRefreshUI() {
     o = o || {}; const row = difEl('div', 'settings-row'); row.style.gap = '6px';
     const lb = difEl('label', null, label), inp = difEl('input'); inp.type = 'text'; inp.inputMode = 'decimal'; inp.autocomplete = 'off'; inp.value = difFmtIn(get()); inp.style.cssText = 'flex:1;min-width:0;'; inp.setAttribute('translate', 'no');
     lb.setAttribute('translate', 'no');
-    const apply = () => { const x = difParseNum(inp.value); if (isFinite(x)) { set(linR6(x)); LIN.cardKey = ''; linSyncFields(); difRedraw(); linCardSoon(); difCommit(); } inp.value = difFmtIn(get()); };
+    const apply = () => { const x = difParseNum(inp.value); if (isFinite(x)) { set(linR6(x)); LIN.cardKey = ''; linSyncFields(); difRedraw(); linCardSoon(); difCommit(); } inp.value = difFmtIn(get()); (P._sync || []).forEach(f => f()); };
     inp.addEventListener('change', apply); inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
-    const nudge = s => difBtn(s > 0 ? '▶' : '◀', () => { const st = o.step || linStep(25); set(linR6(Math.round((get() + s * st) / st * 1e6) / 1e6 * st)); LIN.cardKey = ''; inp.value = difFmtIn(get()); linSyncFields(); difRedraw(); linCardSoon(); difCommit(); }, s > 0 ? 'Nach rechts' : 'Nach links');
+    const nudge = s => difBtn(s > 0 ? '▶' : '◀', () => { const st = o.step || linStep(25); set(linR6(Math.round((get() + s * st) / st * 1e6) / 1e6 * st)); LIN.cardKey = ''; inp.value = difFmtIn(get()); linSyncFields(); difRedraw(); linCardSoon(); difCommit(); (P._sync || []).forEach(f => f()); }, s > 0 ? 'Nach rechts' : 'Nach links');
     row.append(lb, nudge(-1), inp, nudge(1)); P.appendChild(row); return inp;
   };
   const slider = (label, get, set, min, max, step, fmt) => {
@@ -310,7 +329,11 @@ function linRefreshUI() {
     top.append(difEl('label', null, label), val);
     const sl = difEl('input'); sl.type = 'range'; sl.min = min; sl.max = max; sl.step = step; sl.value = get(); sl.style.width = '100%';
     sl.addEventListener('input', () => { LIN.anim = null; set(linR6(parseFloat(sl.value))); val.textContent = fmt(get()); LIN.cardKey = ''; difRedraw(); linCardSoon(); });
-    sl.addEventListener('change', () => { linRefreshUI(); linSyncFields(); difCommit(); });
+    P._sync.push(() => { sl.value = get(); val.textContent = fmt(get()); });
+    // Während des Ziehens bleibt der Ausschnitt stehen; danach passt er sich einmal ruhig an
+    const hold = () => { if (LIN.win.x0 === null) { LIN.win = linResolvedWin(); LIN._slAuto = true; } };
+    ['pointerdown', 'mousedown', 'touchstart'].forEach(ev => sl.addEventListener(ev, hold, { passive: true }));
+    sl.addEventListener('change', () => { if (LIN._slAuto) { LIN.win = Object.assign({}, LIN_WIN0); LIN._slAuto = false; } linRefreshUI(); linSyncFields(); difCommit(); difRedraw(); });
     wrap.append(top, sl); const r1 = difEl('div', 'settings-row'); r1.appendChild(wrap); P.appendChild(r1); return sl;
   };
   const group = txt => { const g = difEl('div', 'subpanel-label', txt); g.style.marginTop = '8px'; P.appendChild(g); };
@@ -347,6 +370,7 @@ function linRefreshUI() {
     group('Steigungen und Achsenabschnitte');
     numRow('m₁', () => LIN.m, x => { LIN.m = x; }, { step: 0.5 }); numRow('q₁', () => LIN.q, x => { LIN.q = x; }, { step: 0.5 });
     numRow('m₂', () => LIN.m2, x => { LIN.m2 = x; }, { step: 0.5 }); numRow('q₂', () => LIN.q2, x => { LIN.q2 = x; }, { step: 0.5 });
+    { const par = Math.abs(LIN.m2 - LIN.m) < 1e-9, ab = difEl('div'); ab.style.cssText = 'margin-top:6px;'; ab.append(difBtn(LIN.anim ? '⏸ Pause' : par ? '▶ g zurückdrehen' : '▶ g drehen, bis sie parallel ist', linAnimToggle)); P.appendChild(ab); }
   } else if (v === 'app') {
     const pre = linPre(), mv = pre.kind === 'move';
     group(pre.A.n + ' (A)');
@@ -373,9 +397,15 @@ function linRefreshUI() {
 
 // ── Animation: m läuft von −3 bis 3 (par) bzw. x läuft nach rechts (app) ──
 function linAnimToggle() {
-  if (LIN.anim) { LIN.anim = null; linRefreshUI(); difCommit(); return; }
+  if (LIN.anim) { if (LIN.anim.auto) LIN.win = Object.assign({}, LIN_WIN0); LIN.anim = null; linRefreshUI(); difRedraw(); difCommit(); return; }
   if (LIN.view === 'par') LIN.anim = { last: 0, t: Math.asin(Math.max(-1, Math.min(1, LIN.m / 3))) };
-  else { const w = linResolvedWin(); if (LIN.xv >= w.x1 - 1e-6) LIN.xv = 0; LIN.anim = { last: 0 }; }
+  else if (LIN.view === 'sys') {
+    // g dreht sich um ihren Punkt auf der y-Achse, bis sie parallel zu f ist: Der Schnittpunkt läuft davon. Zurück: zur früheren Steigung.
+    const par = Math.abs(LIN.m2 - LIN.m) < 1e-9, back = isFinite(LIN._sysM) && Math.abs(LIN._sysM - LIN.m) > 1e-9 ? LIN._sysM : LIN.m - 2;
+    if (!par) LIN._sysM = LIN.m2;
+    LIN.anim = { last: 0, sys: true, from: LIN.m2, to: par ? back : LIN.m, u: 0 };
+    if (LIN.win.x0 === null) { LIN.win = linResolvedWin(); LIN.anim.auto = true; }           // Ausschnitt bleibt stehen
+  } else { const w = linResolvedWin(); if (LIN.xv >= w.x1 - 1e-6) LIN.xv = 0; LIN.anim = { last: 0 }; }
   linRefreshUI(); requestAnimationFrame(linAnimFrame);
 }
 function linAnimFrame(ts) {
@@ -383,7 +413,12 @@ function linAnimFrame(ts) {
   if (!linActive()) { LIN.anim = null; return; }
   const dt = a.last ? Math.min(0.1, (ts - a.last) / 1000) : 0.016; a.last = ts;
   if (LIN.view === 'par') { a.t += dt * 0.9; LIN.m = linR6(Math.round(3 * Math.sin(a.t) * 20) / 20); }
-  else {
+  else if (a.sys) {
+    a.u = Math.min(1, a.u + dt / 5); const e = a.u * a.u * (3 - 2 * a.u);                   // weich an- und abfahren
+    LIN.m2 = a.u >= 1 ? a.to : linR6(Math.round((a.from + (a.to - a.from) * e) * 100) / 100);
+    if (a.u >= 1) { if (a.auto) LIN.win = Object.assign({}, LIN_WIN0); LIN.anim = null; LIN.cardKey = ''; linRefreshUI(); linSyncFields(); difRedraw(); linCardSoon(); difCommit(); return; }
+    linSyncFields();
+  } else {
     const w = linResolvedWin(); LIN.xv += (w.x1 - w.x0) * 0.15 * dt;
     if (LIN.xv >= w.x1) { LIN.xv = w.x1; LIN.anim = null; linRefreshUI(); difRedraw(); linCardSoon(); difCommit(); return; }
   }
@@ -414,7 +449,7 @@ function linAnimFrame(ts) {
   };
   const down = e => {
     if (!linActive()) return; e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault();
-    const S = LIN.S; if (!S) return; const p = pos(e); if (LIN.anim) { LIN.anim = null; linRefreshUI(); }
+    const S = LIN.S; if (!S) return; const p = pos(e); if (LIN.anim) { if (LIN.anim.auto) LIN.win = Object.assign({}, LIN_WIN0); LIN.anim = null; linRefreshUI(); }
     const q = near(p);
     if (q) { LIN.drag = { type: q.id }; if (LIN.win.x0 === null) { LIN.win = linResolvedWin(); LIN.drag.auto = true; } }   // Ausschnitt beim Ziehen festhalten
     else if (inMap(S.maps.main, p)) LIN.drag = { type: 'pan', px: p.x, py: p.y, w: linResolvedWin() };

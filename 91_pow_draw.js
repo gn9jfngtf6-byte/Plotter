@@ -40,7 +40,7 @@ function powWindow(C, r, need, o) {
   }
   return autoWin('pow', C.view + '|' + (o.key || '') + '|' + ratio.toFixed(2), T, need, C);
 }
-const powCurve = (S, m, F, o) => difCurve(S, m, Pow.fOf(F), Object.assign({ col: PW_F, lw: 2.6 }, o || {}));
+const powCurve = (S, m, F, o) => difCurve(S, m, Pow.fOf(F), Object.assign({ col: PW_F, lw: 2.6, hl: 'f' }, o || {}));
 const powMsg = (S, m, C, txt) => S.rich(m.L + (m.R - m.L) / 2, m.T + C.fs * 1.5, '\\text{' + txt + '}', { size: C.fs * 0.95, col: ST_R, al: 'c', bs: 'm' });
 const powCoord = (n, x, y) => n + '(' + linFmtS(x) + '\\,|\\,' + linFmtS(y) + ')';
 const powQ = q => Dif.E.qTex(q);
@@ -64,7 +64,7 @@ function powSceneFam(S, W, H, C) {
   const win = powWindow(C, R[0], need, { x: [-2.5, 2.5], y: [-3, 3], key: 'fam' });
   const m = difFrame(S, R[0], win, C, { title: '\\col{b}{f(x)=x^{' + n + '}}', xlab: 'x', ylab: 'y' });
   S.maps.main = m;
-  if (C.show.fam) [1, 2, 3, 4, 5, 6].forEach(k => { if (k !== n) difCurve(S, m, x => Math.pow(x, k), { col: 'M', lw: 1.1, a: 0.35, exp: C.exp }); });
+  if (C.show.fam) [1, 2, 3, 4, 5, 6].forEach(k => { if (k !== n) difCurve(S, m, difRaw(x => Math.pow(x, k), 'x^' + k), { col: 'M', lw: 1.1, a: 0.35, exp: C.exp }); });
   powCurve(S, m, F, { exp: C.exp });
   const nearP = x => Math.abs(xp - x) < 0.75 || (C.show.mirror && Math.abs(-xp - x) < 0.75);
   linPt(S, m, null, 1, 1, C, Object.assign({ fill: PW_R, r: 4.2 }, nearP(1) ? {} : { lab: '\\col{g}{(1\\,|\\,1)}', lines: [powDir(F, 1)], w: fs * 4 }));
@@ -105,7 +105,7 @@ function powSceneNeg(S, W, H, C) {
   const m = difFrame(S, R[0], win, C, { title: '\\col{b}{f(x)=x^{-' + n + '}=\\frac{1}{x^{' + n + '}}}', xlab: 'x', ylab: 'y' });
   S.maps.main = m;
   powAsym(S, m, F, win);
-  if (C.show.fam) [1, 2, 3, 4].forEach(k => { if (k !== n) difCurve(S, m, x => Math.pow(x, -k), { col: 'M', lw: 1.1, a: 0.35, exp: C.exp }); });
+  if (C.show.fam) [1, 2, 3, 4].forEach(k => { if (k !== n) difCurve(S, m, difRaw(x => Math.pow(x, -k), 'x^(-' + k + ')'), { col: 'M', lw: 1.1, a: 0.35, exp: C.exp }); });
   powCurve(S, m, F, { exp: C.exp });
   const nearP = x => Math.abs(xp - x) < 0.75 || (C.show.mirror && Math.abs(-xp - x) < 0.75);
   linPt(S, m, null, 1, 1, C, Object.assign({ fill: PW_R, r: 4.2 }, nearP(1) ? {} : { lab: '\\col{g}{(1\\,|\\,1)}', lines: [powDir(F, 1)], w: fs * 4 }));
@@ -144,11 +144,14 @@ function powSceneRoot(S, W, H, C) {
   const rootT = n === 2 ? '\\sqrt{x}' : '\\sqrt[' + n + ']{x}';
   const m = difFrame(S, R[0], win, C, { title: '\\col{g}{g(x)=' + rootT + '}\\ \\ \\col{b}{f(x)=x^{' + n + '}}', xlab: 'x', ylab: 'y' });
   S.maps.main = m;
-  if (C.show.diag) difLine(S, m, 0, 0, 1, { col: 'M', lw: 1.2, dash: true, a: 0.7 });
-  if (C.show.pow) difCurve(S, m, x => (even && x < 0 ? NaN : fP(x)), { col: PW_F, lw: 2.2, a: 0.9, exp: C.exp });
+  if (C.show.diag) difLine(S, m, 0, 0, 1, { hl: 'diag', col: 'M', lw: 1.2, dash: true, a: 0.7 });
+  if (C.show.pow) difCurve(S, m, difRaw(x => (even && x < 0 ? NaN : fP(x)), fP.rawOf()), { hl: 'pw', col: PW_F, lw: 2.2, a: 0.9, exp: C.exp });
   if (C.show.rat && mm !== 1) difCurve(S, m, Pow.fOf(G), { col: PW_Y, lw: 2.2, exp: C.exp });
-  difCurve(S, m, fR, { col: PW_R, lw: 2.8, exp: C.exp });
-  if (C.show.pow) {
+  const fl = typeof C.flip === 'number';                                    // Animation: xⁿ klappt um y = x und wird zur Wurzelfunktion
+  if (fl) difFlip(S, m, x => (even && x < 0 ? NaN : fP(x)), C.flip, { col: PW_R, lw: 2.8, a: 0.85 });
+  else difCurve(S, m, fR, { hl: 'rt', col: PW_R, lw: 2.8, exp: C.exp });
+  if (fl) { const s2 = (xp + yp) / 2, d2 = (xp - yp) / 2; difSeg(S, m, xp, yp, yp, xp, { col: PW_M, lw: 1.3, dash: true, a: 0.8 }); linPt(S, m, 'P', xp, yp, C, { fill: PW_F, r: 5.6 }); linPt(S, m, null, s2 + C.flip * d2, s2 - C.flip * d2, C, { fill: PW_R, r: 5.6 }); }
+  else if (C.show.pow) {
     difSeg(S, m, xp, yp, yp, xp, { col: PW_M, lw: 1.3, dash: true, a: 0.8 });
     linPt(S, m, 'P', xp, yp, C, { fill: PW_F, r: 5.6, lab: '\\col{b}{' + powCoord('P', xp, yp) + '}', lines: [powDir(P, xp), [1, 1]], w: fs * 8 });
     linPt(S, m, null, yp, xp, C, { fill: PW_R, r: 5.6, lab: '\\col{g}{' + powCoord("P'", yp, xp) + '}', lines: [powDir(Rt, yp), [1, 1]], w: fs * 8 });
@@ -178,10 +181,10 @@ function powSceneGen(S, W, H, C) {
   const m = difFrame(S, R[0], win, C, { title: stage, xlab: 'x', ylab: 'y' });
   S.maps.main = m;
   if (F.deg) { powCurve(S, m, F); powMsg(S, m, C, 'Für a = 0 ist f konstant.'); return; }
-  difCurve(S, m, Pow.fOf(Pow.base(F.m, F.n)), { col: 'M', lw: 1.5, dash: true, a: 0.7, exp: C.exp });
+  difCurve(S, m, Pow.fOf(Pow.base(F.m, F.n)), { hl: 'base', col: 'M', lw: 1.5, dash: true, a: 0.7, exp: C.exp });
   if (t < 1) powCurve(S, m, F, { lw: 1.4, dash: true, a: 0.45, col: PW_M, exp: C.exp });
   powAsym(S, m, G, win);
-  difCurve(S, m, g, { col: PW_F, lw: 2.8, exp: C.exp });
+  difCurve(S, m, g, { hl: 'f', col: PW_F, lw: 2.8, exp: C.exp });
   if (u2 > 0 && F.v !== 0) difSeg(S, m, 0, 0, xv, 0, { col: ST_B, lw: 2.4 });
   if (u3 > 0 && F.h !== 0) difSeg(S, m, xv, 0, xv, yv, { col: ST_G, lw: 2.4 });
   // Streckfaktor: 1 nach rechts, a nach oben (vom Punkt (v|h) aus)
@@ -210,7 +213,7 @@ function powSceneEq(S, W, H, C) {
   if (F.deg) { powCurve(S, m, F); powMsg(S, m, C, 'Für a = 0 ist f konstant.'); return; }
   powAsym(S, m, F, win);
   powCurve(S, m, F, { exp: C.exp });
-  difLine(S, m, 0, y0, 0, { col: PW_Y, lw: 2.2 });
+  difLine(S, m, 0, y0, 0, { hl: 'yl', col: PW_Y, lw: 2.2 });
   linPt(S, m, 'Y', win.x0 + (win.x1 - win.x0) * 0.08, y0, C, { fill: PW_Y, r: 5.2, lab: '\\col{o}{y=' + linFmt(y0) + '}', dy: -fs * 1.4, dx: fs * 1.5, w: fs * 5 });
   Rs.sols.forEach((s, i) => {
     difSeg(S, m, s.x, 0, s.x, y0, { col: PW_R, lw: 1.3, dash: true, a: 0.8 });

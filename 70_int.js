@@ -53,7 +53,7 @@ const Int = (function () {
   }
   const antiPoly = F => { anti(F); return F && F.P ? F._PI : null; };
   // Stammfunktion numerisch (nur wo sie existiert), sonst null
-  function antiNum(F) { const A = anti(F); return A ? (x => S.evalNum(A, x)) : null; }
+  function antiNum(F) { const A = anti(F); if (!A) return null; const g = x => S.evalNum(A, x); g.ast = A; return g; }
 
   // ───────────────────── numerische Integration ─────────────────────
   function simpson(f, a, b, N) {

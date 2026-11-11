@@ -126,6 +126,9 @@ function daCollectConstraints(node, out) {
         if (ev < 0)
           out.push({ kind: 'ne0', expr: miToRaw(node.a, 0) });
       }
+      // Variabler Exponent mit variabler Basis (x^x, x^(1/x)): wie üblich nur für Basis > 0 definiert
+      const hasX = n => !!n && typeof n === 'object' && (n.type === 'id' ? n.v === 'x' : Object.keys(n).some(k => { const v = n[k]; return Array.isArray(v) ? v.some(hasX) : (v && typeof v === 'object' && hasX(v)); }));
+      if (ev == null && hasX(node.b) && hasX(node.a)) out.push({ kind: 'gt0', expr: miToRaw(node.a, 0) });
       // Sonst (Exponent hängt von x ab, oder ist ein unbekannter Bezeichner):
       // nicht statisch entscheidbar — wird vom numerischen Sicherheitsnetz
       // (daSafetyNetGaps) aufgefangen.
@@ -152,6 +155,10 @@ function daCollectConstraints(node, out) {
       }
       if (node.name === 'tan' && a0 != null)
         out.push({ kind: 'cos_ne0', expr: a0 });
+      if ((node.name === 'asin' || node.name === 'acos') && a0 != null) {     // −1 ≤ Argument ≤ 1 (Ränder eingeschlossen)
+        out.push({ kind: 'ge0', expr: '1-(' + a0 + ')' });
+        out.push({ kind: 'ge0', expr: '(' + a0 + ')+1' });
+      }
       return;
     }
     default:
@@ -179,7 +186,10 @@ function daBisectZero(f, a, b, fa) {
 function daFindZeros(f, lo, hi, steps) {
   const zeros = [];
   const dx = (hi - lo) / steps;
-  let prevX = lo, prevY = f(lo);
+  let prevX = lo, prevY = f(lo), ppY = NaN;
+  // «Nahe null» zählt nur, wenn |f| dort ein lokales Minimum hat (Berührstelle wie (x−1)²) — sonst wäre
+  // z.B. e^x (für x < −21 kleiner als 10⁻⁹) eine ganze Reihe von «Nullstellen» (x²/e^x: D = ℝ \ {…}).
+  const dip = (p0, p1, p2) => (isNaN(p0) || Math.abs(p0) > Math.abs(p1)) && (isNaN(p2) || Math.abs(p2) > Math.abs(p1));
   for (let i = 1; i <= steps; i++) {
     const x = lo + i * dx;
     const y = f(x);
@@ -190,13 +200,13 @@ function daFindZeros(f, lo, hi, steps) {
     // 0 bei x=1, für x>1 sofort NaN — kein Vorzeichenwechsel, nur "→0→NaN"), je nach
     // Abtastrichtung übersehen. Der Vorzeichenwechsel-Test bleibt weiterhin an
     // beide endlichen Werte gebunden.
-    if (!isNaN(prevY) && Math.abs(prevY) < DA_EPS) zeros.push(prevX);
+    if (!isNaN(prevY) && Math.abs(prevY) < DA_EPS && dip(ppY, prevY, y)) zeros.push(prevX);
     else if (!isNaN(prevY) && !isNaN(y) && (prevY < 0) !== (y < 0)) zeros.push(daBisectZero(f, prevX, x, prevY));
-    prevX = x; prevY = y;
+    ppY = prevY; prevX = x; prevY = y;
   }
   // Letzten abgetasteten Punkt (x=hi) ebenfalls prüfen — er wird im Loop oben nie
   // als "prevY" behandelt.
-  if (!isNaN(prevY) && Math.abs(prevY) < DA_EPS) zeros.push(prevX);
+  if (!isNaN(prevY) && Math.abs(prevY) < DA_EPS && dip(ppY, prevY, NaN)) zeros.push(prevX);
   return zeros;
 }
 
@@ -317,8 +327,16 @@ function computeDomain(expr) {
   // symbolisch erfasste NaN-Bereiche zu ergänzen (z.B. x^(1/x), variable Exponenten).
   // Schmale Treffer (< DA_MIN_GAP_WIDTH) werden als Punkte, breite als Intervalle geführt.
   daSafetyNetGaps(expr).forEach(([a, b]) => {
-    if (b - a < DA_MIN_GAP_WIDTH) pointExclusions.push((a + b) / 2);
-    else intervalExclusions.push([a, b]);
+    if (b - a < DA_MIN_GAP_WIDTH) { pointExclusions.push((a + b) / 2); return; }
+    // Jenseits von |x| ≈ 709 läuft e^x über (Infinity/Infinity = NaN bei e^x/(1+e^x), tanh …): kein echter Rand
+    if (a >= 700 || b <= -700) return;
+    // Reicht die Lücke bis an den Rand des Suchfensters und bleibt die Funktion auch weit draussen
+    // undefiniert, so ist sie unbeschränkt (sonst stünde z.B. bei einer unbekannten Funktion «ℝ \ (1, 1500)»).
+    const nanFar = sg => [1e4 + 0.37, 1e6 + 0.37].every(t => isNaN(safeEval(expr, sg * t)));   // nicht ganzzahlig (x^x ist bei −10000 zufällig definiert)
+    const closedAt = e => !isNaN(safeEval(expr, daSnap(e)));
+    if (a <= DA_LO + 1e-9 && nanFar(-1)) { a = -Infinity; boundaryStrict.push({ edge: daSnap(b), strict: !closedAt(b) }); }
+    if (b >= DA_HI - 1e-9 && nanFar(1)) { b = Infinity; boundaryStrict.push({ edge: daSnap(a), strict: !closedAt(a) }); }
+    intervalExclusions.push([a, b]);
   });
 
   const mergedIv = daMergeIntervals(intervalExclusions.filter(([a, b]) => isFinite(a) || isFinite(b) || a === -Infinity || b === Infinity));
@@ -328,6 +346,7 @@ function computeDomain(expr) {
   mergedIv.forEach(([a, b]) => {
     if (a === -Infinity) { domainMin = isFinite(b) ? b : domainMin; return; }
     if (b === Infinity) { domainMax = isFinite(a) ? a : domainMax; return; }
+    if (b - a < DA_MIN_GAP_WIDTH) { pointExclusions.push((a + b) / 2); return; }   // z.B. ln|x|: nur x = 0 fehlt
     gaps.push({ lo: a, hi: b });
   });
 
@@ -349,7 +368,8 @@ function computeDomain(expr) {
   const excluded = [...new Set(pointExclusions.filter(x => !isStrictlyInsideExclusion(x)).map(daSnap))]
     .sort((a, b) => a - b);
 
-  const gapsOut = gaps.map(g => ({ lo: daSnap(g.lo), hi: daSnap(g.hi) })).sort((a, b) => a.lo - b.lo);
+  // loIn/hiIn: gehört der Rand der Lücke noch zum Definitionsbereich? (√(x²−4): ±2 ja → ℝ \ (−2, 2); ln(x²−1): ±1 nein → ℝ \ [−1, 1])
+  const gapsOut = gaps.map(g => { const lo = daSnap(g.lo), hi = daSnap(g.hi); return { lo, hi, loIn: isFinite(safeEval(expr, lo)), hiIn: isFinite(safeEval(expr, hi)) }; }).sort((a, b) => a.lo - b.lo);
 
   return {
     domainMin: domainMin != null ? daSnap(domainMin) : null,
@@ -414,7 +434,7 @@ function daDomainPieces(domainMin, domainMax, excluded, gaps, domainMinOpen, dom
   // Alle "Schnitte" (Punkte UND Lücken) sortiert sammeln
   const cuts = [];
   (excluded || []).forEach(p => cuts.push({ at: p, width: 0 }));
-  (gaps || []).forEach(g => cuts.push({ at: (g.lo + g.hi) / 2, width: g.hi - g.lo, lo: g.lo, hi: g.hi }));
+  (gaps || []).forEach(g => cuts.push({ at: (g.lo + g.hi) / 2, width: g.hi - g.lo, lo: g.lo, hi: g.hi, loIn: !!g.loIn, hiIn: !!g.hiIn }));
   cuts.sort((a, b) => a.at - b.at);
 
   const pieces = [];
@@ -432,8 +452,8 @@ function daDomainPieces(domainMin, domainMax, excluded, gaps, domainMinOpen, dom
       pieces.push({ lo: curLo, hi: c.at, loOpen: curLoOpen, hiOpen: true });
       curLo = c.at; curLoOpen = true;
     } else {
-      pieces.push({ lo: curLo, hi: c.lo, loOpen: curLoOpen, hiOpen: true });
-      curLo = c.hi; curLoOpen = true;
+      pieces.push({ lo: curLo, hi: c.lo, loOpen: curLoOpen, hiOpen: !c.loIn });
+      curLo = c.hi; curLoOpen = !c.hiIn;
     }
   });
   pieces.push({ lo: curLo, hi: hi0, loOpen: curLoOpen, hiOpen: domainMax != null ? !!domainMaxOpen : true });
@@ -445,7 +465,7 @@ function daDomainPieces(domainMin, domainMax, excluded, gaps, domainMinOpen, dom
 // dir=+1 bedeutet "von rechts nähern" also x0 ist die LINKE Grenze, dir=-1
 // bedeutet "von links nähern" also x0 ist die RECHTE Grenze).
 // Gibt {kind:'value',v} | {kind:'inf',sign} | {kind:'unknown'} zurück.
-function daBoundaryLimit(expr, x0, dir) {
+function daBoundaryLimit(expr, x0, dir, open) {
   if (!isFinite(x0)) {
     // Verhalten im Unendlichen: Trend über mehrere weit auseinanderliegende Punkte.
     // WICHTIG: welche Seite (x→+∞ oder x→-∞) wir untersuchen, entscheidet sich
@@ -457,6 +477,16 @@ function daBoundaryLimit(expr, x0, dir) {
     // wird) systematisch die falsche Seite ausgewertet.
     const xs = x0 < 0 ? [-1e4, -1e6, -1e8] : [1e4, 1e6, 1e8];
     const ys = xs.map(x => safeEval(expr, x));
+    // Weit draussen nur NaN, weil Zwischenwerte überlaufen (e^x/(1+e^x) = Infinity/Infinity): näher am Ursprung
+    // nachsehen — ist die Funktion dort schon (bis auf Rundung) konstant, ist das der Grenzwert.
+    if (ys.some(isNaN) && !ys.some(v => v === Infinity || v === -Infinity)) {
+      const ms = (x0 < 0 ? [-40, -150, -600] : [40, 150, 600]).map(x => safeEval(expr, x));
+      if (ms.every(isFinite) && Math.abs(ms[2] - ms[1]) <= 1e-12 * Math.max(1, Math.abs(ms[2])) && Math.abs(ms[1] - ms[0]) <= 1e-9 * Math.max(1, Math.abs(ms[2]))) {
+        const tolA = 1e-12 * Math.max(1, Math.abs(ms[2]));
+        const achieved = [3, 10].every(t => { const yy = safeEval(expr, x0 < 0 ? -t : t); return isFinite(yy) && Math.abs(yy - ms[2]) <= tolA; });
+        return { kind: 'value', v: ms[2], achieved };
+      }
+    }
     // Läuft ein Sondierungswert bereits in echtes ±Infinity über (z.B. exp(1e6)),
     // ist das selbst ein eindeutiges, sogar stärkeres Unbeschränktheits-Signal —
     // nicht erst als "unknown" verwerfen.
@@ -494,7 +524,7 @@ function daBoundaryLimit(expr, x0, dir) {
         const denom = ys[2] - 2 * ys[1] + ys[0];
         const d21 = ys[2] - ys[1];
         const extrapolated = Math.abs(denom) > 1e-300 ? ys[2] - (d21 * d21) / denom : ys[2];
-        const limV = isFinite(extrapolated) ? extrapolated : ys[2];
+        let limV = isFinite(extrapolated) ? extrapolated : ys[2];
         // Konvergiert -> horizontale Asymptote. Zusätzlich prüfen, ob der
         // Grenzwert bereits an einer MODERATEN (nicht extremen) Stelle praktisch
         // exakt erreicht wird — dann handelt es sich nicht um ein blosses,
@@ -524,9 +554,21 @@ function daBoundaryLimit(expr, x0, dir) {
         const floor = 1e-6 * Math.max(1, Math.abs(limV));
         const plausible = isFinite(farY) && Math.abs(farY - limV) <= Math.max(distNear, floor) * 1.05 + floor;
         if (!plausible) return { kind: 'unknown' };
-        const nearX = x0 < 0 ? -10 : 10;
-        const nearY = safeEval(expr, nearX);
-        const achieved = isFinite(nearY) && Math.abs(nearY - limV) < 1e-6 * Math.max(1, Math.abs(limV));
+        // Zweite Schätzung mit quadrierten Abständen (10⁴, 10⁸, 10¹⁶): erfasst auch logarithmisch langsame
+        // Konvergenz (1/ln x → 0), bei der die erste Schätzung bei ≈ 0,04 hängen bleibt. Nur bei streng
+        // monotonem Verlauf (sonst könnte eine Schwingung wie sin(2x) zufällig so aussehen).
+        const zs = (x0 < 0 ? [-1e4, -1e8, -1e16] : [1e4, 1e8, 1e16]).map(x => safeEval(expr, x));
+        const seqM = [ys[0], ys[1], ys[2], zs[2]], up = seqM.every((v, i) => i === 0 || v > seqM[i - 1]), dn = seqM.every((v, i) => i === 0 || v < seqM[i - 1]);
+        if (zs.every(isFinite) && (up || dn)) {
+          const den2 = zs[2] - 2 * zs[1] + zs[0], d2 = zs[2] - zs[1];
+          const lim2 = Math.abs(den2) > 1e-300 ? zs[2] - (d2 * d2) / den2 : zs[2];
+          // f(10¹⁶) liegt schon jenseits der ersten Schätzung → diese war falsch (zu langsame Konvergenz)
+          if (isFinite(lim2) && (up ? zs[2] > limV + 1e-9 : zs[2] < limV - 1e-9)) limV = lim2;
+        }
+        // Erreicht nur, wenn die Funktion schon an moderaten Stellen GENAU den Grenzwert hat (konstanter Strahl
+        // wie abs(x)/x) — e^(−x²) ist bei x = 10 zwar winzig (≈ 4·10⁻⁴⁴), aber nicht 0.
+        const tolA = 1e-12 * Math.max(1, Math.abs(limV));
+        const achieved = [3, 10].every(t => { const yy = safeEval(expr, x0 < 0 ? -t : t); return isFinite(yy) && Math.abs(yy - limV) <= tolA; });
         return { kind: 'value', v: limV, achieved };
       }
       if (ys[2] > ys[1] + 0.5 && ys[1] > ys[0] + 0.5) return { kind: 'inf', sign: 1 };
@@ -542,7 +584,27 @@ function daBoundaryLimit(expr, x0, dir) {
   // Randwert, sondern eine Asymptote. Ab einer Grössenordnung, die für einen
   // Schulplotter ohnehin nicht mehr sinnvoll "erreicht" ist, wird das als
   // Unbeschränktheit statt als echter Wert gewertet.
-  const direct = safeEval(expr, x0);
+  // Offener Rand (Polstelle, Lücke): NICHT direkt auswerten. Die Stelle ist auf 6 Nachkommastellen gerundet
+  // (3.141593 statt π) und liegt darum oft knapp auf der falschen Seite — f(x0) hätte dann das falsche
+  // Vorzeichen (1/sin x) oder wäre ein scheinbar «erreichter» endlicher Wert. Von innen her annähern,
+  // aber nicht näher als der Rundungsfehler (5·10⁻⁷).
+  if (open) {
+    const ysO = [1e-2, 1e-3, 1e-4, 3e-5, 1e-5, 5e-6].map(e => safeEval(expr, x0 + dir * e));   // absolut: die Rundung ist absolut, und bei x0 = 100π wäre 0,01·x0 schon über der nächsten Polstelle
+    const lastO = ysO[ysO.length - 1];
+    if (lastO === Infinity) return { kind: 'inf', sign: 1 };
+    if (lastO === -Infinity) return { kind: 'inf', sign: -1 };
+    const fy = ysO.filter(isFinite);
+    if (fy.length >= 2) {
+      const l = fy[fy.length - 1], pv = fy[fy.length - 2], f0 = fy[0];
+      // Konvergenz: Differenzen schrumpfen ungefähr linear mit dem Abstand (stetig fortsetzbar)
+      if (Math.abs(l - pv) < 2e-4 * Math.max(1, Math.abs(l))) return { kind: 'value', v: l };
+      if (Math.abs(l) > 1e3 && Math.abs(l) > Math.abs(pv)) return { kind: 'inf', sign: l > 0 ? 1 : -1 };
+      if (l > pv && l - f0 > 1e-9 && Math.abs(l) > 50) return { kind: 'inf', sign: 1 };
+      if (l < pv && l - f0 < -1e-9 && Math.abs(l) > 50) return { kind: 'inf', sign: -1 };
+    }
+    // sonst wie bisher weiter unten (feinere Annäherung)
+  }
+  const direct0 = safeEval(expr, x0), direct = open && Math.abs(direct0) > 1e6 ? NaN : direct0;   // offen: nur ein harmloser Wert zählt (1/ln x bei 0 → −0)
   if (isFinite(direct)) {
     if (Math.abs(direct) > 1e6) {
       // Ein Bisektions-Artefakt einer echten (aber nur numerisch angenäherten)
@@ -560,7 +622,12 @@ function daBoundaryLimit(expr, x0, dir) {
       const step = Math.max(Math.abs(x0), 1) * 1e-6;
       const near = safeEval(expr, x0 + dir * step);
       const stable = isFinite(near) && Math.abs(near) > Math.abs(direct) * 0.5 && Math.abs(near) < Math.abs(direct) * 2;
-      if (!stable) return { kind: 'inf', sign: direct > 0 ? 1 : -1 };
+      if (!stable) {
+        // Vorzeichen von INNEN bestimmen: die angenäherte Polstelle x0 kann knapp auf der falschen Seite liegen
+        // (1/sin x bei x0 ≈ kπ), dann hätte f(x0) das falsche Vorzeichen.
+        const inner = safeEval(expr, x0 + dir * 2e-6);
+        return { kind: 'inf', sign: (isFinite(inner) && Math.abs(inner) > 1e3 ? inner : direct) > 0 ? 1 : -1 };
+      }
     }
     return { kind: 'value', v: direct, achieved: true };
   }
@@ -580,8 +647,11 @@ function daBoundaryLimit(expr, x0, dir) {
   // erkennt auch langsames (z.B. logarithmisches) Wachstum zuverlässig, ohne sich
   // auf einen fixen Betrags-Schwellwert zu verlassen (der bei log(x) o.ä. erst
   // viel zu spät bzw. nie erreicht würde).
-  if (last > prev && last - first > 1e-9) return { kind: 'inf', sign: 1 };
-  if (last < prev && last - first < -1e-9) return { kind: 'inf', sign: -1 };
+  // (über die GANZE Folge monoton — sin(1/x) bei 0 springt zufällig hin und her und ist nicht divergent)
+  const incr = ys.every((v, i) => i === 0 || v >= ys[i - 1]), decr = ys.every((v, i) => i === 0 || v <= ys[i - 1]);
+  if (incr && last > prev && last - first > 1e-9) return { kind: 'inf', sign: 1 };
+  if (decr && last < prev && last - first < -1e-9) return { kind: 'inf', sign: -1 };
+  if (!incr && !decr) return { kind: 'unknown' };
   // Grosse, noch wachsende Werte ohne klar monotonen Trend: konservativ als
   // Divergenz werten statt als (falschen) erreichten Randwert.
   if (Math.abs(last) > 1e3) return { kind: 'inf', sign: last > 0 ? 1 : -1 };
@@ -590,14 +660,43 @@ function daBoundaryLimit(expr, x0, dir) {
 
 // Findet kritische Punkte (f'=0) im offenen Intervall (lo,hi) über Vorzeichenwechsel
 // der numerischen Ableitung — deutlich präziser als reines Raster-Sampling.
+// Stützstellen für ein Teilstück: gleichmässig über das ganze Stück und zusätzlich dicht im
+// Schulbereich |x| ≤ 60 (sonst liegen bei unbeschränkten Stücken bis zu 6,7 Einheiten zwischen
+// zwei Punkten, und eng beieinanderliegende Extrema wie bei x⁴ − 2x² gehen verloren).
+function daSampleXs(lo, hi) {
+  const L = isFinite(lo) ? lo : -1e4, H = isFinite(hi) ? hi : 1e4, span = H - L;
+  if (!(span > 0)) return [];
+  const xs = [], n = Math.min(3000, Math.max(300, Math.round(span * 15)));
+  for (let i = 0; i <= n; i++) xs.push(L + span * i / n);
+  const a = Math.max(L, -60), b = Math.min(H, 60);
+  if (b > a && (b - a) / n * 1.0001 < span / n) { const m = Math.min(3000, Math.max(300, Math.round((b - a) * 25))); for (let i = 0; i <= m; i++) xs.push(a + (b - a) * i / m); }
+  xs.sort((p, q) => p - q);
+  return xs.filter((x, i) => i === 0 || x - xs[i - 1] > 1e-12 * Math.max(1, Math.abs(x)));
+}
 function daCriticalPoints(expr, lo, hi) {
   const L = isFinite(lo) ? lo : -1e4, H = isFinite(hi) ? hi : 1e4;
   const span = H - L;
   if (!(span > 0)) return [];
-  const steps = Math.min(4000, Math.max(400, Math.round(span * 20)));
   const f = x => deriv1(expr, x);
-  const pts = daFindZeros(f, L + span * 1e-6, H - span * 1e-6, steps);
-  return pts.filter(x => isFinite(safeEval(expr, x)));
+  // Nur echte Vorzeichenwechsel von f′: ein bloss winziges f′ (z.B. 2^(1/x) kurz vor 0, wo alles
+  // gegen 0 unterläuft) ist kein Extremum und darf keinen «erreichten» Wert liefern.
+  const m0 = Math.min(span * 0.01, Math.max(span * 1e-6, 2e-6));          // Abstand zu den (auf 10⁻⁶ gerundeten) Rändern
+  const xs = daSampleXs(L + m0, H - m0), pts = [];
+  let px = xs[0], py = f(px);
+  for (let i = 1; i < xs.length; i++) {
+    const x = xs[i], y = f(x);
+    if (isFinite(py) && isFinite(y) && py !== 0 && y !== 0 && (py < 0) !== (y < 0)) pts.push(daBisectZero(f, px, x, py));
+    else if (y === 0 && isFinite(py) && py !== 0 && i + 1 < xs.length) { const y2 = f(xs[i + 1]); if (isFinite(y2) && y2 !== 0 && (py < 0) !== (y2 < 0)) pts.push(x); }
+    px = x; py = y;
+  }
+  // Echtes Extremum? Beide Nachbarn müssen merklich darüber (Minimum) bzw. darunter (Maximum) liegen —
+  // sonst ist es nur Rundungsrauschen von f′ in einem flachen Unterlauf-Bereich (3^x − 5 weit links).
+  return pts.filter(x => {
+    const y = safeEval(expr, x); if (!isFinite(y)) return false;
+    const d = Math.min(1e-3 * Math.max(1, Math.abs(x)), 0.25 * Math.min(x - L, H - x)), a = safeEval(expr, x - d), c = safeEval(expr, x + d), t = 1e-13 * Math.max(1, Math.abs(y));
+    if (!isFinite(a) || !isFinite(c)) return true;
+    return (a - y > t && c - y > t) || (y - a > t && y - c > t);
+  });
 }
 
 // Berechnet die Wertemenge eines Rohausdrucks über dem (bereits bekannten)
@@ -605,113 +704,131 @@ function daCriticalPoints(expr, lo, hi) {
 // gleiche Form wie zuvor detectRange(), damit _updateRangeSpan() unverändert
 // weiterfunktioniert.
 function computeRange(expr, domainMin, domainMax, excluded, gaps, domainMinOpen, domainMaxOpen) {
-  if (!expr || !expr.trim()) return { rangeMin: null, rangeMax: null, rangeExcluded: [] };
+  const EMPTY = { rangeMin: null, rangeMax: null, rangeExcluded: [], rangeParts: [] };
+  if (!expr || !expr.trim()) return EMPTY;
 
   const pieces = daDomainPieces(domainMin, domainMax, excluded, gaps, domainMinOpen, domainMaxOpen);
-  if (!pieces.length) return { rangeMin: null, rangeMax: null, rangeExcluded: [] };
+  if (!pieces.length) return EMPTY;
 
-  // min/max werden als {v, achieved} getrackt: achieved=true → Wert wird von
-  // einem echten x im Definitionsbereich angenommen (Minimum/Maximum im
-  // strengen Sinn); achieved=false → nur Infimum/Supremum (offener Rand /
-  // Asymptote, wird beim Anzeigen als offene Klammer + Ausschluss geführt).
-  let minC = { v: Infinity, achieved: false };
-  let maxC = { v: -Infinity, achieved: false };
-  let unboundedBelow = false, unboundedAbove = false;
-  const openValuesSeen = []; // Werte, die NUR als offener Grenzwert auftraten (mögliche Lücken)
-
-  function considerMin(v, achieved) {
-    if (v < minC.v - 1e-9) minC = { v, achieved };
-    else if (Math.abs(v - minC.v) <= 1e-9 && achieved && !minC.achieved) minC = { v, achieved };
-  }
-  function considerMax(v, achieved) {
-    if (v > maxC.v + 1e-9) maxC = { v, achieved };
-    else if (Math.abs(v - maxC.v) <= 1e-9 && achieved && !maxC.achieved) maxC = { v, achieved };
-  }
-  // Variante für Randauswertungen bei x0=±∞: daBoundaryLimit hat "erreicht" dort
-  // bereits selbst über einen direkten Stichprobenpunkt an moderater Stelle
-  // geprüft (siehe dort) — das ist zuverlässiger als ein Gleitkomma-Artefakt aus
-  // dem groben Innen-Raster (z.B. exp(x) unterläuft für x<~-745 exakt zu 0.0,
-  // obwohl der Grenzwert 0 nie wirklich erreicht wird). Bei GLEICHSTAND mit einem
-  // bereits als "erreicht" markierten Raster-Kandidaten gewinnt daher hier die
-  // Randauswertung, statt nur zu einem "erreicht" hochzustufen.
-  function considerMinInf(v, achieved) {
-    if (v < minC.v - 1e-9) minC = { v, achieved };
-    else if (Math.abs(v - minC.v) <= 1e-9) minC = { v: minC.v, achieved };
-  }
-  function considerMaxInf(v, achieved) {
-    if (v > maxC.v + 1e-9) maxC = { v, achieved };
-    else if (Math.abs(v - maxC.v) <= 1e-9) maxC = { v: maxC.v, achieved };
-  }
-
+  // Auf jedem zusammenhängenden Teilstück ist die (stetige) Funktion ein Intervall
+  // [inf, sup] (Ränder offen oder geschlossen). Die Wertemenge ist die VEREINIGUNG
+  // dieser Intervalle — so werden auch echte Lücken wie bei x + 1/x
+  // ((−∞, −2] ∪ [2, ∞)) oder 1/(x² − 4) richtig erkannt, und ein Grenzwert, der
+  // anderswo doch angenommen wird (x/(x² + 1) → 0, aber f(0) = 0), gilt nicht als Lücke.
+  // min/max werden als {v, achieved, src} getrackt: achieved=true → Wert wird von
+  // einem echten x angenommen; src 'crit' = echtes lokales Extremum (Vorzeichenwechsel von f′).
+  const parts = [];
+  // Viele Polstellen (1/sin x, tan x …): Die Suche nach Polstellen reicht nur bis ±1500. Die beiden äussersten,
+  // scheinbar unbeschränkten Stücke enthalten in Wahrheit weitere Polstellen und würden ℝ vortäuschen —
+  // die Funktion wiederholt sich dort, also genügen die inneren Stücke.
+  const manyPoles = (excluded || []).length > 20 && pieces.length > 3;
   pieces.forEach(p => {
-    // Direkte Stichproben im Inneren (grobes Raster) als Basis — alle im
-    // offenen Intervall ausgewerteten Punkte sind per Definition "erreicht".
-    const L = isFinite(p.lo) ? p.lo : -1e4, H = isFinite(p.hi) ? p.hi : 1e4;
-    const span = Math.max(H - L, 1e-6);
-    const steps = Math.min(3000, Math.max(300, Math.round(span * 15)));
-    for (let i = 0; i <= steps; i++) {
-      // Exakt am RAND des Teilstücks nicht mitsampeln, wenn dieser Rand offen
-      // ist (ausgeschlossen) — sonst kann JS-Arithmetik mit ±Infinity dort
-      // einen scheinbar wohldefinierten endlichen Wert liefern (z.B.
-      // 1/(log(x²−4)²+1) wird bei x=2 exakt zu 1/(Infinity+1)=0), der dann
-      // fälschlich als "erreicht" gälte, obwohl x=2 mathematisch gar nicht
-      // zum Definitionsbereich gehört. Die eigentliche Rand-/Grenzwert-
-      // Bestimmung (inkl. korrekter achieved-Zuordnung) übernimmt weiter
-      // unten ausschliesslich der "Ränder auswerten"-Block.
+    if (manyPoles && (!isFinite(p.lo) || !isFinite(p.hi))) return;
+    let minC = { v: Infinity, achieved: false, src: '' }, maxC = { v: -Infinity, achieved: false, src: '' };
+    let unboundedBelow = false, unboundedAbove = false;
+    // Gleichstand (±1e−9): die bessere Stelle behalten — echtes Extremum vor Raster, sonst die Stelle näher bei 0
+    // (dort ist kein Unterlauf), aber nur wenn der Wert dadurch nicht schlechter wird.
+    const better = (c, v, achieved, src, x, sg) => achieved && (!c.achieved || (src === 'crit' && c.src !== 'crit') ||
+      (src === c.src && x !== undefined && c.x !== undefined && Math.abs(x) < Math.abs(c.x) && sg * (v - c.v) <= 0));
+    const considerMin = (v, achieved, src, x) => {
+      if (v < minC.v - 1e-9) minC = { v, achieved, src, x };
+      else if (Math.abs(v - minC.v) <= 1e-9 && better(minC, v, achieved, src, x, 1)) minC = { v, achieved, src, x };
+    };
+    const considerMax = (v, achieved, src, x) => {
+      if (v > maxC.v + 1e-9) maxC = { v, achieved, src, x };
+      else if (Math.abs(v - maxC.v) <= 1e-9 && better(maxC, v, achieved, src, x, -1)) maxC = { v, achieved, src, x };
+    };
+    // Ein Rasterwert gilt bei Gleichstand mit einem Grenzwert nur als echt erreicht, wenn er nicht auf einem
+    // numerisch völlig flachen Stück liegt (Unterlauf: e^(−x²) ist ab |x| ≈ 27 exakt 0.0, obwohl nie 0).
+    const genuine = (c, v) => {
+      if (!c.achieved) return false;
+      if (Math.abs(c.v - v) > 1e-12 * Math.max(1, Math.abs(v))) return false;   // nur angenähert (1 − 10⁻⁹ ist nicht 1)
+      if (c.src === 'crit' || c.src === 'edge') return true;
+      if (c.x === undefined) return false;
+      const h = 1e-3 * Math.max(1, Math.abs(c.x));
+      const sc = 1e-12 * Math.max(1, Math.abs(c.v)), ya = safeEval(expr, c.x - h), yb = safeEval(expr, c.x + h);
+      return isFinite(ya) && isFinite(yb) && Math.abs(ya - c.v) > sc && Math.abs(yb - c.v) > sc;   // auf beiden Seiten echt anders
+    };
+    // Randauswertung bei x0 = ±∞ (bzw. Grenzwert an einem offenen Rand): bei Gleichstand mit einem
+    // Raster-Kandidaten gewinnt der Grenzwert (z.B. exp(x) unterläuft für x < −745 exakt zu 0.0,
+    // erreicht 0 aber nie) — ausser der Kandidat ist ein echtes lokales Extremum (x²·e^(−x²): f(0) = 0).
+    const considerMinLim = (v, achieved) => {
+      if (v < minC.v - 1e-9) minC = { v, achieved, src: 'lim' };
+      else if (Math.abs(v - minC.v) <= 1e-9) minC = Object.assign({}, minC, { achieved: achieved || genuine(minC, v) });
+    };
+    const considerMaxLim = (v, achieved) => {
+      if (v > maxC.v + 1e-9) maxC = { v, achieved, src: 'lim' };
+      else if (Math.abs(v - maxC.v) <= 1e-9) maxC = Object.assign({}, maxC, { achieved: achieved || genuine(maxC, v) });
+    };
+    // Grobes Raster im Inneren (offene Ränder selbst nicht, siehe Grenzwert-Block unten)
+    const xs = daSampleXs(p.lo, p.hi);
+    let inMin = Infinity, inMax = -Infinity;                 // Werte im Bereich |x| ≤ 1000 (für wachsende Schwingungen)
+    for (let i = 0; i < xs.length; i++) {
       if (i === 0 && p.loOpen) continue;
-      if (i === steps && p.hiOpen) continue;
-      const x = L + (span * i) / steps;
+      if (i === xs.length - 1 && p.hiOpen) continue;
+      const x = xs[i];
       const y = safeEval(expr, x);
-      if (isFinite(y)) { considerMin(y, true); considerMax(y, true); }
+      if (isFinite(y) && Math.abs(x) <= 1000) { if (y < inMin) inMin = y; if (y > inMax) inMax = y; }
+      // 'grid0': Wert an einer moderaten Stelle (|x| ≤ 50) — kein Unterlauf-Artefakt weit draussen
+      if (isFinite(y)) { considerMin(y, true, 'grid', x); considerMax(y, true, 'grid', x); }
     }
-    // Kritische Punkte exakt lokalisieren (präziser als das Raster)
+    // Kritische Punkte (echte Vorzeichenwechsel von f′)
     daCriticalPoints(expr, p.lo, p.hi).forEach(x => {
       const y = safeEval(expr, x);
-      if (isFinite(y)) { considerMin(y, true); considerMax(y, true); }
+      if (isFinite(y)) { considerMin(y, true, 'crit', x); considerMax(y, true, 'crit', x); }
     });
-    // Ränder auswerten
+    // Ränder
     [{ x0: p.lo, dir: 1, open: p.loOpen }, { x0: p.hi, dir: -1, open: p.hiOpen }].forEach(({ x0, dir, open }) => {
-      const lim = daBoundaryLimit(expr, x0, dir);
+      const lim = daBoundaryLimit(expr, x0, dir, isFinite(x0) && open);
       if (lim.kind === 'inf') { if (lim.sign > 0) unboundedAbove = true; else unboundedBelow = true; }
       else if (lim.kind === 'value') {
-        // Bei x0=±∞ ist "open" (die Teilstück-Grenze ist unbeschränkt) immer
-        // trivial wahr — das sagt nichts darüber aus, ob der Grenzwert selbst
-        // erreicht wird. daBoundaryLimit hat das für den unendlichen Fall bereits
-        // selbst geprüft (Wert an einer moderaten, nicht-extremen Stelle exakt
-        // gleich dem Grenzwert → z.B. eine überall konstante Funktion), daher hier
-        // NICHT zusätzlich durch "!open" blockieren. Bei einem endlichen Rand
-        // bleibt die bisherige Regel (nur ein wirklich geschlossener, nicht
-        // ausgeschlossener Rand zählt als erreicht).
         const achieved = !!lim.achieved && (!isFinite(x0) || !open);
-        if (!isFinite(x0)) { considerMinInf(lim.v, achieved); considerMaxInf(lim.v, achieved); }
-        else { considerMin(lim.v, achieved); considerMax(lim.v, achieved); }
-        if (!achieved) openValuesSeen.push(lim.v);
+        if (!isFinite(x0) || open) { considerMinLim(lim.v, achieved); considerMaxLim(lim.v, achieved); }
+        else { considerMin(lim.v, achieved, 'edge'); considerMax(lim.v, achieved, 'edge'); }
       }
     });
+    // Riesige, aber endliche Werte (z.B. sin(x)·e^(−x) für x → −∞, wo der Grenzwert «unbekannt» bleibt) sind unbeschränkt
+    if (isFinite(minC.v) && minC.v < -1e15) unboundedBelow = true;
+    if (isFinite(maxC.v) && maxC.v > 1e15) unboundedAbove = true;
+    // Schwingung mit wachsender Amplitude (x·sin x): das «Maximum» liegt am Rand des Suchfensters und ist
+    // viel grösser als alles bei |x| ≤ 1000 → in Wahrheit unbeschränkt
+    if (isFinite(maxC.v) && maxC.x !== undefined && Math.abs(maxC.x) > 5000 && isFinite(inMax) && maxC.v > 2 * Math.max(1, Math.abs(inMax)) + 1) unboundedAbove = true;
+    if (isFinite(minC.v) && minC.x !== undefined && Math.abs(minC.x) > 5000 && isFinite(inMin) && minC.v < -2 * Math.max(1, Math.abs(inMin)) - 1) unboundedBelow = true;
+    if (!isFinite(minC.v) && !isFinite(maxC.v) && !unboundedBelow && !unboundedAbove) return;
+    parts.push({
+      lo: unboundedBelow || !isFinite(minC.v) ? -Infinity : minC.v, loC: !unboundedBelow && isFinite(minC.v) && minC.achieved,
+      hi: unboundedAbove || !isFinite(maxC.v) ? Infinity : maxC.v, hiC: !unboundedAbove && isFinite(maxC.v) && maxC.achieved
+    });
   });
-
-  if (!isFinite(minC.v) && !isFinite(maxC.v)) return { rangeMin: null, rangeMax: null, rangeExcluded: [] };
+  if (!parts.length) return EMPTY;
 
   const rnd = v => {
+    if (!isFinite(v)) return v;
     if (Math.abs(v) < 1e-6) return 0;
     const a = Math.abs(v);
     return parseFloat(v.toFixed(a >= 100 ? 0 : a >= 10 ? 1 : 2));
   };
-
-  const rangeMin = unboundedBelow ? null : (isFinite(minC.v) ? rnd(minC.v) : null);
-  const rangeMax = unboundedAbove ? null : (isFinite(maxC.v) ? rnd(maxC.v) : null);
-  const rangeMinOpen = !unboundedBelow && !minC.achieved;
-  const rangeMaxOpen = !unboundedAbove && !maxC.achieved;
-  // Offene Randwerte, die NICHT selbst zum Gesamt-min/max wurden, sind echte
-  // Lücken im Inneren der Wertemenge (z.B. hebbare Lücken / innere Asymptoten).
-  const excl = [...new Set(openValuesSeen.map(rnd))].filter(v =>
-    (rangeMin == null || Math.abs(v - rangeMin) > 1e-6) &&
-    (rangeMax == null || Math.abs(v - rangeMax) > 1e-6)
-  );
-  if (rangeMinOpen && rangeMin != null) excl.push(rangeMin);
-  if (rangeMaxOpen && rangeMax != null) excl.push(rangeMax);
-
-  return { rangeMin, rangeMax, rangeExcluded: excl };
+  // Vereinigen (sich überlappende oder an einem eingeschlossenen Wert berührende Intervalle verschmelzen)
+  parts.sort((a, b) => (a.lo === b.lo ? (b.loC ? 1 : 0) - (a.loC ? 1 : 0) : a.lo < b.lo ? -1 : 1));
+  const tol = (a, b) => 1e-7 * Math.max(1, isFinite(a) ? Math.abs(a) : 0, isFinite(b) ? Math.abs(b) : 0);
+  const merged = [];
+  parts.forEach(c => {
+    const last = merged[merged.length - 1];
+    if (last && (c.lo < last.hi - tol(c.lo, last.hi) || (Math.abs(c.lo - last.hi) <= tol(c.lo, last.hi) && (c.loC || last.hiC)) || (last.hi === Infinity))) {
+      if (Math.abs(c.lo - last.lo) <= tol(c.lo, last.lo)) last.loC = last.loC || c.loC;
+      if (c.hi > last.hi + tol(c.hi, last.hi)) { last.hi = c.hi; last.hiC = c.hiC; }
+      else if (Math.abs(c.hi - last.hi) <= tol(c.hi, last.hi)) last.hiC = last.hiC || c.hiC;
+    } else merged.push(Object.assign({}, c));
+  });
+  const out = merged.map(m => ({ lo: rnd(m.lo), loC: m.loC, hi: rnd(m.hi), hiC: m.hiC }));
+  // Bisherige Form (Hülle + ausgeschlossene Einzelwerte) für die übrigen Aufrufer
+  const first = out[0], lastP = out[out.length - 1];
+  const rangeMin = isFinite(first.lo) ? first.lo : null, rangeMax = isFinite(lastP.hi) ? lastP.hi : null;
+  const excl = [];
+  for (let i = 0; i + 1 < out.length; i++) if (out[i].hi === out[i + 1].lo) excl.push(out[i].hi);
+  if (rangeMin != null && !first.loC) excl.push(rangeMin);
+  if (rangeMax != null && !lastP.hiC) excl.push(rangeMax);
+  return { rangeMin, rangeMax, rangeExcluded: [...new Set(excl)], rangeParts: out };
 }
 
 if (typeof module !== 'undefined') {

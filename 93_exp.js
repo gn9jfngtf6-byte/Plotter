@@ -35,7 +35,7 @@ const Expo = (function () {
     const bq = e ? null : Qn(bv);
     return { a: num(aq), b: e ? Math.E : num(bq), d: num(dq), aq, bq, dq, e: !!e, deg: isZ(aq), grow: (e ? Math.E : num(bq)) > 1 };
   }
-  const fOf = F => x => F.a * Math.pow(F.b, x) + F.d;
+  const fOf = F => { const g = x => F.a * Math.pow(F.b, x) + F.d; g.rawOf = () => { try { return raw(F); } catch (e) { return null; } }; return g; };
 
   // ── exakte Werte ──
   function evalExact(F, x) {
@@ -123,22 +123,32 @@ const Expo = (function () {
       if (n && n.type === 'div' && isX(n.a) && isNum(n.b)) return 1 / val(n.b);
       return null;
     };
-    const core = n => {                                               // b^(kx), e^(kx), exp(kx) → {b, e}
+    const lin = n => {                                                // Exponent k·x + m (2^(x−1) = ½·2^x)
+      const k = kOf(n); if (k !== null) return { k, m: 0 };
+      if (n && (n.type === 'add' || n.type === 'sub')) {
+        const sg = n.type === 'add' ? 1 : -1;
+        if (isNum(n.b)) { const k2 = kOf(n.a); if (k2 !== null) return { k: k2, m: sg * val(n.b) }; }
+        if (isNum(n.a)) { const k2 = kOf(n.b); if (k2 !== null) return { k: sg * k2, m: val(n.a) }; }
+      }
+      return null;
+    };
+    const core = n => {                                               // b^(kx+m), e^(kx+m), exp(kx+m) → {b, e, f (Faktor b^m)}
       if (!n) return null;
+      const fromE = L => (L.k === 1 ? { b: Math.E, e: true, f: Math.exp(L.m) } : { b: Math.exp(L.k), e: false, f: Math.exp(L.m) });
       if (n.type === 'pow') {
-        const k = kOf(n.b); if (k === null || !isFinite(k) || k === 0) return null;
-        if (isE(n.a)) return k === 1 ? { b: Math.E, e: true } : { b: Math.exp(k), e: false };
-        if (isNum(n.a)) { const b = val(n.a); if (!(b > 0)) return null; return { b: Math.pow(b, k), e: false }; }
+        const L = lin(n.b); if (!L || !isFinite(L.k) || L.k === 0 || !isFinite(L.m)) return null;
+        if (isE(n.a)) return fromE(L);
+        if (isNum(n.a)) { const b = val(n.a); if (!(b > 0)) return null; return { b: Math.pow(b, L.k), e: false, f: Math.pow(b, L.m) }; }
         return null;
       }
-      if (n.type === 'call' && n.name === 'exp' && n.args.length === 1) { const k = kOf(n.args[0]); if (k === null || k === 0) return null; return k === 1 ? { b: Math.E, e: true } : { b: Math.exp(k), e: false }; }
+      if (n.type === 'call' && n.name === 'exp' && n.args.length === 1) { const L = lin(n.args[0]); if (!L || L.k === 0) return null; return fromE(L); }
       return null;
     };
     const term = n => {
       if (!n) return null;
       if (n.type === 'neg') { const t = term(n.x); return t ? Object.assign(t, { a: -t.a }) : null; }
-      const c0 = core(n); if (c0) return Object.assign(c0, { a: 1 });
-      if (n.type === 'mul') { if (isNum(n.a)) { const c = core(n.b); return c ? Object.assign(c, { a: val(n.a) }) : null; } if (isNum(n.b)) { const c = core(n.a); return c ? Object.assign(c, { a: val(n.b) }) : null; } }
+      const c0 = core(n); if (c0) return Object.assign(c0, { a: c0.f });
+      if (n.type === 'mul') { if (isNum(n.a)) { const c = core(n.b); return c ? Object.assign(c, { a: val(n.a) * c.f }) : null; } if (isNum(n.b)) { const c = core(n.a); return c ? Object.assign(c, { a: val(n.b) * c.f }) : null; } }
       if (n.type === 'div' && isNum(n.b)) { const t = term(n.a); return t ? Object.assign(t, { a: t.a / val(n.b) }) : null; }
       return null;
     };

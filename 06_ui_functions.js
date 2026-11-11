@@ -48,7 +48,7 @@ function _domainLabel(fn) {
   const pieces = [];
   if (excl.length > 0 && excl.length <= 4) pieces.push(`{${excl.join(', ')}}`);
   else if (excl.length > 4)               pieces.push('{…}');
-  if (gaps.length > 0 && gaps.length <= 3) gaps.forEach(g => pieces.push(`(${g.lo}, ${g.hi})`));
+  if (gaps.length > 0 && gaps.length <= 3) gaps.forEach(g => pieces.push(`${g.loIn === false ? '[' : '('}${g.lo}, ${g.hi}${g.hiIn === false ? ']' : ')'}`));
   else if (gaps.length > 3)               pieces.push('(…)');
   const exclStr = pieces.length ? ` \\ ${pieces.length > 1 ? '(' + pieces.join(' ∪ ') + ')' : pieces[0]}` : '';
   if (!hasBounds) return pieces.length ? `D: ℝ${exclStr}` : 'D: ℝ';
@@ -82,7 +82,14 @@ function _applyDetectedDomain(fn, domainToggle, vonInp, bisInp, rangeSpan) {
 // Extrahiert aus _updateRangeSpan(), damit dieselbe Formatierung sowohl von
 // der Pro-Zeilen-Anzeige (Sidebar) als auch von der neuen Panel-Anzeige
 // (siehe updatePanelDomainRanges() weiter unten) genutzt werden kann.
-function _rangeLabel(rangeMin, rangeMax, rangeExcluded) {
+function _rangeLabel(rangeMin, rangeMax, rangeExcluded, rangeParts) {
+  // Echte Lücken in der Wertemenge (nicht nur einzelne Werte): als Vereinigung von Intervallen
+  const P = rangeParts || [];
+  const num = v => (v === -Infinity ? '−∞' : v === Infinity ? '+∞' : String(v));
+  if (P.length && P.every(q => q.lo === q.hi)) return 'W: {' + P.map(q => num(q.lo)).join(', ') + '}';   // nur einzelne Werte (konstant, abs(x)/x)
+  if (P.length > 1 && P.some((q, i) => i > 0 && P[i - 1].hi !== q.lo)) {
+    return 'W: ' + P.map(q => (q.lo === q.hi ? '{' + num(q.lo) + '}' : (q.loC ? '[' : '(') + num(q.lo) + ', ' + num(q.hi) + (q.hiC ? ']' : ')'))).join(' ∪ ');
+  }
   const excl = rangeExcluded || [];
   if (rangeMin === null && rangeMax === null) {
     // ℝ mit möglichen Ausnahmen (z.B. ℝ\{0})
@@ -105,8 +112,8 @@ function _rangeLabel(rangeMin, rangeMax, rangeExcluded) {
 // Aktualisiert das rangeSpan-Element mit der berechneten Wertemenge
 function _updateRangeSpan(expr, domainMin, domainMax, domainExcluded, domainGaps, rangeSpan, domainMinOpen, domainMaxOpen) {
   if (!expr || !expr.trim()) { rangeSpan.textContent = ''; return; }
-  const { rangeMin, rangeMax, rangeExcluded } = computeRange(expr, domainMin, domainMax, domainExcluded || [], domainGaps || [], domainMinOpen, domainMaxOpen);
-  rangeSpan.textContent = _rangeLabel(rangeMin, rangeMax, rangeExcluded);
+  const { rangeMin, rangeMax, rangeExcluded, rangeParts } = computeRange(expr, domainMin, domainMax, domainExcluded || [], domainGaps || [], domainMinOpen, domainMaxOpen);
+  rangeSpan.textContent = _rangeLabel(rangeMin, rangeMax, rangeExcluded, rangeParts);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -146,7 +153,7 @@ function _panelDomainRangeFor(fn) {
   catch (e) { rng = { rangeMin: null, rangeMax: null, rangeExcluded: [] }; }
   return {
     domainMin, domainMax, domainMinOpen, domainMaxOpen, domainExcluded: excluded, domainGaps: gaps,
-    rangeMin: rng.rangeMin, rangeMax: rng.rangeMax, rangeExcluded: rng.rangeExcluded || [],
+    rangeMin: rng.rangeMin, rangeMax: rng.rangeMax, rangeExcluded: rng.rangeExcluded || [], rangeParts: rng.rangeParts || [],
   };
 }
 
@@ -155,7 +162,7 @@ function _panelDWText(fn) {
   const r = _panelDomainRangeFor(fn);
   if (!r) return '';
   const dLabel = _domainLabel({ domainMin: r.domainMin, domainMax: r.domainMax, domainMinOpen: r.domainMinOpen, domainMaxOpen: r.domainMaxOpen, domainExcluded: r.domainExcluded, domainGaps: r.domainGaps });
-  const wLabel = _rangeLabel(r.rangeMin, r.rangeMax, r.rangeExcluded);
+  const wLabel = _rangeLabel(r.rangeMin, r.rangeMax, r.rangeExcluded, r.rangeParts);
   return dLabel + '   ' + wLabel;
 }
 

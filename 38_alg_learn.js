@@ -465,6 +465,157 @@ const AlgLearn = (function () {
     ]]
   };
 
+  // Weitere Varianten, damit sich Aufgaben nur selten wiederholen (je Thema und Stufe angehängt)
+  const VV = R => R.pick(['x', 'y', 'a', 'b', 'z', 't']);
+  const VW = R => { const p = R.pick([['x', 'y'], ['a', 'b'], ['u', 'v'], ['x', 'z'], ['p', 'q'], ['m', 'n']]); return R.pick([p, [p[1], p[0]]]); };
+  const MORE = {
+    expand: [[
+      R => { const v = VV(R); return { text: R.ri(2, 9) + '(' + v + sg(R.nz(-9, 9)) + ')' }; },
+      R => { const v = VV(R); return { text: '-' + R.ri(2, 6) + '(' + v + sg(R.nz(-9, 9)) + ')' }; },
+      R => { const v = VV(R); return { text: '(' + v + sg(R.nz(-9, 9)) + ')(' + v + sg(R.nz(-9, 9)) + ')' }; },
+      R => { const v = VV(R); return { text: '(' + v + sgn(R) + R.ri(1, 10) + ')^2' }; },
+      R => { const v = VV(R), k = R.ri(2, 12); return { text: '(' + v + '-' + k + ')(' + v + '+' + k + ')' }; },
+      R => { const [v, w] = VW(R); return { text: v + '(' + v + sgn(R) + w + ')' }; }
+    ], [
+      R => { const [v, w] = VW(R); return { text: '(' + co(R.ri(2, 5), v) + sgn(R) + co(R.ri(1, 4), w) + ')(' + co(R.ri(1, 4), v) + sgn(R) + co(R.ri(2, 5), w) + ')' }; },
+      R => { const [v, w] = VW(R); return { text: '(' + co(R.ri(2, 5), v) + sgn(R) + co(R.ri(1, 5), w) + ')^2' }; },
+      R => { const v = VV(R), a = R.ri(2, 6), b = R.ri(1, 9); return { text: '(' + co(a, v) + '-' + b + ')(' + co(a, v) + '+' + b + ')' }; },
+      R => { const v = VV(R); return { text: co(R.nz(-5, 5), v) + '(' + v + '^2' + sg(R.nz(-6, 6)) + v + sg(R.nz(-9, 9)) + ')' }; },
+      R => { const v = VV(R); return { text: '(' + v + sg(R.nz(-6, 6)) + ')^2-(' + v + sg(R.nz(-6, 6)) + ')^2' }; }
+    ], [
+      R => { const v = VV(R); return { text: '(' + co(R.ri(2, 3), v) + sgn(R) + R.ri(1, 4) + ')^3' }; },
+      R => { const [v, w] = VW(R); return { text: '(' + v + sgn(R) + w + ')^3' }; },
+      R => { const [v, w] = VW(R); return { text: '(' + v + '+' + w + sgn(R) + R.ri(1, 5) + ')^2' }; },
+      R => { const v = VV(R), k = R.ri(2, 6); return { text: '(' + v + '^2+' + k + ')(' + v + '+' + R.ri(1, 4) + ')(' + v + '-' + R.ri(1, 4) + ')' }; },
+      R => { const [v, w] = VW(R), a = R.ri(2, 5), b = R.ri(2, 5); return { text: '(' + co(a, v) + '+' + co(b, w) + ')^2-(' + co(a, v) + '-' + co(b, w) + ')^2' }; }
+    ]],
+    factor: [[
+      R => { const m = R.ri(2, 9); return { text: m + 'x' + sg(m * R.nz(-9, 9)) }; },
+      R => { const v = VV(R); return { text: v + '^2' + sg(R.nz(-12, 12)) + v }; },
+      R => { const v = VV(R); return { text: v + '^2-' + Math.pow(R.ri(2, 12), 2) }; },
+      R => { const u = R.ri(1, 9), w = R.ri(1, 9); return { text: pstr(1, u + w, u * w) }; },
+      R => { const m = R.ri(2, 9), a = R.ri(1, 6), b = R.ri(1, 6); const [v, w] = VW(R); return { text: co(m * a, v) + '+' + co(m * b, w) }; }
+    ], [
+      R => { let u = R.nz(-9, 9), w = R.nz(-9, 9); while (u === w || u + w === 0) w = R.nz(-9, 9); return { text: pstr(1, u + w, u * w) }; },
+      R => { const a = R.ri(2, 11); return { text: pstr(1, R.pick([2, -2]) * a, a * a) }; },
+      R => { const [v, w] = VW(R); return { text: co(Math.pow(R.ri(2, 6), 2), v + '^2') + '-' + co(Math.pow(R.ri(1, 6), 2), w + '^2') }; },
+      R => { const m = R.ri(2, 6), v = VV(R); return { text: co(m, v + '^3') + sg(R.pick([-1, 1]) * m * R.ri(2, 6)) + v + '^2' }; }
+    ], [
+      R => { const m = R.pick([2, 3, 5]); let u = R.nz(-6, 6), w = R.nz(-6, 6); while (u === w || u + w === 0) w = R.nz(-6, 6); return { text: pstr(-m, -m * (u + w), -m * u * w) }; },
+      R => { const v = VV(R), m = R.ri(2, 5), b = R.ri(2, 7); return { text: co(m, v + '^3') + '-' + m * b * b + v }; },
+      R => { const v = VV(R); let u = R.ri(1, 4), w = R.ri(1, 4); if (u === w) w++; return { text: v + '^4-' + (u * u + w * w) + v + '^2+' + u * u * w * w }; },
+      R => { const p = R.ri(2, 4), u = R.nz(-5, 5), q = R.ri(2, 3), w = R.nz(-5, 5); return { text: pstr(p * q, p * w + q * u, u * w) }; }
+    ]],
+    complete: [[
+      R => ({ text: pstr(1, 2 * R.ri(1, 7), R.nz(-12, 12)) }),
+      R => ({ text: pstr(1, -2 * R.ri(1, 7), R.nz(-12, 12)) })
+    ], [
+      R => ({ text: pstr(1, 2 * R.nz(-9, 9), R.nz(-20, 20)) }),
+      R => ({ text: pstr(1, R.pick([1, 3, 5, 7, -1, -3, -5]), R.nz(-6, 6)) })
+    ], [
+      R => ({ text: pstr(R.pick([2, 3, 4, 5]), 2 * R.pick([2, 3, 4, 5]) * R.nz(-3, 3), R.nz(-12, 12)) }),
+      R => ({ text: pstr(-R.pick([1, 2, 3]), 2 * R.pick([1, 2, 3]) * R.nz(-4, 4), R.nz(-9, 9)) })
+    ]],
+    binom: [[
+      R => ({ text: '(' + VV(R) + sgn(R) + R.ri(1, 5) + ')^3' }),
+      R => { const [v, w] = VW(R); return { text: '(' + v + sgn(R) + w + ')^' + R.ri(3, 4) }; },
+      R => ({ text: '(' + R.ri(1, 4) + sgn(R) + VV(R) + ')^3' })
+    ], [
+      R => ({ text: '(' + VV(R) + sgn(R) + R.ri(1, 4) + ')^4' }),
+      R => ({ text: '(' + co(R.ri(2, 5), VV(R)) + sgn(R) + R.ri(1, 3) + ')^3' }),
+      R => { const [v, w] = VW(R); return { text: '(' + v + sgn(R) + w + ')^' + R.ri(5, 6) }; },
+      R => ({ text: '(' + VV(R) + '^2' + sgn(R) + R.ri(1, 3) + ')^3' })
+    ], [
+      R => ({ text: '(' + co(R.ri(2, 3), VV(R)) + sgn(R) + R.ri(1, 3) + ')^' + R.ri(4, 5) }),
+      R => { const [v, w] = VW(R); return { text: '(' + co(R.ri(2, 3), v) + sgn(R) + co(R.ri(2, 4), w) + ')^' + R.ri(3, 4) }; },
+      R => ({ text: '(' + VV(R) + sgn(R) + R.ri(1, 2) + ')^' + R.ri(6, 7) }),
+      R => ({ text: '(' + VV(R) + '^2' + sgn(R) + R.ri(1, 3) + ')^4' })
+    ]],
+    pow: [[
+      R => { const v = VV(R); return { text: v + '^' + R.ri(2, 9) + '*' + v + '^' + R.ri(2, 9) }; },
+      R => { const v = VV(R), b = R.ri(2, 6); return { text: v + '^' + (R.ri(1, 6) + b) + '/' + v + '^' + b }; },
+      R => ({ text: '(' + VV(R) + '^' + R.ri(2, 6) + ')^' + R.ri(2, 5) }),
+      R => { const v = VV(R); return { text: R.ri(2, 6) + v + '^' + R.ri(2, 5) + '*' + R.ri(2, 6) + v + '^' + R.ri(2, 5) }; },
+      R => { const v = VV(R), c = R.ri(2, 4), b = R.ri(2, 4); return { text: '(' + c + v + '^' + b + ')^' + R.ri(2, 3) }; },
+      R => { const v = VV(R), b = R.ri(1, 4), m = R.ri(2, 5); return { text: m * R.ri(2, 4) + v + '^' + (b + R.ri(1, 5)) + '/(' + m + v + '^' + b + ')' }; }
+    ], [
+      R => { const [v, w] = VW(R); return { text: '(' + v + '^' + R.ri(2, 5) + '*' + w + '^' + R.ri(1, 4) + ')^' + R.ri(2, 4) }; },
+      R => { const [v, w] = VW(R); return { text: '(' + v + '^' + R.ri(3, 7) + '*' + w + '^' + R.ri(2, 6) + ')/(' + v + '^' + R.ri(1, 3) + '*' + w + '^' + R.ri(1, 3) + ')' }; },
+      R => { const v = VV(R); return { text: v + '^-' + R.ri(2, 7) + '*' + v + '^' + R.ri(2, 9) }; },
+      R => { const v = VV(R); return { text: '(' + v + '^' + R.ri(2, 4) + ')^-' + R.ri(1, 3) }; },
+      R => { const b = R.pick([2, 3, 5, 10]); return { text: b + '^' + R.ri(3, 9) + '/' + b + '^' + R.ri(1, 6) }; }
+    ], [
+      R => { const n = R.pick([2, 3, 5, 6, 7, 10, 11]), kk = R.ri(2, 9); return { text: 'sqrt(' + kk * kk * n + ')' }; },
+      R => { const n = R.pick([2, 3, 5, 6, 7]), p = R.ri(2, 5), q = R.ri(2, 5); return { text: 'sqrt(' + p * p * n + ')' + sgn(R) + 'sqrt(' + q * q * n + ')' }; },
+      R => { const c = R.ri(2, 5), n = R.pick([2, 3, 4, 5]); return { text: 'root(3,' + c * c * c * n + ')' }; },
+      R => { const b = R.pick([[4, 2], [9, 2], [16, 2], [25, 2], [8, 3], [27, 3], [64, 3], [16, 4], [81, 4], [32, 5]]), m = R.pick([1, 2, 3, -1]); return { text: b[0] + '^(' + m + '/' + b[1] + ')' }; },
+      R => { const v = VV(R), p = R.ri(1, 4), q = R.pick([2, 3, 4]); return { text: v + '^(' + p + '/' + q + ')*' + v + '^(' + R.ri(1, 4) + '/' + q + ')' }; },
+      R => ({ text: R.ri(1, 6) + '/sqrt(' + R.pick([2, 3, 5, 6, 7, 10]) + ')' })
+    ]],
+    log: [[
+      R => { const b = R.pick([2, 3, 4, 5, 6, 7, 10]), e = R.ri(1, b <= 3 ? 6 : b <= 7 ? 4 : 5); return { text: lg(b) + '(' + Math.pow(b, e) + ')', kind: 'num', expect: e }; },
+      R => { const b = R.pick([2, 3, 4, 5, 10]), e = R.ri(1, 3); return { text: lg(b) + '(1/' + Math.pow(b, e) + ')', kind: 'num', expect: -e }; },
+      R => { const e = R.ri(-4, 9); return { text: 'ln(e^' + (e < 0 ? '(' + e + ')' : e) + ')', kind: 'num', expect: e }; },
+      R => { const p = R.pick([[4, 8, 3 / 2], [4, 2, 1 / 2], [9, 3, 1 / 2], [9, 27, 3 / 2], [8, 2, 1 / 3], [8, 4, 2 / 3], [16, 4, 1 / 2], [16, 8, 3 / 4], [25, 5, 1 / 2], [27, 3, 1 / 3], [27, 9, 2 / 3], [100, 10, 1 / 2]]); return { text: lg(p[0]) + '(' + p[1] + ')', kind: 'num', expect: p[2] }; }
+    ], [
+      R => { const [v, w] = VW(R), b = R.pick([2, 3, 5, 10]); return { text: lg(b) + '(' + v + '^' + R.ri(2, 5) + '*' + w + ')', logKind: 'expand' }; },
+      R => { const [v, w] = VW(R), b = R.pick([2, 3, 5, 10]); return { text: lg(b) + '(' + v + '/' + w + '^' + R.ri(2, 4) + ')', logKind: 'expand' }; },
+      R => { const [v, w] = VW(R); return { text: 'ln(' + v + '^' + R.ri(2, 5) + '/' + w + ')', logKind: 'expand' }; },
+      R => { const [v, w] = VW(R), b = R.pick([2, 3, 5, 10]); return { text: lg(b) + '(' + v + ')' + sgn(R) + lg(b) + '(' + w + ')', logKind: 'condense' }; },
+      R => { const [v, w] = VW(R), b = R.pick([2, 3, 5, 10]); return { text: R.ri(2, 5) + '*' + lg(b) + '(' + v + ')+' + lg(b) + '(' + w + ')', logKind: 'condense' }; },
+      R => { const [v, w] = VW(R); return { text: R.ri(2, 4) + '*ln(' + v + ')-ln(' + w + ')', logKind: 'condense' }; },
+      R => { const b = R.pick([2, 3, 5]), e1 = R.ri(2, 5), e2 = R.ri(1, 4), a = R.ri(2, 4); return { text: a + '*' + lg(b) + '(' + Math.pow(b, e1) + ')-' + lg(b) + '(' + Math.pow(b, e2) + ')', kind: 'num', expect: a * e1 - e2 }; }
+    ], [
+      R => { const b = R.pick([2, 3, 5]), a = R.ri(1, 3), c = R.nz(-6, 9), k = R.ri(1, 3); return { text: lg(b) + '(' + lin(a, c) + ')=' + k, kind: 'solve' }; },
+      R => { const b = R.pick([2, 3, 5]), k = R.ri(2, 4), m = R.ri(2, 5); return { text: m + '*' + b + '^x=' + m * Math.pow(b, k), kind: 'solve' }; },
+      R => { const b = R.pick([2, 3]), k = R.ri(1, 3); return { text: b + '^(2x' + sg(R.nz(-3, 3)) + ')=' + Math.pow(b, 2 * k + 1), kind: 'solve' }; },
+      R => ({ text: R.pick(['2', '3', '5', '10', '1.5', '1.08']) + '^x=' + R.pick(['10', '30', '40', '75', '200', '1000']), kind: 'solve' }),
+      R => { const [v, w] = VW(R), b = R.pick([2, 3, 10]); return { text: lg(b) + '(' + v + '^' + R.ri(2, 4) + '/(' + w + '^' + R.ri(2, 3) + '*z))', logKind: 'expand' }; },
+      R => { const [v, w] = VW(R); return { text: R.ri(2, 4) + '*ln(' + v + ')+' + R.ri(2, 3) + '*ln(' + w + ')-ln(z)', logKind: 'condense' }; }
+    ]],
+    frac: [[
+      R => { const g = R.ri(2, 12); let p = R.ri(1, 9), r = R.ri(2, 9); while (p === r || Math.abs(p % r) === 0 && p > r) r = R.ri(2, 9); return { text: g * p + '/' + g * r }; },
+      R => { const v = VV(R), m = R.ri(2, 9), b = R.nz(-9, 9); return { text: '(' + m + v + sg(m * b) + ')/' + m }; },
+      R => { const v = VV(R), a = R.ri(2, 9); return { text: '(' + v + '^2-' + a * a + ')/(' + v + sgn(R) + a + ')' }; }
+    ], [
+      R => { const a = R.nz(-6, 6), b = R.nz(-6, 6); return { text: '(' + pstr(1, a + b, a * b) + ')/(x' + sg(a) + ')' }; },
+      R => { const b1 = R.ri(2, 9); let b2 = R.ri(2, 12); if (b1 === b2) b2++; return { text: R.ri(1, b1 - 1 || 1) + '/' + b1 + sgn(R) + R.ri(1, b2 - 1) + '/' + b2 }; },
+      R => { const m = R.ri(2, 6), a = R.ri(1, 6); return { text: '(' + m + 'x^2-' + m * a * a + ')/(' + m + 'x+' + m * a + ')' }; },
+      R => { const [v, w] = VW(R); return { text: '(' + v + '^2-' + w + '^2)/(' + v + '^2' + sgn(R) + '2' + v + w + '+' + w + '^2)' }; }
+    ], [
+      R => { let p = R.ri(1, 6), q = R.ri(1, 6); if (p === q) q++; return { text: R.ri(1, 5) + '/(x' + sgn(R) + p + ')' + sgn(R) + R.ri(1, 5) + '/(x' + sgn(R) + q + ')' }; },
+      R => { const p = R.ri(1, 5); return { text: R.ri(1, 6) + '/(x^2-' + p * p + ')+' + R.ri(1, 4) + '/(x+' + p + ')' }; },
+      R => { let p = R.ri(1, 5), q = R.ri(1, 5); if (p === q) q++; return { text: '(' + pstr(1, p + q, p * q) + ')/(' + pstr(1, -(p + q), p * q) + ')' }; },
+      R => { const b = [R.ri(2, 6), R.ri(3, 8), R.ri(4, 12)]; return { text: R.ri(1, b[0] - 1) + '/' + b[0] + sgn(R) + R.ri(1, b[1] - 1) + '/' + b[1] + sgn(R) + R.ri(1, b[2] - 1) + '/' + b[2] }; },
+      R => { const a = R.ri(1, 4); return { text: 'x/(x-' + a + ')-' + a + '/(x+' + a + ')' }; }
+    ]],
+    eq: [[
+      R => { const s2 = R.nz(-12, 12), a = R.nz(-9, 9), b = R.nz(-15, 15); return { text: lin(a, b) + '=' + (a * s2 + b) }; },
+      R => { const s2 = R.nz(-9, 9), a = R.ri(3, 9), c = R.nz(-9, 9), b = R.nz(-9, 9); if (a === c) return { text: lin(a, b) + '=' + (a * s2 + b) }; return { text: lin(a, b) + '=' + lin(c, (a - c) * s2 + b) }; }
+    ], [
+      R => { const u = R.nz(-9, 9), v = R.nz(-9, 9); return { text: '(x' + sg(-u) + ')(x' + sg(-v) + ')=0' }; },
+      R => { const k = R.ri(2, 12), m = R.ri(2, 5); return { text: m + 'x^2=' + m * k * k }; },
+      R => { const u = R.nz(-8, 8); let v = R.nz(-8, 8); return { text: pstr(1, -(u + v), u * v) + '=0' }; },
+      R => { const m = R.ri(2, 5), k = R.nz(-6, 6); return { text: m + 'x^2' + sg(-m * k) + 'x=0' }; },
+      R => { const s2 = R.nz(-6, 6), a = R.ri(3, 6), b = R.nz(-5, 5), c = R.ri(1, a - 1); return { text: a + '(x' + sg(b) + ')-' + c + '(x' + sg(b) + ')=' + (a - c) * (s2 + b) }; }
+    ], [
+      R => { let p = R.ri(1, 4), q = R.ri(1, 4); if (p === q) q = p + 1; return { text: 'x^4-' + (p * p + q * q) + 'x^2+' + p * p * q * q + '=0' }; },
+      R => { let p = R.ri(1, 6), q = R.ri(1, 6); if (p === q) q++; return { text: 'x+' + p * q + '/x=' + (p + q) }; },
+      R => { const k = R.ri(2, 5); return { text: 'x^3=' + k * k * k }; },
+      R => { const a = R.ri(1, 4), b = R.ri(2, 5), p = R.ri(1, 4), q = R.ri(5, 9); return { text: a + '/(x+' + p + ')=' + b + '/(x+' + q + ')' }; },
+      R => { const s2 = R.ri(2, 8), m = R.ri(1, 3); return { text: 'sqrt(' + m + 'x+' + (s2 * s2 - m * s2) + ')=x' }; },
+      R => { let A = R.ri(1, 4), B = R.nz(-9, 9), Cc = R.nz(-9, 9); if (B * B - 4 * A * Cc < 0) Cc = -Math.abs(Cc); return { text: pstr(A, B, Cc) + '=0' }; }   // immer mit reellen Lösungen
+    ]]
+  };
+  Object.keys(MORE).forEach(m => MORE[m].forEach((l, i) => { GENS[m][i].push(...l); }));
+
+  // Zuletzt gestellte Aufgaben je Thema und Stufe (auch über das Neuladen hinweg): werden möglichst nicht wiederholt
+  const RECENT_N = 60, RECENT_LS = 'j10.algRecent';
+  let RECENT = {};
+  try { if (typeof localStorage !== 'undefined') RECENT = JSON.parse(localStorage.getItem(RECENT_LS) || '{}') || {}; } catch (e) { RECENT = {}; }
+  const recentHas = (k, t) => (RECENT[k] || []).indexOf(t) >= 0;
+  const recentAdd = (k, t) => { const a = (RECENT[k] = (RECENT[k] || []).filter(x => x !== t)); a.push(t); if (a.length > RECENT_N) a.splice(0, a.length - RECENT_N); try { if (typeof localStorage !== 'undefined') localStorage.setItem(RECENT_LS, JSON.stringify(RECENT)); } catch (e) { /* ohne Speicher */ } };
+
   // Gesetze erkennen: [Gleichung in LaTeX, richtiger Name]
   const LAW_MODES = ['pow', 'log'];
   function lawItems(mode, R) {
@@ -601,13 +752,18 @@ const AlgLearn = (function () {
     rnd = rnd || Math.random; const R = mk(rnd);
     level = Math.max(1, Math.min(LEVELS, level || 1));
     if (kind === 'law' && LAW_MODES.indexOf(mode) >= 0) {
-      const items = lawItems(mode, R), it = R.pick(items), names = [...new Set(items.map(x => x[0]))];
+      const items = lawItems(mode, R), lk = 'law' + mode; let it = R.pick(items);
+      for (let k = 0; k < 12 && recentHas(lk, it[0]); k++) it = R.pick(items);
+      if ((RECENT[lk] || []).length >= Math.min(5, items.length - 1)) RECENT[lk].shift(); recentAdd(lk, it[0]);
+      const names = [...new Set(items.map(x => x[0]))];
       const opts = R.shuffle([it[0]].concat(R.shuffle(names.filter(n => n !== it[0])).slice(0, 3)));
       return { mode, kind: 'law', title: 'Welches Gesetz wurde angewendet?', tex: it[1], options: opts, expect: it[0], solMode: mode, solText: null };
     }
     if (!GENS[mode]) return null;
-    for (let tries = 0; tries < 40; tries++) {
+    const rk = mode + level, fresh = t => { recentAdd(rk, t.text); return t; };
+    for (let tries = 0; tries < 80; tries++) {
       const g = V(R, level, GENS[mode]);
+      if (tries < 60 && recentHas(rk, g.text)) continue;                  // kürzlich gestellt: neu ziehen
       let task = Object.assign({ mode, kind: 'expr', title: PROMPT[mode], solMode: mode, solText: g.text, level }, g);
       if (mode === 'pow' && /sqrt|root|\^\(-?\d+\/\d+\)/.test(g.text)) task.sub = 'root';
       if (mode === 'eq') {
@@ -631,10 +787,10 @@ const AlgLearn = (function () {
         task.kind = 'sys'; task.expect = r.sols; task.names = r.names; task.tol = 1e-6;
         task.title = r.names.length === 2 ? 'Löse das Gleichungssystem (Antwort z. B. x = 1; y = 2):' : 'Löse das Gleichungssystem (Antwort z. B. x = 1; y = 2; z = 3):';
         task.tex = M.fieldLatex(g.text);
-        return task;
+        return fresh(task);
       }
       try { M.parse(g.text); task.tex = M.fieldLatex(g.text); } catch (e) { continue; }
-      return task;
+      return fresh(task);
     }
     return null;
   }

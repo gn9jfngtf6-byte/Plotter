@@ -53,9 +53,10 @@ const C = { get grid(){ return darkMode?'#2d3140':'#e5e7eb'; },
 // Sidebar-Tastatur nicht hat, da dort meist die physische Tastatur tippt)
 // und Pfeiltasten zur Navigation innerhalb der Formel (links/rechts sowie
 // hoch/runter, z.B. um zwischen Zähler/Nenner eines Bruchs zu wechseln).
-// Als Buchstaben bewusst nur x und n (mehr braucht diese App nicht) — keine
-// griechischen Buchstaben ausser π (das hat die Sidebar-Tastatur auch schon),
-// keine sonstigen Buchstaben, keine Mengenlehre-Symbole.
+// Auf der Hauptseite stehen als Buchstaben nur x, n und y sowie «=» (für Gleichungen); alle übrigen Buchstaben
+// (Parameter a, b, k … der Funktionen, Variablen der Algebra) liegen auf der zweiten Seite «abc» — ohne sie liess
+// sich auf einem Tablet ohne Tastatur z.B. «a·x²» oder «(a+b)²» gar nicht eingeben. Keine griechischen Buchstaben
+// ausser π (das hat die Sidebar-Tastatur auch schon), keine Mengenlehre-Symbole.
 // "[left]", "[right]", "[up]", "[down]", "[backspace]", "[undo]", "[redo]",
 // "[hide-keyboard]", "[hr]", "[separator]" sind von MathLive selbst
 // vordefinierte Tasten (siehe KEYCAP_SHORTCUTS in mathlive.js).
@@ -71,7 +72,7 @@ const _kbdFracLabel =
 try {
   if (window.mathVirtualKeyboard) {
     window.mathVirtualKeyboard.layouts = [{
-      label: 'Plotter',
+      label: '123',
       rows: [
         [
           'x', 'n', '\\pi', 'e', '(', ')',
@@ -91,7 +92,7 @@ try {
         [
           { latex: '\\tan(#?)', label: 'tan' }, { latex: '\\ln(#?)', label: 'ln' },
           { latex: '\\log_{10}(#?)', label: 'log₁₀' }, { latex: '\\log_{2}(#?)', label: 'logₙ' },
-          '[separator]', '[separator]',
+          'y', '=',
           { latex: '0', label: '0', width: 2 }, '[.]'
         ],
         ['[hr]'],
@@ -102,7 +103,7 @@ try {
           '[hide-keyboard]'
         ]
       ]
-    }];
+    }, 'alphabetic'];   // zweite Seite «abc»: Buchstaben für Parameter (a, b, k …) und Variablen der Algebra
   }
 } catch (e) { /* MathLive evtl. noch nicht geladen — Standard-Tastatur bleibt aktiv */ }
 
@@ -580,3 +581,62 @@ function gridStep(range) {
   return 10 * mag;
 }
 
+
+
+// ── Überschrift über dem Bild: Hinweis zur aktuellen Ansicht eines Themas ──
+// Text mit {{Wort|id1,id2}}: Fährt man über das Wort, werden die ziehbaren Punkte mit diesen ids im Bild (S.pts) hervorgehoben.
+// Jedes Thema meldet seinen Hinweis mit envHint(thema, text, () => szene); angezeigt wird der des aktiven Themas.
+const ENVH = { by: {}, get: null, ids: null, raf: 0, rings: [], t: 0 };
+function envHintCur() { return typeof ENV !== 'undefined' ? ENV.cur : document.body.getAttribute('data-env'); }
+function envHint(env, text, getS) { ENVH.by[env] = { text: text || '', get: getS || null }; if (env === envHintCur()) envHintShow(); }
+function envHintShow() {
+  const el = document.getElementById('env-hint'); if (!el) return;
+  const h = ENVH.by[envHintCur()], text = h ? h.text : '';
+  ENVH.get = h ? h.get : null;
+  if (!text) { el.style.display = 'none'; el.dataset.t = ''; envHintOff(); return; }
+  el.style.display = '';
+  if (el.dataset.t === text) return;
+  el.dataset.t = text; envHintOff(); el.replaceChildren();
+  const re = /\{\{(.+?)\|([^|{}]*)\}\}/g; let i = 0, m;   // das Wort darf selbst | enthalten, z.B. (x | f(x))
+  while ((m = re.exec(text))) {
+    if (m.index > i) el.append(text.slice(i, m.index));
+    const s = document.createElement('span'); s.className = 'eh-l'; s.textContent = m[1]; s.dataset.ids = m[2]; el.append(s); i = re.lastIndex;
+  }
+  if (i < text.length) el.append(text.slice(i));
+  // Knopf «Zurücksetzen» (32_env.js envReset) rechts oben in der Überschrift
+  if (typeof ENV_RESET !== 'undefined' && ENV_RESET[envHintCur()]) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'eh-reset'; b.textContent = '⟲ Zurücksetzen';
+    b.title = 'Alles in dieser Ansicht in den Anfangszustand zurücksetzen (Rückgängig ist möglich)';
+    b.addEventListener('click', () => { if (typeof envReset === 'function') envReset(); });
+    el.prepend(b);
+  }
+}
+function envHintOn(ids) { ENVH.ids = ids; ENVH.lastS = null; cancelAnimationFrame(ENVH.raf); const tick = () => { if (!ENVH.ids) return; envHintPlace(); ENVH.raf = requestAnimationFrame(tick); }; tick(); }
+function envHintOff() { ENVH.ids = null; ENVH.lastS = null; cancelAnimationFrame(ENVH.raf); if (ENVH.svg) { ENVH.svg.remove(); ENVH.svg = null; } }
+// Hervorhebung als SVG über dem Bild: Punkte (S.pts) als Ring, Linien/Kurven (S.hl.pts) als leuchtender Strich, Kästen und Kreise (S.hl.box/c)
+function envHintPlace() {
+  const wrap = document.getElementById('canvas-wrap'), cv = document.getElementById('canvas'); if (!wrap || !cv) return;
+  let S = null; try { S = ENVH.get && ENVH.get(); } catch (e) { S = null; }
+  const wr = wrap.getBoundingClientRect(), cr = cv.getBoundingClientRect(), ox = cr.left - wr.left, oy = cr.top - wr.top;
+  const key = ox + ',' + oy + ',' + cr.width + ',' + cr.height;
+  if (S === ENVH.lastS && key === ENVH.key && ENVH.svg) return;           // Bild unverändert
+  ENVH.lastS = S; ENVH.key = key;
+  const ids = ENVH.ids || [], has = id => ids.includes(id), NS = 'http://www.w3.org/2000/svg';
+  if (!ENVH.svg) { ENVH.svg = document.createElementNS(NS, 'svg'); ENVH.svg.setAttribute('class', 'eh-svg'); wrap.appendChild(ENVH.svg); }
+  const g = ENVH.svg; g.replaceChildren(); g.style.left = ox + 'px'; g.style.top = oy + 'px'; g.setAttribute('width', cr.width); g.setAttribute('height', cr.height);
+  const add = (tag, at) => { const e = document.createElementNS(NS, tag); Object.keys(at).forEach(k => e.setAttribute(k, at[k])); g.appendChild(e); return e; };
+  const f1 = v => Math.round(v * 10) / 10;
+  ((S && S.hl) || []).filter(h => has(h.id)).forEach(h => {
+    if (h.pts) { const d = 'M' + h.pts.map(p => f1(p[0]) + ' ' + f1(p[1])).join('L') + (h.close ? 'Z' : ''); add('path', { d, class: 'eh-glow' }); add('path', { d, class: 'eh-core' }); }
+    else if (h.box) add('rect', { x: h.box[0], y: h.box[1], width: h.box[2] - h.box[0], height: h.box[3] - h.box[1], rx: 6, class: 'eh-box' });
+    else if (h.c) add('circle', { cx: h.c[0], cy: h.c[1], r: h.c[2], class: 'eh-ring' });
+  });
+  ((S && S.pts) || []).filter(p => has(p.id)).forEach(p => add('circle', { cx: p.x, cy: p.y, r: 15, class: 'eh-ring' }));
+}
+(function () {
+  const el = document.getElementById('env-hint'); if (!el) return;
+  const lnk = e => (e.target && e.target.closest ? e.target.closest('.eh-l') : null);
+  el.addEventListener('mouseover', e => { const s = lnk(e); if (s) envHintOn(s.dataset.ids.split(',')); });
+  el.addEventListener('mouseout', e => { const s = lnk(e); if (s && !s.contains(e.relatedTarget)) envHintOff(); });
+  el.addEventListener('click', e => { const s = lnk(e); if (!s) return; envHintOn(s.dataset.ids.split(',')); clearTimeout(ENVH.t); ENVH.t = setTimeout(envHintOff, 1800); });   // Berührung
+})();

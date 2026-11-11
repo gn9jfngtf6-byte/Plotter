@@ -82,7 +82,7 @@ const Trig = (function () {
   }
   // Stelle x als Vielfaches von π (wenn einfach) oder Dezimalzahl
   const xTex = x => { if (Math.abs(x) < 1e-9) return '0'; const q = piQ(x); return q ? piTex(q) : Dif.fmtT(x, 3); };
-  const fOf = F => x => F.a * (F.kind === 'cos' ? Math.cos(F.b * (x - F.c)) : Math.sin(F.b * (x - F.c))) + F.d;
+  const fOf = F => { const g = x => F.a * (F.kind === 'cos' ? Math.cos(F.b * (x - F.c)) : Math.sin(F.b * (x - F.c))) + F.d; g.rawOf = () => { try { return raw(F); } catch (e) { return null; } }; return g; };
   // Periode T = 2π/b: als Bruch·π (TTex) bzw. rational, wenn b ein Vielfaches von π ist
   function periodTex(F, div) {
     div = div || 1;

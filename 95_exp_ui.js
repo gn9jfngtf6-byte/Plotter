@@ -7,12 +7,13 @@
 // Die Umgebung selbst (Umschalten) steht in 32_env.js (Eintrag «exp»).
 // ═══════════════════════════════════════════════════════════════════
 
-const EXP_VIEWS = [['grow', 'Wachstum und Zerfall a·b^x'], ['e', 'Die Zahl e und e^x'], ['log', 'Logarithmus als Umkehrung'], ['eq', 'Exponentialgleichungen und Anwendungen']];
+const EXP_VIEWS = [['grow', 'Wachstum und Zerfall a·b^x'], ['e', 'Die Zahl e und e^x'], ['log', 'Logarithmus als Umkehrung'], ['eq', 'Exponentialgleichungen und Anwendungen'], ['pct', 'Prozentrechnung: Faktor, rückwärts, mehrere Schritte']];
 const EXP_DESC = {
-  grow: ['Exponentialfunktionen f(x) = a·bˣ + d: Der Anfangswert a wird bei jedem Schritt um 1 mit demselben Faktor b multipliziert. Für b > 1 wächst der Graph (Wachstum um (b−1)·100 %), für 0 < b < 1 fällt er (Zerfall). Die Gerade y = d ist Asymptote.', 'Ziehe die grünen Punkte bei x = 0 (Anfangswert a) und x = 1 (Faktor b) oder den Punkt P. Vergleiche mit dem linearen Wachstum und beobachte die Faktor-Schritte.'],
-  e: ['Die Zahl e ≈ 2,71828 entsteht als Grenzwert von (1 + 1/n)ⁿ. Die Funktion eˣ hat eine besondere Eigenschaft: Die Steigung der Tangente ist an jeder Stelle gleich dem Funktionswert.', 'Ziehe den Berührpunkt T und vergleiche die Steigung mit dem Funktionswert. Die grauen Kurven 2ˣ und 3ˣ zeigen, dass nur bei der Basis e die Steigung im Punkt (0 | 1) genau 1 ist.'],
-  log: ['Der Logarithmus zur Basis b ist die Umkehrung von bˣ: log_b(y) ist der Exponent, mit dem man b potenzieren muss, um y zu erhalten. Der Graph von log_b x ist das Spiegelbild von bˣ an der Winkelhalbierenden y = x.', 'Ziehe den Punkt P auf der Exponentialfunktion: Sein Spiegelpunkt P′ liegt auf dem Logarithmus. Wähle die Basis b (auch e oder 10) und vergleiche die Wertetabellen.'],
-  eq: ['Exponentialgleichungen a·bˣ + d = c werden mit dem Logarithmus gelöst: Potenz isolieren, dann x = log_b(…) = ln(…)/ln(b). Anwendungen: Zinseszins, Bevölkerung, Zerfall, Abkühlung – überall, wo sich etwas pro Zeitschritt um denselben Faktor ändert.', 'Ziehe die orange Gerade y = c auf und ab: Die Lösung ist die Schnittstelle mit dem Graphen. Wähle eine Anwendung – die Achsen tragen dann Einheiten und das Ergebnis wird gedeutet.']
+  pct: ['Ziehe die {{Säulen|bars}} hoch oder runter (oder gib die Prozente ein): Jede Veränderung um p % ist eine Multiplikation mit dem {{Faktor|fac}} 1 ± p/100. Alle Faktoren zusammen ergeben den {{Gesamtfaktor|tot}}; rückwärts teilt man den Endwert durch ihn.', 'Eine Zunahme um p % bedeutet Multiplikation mit q = 1 + p/100, eine Abnahme mit q = 1 − p/100. Bei mehreren Veränderungen nacheinander werden die Faktoren multipliziert, nicht die Prozente addiert. Den Grundwert findet man, indem man den neuen Wert durch den Faktor teilt.'],
+  grow: ['Ziehe die Punkte bei x = 0 ({{Anfangswert a|A}}) und x = 1 ({{Faktor b|B}}): Bei jedem Schritt um 1 wird mit b multipliziert ({{Faktor-Schritte|st}}). Für b > 1 wächst der {{Graph|f}}, für 0 < b < 1 zerfällt er; vergleiche mit dem {{linearen Wachstum|lin}} – «▶ Schritt für Schritt wachsen lassen» baut beide nebeneinander auf.', 'Exponentialfunktionen f(x) = a·bˣ + d: Der Anfangswert a wird bei jedem Schritt um 1 mit demselben Faktor b multipliziert. Für b > 1 wächst der Graph (Wachstum um (b−1)·100 %), für 0 < b < 1 fällt er (Zerfall). Die Gerade y = d ist Asymptote.'],
+  e: ['Ziehe den {{Berührpunkt T|T}} auf dem {{Graphen von eˣ|f}}: Die Steigung der {{Tangente|tan}} ist überall genau gleich dem Funktionswert. Bei {{2ˣ und 3ˣ|cmp}} stimmt das nicht – nur die Basis e ≈ 2,71828 hat diese Eigenschaft. «▶ Basis von 2 bis 3 gleiten lassen» hält genau dort an.', 'Die Zahl e ≈ 2,71828 entsteht als Grenzwert von (1 + 1/n)ⁿ. Die Funktion eˣ hat eine besondere Eigenschaft: Die Steigung der Tangente ist an jeder Stelle gleich dem Funktionswert.'],
+  log: ['Ziehe den {{Punkt P|P}} auf der {{Exponentialfunktion|f}}: Sein Spiegelpunkt {{P′|Q}} an der {{Winkelhalbierenden|diag}} liegt auf dem {{Logarithmus|lg}}. log_b(y) ist der Exponent, mit dem man b potenzieren muss, um y zu erhalten.', 'Der Logarithmus zur Basis b ist die Umkehrung von bˣ: log_b(y) ist der Exponent, mit dem man b potenzieren muss, um y zu erhalten. Der Graph von log_b x ist das Spiegelbild von bˣ an der Winkelhalbierenden y = x.'],
+  eq: ['Ziehe die {{Gerade y = c|Y,yl}} auf und ab: Die Lösung von a·bˣ + d = c ist die Stelle, an der sie den {{Graphen|f}} schneidet. Rechts wird sie mit dem Logarithmus berechnet, bei Anwendungen auch gedeutet.', 'Exponentialgleichungen a·bˣ + d = c werden mit dem Logarithmus gelöst: Potenz isolieren, dann x = log_b(…) = ln(…)/ln(b). Anwendungen: Zinseszins, Bevölkerung, Zerfall, Abkühlung – überall, wo sich etwas pro Zeitschritt um denselben Faktor ändert.']
 };
 // Beispiele [a, b, d, Anzeige]  (b = 'e' für die Basis e)
 const EXP_GROW_EX = [[1, 2, 0, '2^x'], [1, 0.5, 0, '(1/2)^x'], [3, 1.5, 0, '3·1,5^x'], [100, 1.05, 0, '100·1,05^x (5 % Wachstum)'], [2, 0.8, 0, '2·0,8^x (20 % Abnahme)'], [1, 3, 0, '3^x'], [1, 10, 0, '10^x'], [1, 2, 1, '2^x + 1'], [-1, 2, 4, '−2^x + 4'], [1, 'e', 0, 'e^x']];
@@ -29,13 +30,15 @@ const EXP_APPS = [
   { id: 'zerf', name: 'Radioaktiver Zerfall', fn: 'N', xv: 't', xlab: 't\\ \\text{(Tage)}', ylab: 'N\\ \\text{(\\%)}', a: 100, b: 0.917, d: 0, c: 10, xmax: 30, ymax: 110, desc: 'Iod-131, Halbwertszeit 8 Tage: N(t) = 100·0,917ᵗ (in % der Anfangsmenge)', q: 'Von Iod-131 zerfallen pro Tag 8,3 % (Halbwertszeit 8 Tage). Nach welcher Zeit sind noch $10$ % übrig?', ans: (x, c) => 'Nach rund ' + difFmtIn(Math.round(x * 10) / 10) + ' Tagen sind noch ' + difFmtIn(c) + ' % übrig' },
   { id: 'kaff', name: 'Abkühlung', fn: 'T', xv: 't', xlab: 't\\ \\text{(Minuten)}', ylab: 'T\\ \\text{(°C)}', a: 60, b: 0.9, d: 20, c: 40, xmax: 30, ymax: 90, desc: 'Kaffee mit 80 °C im Raum mit 20 °C: T(t) = 20 + 60·0,9ᵗ', q: 'Kaffee von 80 °C kühlt in einem 20 °C warmen Raum ab; der Temperaturunterschied sinkt pro Minute um 10 %. Wann hat er $40$ °C?', ans: (x, c) => 'Nach rund ' + difFmtIn(Math.round(x * 10) / 10) + ' Minuten hat der Kaffee ' + difFmtIn(c) + ' °C' }
 ];
+// Prozentrechnung: [Anzeige, Richtung, Grundwert bzw. Endwert, Veränderungen in %]
+const EXP_PCT_EX = [['Preis 200 Fr.: +10 %, dann −10 %', 'fw', 200, [10, -10]], ['Lohn 5000 Fr.: dreimal +2 %', 'fw', 5000, [2, 2, 2]], ['80 Fr.: 25 % Rabatt, dann 8,1 % MWST', 'fw', 80, [-25, 8.1]], ['Aktie 100 Fr.: +50 %, dann −50 %', 'fw', 100, [50, -50]], ['Rückwärts: nach 20 % Rabatt 64 Fr.', 'bw', 64, [-20]], ['Rückwärts: inkl. 8,1 % MWST 270.25 Fr.', 'bw', 270.25, [8.1]], ['Rückwärts: nach +5 % und +4 % jetzt 5460 Fr.', 'bw', 5460, [5, 4]]];
 const EXP_WIN0 = { x0: null, x1: null, y0: null, y1: null };
 const EXP_SHOW0 = { asym: true, lin: false, steps: true, cmp: true, tri: true, diag: true, card: true };
 
 function expDefaults() {
-  return { view: 'grow', a: 1, b: 2, d: 0, eb: false, xp: 2, x0: 1, c: 8, app: '', win: Object.assign({}, EXP_WIN0), show: Object.assign({}, EXP_SHOW0) };
+  return { view: 'grow', a: 1, b: 2, d: 0, eb: false, xp: 2, x0: 1, c: 8, app: '', pG: 200, pE: 198, pc: [10, -10], pm: 'fw', win: Object.assign({}, EXP_WIN0), show: Object.assign({}, EXP_SHOW0) };
 }
-const EXP = Object.assign(expDefaults(), { ui: null, S: null, drag: null, cardKey: '', cardT: 0 });
+const EXP = Object.assign(expDefaults(), { ui: null, S: null, drag: null, anim: null, cardKey: '', cardT: 0 });
 function expActive() { return typeof ENV !== 'undefined' && ENV.cur === 'exp'; }
 
 const expR6 = x => Math.round(x * 1e6) / 1e6 + 0;
@@ -91,15 +94,22 @@ function expSetupFields() {
 function expCardDoc() {
   try {
     const v = EXP.view;
+    if (v === 'pct') return { t: 'Rechenweg: Prozentrechnung', d: Expo.pctDoc(EXP.pG, EXP.pE, EXP.pc, EXP.pm === 'bw') };
     if (v === 'grow') return { t: 'Rechenweg: Wachstum und Zerfall', d: Expo.growDoc(expF(), EXP.xp) };
     if (v === 'e') return { t: 'Rechenweg: Die Zahl e', d: Expo.eDoc(EXP.x0) };
     if (v === 'log') return { t: 'Rechenweg: Logarithmus', d: Expo.logDoc(Expo.mk(1, EXP.b, 0, EXP.eb), EXP.xp) };
-    return { t: 'Rechenweg: Exponentialgleichung', d: Expo.eqDoc(expF(), EXP.c, expAppCtx()) };
+    const A = expAppCtx(), d = Expo.eqDoc(expF(), EXP.c, A);
+    if (A) {                                            // Sachverhalt und Frage trennen (letzter Satz mit «?»)
+      const q = String(A.q); let cut = -1;
+      for (let i = q.length - 2; i > 0; i--) if ((q[i] === '.' || q[i] === ';') && q[i + 1] === ' ' && /^[A-ZÄÖÜ]/.test(q.slice(i + 2)) && /\?\s*$/.test(q)) { cut = i; break; }
+      if (cut > 0) Dif.withSit(d, q.slice(0, cut + 1), q.slice(cut + 2)); else Dif.withSit(d, q, '');
+    }
+    return { t: 'Rechenweg: Exponentialgleichung', d };
   } catch (e) { return { t: 'Rechenweg', d: null, err: e }; }
 }
 function expCardKey() {
   const v = EXP.view, F = [EXP.a, EXP.b, EXP.d, EXP.eb];
-  const k = { grow: [F, EXP.xp], e: [EXP.x0], log: [EXP.b, EXP.eb, EXP.xp], eq: [F, EXP.c, EXP.app] }[v];
+  const k = { pct: [EXP.pG, EXP.pE, EXP.pc, EXP.pm], grow: [F, EXP.xp], e: [EXP.x0], log: [EXP.b, EXP.eb, EXP.xp], eq: [F, EXP.c, EXP.app] }[v];
   return v + '|' + JSON.stringify(k);
 }
 function expCardSoon() { clearTimeout(EXP.cardT); EXP.cardT = setTimeout(expCardRender, 40); }
@@ -118,12 +128,16 @@ function expCardRender() {
 }
 
 // ── Zustand sichern / laden ──
-function expCapture() { return difCopy({ view: EXP.view, a: EXP.a, b: EXP.b, d: EXP.d, eb: EXP.eb, xp: EXP.xp, x0: EXP.x0, c: EXP.c, app: EXP.app, win: EXP.win, show: EXP.show }); }
+function expCapture() { return difCopy({ view: EXP.view, a: EXP.a, b: EXP.b, d: EXP.d, eb: EXP.eb, xp: EXP.xp, x0: EXP.x0, c: EXP.c, app: EXP.app, pG: EXP.pG, pE: EXP.pE, pc: EXP.pc, pm: EXP.pm, win: EXP.win, show: EXP.show }); }
 function expApply(s) {
+  EXP.anim = null;                                                       // laufende Animation beenden (Rückgängig, Laden, Zurücksetzen)
   const d = expDefaults(), num = (v, def) => { v = Number(v); return isFinite(v) ? v : def; };
   if (s && typeof s === 'object') {
     if (EXP_VIEWS.some(v => v[0] === s.view)) d.view = s.view;
     ['a', 'b', 'd', 'xp', 'x0', 'c'].forEach(key => { d[key] = num(s[key], d[key]); });
+    ['pG', 'pE'].forEach(key => { const v = num(s[key], d[key]); if (v > 0) d[key] = v; });
+    if (Array.isArray(s.pc) && s.pc.length >= 1 && s.pc.length <= 6 && s.pc.every(p => isFinite(Number(p)) && Number(p) > -100)) d.pc = s.pc.map(Number);
+    if (s.pm === 'fw' || s.pm === 'bw') d.pm = s.pm;
     if (d.a === 0) d.a = 1;
     if (!(d.b > 0) || Math.abs(d.b - 1) < 1e-6) d.b = 2;
     d.eb = !!s.eb;
@@ -143,7 +157,35 @@ function expApply(s) {
 
 // ── Zeichnen ──
 function expCtx(W, H, exp) {
-  return { view: EXP.view, F: expF(), xp: EXP.xp, x0: EXP.x0, c: EXP.c, app: expAppCtx(), win: EXP.win, fs: exp ? exp.fs : stSceneFs(W, H, 46), exp: !!exp, smooth: !exp, show: EXP.show };
+  return { view: EXP.view, F: expF(), xp: EXP.xp, x0: EXP.x0, c: EXP.c, app: expAppCtx(), pG: EXP.pG, pE: EXP.pE, pc: EXP.pc, pm: EXP.pm, win: EXP.win, fs: exp ? exp.fs : stSceneFs(W, H, 46), exp: !!exp, smooth: !exp, show: EXP.show,
+    growU: EXP.anim && EXP.anim.grow && !exp ? EXP.anim.u : null, eb: EXP.anim && EXP.anim.e && !exp ? EXP.anim.b : null };
+}
+// ── Animationen: Faktor-Schritte bauen sich auf (grow) bzw. die Basis gleitet von 2 nach 3 (e) ──
+function expAnimStop() { if (EXP.anim) { if (EXP.anim.auto) EXP.win = Object.assign({}, EXP_WIN0); EXP.anim = null; expRefreshUI(); difRedraw(); } }
+function expAnimToggle() {
+  if (EXP.anim) { expAnimStop(); return; }
+  if (EXP.view === 'grow') EXP.anim = { last: 0, grow: true, u: 0, wait: 0.5 };
+  else if (EXP.view === 'e') EXP.anim = { last: 0, e: true, b: 2, wait: 0.6, done: false };
+  else return;
+  if (EXP.win.x0 === null && typeof expResolvedWin === 'function') { EXP.win = expResolvedWin(); EXP.anim.auto = true; }    // Ausschnitt bleibt stehen
+  expRefreshUI(); difRedraw(); requestAnimationFrame(expAnimFrame);
+}
+function expAnimFrame(ts) {
+  const a = EXP.anim; if (!a) return;
+  if (!expActive() || (a.grow && EXP.view !== 'grow') || (a.e && EXP.view !== 'e')) { EXP.anim = null; return; }
+  const dt = a.last ? Math.min(0.1, (ts - a.last) / 1000) : 0.016; a.last = ts;
+  if (a.wait > 0) { a.wait -= dt; requestAnimationFrame(expAnimFrame); return; }
+  if (a.grow) {
+    const w = expResolvedWin(), kmax = Math.max(1, Math.min(6, Math.floor(w.x1))), before = Math.floor(a.u + 1e-9);
+    a.u = Math.min(kmax, a.u + dt * 0.8);
+    if (Math.floor(a.u + 1e-9) > before) { a.u = Math.floor(a.u + 1e-9); a.wait = 0.45; }           // nach jedem Schritt kurz halten
+    if (a.u >= kmax) { const au = a.auto; EXP.anim = null; if (au) EXP.win = Object.assign({}, EXP_WIN0); EXP.show.steps = true; EXP.show.lin = true; expRefreshUI(); difRedraw(); difCommit(); return; }
+  } else {
+    const before = a.b; a.b = Math.min(3, a.b + dt * 0.16);
+    if (!a.done && before < Math.E && a.b >= Math.E) { a.b = Math.E; a.done = true; a.wait = 2.2; }     // bei b = e anhalten
+    if (a.b >= 3) { a.wait = 0; difRedraw(); const au = a.auto; setTimeout(() => { if (EXP.anim === a) { EXP.anim = null; if (au) EXP.win = Object.assign({}, EXP_WIN0); expRefreshUI(); difRedraw(); } }, 1200); return; }
+  }
+  difRedraw(); requestAnimationFrame(expAnimFrame);
 }
 const expDock = w => (EXP.show.card && w >= 760 ? stCardW(w, 0.36) : 0);
 const expDockH = (w, h) => (EXP.show.card && w < 760 ? Math.round(h * 0.5) : 0);
@@ -203,7 +245,7 @@ function expBuildUI() {
   const ui = EXP.ui = {}, body = $dif('exp-body');
   ui.sel = $dif('exp-view');
   EXP_VIEWS.forEach(([id, nm]) => { const o = difEl('option', null, nm); o.value = id; ui.sel.appendChild(o); });
-  ui.sel.addEventListener('change', () => { EXP.view = ui.sel.value; EXP.cardKey = ''; EXP.win = Object.assign({}, EXP_WIN0); if (EXP.view !== 'eq') EXP.app = ''; expRefreshUI(); difRedraw(); expCardSoon(); difCommit(); });
+  ui.sel.addEventListener('change', () => { EXP.view = ui.sel.value; EXP.anim = null; EXP.cardKey = ''; EXP.win = Object.assign({}, EXP_WIN0); if (EXP.view !== 'eq') EXP.app = ''; expRefreshUI(); difRedraw(); expCardSoon(); difCommit(); });
   ui.desc = $dif('exp-desc');
   ui.ex = $dif('exp-ex');
   ui.params = difEl('div', 'alg-opts'); body.appendChild(ui.params);
@@ -225,18 +267,19 @@ function expRefreshUI() {
   const ui = EXP.ui; if (!ui) return;
   const v = EXP.view, sh = EXP.show;
   ui.sel.value = v;
-  const d = EXP_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[0]), Object.assign(difEl('div', null, d[1]), { style: 'margin-top:5px;' }));
+  const d = EXP_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[1])); if (typeof envHint === 'function') envHint('exp', d[0], () => EXP.S);   // Hinweis als Überschrift über dem Bild
   const showF = v === 'grow' || v === 'eq';
   ['exp-f-row', 'exp-field-head'].forEach(id => { const e = $dif(id); if (e) e.style.display = showF ? '' : 'none'; });
   expSyncFields();
   // Beispiele
   ui.ex.replaceChildren(Object.assign(difEl('option', null, 'Beispiel wählen …'), { value: '' }));
-  const exs = v === 'grow' ? EXP_GROW_EX.map(p => p[3]) : v === 'e' ? EXP_E_EX.map(p => p[1]) : v === 'log' ? EXP_LOG_EX.map(p => p[1]) : EXP_EQ_EX.map(p => p[4]);
+  const exs = v === 'pct' ? EXP_PCT_EX.map(p => p[0]) : v === 'grow' ? EXP_GROW_EX.map(p => p[3]) : v === 'e' ? EXP_E_EX.map(p => p[1]) : v === 'log' ? EXP_LOG_EX.map(p => p[1]) : EXP_EQ_EX.map(p => p[4]);
   exs.forEach((nm, i) => { const o = difEl('option', null, nm); o.value = String(i); o.setAttribute('translate', 'no'); ui.ex.appendChild(o); });
   ui.ex.onchange = () => {
     const i = ui.ex.value; ui.ex.value = ''; if (i === '') return; const k = +i;
     const setB = b => { if (b === 'e') EXP.eb = true; else { EXP.eb = false; EXP.b = b; } };
-    if (v === 'grow') { const e = EXP_GROW_EX[k]; EXP.a = e[0]; setB(e[1]); EXP.d = e[2]; }
+    if (v === 'pct') { const e = EXP_PCT_EX[k]; EXP.pm = e[1]; if (e[1] === 'bw') EXP.pE = e[2]; else EXP.pG = e[2]; EXP.pc = e[3].slice(); }
+    else if (v === 'grow') { const e = EXP_GROW_EX[k]; EXP.a = e[0]; setB(e[1]); EXP.d = e[2]; }
     else if (v === 'e') EXP.x0 = EXP_E_EX[k][0];
     else if (v === 'log') { setB(EXP_LOG_EX[k][0]); }
     else { const e = EXP_EQ_EX[k]; EXP.a = e[0]; setB(e[1]); EXP.d = e[2]; EXP.c = e[3]; EXP.app = ''; }
@@ -278,7 +321,10 @@ function expRefreshUI() {
     top.append(lb, val);
     const sl = difEl('input'); sl.type = 'range'; sl.min = min; sl.max = max; sl.step = step; sl.value = Math.max(min, Math.min(max, get())); sl.style.width = '100%';
     sl.addEventListener('input', () => { set(expR6(parseFloat(sl.value))); val.textContent = difFmtIn(get()); EXP.cardKey = ''; difRedraw(); expCardSoon(); expSyncFields(); });
-    sl.addEventListener('change', () => { expRefreshUI(); difCommit(); });
+    // Während des Ziehens bleibt der Ausschnitt stehen; danach passt er sich einmal ruhig an
+    const hold = () => { if (EXP.win.x0 === null) { EXP.win = expResolvedWin(); EXP._slAuto = true; } };
+    ['pointerdown', 'mousedown', 'touchstart'].forEach(ev => sl.addEventListener(ev, hold, { passive: true }));
+    sl.addEventListener('change', () => { if (EXP._slAuto) { EXP.win = Object.assign({}, EXP_WIN0); EXP._slAuto = false; } expRefreshUI(); difCommit(); difRedraw(); });
     wrap.append(top, sl); const r1 = difEl('div', 'settings-row'); r1.appendChild(wrap); P.appendChild(r1); return sl;
   };
   const group = txt => { const g = difEl('div', 'subpanel-label', txt); g.style.marginTop = '8px'; P.appendChild(g); };
@@ -288,7 +334,16 @@ function expRefreshUI() {
     if (!EXP.eb) slider('b', () => EXP.b, x => { if (Math.abs(x - 1) < 1e-6) x = 1.1; expSetB(x); }, 0.1, 5, 0.1);
   };
 
-  if (v === 'grow') {
+  if (v === 'pct') {
+    select('Richtung', [['fw', 'Vorwärts: neuer Wert gesucht'], ['bw', 'Rückwärts: Grundwert gesucht']], () => EXP.pm, x => { const r = Expo.pctVals(EXP.pG, EXP.pE, EXP.pc, EXP.pm === 'bw'); if (x === 'bw') EXP.pE = expR6(r.v[r.v.length - 1]); else EXP.pG = expR6(r.v[0]); EXP.pm = x; });
+    if (EXP.pm === 'bw') numRow('Endwert', () => EXP.pE, x => { if (x > 0) EXP.pE = x; }, { step: 10 }); else numRow('Grundwert', () => EXP.pG, x => { if (x > 0) EXP.pG = x; }, { step: 10 });
+    group('Veränderungen in %  (+ Zunahme, − Abnahme)');
+    EXP.pc.forEach((p, i) => { numRow((i + 1) + '. Schritt', () => EXP.pc[i], x => { if (x > -100) EXP.pc[i] = x; }, { step: 1 }); });
+    const ab = difEl('div'); ab.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:4px;';
+    if (EXP.pc.length < 6) ab.append(difBtn('＋ Schritt', () => { EXP.pc.push(10); EXP.cardKey = ''; redo(); }));
+    if (EXP.pc.length > 1) ab.append(difBtn('− Schritt', () => { EXP.pc.pop(); EXP.cardKey = ''; redo(); }));
+    P.appendChild(ab);
+  } else if (v === 'grow') {
     group('a: Anfangswert, b: Faktor (Basis), d: Asymptote');
     slider('a', () => EXP.a, x => setA(x || 0.1), -5, 5, 0.1);
     baseRows();
@@ -299,12 +354,14 @@ function expRefreshUI() {
     check('Faktor-Schritte ·b zeigen', () => sh.steps, x => { sh.steps = x; });
     check('Vergleich mit linearem Wachstum', () => sh.lin, x => { sh.lin = x; });
     check('Asymptote y = d zeigen', () => sh.asym, x => { sh.asym = x; });
+    { const ab = difEl('div'); ab.style.cssText = 'margin-top:6px;'; ab.append(difBtn(EXP.anim ? '⏸ Pause' : '▶ Schritt für Schritt wachsen lassen', expAnimToggle)); P.appendChild(ab); }
   } else if (v === 'e') {
     group('Berührpunkt T der Tangente');
     numRow('Stelle x₀', () => EXP.x0, x => { EXP.x0 = Math.max(-6, Math.min(4, x)); }, { step: 0.5 });
     group('Anzeige');
     check('Steigungsdreieck zeigen', () => sh.tri, x => { sh.tri = x; });
     check('2^x und 3^x zum Vergleich', () => sh.cmp, x => { sh.cmp = x; });
+    { const ab = difEl('div'); ab.style.cssText = 'margin-top:6px;'; ab.append(difBtn(EXP.anim ? '⏸ Pause' : '▶ Basis von 2 bis 3 gleiten lassen', expAnimToggle)); P.appendChild(ab); }
   } else if (v === 'log') {
     group('Basis b');
     baseRows();
@@ -317,7 +374,7 @@ function expRefreshUI() {
     group('Anwendung');
     select('Beispiel', [['', 'Freie Gleichung']].concat(EXP_APPS.map(p => [p.id, p.name])), () => EXP.app, x => { EXP.app = x; const p = EXP_APPS.find(q => q.id === x); if (p) { EXP.a = p.a; EXP.b = p.b; EXP.eb = false; EXP.d = p.d; EXP.c = p.c; } EXP.win = Object.assign({}, EXP_WIN0); expSyncFields(); });
     const app = expApp();
-    if (app) { const h = difEl('div', 'act-hint', app.desc); h.style.margin = '2px 2px 4px'; P.appendChild(h); }
+
     group('a: Faktor, b: Basis, d: Verschiebung');
     if (app) { slider('a', () => EXP.a, x => setA(x || 1), Math.min(1, app.a / 4), app.a * 2, app.a / 100); slider('b', () => EXP.b, x => expSetB(x), app.b < 1 ? 0.5 : 1, app.b < 1 ? 0.99 : 1.5, 0.001); }
     else { slider('a', () => EXP.a, x => setA(x || 0.1), -5, 5, 0.1); baseRows(); slider('d', () => EXP.d, x => { EXP.d = x; }, -5, 5, 0.5); }
@@ -341,6 +398,13 @@ function expRefreshUI() {
   const setPt = (id, x, y, shift) => {
     const m = EXP.S && EXP.S.maps.main; if (!m) return;
     const st = Stat.niceStep(m.win.x1 - m.win.x0, 14), sty = Stat.niceStep(m.win.y1 - m.win.y0, 14), sx = expR6(difSnap(x, st, shift)), sy = expR6(difSnap(y, sty, shift)), v = EXP.view;
+    if (v === 'pct') {
+      const k = /^b(\d+)$/.exec(id); if (!k) return; const i = +k[1], r = Expo.pctVals(EXP.pG, EXP.pE, EXP.pc, EXP.pm === 'bw'), yy = Math.max(y, 1e-6);
+      if (i === 0) { if (EXP.pm !== 'bw') EXP.pG = expR6(difSnap(yy, sty / 2, shift) || sty / 2); }
+      else if (EXP.pm === 'bw' && i === r.v.length - 1 && i === 1) EXP.pE = expR6(difSnap(yy, sty / 2, shift) || sty / 2);
+      else { let p = (yy / r.v[i - 1] - 1) * 100; p = shift ? Math.round(p * 100) / 100 : Math.round(p); EXP.pc[i - 1] = Math.max(-99, p); }
+      EXP.cardKey = ''; return;
+    }
     if (v === 'grow') {
       if (id === 'P') EXP.xp = sx;
       else if (id === 'A') { const a = expR6(difSnap(y - EXP.d, sty / 2, shift)); if (a !== 0) EXP.a = a; }
@@ -352,7 +416,7 @@ function expRefreshUI() {
   };
   const down = e => {
     if (!expActive()) return; e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault();
-    const S = EXP.S; if (!S) return; const p = pos(e);
+    const S = EXP.S; if (!S) return; if (EXP.anim) expAnimStop(); const p = pos(e);
     const q = near(p);
     if (q) { EXP.drag = { type: q.id }; if (EXP.win.x0 === null) { EXP.win = expResolvedWin(); EXP.drag.auto = true; } }
     else if (inMap(S.maps.main, p)) EXP.drag = { type: 'pan', px: p.x, py: p.y, w: expResolvedWin() };

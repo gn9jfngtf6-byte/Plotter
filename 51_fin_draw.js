@@ -43,6 +43,7 @@ function finParse(s) {
         else if (n === 'int') out.push({ k: 'sum', int: true, hi: null, lo: null });
         else if (n === 'col') { const cc = group(), body = group(); out.push({ k: 'col', c: cc[0] ? cc[0].s : 'b', b: body }); }
         else if (n === 'text') { const g = group(); out.push({ k: 't', s: g.map(x => x.s || '').join(''), up: true }); }
+        else if (n === 'overline' || n === 'bar') out.push({ k: 'ovl', b: group() });
         else if (n === 'sqrt') { let idx = null; if (s[i] === '[') { i++; let t = ''; while (i < s.length && s[i] !== ']') t += s[i++]; i++; idx = finParse(t); } out.push({ k: 'sqrt', b: group(), idx }); }
         else if (n === 'mathbb') { const g = group(); const map = { R: 'ℝ', N: 'ℕ', Z: 'ℤ', Q: 'ℚ', C: 'ℂ' }; out.push({ k: 't', s: g.map(x => (x.s || '').split('').map(ch => map[ch] || ch).join('')).join(''), up: true }); }
         else if (n === 'left') { const l = delim(), rr = { d: null }, inner = seq(false, rr); out.push({ k: 'lr', l, r: rr.d, b: inner }); }
@@ -98,7 +99,7 @@ const FIN_ITAL = { K: .07, N: .14, T: .14, V: .22, W: .14, Y: .22, X: .08, Z: .0
 function finEndsOperand(n) {
   if (n.k === 't') { if (n.up) return true; const s = n.s.replace(/[\s  ]+$/, ''); return !!s && /[A-Za-z0-9α-ω)\].%]/.test(s[s.length - 1]); }
   if (n.k === 'g' || n.k === 'col') { const c = n.k === 'g' ? n.c : n.b; return c.length ? finEndsOperand(c[c.length - 1]) : false; }
-  return n.k === 'ss' || n.k === 'frac' || n.k === 'sqrt' || n.k === 'lr';
+  return n.k === 'ss' || n.k === 'frac' || n.k === 'sqrt' || n.k === 'lr' || n.k === 'ovl';
 }
 function finBox(nodes, size, bold, M, sc) {
   const parts = []; let po = false;
@@ -169,6 +170,10 @@ function finBoxOne(n, size, bold, M, sc, po) {
     return { w, a: yn + nu.a, d: yd + de.d, draw(x, y, c) {
       nu.draw(x + (w - nu.w) / 2, y - yn, c); de.draw(x + (w - de.w) / 2, y + yd, c);
       if (t) { ctx.fillStyle = c; ctx.fillRect(x + m * 0.05, y - ax - t / 2, w - m * 0.1, t); } } };
+  }
+  if (n.k === 'ovl') {                                 // \overline{…}: Strich über dem Inhalt
+    const b = finBox(n.b, size, bold, M, sc), t = Math.max(1, m * 0.05);
+    return { w: b.w + m * 0.04, a: b.a + m * 0.14, d: b.d, draw(x, y, c) { b.draw(x + m * 0.02, y, c); ctx.fillStyle = c; ctx.fillRect(x + m * 0.02, y - b.a - m * 0.08, b.w, t); } };
   }
   if (n.k === 'sqrt') {
     const b = finBox(n.b, size, bold, M, sc), sw = m * 0.6, t = Math.max(1, m * 0.05);
@@ -246,7 +251,7 @@ function finTexBinom(o) {                              // \binom{a}{b} → {a \c
 function finRichTex(s) {
   let o = finTexBinom(String(s)).replace(/\\text\{([^{}]*)\}/g, (m, c) => '\\text{' + finTrText(c).replace(/°/g, '\\textdegree{}') + '}');
   o = o.replace(/\\col\{([a-z])\}/g, (m, c) => '\\textcolor{' + (FIN_TEXCOL[c] || 'black') + '}');
-  o = o.replace(/\u2009/g, '\\,').replace(/−/g, '-').replace(/≈/g, '\\approx ').replace(/·/g, '\\cdot ').replace(/°/g, '^{\\circ}').replace(/✓/g, '\\checkmark ').replace(/✗/g, '\\times ');
+  o = o.replace(/′/g, "'").replace(/\u2009/g, '\\,').replace(/−/g, '-').replace(/≈/g, '\\approx ').replace(/·/g, '\\cdot ').replace(/°/g, '^{\\circ}').replace(/✓/g, '\\checkmark ').replace(/✗/g, '\\times ');
   return '$\\displaystyle ' + o + '$';
 }
 
@@ -326,9 +331,19 @@ function finLanes(S, r, y0, step, pay, T, rr, fmtFactor, o, C) {
       const dir = x2 > x1 ? 1 : -1;
       S.line(x1, y, x2, y, { col: c, lw: hov ? 2.6 : 1.6, a: 0.9 });
       S.poly([[x2 - dir * fs * 0.6, y - fs * 0.3], [x2, y], [x2 - dir * fs * 0.6, y + fs * 0.3]], { col: c, lw: 1, fill: c, close: true });
-      S.rich((x1 + x2) / 2, y - step * 0.32, fmtFactor(z), { size: fs * 0.88, col: 'T', al: 'c', bold: hov });
+      if (!(o.anim && o.anim.j === j)) S.rich((x1 + x2) / 2, y - step * 0.32, fmtFactor(z), { size: fs * 0.88, col: 'T', al: 'c', bold: hov });   // während der Animation steht dort der wandernde Wert
     } else S.rich(x1 + fs * 0.9, y, fmtFactor(z), { size: fs * 0.88, col: 'T', al: 'l' });
     S.hit(r.x, y - step * 0.5, r.w, step, { kind: 'pay', i: z.i });
+    // Animation: die Zahlung wandert auf ihrem Konto zum Zielzeitpunkt und wird dabei Jahr für Jahr auf- bzw. abgezinst
+    const an = o.anim;
+    if (an && an.j === j) {
+      const cur = true, tau = an.tau, dirT = T >= z.t ? 1 : -1, k = dirT * Math.floor(Math.abs(tau - z.t) + 1e-9), val = z.a * Math.pow(o.q, k);
+      if (cur) {
+        const xm = Xf(tau);
+        S.circ(xm, y, fs * 0.5, { fill: ST_V, stroke: 'W', lw: 1.5 });
+        S.text(xm, y - step * 0.34, finAmt(Math.abs(z.a)) + (k ? ' · ' + o.rt + (Math.abs(k) === 1 && k > 0 ? '' : finSup(k)) + ' = ' + finAmt(val) : ''), { size: fs * 0.92, col: ST_V, al: xm > r.x + r.w * 0.7 ? 'r' : xm < r.x + r.w * 0.25 ? 'l' : 'c', bs: 'm', bold: true });
+      }
+    } else if (an && an.j > j && z.t !== T) S.text(x2 + (x2 > x1 ? 1 : -1) * fs * 0.5, y, finAmt(z.a * Math.pow(o.q, T - z.t)), { size: fs * 0.88, col: ST_V, al: x2 > x1 ? 'l' : 'r', bs: 'm', bold: true });
   });
 }
 
@@ -358,7 +373,7 @@ function finSceneLine(S, W, H, C) {
   const tl = finTimeline(S, rTop, { N, T, pay, lab, axisY, hover: C.hover, tickHits: true, unitLabel: P.years ? '' : 'Jahre', dashBottom: lane0 + pay.length * laneStep - laneStep * 0.45 }, C);
   S.text(rTop.x + fs * 0.2, tTop + fs * 0.3, 'Zeitstrahl: Einzahlungen oberhalb, Auszahlungen unterhalb der Achse (Klick auf einen Zeitpunkt: Zahlung hinzufügen)', { size: fs * 0.82, col: 'M', al: 'l', bs: 'm' });
   const factorR = z => finPow(rt, T - z.t);
-  finLanes(S, rTop, lane0, laneStep, pay, T, q, factorR, { X: tl.X, hover: C.hover }, C);
+  finLanes(S, rTop, lane0, laneStep, pay, T, q, factorR, { X: tl.X, hover: C.hover, anim: C.lineAnim || null, q, rt }, C);
   // unten: Tabelle und Rechnung
   const by = topH + pad, bh = H - by - pad;
   if (bh < fs * 6) return;

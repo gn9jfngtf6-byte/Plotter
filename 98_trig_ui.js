@@ -7,20 +7,26 @@
 // Die Umgebung selbst (Umschalten) steht in 32_env.js (Eintrag «trig»).
 // ═══════════════════════════════════════════════════════════════════
 
-const TRIG_VIEWS = [['circ', 'Einheitskreis → Sinus und Kosinus'], ['gen', 'Allgemeine Sinusfunktion a·sin(b(x−c))+d'], ['tan', 'Tangens und Beziehungen']];
+const TRIG_VIEWS = [['circ', 'Einheitskreis → Sinus und Kosinus'], ['gen', 'Allgemeine Sinusfunktion a·sin(b(x−c))+d'], ['tan', 'Tangens und Beziehungen'], ['rt', 'Rechtwinkliges Dreieck: sin, cos, tan'], ['tri', 'Allgemeines Dreieck: Sinus- und Kosinussatz']];
 const TRIG_DESC = {
-  circ: ['Am Einheitskreis (Radius 1) wird der Winkel φ gegen den Uhrzeigersinn abgetragen. Der Punkt P hat die Koordinaten (cos φ | sin φ): Kosinus = waagrechter Abstand, Sinus = Höhe. Im Bogenmass misst man den Winkel als Bogenlänge: 360° entsprechen 2π.', 'Ziehe den Punkt P auf dem Kreis oder den Punkt auf der Kurve, oder lass den Winkel drehen: Die Höhe von P zeichnet die Sinuskurve. Besondere Winkel (30°, 45°, 60°, …) liefern exakte Werte.'],
-  gen: ['Die allgemeine Sinusfunktion f(x) = a·sin(b(x − c)) + d entsteht aus sin x: a streckt (Amplitude |a|), b ändert die Periode T = 2π/b, c verschiebt in x-Richtung (Phase), d in y-Richtung (Mittellinie y = d).', 'Ziehe den Startpunkt S (c und d), den Hochpunkt H (Amplitude) oder das Periodenende T, oder starte die Verwandlung: Die Grundfunktion wird Schritt für Schritt in f verwandelt.'],
-  tan: ['Der Tangens ist das Verhältnis sin φ / cos φ – die Steigung des Strahls durch P. Am Einheitskreis liest man ihn an der senkrechten Tangente bei x = 1 ab. Wo der Kosinus 0 ist (90°, 270°, …), hat der Tangens Polstellen; seine Periode ist nur π.', 'Ziehe den Punkt P und beobachte den grünen Tangentenabschnitt. Nahe 90° wird er riesig. Rechts der Graph mit den Polstellen und die wichtigsten Beziehungen zwischen sin, cos und tan.']
+  rt: ['Ziehe die Ecken {{A|A}} und {{B|B}}: Für den Winkel {{α|al}} ist a die {{Gegenkathete|gk}}, b die {{Ankathete|ak}} und c die {{Hypotenuse|hy}}. sin α, cos α und tan α sind ihre Verhältnisse – sie hängen nur vom Winkel ab, nicht von der Grösse des Dreiecks. Wähle oben, was gegeben ist.', 'Im rechtwinkligen Dreieck gilt bezogen auf einen spitzen Winkel α: sin α = Gegenkathete : Hypotenuse, cos α = Ankathete : Hypotenuse, tan α = Gegenkathete : Ankathete. Mit zwei bekannten Stücken (darunter eine Seite) berechnet man alle anderen; dazu kommen Pythagoras und α + β = 90°.'],
+  tri: ['Ziehe die Ecken {{A|A}}, {{B|B}} und {{C|C}} und wähle, was {{gegeben|giv}} ist: Die {{übrigen Stücke|unk}} berechnet der Rechenweg mit dem Sinus- oder Kosinussatz. Die Beispiele zeigen Aufgaben aus der Vermessung.', 'Im allgemeinen Dreieck gelten der Sinussatz a : sin α = b : sin β = c : sin γ und der Kosinussatz a² = b² + c² − 2bc·cos α. Den Kosinussatz braucht man bei SSS und SWS, den Sinussatz bei WSW und SSW; bei SSW mit a < b kann es zwei Dreiecke geben.'],
+  circ: ['Ziehe den {{Punkt P|P}} auf dem Einheitskreis oder lass den Winkel drehen: Die Höhe sin φ zeichnet rechts die {{Sinuskurve|sin,G}}, der waagrechte Abstand cos φ die {{Kosinuskurve|cos,GC}}. Besondere Winkel wie 30°, 45° und 60° liefern exakte Werte.', 'Am Einheitskreis (Radius 1) wird der Winkel φ gegen den Uhrzeigersinn abgetragen. Der Punkt P hat die Koordinaten (cos φ | sin φ): Kosinus = waagrechter Abstand, Sinus = Höhe. Im Bogenmass misst man den Winkel als Bogenlänge: 360° entsprechen 2π.'],
+  gen: ['Ziehe den {{Startpunkt S|S}} (c und d), den {{Hochpunkt H|A}} (Amplitude) oder das {{Periodenende|T}} (b), oder starte die Verwandlung: Die {{Grundfunktion|base}} wird Schritt für Schritt in {{f(x) = a·sin(b(x − c)) + d|f}} verwandelt.', 'Die allgemeine Sinusfunktion f(x) = a·sin(b(x − c)) + d entsteht aus sin x: a streckt (Amplitude |a|, Hochpunkt), b ändert die Periode T = 2π/b (Periodenende), c verschiebt in x-Richtung (Phase), d in y-Richtung (Mittellinie y = d); Startpunkt (c .'],
+  tan: ['Ziehe den {{Punkt P|P}} auf dem Kreis: Der Tangens ist die Steigung des Strahls durch P, abzulesen an der senkrechten Tangente bei x = 1. Rechts entsteht der {{Graph von tan|f,G}}; nahe 90° wächst er über alle Grenzen (Polstelle).', 'Der Tangens ist das Verhältnis sin φ / cos φ – die Steigung des Strahls durch P. Am Einheitskreis liest man ihn an der senkrechten Tangente bei x = 1 ab. Wo der Kosinus 0 ist (90°, 270°, …), hat der Tangens Polstellen; seine Periode ist nur π.']
 };
 const TRIG_ANG_EX = [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330, 360];
 // [a, b, c, d, kind, Anzeige]
 const TRIG_GEN_EX = [[1, 1, 0, 0, 'sin', 'sin x'], [2, 1, 0, 0, 'sin', '2·sin x'], [1, 2, 0, 0, 'sin', 'sin(2x)'], [1, 0.5, 0, 0, 'sin', 'sin(x/2)'], [1, 1, Math.PI / 2, 0, 'sin', 'sin(x − π/2)'], [1, 1, 0, 1, 'sin', 'sin x + 1'], [-1, 1, 0, 0, 'sin', '−sin x'], [2, 2, Math.PI / 4, -1, 'sin', '2·sin(2(x − π/4)) − 1'], [1, 1, 0, 0, 'cos', 'cos x'], [3, 0.5, -Math.PI / 2, 1, 'cos', '3·cos(½(x + π/2)) + 1'], [1, Math.PI, 0, 0, 'sin', 'sin(πx)'], [0.5, 3, 0, 2, 'sin', '½·sin(3x) + 2']];
+// Rechtwinkliges Dreieck: [Anzeige, a, b, gegeben]; allgemeines Dreieck: [Anzeige, Fall, A, B, C]
+const TRIG_RT_EX = [['Leiter 5 m, Neigungswinkel 70° – wie hoch reicht sie?', 4.698, 1.710, 'ca'], ['Strasse mit 12 % Steigung – Steigungswinkel?', 12, 100, 'ab'], ['Turm: 50 m entfernt, Höhenwinkel 32°', 31.24, 50, 'ba'], ['Rampe: 1.2 m hoch, 8 m lang', 1.2, 7.909, 'ac'], ['Drachen: Schnur 60 m, Höhe 45 m', 45, 39.69, 'ac'], ['Zelt: Höhe 1.5 m, Winkel 50°', 1.5, 1.259, 'aa']];
+const TRIG_TRI_EX = (() => { const RD = Math.PI / 180, wsw = (c, al, be) => { const b = c * Math.sin(be * RD) / Math.sin((al + be) * RD); return [[0, 0], [c, 0], [b * Math.cos(al * RD), b * Math.sin(al * RD)]]; }, sws = (b, c, al) => [[0, 0], [c, 0], [b * Math.cos(al * RD), b * Math.sin(al * RD)]], sss = (a, b, c) => { const al = Math.acos((b * b + c * c - a * a) / (2 * b * c)); return [[0, 0], [c, 0], [b * Math.cos(al), b * Math.sin(al)]]; }, ssw = (a, b, al) => { const C = [b * Math.cos(al * RD), b * Math.sin(al * RD)], x = C[0] + Math.sqrt(a * a - C[1] * C[1]); return [[0, 0], [x, 0], C]; };
+  return [['Flussbreite: Basis 50 m, Winkel 62° und 71°', 'wsw', ...wsw(50, 62, 71)], ['Distanz hinter einem Hindernis: 120 m, 85 m, Winkel 54°', 'sws', ...sws(120, 85, 54)], ['Dreieckiges Grundstück: 40 m, 55 m, 70 m', 'sss', ...sss(40, 55, 70)], ['Zwei Lösungen (SSW): a = 8, b = 10, α = 40°', 'ssw', ...ssw(8, 10, 40)], ['Höhe eines Berges: Basis 300 m, Winkel 35° und 120°', 'wsw', ...wsw(300, 35, 120)]]; })();
 const TRIG_WIN0 = { x0: null, x1: null, y0: null, y1: null };
 const TRIG_SHOW0 = { cos: true, tab: true, base: true, mid: true, amp: true, per: true, sc: false, card: true };
 
 function trigDefaults() {
-  return { view: 'circ', deg: 60, unit: 'deg', a: 2, b: 2, c: Math.PI / 4, d: -1, kind: 'sin', tt: 1, win: Object.assign({}, TRIG_WIN0), show: Object.assign({}, TRIG_SHOW0) };
+  return { view: 'circ', deg: 60, unit: 'deg', a: 2, b: 2, c: Math.PI / 4, d: -1, kind: 'sin', tt: 1, ra: 3, rb: 4, rgv: 'ab', tA: [0, 0], tB: [6, 0], tC: [2, 4], tg: 'sss', win: Object.assign({}, TRIG_WIN0), show: Object.assign({}, TRIG_SHOW0) };
 }
 const TRIG = Object.assign(trigDefaults(), { ui: null, S: null, drag: null, anim: null, cardKey: '', cardT: 0 });
 function trigActive() { return typeof ENV !== 'undefined' && ENV.cur === 'trig'; }
@@ -73,6 +79,8 @@ function trigSetupFields() {
 function trigCardDoc() {
   try {
     const v = TRIG.view;
+    if (v === 'rt') return { t: 'Rechenweg: Rechtwinkliges Dreieck', d: Trig.rtDoc(TRIG.ra, TRIG.rb, TRIG.rgv) };
+    if (v === 'tri') return { t: 'Rechenweg: Sinus- und Kosinussatz', d: Trig.triDoc(TRIG.tA, TRIG.tB, TRIG.tC, TRIG.tg) };
     if (v === 'circ') return { t: 'Rechenweg: Einheitskreis', d: Trig.circDoc(TRIG.deg) };
     if (v === 'gen') return { t: 'Rechenweg: Allgemeine Sinusfunktion', d: Trig.genDoc(trigF()) };
     return { t: 'Rechenweg: Tangens', d: Trig.tanDoc(TRIG.deg) };
@@ -80,7 +88,7 @@ function trigCardDoc() {
 }
 function trigCardKey() {
   const v = TRIG.view, F = [TRIG.a, TRIG.b, TRIG.c, TRIG.d, TRIG.kind];
-  const k = { circ: [TRIG.deg, TRIG.unit], gen: F, tan: [TRIG.deg, TRIG.unit] }[v];
+  const k = { rt: [TRIG.ra, TRIG.rb, TRIG.rgv], tri: [TRIG.tA, TRIG.tB, TRIG.tC, TRIG.tg], circ: [TRIG.deg, TRIG.unit], gen: F, tan: [TRIG.deg, TRIG.unit] }[v];
   return v + '|' + JSON.stringify(k);
 }
 function trigCardSoon() { clearTimeout(TRIG.cardT); TRIG.cardT = setTimeout(trigCardRender, 40); }
@@ -99,7 +107,7 @@ function trigCardRender() {
 }
 
 // ── Zustand sichern / laden ──
-function trigCapture() { return difCopy({ view: TRIG.view, deg: TRIG.deg, unit: TRIG.unit, a: TRIG.a, b: TRIG.b, c: TRIG.c, d: TRIG.d, kind: TRIG.kind, tt: TRIG.tt, win: TRIG.win, show: TRIG.show }); }
+function trigCapture() { return difCopy({ view: TRIG.view, deg: TRIG.deg, unit: TRIG.unit, a: TRIG.a, b: TRIG.b, c: TRIG.c, d: TRIG.d, kind: TRIG.kind, tt: TRIG.tt, ra: TRIG.ra, rb: TRIG.rb, rgv: TRIG.rgv, tA: TRIG.tA, tB: TRIG.tB, tC: TRIG.tC, tg: TRIG.tg, win: TRIG.win, show: TRIG.show }); }
 function trigApply(s) {
   const d = trigDefaults(), num = (v, def) => { v = Number(v); return isFinite(v) ? v : def; };
   if (s && typeof s === 'object') {
@@ -110,6 +118,10 @@ function trigApply(s) {
     d.tt = Math.max(0, Math.min(1, num(s.tt, 1)));
     if (s.unit === 'rad' || s.unit === 'deg') d.unit = s.unit;
     if (s.kind === 'cos' || s.kind === 'sin') d.kind = s.kind;
+    ['ra', 'rb'].forEach(key => { const v = num(s[key], d[key]); if (v > 0) d[key] = v; });
+    if (Trig.RT_GIVEN.some(g => g[0] === s.rgv)) d.rgv = s.rgv;
+    if (Trig.TRI_CASES.some(g => g[0] === s.tg)) d.tg = s.tg;
+    ['tA', 'tB', 'tC'].forEach(key => { const p = s[key]; if (Array.isArray(p) && p.length === 2 && p.every(v => isFinite(Number(v)))) d[key] = p.map(Number); });
     if (s.win && typeof s.win === 'object') {
       const w = s.win, ok = v => (v === null || v === undefined ? null : (isFinite(Number(v)) ? Number(v) : null));
       const a = ok(w.x0), b = ok(w.x1), c = ok(w.y0), e = ok(w.y1);
@@ -125,7 +137,7 @@ function trigApply(s) {
 
 // ── Zeichnen ──
 function trigCtx(W, H, exp) {
-  return { view: TRIG.view, deg: TRIG.deg, unit: TRIG.unit, F: trigF(), tt: TRIG.tt, win: TRIG.win, fs: exp ? exp.fs : stSceneFs(W, H, 46), exp: !!exp, smooth: !exp, show: TRIG.show, cardOpen: !exp && TRIG.show.card };
+  return { view: TRIG.view, deg: TRIG.deg, unit: TRIG.unit, F: trigF(), tt: TRIG.tt, win: TRIG.win, fs: exp ? exp.fs : stSceneFs(W, H, 46), exp: !!exp, smooth: !exp, show: TRIG.show, cardOpen: !exp && TRIG.show.card, ra: TRIG.ra, rb: TRIG.rb, rgv: TRIG.rgv, tA: TRIG.tA, tB: TRIG.tB, tC: TRIG.tC, tg: TRIG.tg };
 }
 // Einheitskreis und Graph brauchen die Breite nebeneinander: dort steht die Rechenweg-Karte unten
 const trigBandView = () => TRIG.view === 'circ' || TRIG.view === 'tan';
@@ -208,22 +220,24 @@ function trigRefreshUI() {
   const ui = TRIG.ui; if (!ui) return;
   const v = TRIG.view, sh = TRIG.show;
   ui.sel.value = v;
-  const d = TRIG_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[0]), Object.assign(difEl('div', null, d[1]), { style: 'margin-top:5px;' }));
+  const d = TRIG_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[1])); if (typeof envHint === 'function') envHint('trig', d[0], () => TRIG.S);   // Hinweis als Überschrift über dem Bild
   const showF = v === 'gen';
   ['trig-f-row', 'trig-field-head'].forEach(id => { const e = $dif(id); if (e) e.style.display = showF ? '' : 'none'; });
   trigSyncFields();
   // Beispiele
   ui.ex.replaceChildren(Object.assign(difEl('option', null, 'Beispiel wählen …'), { value: '' }));
-  const exs = v === 'gen' ? TRIG_GEN_EX.map(p => p[5]) : TRIG_ANG_EX.map(a => 'φ = ' + a + '° = ' + (a === 0 ? '0' : a === 180 ? 'π' : a === 360 ? '2π' : (a / 180 === 0.5 ? 'π/2' : a / 180 === 1.5 ? '3π/2' : (() => { const q = Trig.piFrac(a); return q ? (q.n === 1n ? '' : q.n) + 'π/' + q.d : ''; })())));
+  const exs = v === 'rt' ? TRIG_RT_EX.map(p => p[0]) : v === 'tri' ? TRIG_TRI_EX.map(p => p[0]) : v === 'gen' ? TRIG_GEN_EX.map(p => p[5]) : TRIG_ANG_EX.map(a => 'φ = ' + a + '° = ' + (a === 0 ? '0' : a === 180 ? 'π' : a === 360 ? '2π' : (a / 180 === 0.5 ? 'π/2' : a / 180 === 1.5 ? '3π/2' : (() => { const q = Trig.piFrac(a); return q ? (q.n === 1n ? '' : q.n) + 'π/' + q.d : ''; })())));
   exs.forEach((nm, i) => { const o = difEl('option', null, nm); o.value = String(i); o.setAttribute('translate', 'no'); ui.ex.appendChild(o); });
   ui.ex.onchange = () => {
     const i = ui.ex.value; ui.ex.value = ''; if (i === '') return; const k = +i;
-    if (v === 'gen') { const e = TRIG_GEN_EX[k]; TRIG.a = e[0]; TRIG.b = e[1]; TRIG.c = e[2]; TRIG.d = e[3]; TRIG.kind = e[4]; TRIG.tt = 1; }
+    if (v === 'rt') { const e = TRIG_RT_EX[k]; TRIG.ra = e[1]; TRIG.rb = e[2]; TRIG.rgv = e[3]; }
+    else if (v === 'tri') { const e = TRIG_TRI_EX[k]; TRIG.tg = e[1]; TRIG.tA = e[2].map(trigR6); TRIG.tB = e[3].map(trigR6); TRIG.tC = e[4].map(trigR6); }
+    else if (v === 'gen') { const e = TRIG_GEN_EX[k]; TRIG.a = e[0]; TRIG.b = e[1]; TRIG.c = e[2]; TRIG.d = e[3]; TRIG.kind = e[4]; TRIG.tt = 1; }
     else TRIG.deg = TRIG_ANG_EX[k];
     TRIG.anim = null; TRIG.win = Object.assign({}, TRIG_WIN0); const er = $dif('trig-err'); if (er) er.textContent = '';
     trigSyncFields(); TRIG.cardKey = ''; trigRefreshUI(); difRedraw(); trigCardSoon(); difCommit();
   };
-  ui.params.replaceChildren();
+  ui.params.replaceChildren(); ui.params._sync = [];   // Regler, die denselben Wert wie ein Zahlfeld zeigen, gleichen sich hier ab
   const P = ui.params;
   const redo = () => { trigRefreshUI(); difRedraw(); trigCardSoon(); difCommit(); };
   const touch = () => { TRIG.cardKey = ''; trigSyncFields(); difRedraw(); trigCardSoon(); };
@@ -245,9 +259,9 @@ function trigRefreshUI() {
     o = o || {}; const row = difEl('div', 'settings-row'); row.style.gap = '6px';
     const lb = difEl('label', null, label), inp = difEl('input'); inp.type = 'text'; inp.inputMode = 'decimal'; inp.autocomplete = 'off'; inp.value = difFmtIn(get()); inp.style.cssText = 'flex:1;min-width:0;'; inp.setAttribute('translate', 'no');
     lb.setAttribute('translate', 'no');
-    const apply = () => { const x = difParseNum(inp.value); if (isFinite(x)) { set(trigR6(x)); touch(); difCommit(); } inp.value = difFmtIn(get()); };
+    const apply = () => { const x = difParseNum(inp.value); if (isFinite(x)) { set(trigR6(x)); touch(); difCommit(); } inp.value = difFmtIn(get()); (P._sync || []).forEach(f => f()); };
     inp.addEventListener('change', apply); inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
-    const nudge = s => difBtn(s > 0 ? '▶' : '◀', () => { const st = o.step || 1; set(trigR6(Math.round((get() + s * st) / st * 1e6) / 1e6 * st)); inp.value = difFmtIn(get()); touch(); difCommit(); }, s > 0 ? 'Nach rechts' : 'Nach links');
+    const nudge = s => difBtn(s > 0 ? '▶' : '◀', () => { const st = o.step || 1; set(trigR6(Math.round((get() + s * st) / st * 1e6) / 1e6 * st)); inp.value = difFmtIn(get()); touch(); difCommit(); (P._sync || []).forEach(f => f()); }, s > 0 ? 'Nach rechts' : 'Nach links');
     row.append(lb, nudge(-1), inp, nudge(1)); P.appendChild(row); return inp;
   };
   const slider = (label, get, set, min, max, step, fmt) => {
@@ -259,7 +273,11 @@ function trigRefreshUI() {
     top.append(lb, val);
     const sl = difEl('input'); sl.type = 'range'; sl.min = min; sl.max = max; sl.step = step; sl.value = Math.max(min, Math.min(max, get())); sl.style.width = '100%';
     sl.addEventListener('input', () => { TRIG.anim = null; set(trigR6(parseFloat(sl.value))); val.textContent = F(get()); TRIG.cardKey = ''; difRedraw(); trigCardSoon(); trigSyncFields(); });
-    sl.addEventListener('change', () => { trigRefreshUI(); difCommit(); });
+    P._sync.push(() => { sl.value = Math.max(min, Math.min(max, get())); val.textContent = F(get()); });
+    // Während des Ziehens bleibt der Ausschnitt stehen; danach passt er sich einmal ruhig an
+    const hold = () => { if (TRIG.win.x0 === null) { TRIG.win = trigResolvedWin(); TRIG._slAuto = true; } };
+    ['pointerdown', 'mousedown', 'touchstart'].forEach(ev => sl.addEventListener(ev, hold, { passive: true }));
+    sl.addEventListener('change', () => { if (TRIG._slAuto) { TRIG.win = Object.assign({}, TRIG_WIN0); TRIG._slAuto = false; } trigRefreshUI(); difCommit(); difRedraw(); });
     wrap.append(top, sl); const r1 = difEl('div', 'settings-row'); r1.appendChild(wrap); P.appendChild(r1); return sl;
   };
   const group = txt => { const g = difEl('div', 'subpanel-label', txt); g.style.marginTop = '8px'; P.appendChild(g); };
@@ -272,7 +290,14 @@ function trigRefreshUI() {
     ab.append(difBtn(TRIG.anim ? '⏸ Anhalten' : '▶ Winkel drehen', trigAnimToggle), difBtn('⟲ φ = 0°', () => { TRIG.anim = null; TRIG.deg = 0; redo(); })); P.appendChild(ab);
   };
 
-  if (v === 'circ') {
+  if (v === 'rt') {
+    select('Gegeben', Trig.RT_GIVEN, () => TRIG.rgv, x => { TRIG.rgv = x; });
+    group('Katheten');
+    numRow('a', () => TRIG.ra, x => { if (x > 0) TRIG.ra = x; }, { step: 0.5 }); numRow('b', () => TRIG.rb, x => { if (x > 0) TRIG.rb = x; }, { step: 0.5 });
+  } else if (v === 'tri') {
+    select('Gegeben', Trig.TRI_CASES, () => TRIG.tg, x => { TRIG.tg = x; });
+    [['A', 'tA'], ['B', 'tB'], ['C', 'tC']].forEach(([nm, k]) => { group('Ecke ' + nm); numRow('x', () => TRIG[k][0], x => { TRIG[k] = [x, TRIG[k][1]]; }, { step: 1 }); numRow('y', () => TRIG[k][1], y => { TRIG[k] = [TRIG[k][0], y]; }, { step: 1 }); });
+  } else if (v === 'circ') {
     angleRows();
     group('Anzeige');
     check('Kosinus zeigen', () => sh.cos, x => { sh.cos = x; });
@@ -337,6 +362,12 @@ function trigAnimFrame(ts) {
   const snapDeg = (d, shift) => trigR6(shift ? Math.round(d) : Math.round(d / 5) * 5);
   const setPt = (id, x, y, shift) => {
     const v = TRIG.view;
+    if (v === 'rt' || v === 'tri') {
+      const m = TRIG.S.maps.main, st = shift ? 1e-3 : Stat.niceStep(m.win.x1 - m.win.x0, 40), sn = u => trigR6(Math.round(u / st) * st);
+      if (v === 'rt') { if (id === 'A') TRIG.rb = Math.max(st, sn(x)); else if (id === 'B') TRIG.ra = Math.max(st, sn(y)); }
+      else { const k = { A: 'tA', B: 'tB', C: 'tC' }[id]; if (k) { const np = [sn(x), sn(y)], o = ['tA', 'tB', 'tC'].filter(q => q !== k).map(q => TRIG[q]); const ar = Math.abs((o[0][0] - np[0]) * (o[1][1] - np[1]) - (o[1][0] - np[0]) * (o[0][1] - np[1])); if (ar > 1e-6) TRIG[k] = np; } }
+      TRIG.cardKey = ''; return;
+    }
     if (v === 'circ' || v === 'tan') {
       if (id === 'P') { let d = Trig.rad2deg(Math.atan2(y, x)); if (d < 0) d += 360; TRIG.deg = snapDeg(d, shift); }
       else TRIG.deg = snapDeg(TRIG.unit === 'deg' ? x : Trig.rad2deg(x), shift);

@@ -731,8 +731,11 @@ canvas.addEventListener('contextmenu', e => { if (inputIsTouch) e.preventDefault
 document.addEventListener('keydown', e => {
   if (e.altKey) altDown = true;
   // Strg+Z = Undo, Strg+Y / Strg+Shift+Z = Redo
-  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); commitAndUndo(); }
-  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); commitAndRedo(); }
+  // e.key ist mit Umschalt- bzw. Feststelltaste ein GROSSbuchstabe ("Z") → klein vergleichen (sonst griff
+  // Strg/Cmd+Umschalt+Z nie). AltGr (Windows: Strg+Alt) ist kein Kürzel.
+  const k = (e.ctrlKey || e.metaKey) && !e.altKey && typeof e.key === 'string' ? e.key.toLowerCase() : '';
+  if (k === 'z' && !e.shiftKey) { e.preventDefault(); commitAndUndo(); }
+  else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); commitAndRedo(); }
 });
 document.addEventListener('keyup', e => { if (!e.altKey) altDown = false; });
 
@@ -818,6 +821,8 @@ function captureState() {
     sim: typeof simCapture === 'function' ? simCapture() : undefined,
     seqx: typeof seqCapture === 'function' ? seqCapture() : undefined,
     lox: typeof lopCapture === 'function' ? lopCapture() : undefined,
+    setx: typeof setCapture === 'function' ? setCapture() : undefined,
+    prx: typeof probCapture === 'function' ? probCapture() : undefined,
     env: typeof ENV !== 'undefined' ? ENV.cur : undefined,
     ext: typeof envCaptureExt === 'function' ? envCaptureExt() : undefined
   }));
@@ -857,6 +862,8 @@ function applyState(s) {
   if (typeof simApply === 'function') simApply(sc.sim);
   if (typeof seqApply === 'function') seqApply(sc.seqx);
   if (typeof lopApply === 'function') lopApply(sc.lox);
+  if (typeof setApply === 'function') setApply(sc.setx);
+  if (typeof probApply === 'function') probApply(sc.prx);
   if (typeof envApplyExt === 'function') envApplyExt(sc.ext);
   if (typeof clearLoEvalCache === 'function') clearLoEvalCache();
   if (typeof renderLoConstraints === 'function') renderLoConstraints();

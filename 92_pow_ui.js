@@ -9,11 +9,11 @@
 
 const POW_VIEWS = [['fam', 'Potenzfunktionen x^n'], ['neg', 'Negative Exponenten x^(−n)'], ['root', 'Wurzelfunktionen und Umkehrung'], ['gen', 'Allgemeine Form a·(x−v)^n + h'], ['eq', 'Potenz- und Wurzelgleichungen']];
 const POW_DESC = {
-  fam: ['Potenzfunktionen f(x) = xⁿ mit natürlichem n. Für gerades n ist der Graph achsensymmetrisch zur y-Achse, für ungerades n punktsymmetrisch zum Ursprung. Alle gehen durch (0|0) und (1|1).', 'Wähle n und ziehe den Punkt P: Der Spiegelpunkt P′ zeigt die Symmetrie. Die grauen Kurven sind die anderen Potenzfunktionen zum Vergleich.'],
-  neg: ['Negative Exponenten: f(x) = x⁻ⁿ = 1/xⁿ. Bei x = 0 hat f eine Definitionslücke; die Achsen sind Asymptoten. Je grösser |x|, desto näher kommt f der 0.', 'Ziehe den Punkt P nahe an die y-Achse oder weit nach aussen und beobachte die Werte. Gerades n: beide Äste oben; ungerades n: einer oben, einer unten.'],
-  root: ['Die Wurzelfunktion ⁿ√x ist die Umkehrfunktion von xⁿ: Ihr Graph ist das Spiegelbild an der Winkelhalbierenden y = x. In Potenzschreibweise ist ⁿ√x = x^(1/n), allgemein x^(m/n) = ⁿ√(xᵐ).', 'Ziehe den Punkt P auf der Potenzfunktion: Sein Spiegelbild P′ liegt auf der Wurzelfunktion. Wähle n und einen Zähler m für den rationalen Exponenten.'],
-  gen: ['Die allgemeine Form f(x) = a·(x−v)ⁿ + h entsteht aus der Grundfunktion xⁿ (oder ⁿ√x, 1/xⁿ) durch Strecken mit a (bei a < 0 gespiegelt), Verschieben um v nach rechts und um h nach oben.', 'Ziehe den Punkt S (bzw. Z, P) und den roten Punkt a, oder starte die Animation: Die Grundfunktion wird Schritt für Schritt in f verwandelt.'],
-  eq: ['Gleichung f(x) = y₀ lösen: Die Potenz wird isoliert, dann entscheidet die Fallunterscheidung (gerade/ungerade, Wurzel, negative rechte Seite), wie viele Lösungen es gibt. Die Lösungen sind die Schnittstellen mit der Geraden y = y₀.', 'Ziehe die orange Gerade auf und ab und beobachte, wann es zwei, eine oder keine Lösung gibt. Der Rechenweg rechts passt sich an.']
+  fam: ['Wähle n und ziehe den {{Punkt P|P}} auf dem {{Graphen von xⁿ|f}}: Der Spiegelpunkt P′ zeigt die Symmetrie – bei geradem n zur y-Achse, bei ungeradem n zum Ursprung. Alle gehen durch (0 | 0) und (1 | 1).', 'Potenzfunktionen f(x) = xⁿ mit natürlichem n. Für gerades n ist der Graph achsensymmetrisch zur y-Achse, für ungerades n punktsymmetrisch zum Ursprung. Alle gehen durch (0|0) und (1|1).'],
+  neg: ['Ziehe den {{Punkt P|P}} nahe an die y-Achse und weit nach aussen: Der {{Graph von x⁻ⁿ|f}} wächst bei x = 0 über alle Grenzen und schmiegt sich aussen an die x-Achse – die Achsen sind Asymptoten.', 'Negative Exponenten: f(x) = x⁻ⁿ = 1/xⁿ. Bei x = 0 hat f eine Definitionslücke; die Achsen sind Asymptoten. Je grösser |x|, desto näher kommt f der 0.'],
+  root: ['Ziehe den {{Punkt P|P}} auf der {{Potenzfunktion|pw}}: Sein Spiegelbild an der {{Winkelhalbierenden y = x|diag}} liegt auf der {{Wurzelfunktion|rt}}. Die Wurzel ist die Umkehrfunktion: ⁿ√x = x^(1/n); «▶ xⁿ an y = x umklappen» zeigt die Spiegelung als Bewegung.', 'Die Wurzelfunktion ⁿ√x ist die Umkehrfunktion von xⁿ: Ihr Graph ist das Spiegelbild an der Winkelhalbierenden y = x. In Potenzschreibweise ist ⁿ√x = x^(1/n), allgemein x^(m/n) = ⁿ√(xᵐ).'],
+  gen: ['Ziehe den {{Punkt S|S}} (Verschiebung v und h) und den {{roten Punkt a|A}} (Streckung) oder starte die Animation: Die {{Grundfunktion|base}} wird Schritt für Schritt in {{f(x) = a·(x − v)ⁿ + h|f}} verwandelt.', 'Die allgemeine Form f(x) = a·(x−v)ⁿ + h entsteht aus der Grundfunktion xⁿ (oder ⁿ√x, 1/xⁿ) durch Strecken mit a (bei a < 0 gespiegelt), Verschieben um v nach rechts und um h nach oben (Punkt (v ).'],
+  eq: ['Ziehe die {{Gerade y = y₀|Y,yl}} auf und ab: Ihre Schnittpunkte mit dem {{Graphen|f}} sind die Lösungen von f(x) = y₀ – je nach Lage zwei, eine oder keine. Der Rechenweg rechts passt sich an.', 'Gleichung f(x) = y₀ lösen: Die Potenz wird isoliert, dann entscheidet die Fallunterscheidung (gerade/ungerade, Wurzel, negative rechte Seite), wie viele Lösungen es gibt. Die Lösungen sind die Schnittstellen mit der Geraden y = y₀.']
 };
 // Beispiele
 const POW_FAM_EX = [[2, 'x²'], [3, 'x³'], [4, 'x⁴'], [5, 'x⁵'], [1, 'x'], [6, 'x⁶']];
@@ -150,7 +150,7 @@ function powApply(s) {
 
 // ── Zeichnen ──
 function powCtx(W, H, exp) {
-  return { view: POW.view, F: powF(), n: POW.n, m: POW.m, xp: POW.xp, y0: POW.y0, tt: POW.tt, win: POW.win, fs: exp ? exp.fs : stSceneFs(W, H, 46), exp: !!exp, smooth: !exp, show: POW.show };
+  return { view: POW.view, F: powF(), n: POW.n, m: POW.m, xp: POW.xp, y0: POW.y0, tt: POW.tt, win: POW.win, fs: exp ? exp.fs : stSceneFs(W, H, 46), exp: !!exp, smooth: !exp, show: POW.show, flip: POW.anim && POW.anim.flip && !exp ? POW.anim.k : null };
 }
 const powDock = w => (POW.show.card && w >= 760 ? stCardW(w, 0.36) : 0);
 const powDockH = (w, h) => (POW.show.card && w < 760 ? Math.round(h * 0.5) : 0);
@@ -232,7 +232,7 @@ function powRefreshUI() {
   const ui = POW.ui; if (!ui) return;
   const v = POW.view, sh = POW.show;
   ui.sel.value = v;
-  const d = POW_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[0]), Object.assign(difEl('div', null, d[1]), { style: 'margin-top:5px;' }));
+  const d = POW_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[1])); if (typeof envHint === 'function') envHint('pow', d[0], () => POW.S);   // Hinweis als Überschrift über dem Bild
   const showF = v === 'gen' || v === 'eq';
   ['pow-f-row', 'pow-field-head'].forEach(id => { const e = $dif(id); if (e) e.style.display = showF ? '' : 'none'; });
   powSyncFields();
@@ -285,7 +285,10 @@ function powRefreshUI() {
     top.append(lb, val);
     const sl = difEl('input'); sl.type = 'range'; sl.min = min; sl.max = max; sl.step = step; sl.value = Math.max(min, Math.min(max, get())); sl.style.width = '100%';
     sl.addEventListener('input', () => { POW.anim = null; set(powR6(parseFloat(sl.value))); val.textContent = difFmtIn(get()); POW.cardKey = ''; difRedraw(); powCardSoon(); powSyncFields(); });
-    sl.addEventListener('change', () => { powRefreshUI(); difCommit(); });
+    // Während des Ziehens bleibt der Ausschnitt stehen; danach passt er sich einmal ruhig an
+    const hold = () => { if (POW.win.x0 === null) { POW.win = powResolvedWin(); POW._slAuto = true; } };
+    ['pointerdown', 'mousedown', 'touchstart'].forEach(ev => sl.addEventListener(ev, hold, { passive: true }));
+    sl.addEventListener('change', () => { if (POW._slAuto) { POW.win = Object.assign({}, POW_WIN0); POW._slAuto = false; } powRefreshUI(); difCommit(); difRedraw(); });
     wrap.append(top, sl); const r1 = difEl('div', 'settings-row'); r1.appendChild(wrap); P.appendChild(r1); return sl;
   };
   const group = txt => { const g = difEl('div', 'subpanel-label', txt); g.style.marginTop = '8px'; P.appendChild(g); };
@@ -329,6 +332,7 @@ function powRefreshUI() {
     check('Potenzfunktion xⁿ zeigen', () => sh.pow, x => { sh.pow = x; });
     check('Winkelhalbierende y = x zeigen', () => sh.diag, x => { sh.diag = x; });
     check('x^(m/n) zeigen', () => sh.rat, x => { sh.rat = x; });
+    { const ab = difEl('div'); ab.style.cssText = 'margin-top:6px;'; ab.append(difBtn(POW.anim ? '⏸ Pause' : '▶ xⁿ an y = x umklappen', powAnimToggle)); P.appendChild(ab); }
   } else if (v === 'gen') {
     genParams();
     group('Verwandlung der Grundfunktion');
@@ -349,7 +353,8 @@ function powRefreshUI() {
 
 // ── Animation: Grundfunktion verwandeln ──
 function powAnimToggle() {
-  if (POW.anim) { POW.anim = null; powRefreshUI(); difCommit(); return; }
+  if (POW.anim) { POW.anim = null; powRefreshUI(); difRedraw(); difCommit(); return; }
+  if (POW.view === 'root') { POW.show.pow = true; POW.show.diag = true; POW.anim = { last: 0, flip: true, u: 0, k: 1 }; powRefreshUI(); requestAnimationFrame(powAnimFrame); return; }
   if (POW.tt >= 1) POW.tt = 0;
   POW.anim = { last: 0 }; powRefreshUI(); requestAnimationFrame(powAnimFrame);
 }
@@ -357,6 +362,12 @@ function powAnimFrame(ts) {
   const a = POW.anim; if (!a) return;
   if (!powActive()) { POW.anim = null; return; }
   const dt = a.last ? Math.min(0.1, (ts - a.last) / 1000) : 0.016; a.last = ts;
+  if (a.flip) {
+    if (POW.view !== 'root') { POW.anim = null; return; }
+    a.u = Math.min(1, a.u + dt / 4); const e = a.u * a.u * (3 - 2 * a.u); a.k = Math.cos(Math.PI * e);
+    if (a.u >= 1) { POW.anim = null; powRefreshUI(); difRedraw(); difCommit(); return; }
+    difRedraw(); requestAnimationFrame(powAnimFrame); return;
+  }
   POW.tt = Math.min(1, POW.tt + dt / 6);
   if (POW.tt >= 1) { POW.anim = null; powRefreshUI(); difRedraw(); difCommit(); return; }
   const all = POW.ui && POW.ui.params.querySelectorAll('input[type=range]'); if (all && all.length) { all[all.length - 1].value = POW.tt; const b = all[all.length - 1].parentNode.querySelector('b'); if (b) b.textContent = difFmtIn(powR6(POW.tt)); }
@@ -383,7 +394,7 @@ function powAnimFrame(ts) {
   };
   const down = e => {
     if (!powActive()) return; e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault();
-    const S = POW.S; if (!S) return; const p = pos(e); if (POW.anim) { POW.anim = null; powRefreshUI(); }
+    const S = POW.S; if (!S) return; const p = pos(e); if (POW.anim) { POW.anim = null; powRefreshUI(); difRedraw(); }
     const q = near(p);
     if (q) { POW.drag = { type: q.id }; if (POW.win.x0 === null) { POW.win = powResolvedWin(); POW.drag.auto = true; } }   // Ausschnitt beim Ziehen festhalten
     else if (inMap(S.maps.main, p)) POW.drag = { type: 'pan', px: p.x, py: p.y, w: powResolvedWin() };

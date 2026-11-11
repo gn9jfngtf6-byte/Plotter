@@ -305,11 +305,69 @@ document.addEventListener('keydown', function (e) {
   // Im LaTeX-Modus ist "^" ein ganz normales Textzeichen: weder die normale Taste noch die macOS-Tottaste
   // wird abgefangen -- MathLive fügt das Zeichen (auch aus der Komposition) selbst literal in den LaTeX-Text ein.
   if (_mlInLatexMode(mf)) return;
+  // Andere Tottasten (´ ` ¨ ~ …) sind kein Hochzeichen. Safari meldet das Zeichen der Tottaste schon VOR
+  // diesem keydown (compositionupdate) → dann hier gar nicht eingreifen.
+  if (isDeadCaret && mf.__mlCompAt && Date.now() - mf.__mlCompAt < 250 && ML_OTHER_DEAD.test(mf.__mlCompData || '')) return;
   e.preventDefault();
   e.stopPropagation();
   if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+  // Normale Taste "^" direkt nach einer bereits behandelten Tottaste: das ist nur deren Abschluss
+  // (Windows/Firefox: Tottaste + Leertaste liefert "^" als eigene Taste) → keine zweite Hochstellung.
+  if (isCaret && _mlDeadPending(mf)) { mf.__mlDeadAt = 0; return; }
+  // Stand vor dem Eingriff merken: Chrome/Edge melden das Zeichen der Tottaste erst NACH diesem keydown.
+  if (isDeadCaret) { try { mf.__mlDeadUndo = { latex: mf.getValue('latex'), pos: mf.position, at: Date.now() }; } catch (ex) { mf.__mlDeadUndo = null; } }
   _mlHandleCaret(mf, isDeadCaret);
-  if (isDeadCaret) mf.__mlDeadCaretHandled = true;
+  if (isDeadCaret) { mf.__mlDeadCaretHandled = true; mf.__mlDeadAt = Date.now(); _mlPatchDeadCaret(mf); }
+}, true);
+// Jede Tottaste meldet sich als key:"Dead" — welche es war, steht erst im compositionupdate. Ist es sicher
+// KEIN Zirkumflex (Akut, Gravis, Trema, Tilde, Apostroph/Anführungszeichen der US-International-Belegung …),
+// wird die eben geöffnete Hochstellung zurückgenommen; das Zeichen läuft dann normal durch MathLive.
+// Der Weg der Taste "^" selbst bleibt unverändert (nur ausdrücklich erkannte ANDERE Zeichen lösen das aus).
+const ML_OTHER_DEAD = /^[\u00b4`\u00a8~\u02c7\u00b0\u02d8\u00b8\u02dd\u02db\u02d9\u00af'"\u0300\u0301\u0303\u0308\u030c]/;
+document.addEventListener('compositionupdate', function (e) {
+  const mf = _mlFieldFromEvent(e);
+  if (!mf) return;
+  const d = e.data || '';
+  mf.__mlCompData = d; mf.__mlCompAt = Date.now();
+  if (!d || !ML_OTHER_DEAD.test(d)) return;
+  const u = mf.__mlDeadUndo;
+  mf.__mlDeadUndo = null;
+  if (!u || Date.now() - u.at > 1500) return;
+  mf.__mlDeadAt = 0; mf.__mlDeadCaretHandled = false;
+  try {
+    if (mf.getValue('latex') !== u.latex) mf.setValue(u.latex, { silenceNotifications: true });
+    mf.position = u.pos;
+  } catch (ex) { /* defensiv */ }
+}, true);
+document.addEventListener('compositionend', function (e) {
+  const mf = _mlFieldFromEvent(e);
+  if (mf) { mf.__mlCompData = ''; mf.__mlCompAt = 0; }
+}, true);
+// Windows (Chrome/Edge): Die Tottaste "^" startet die Komposition erst NACH unserem keydown-Abfang. Die
+// Komposition endet dann mit "^" bzw. "^2" (Tottaste + Ziffer), und MathLive tippt diesen Text nach —
+// das "^" darin erzeugte eine ZWEITE, verschachtelte Hochstellung (x^{^2}). Darum: Text, der unmittelbar
+// nach einer schon behandelten Tottaste ankommt, verliert sein führendes "^".
+function _mlDeadPending(mf) { return !!(mf && mf.__mlDeadAt && Date.now() - mf.__mlDeadAt < 4000); }
+function _mlStripDead(mf, text) {
+  if (typeof text !== 'string' || text[0] !== '^' || !_mlDeadPending(mf) || _mlInLatexMode(mf)) return text;
+  mf.__mlDeadAt = 0;
+  return text.slice(1);
+}
+function _mlPatchDeadCaret(mf) {
+  const M = mf && mf._mathfield;
+  if (!M || M.__mlDeadPatched) return;
+  M.__mlDeadPatched = true;
+  try {
+    const ce = M.onCompositionEnd, oi = M.onInput;
+    if (typeof ce === 'function') M.onCompositionEnd = function (c) { return ce.call(this, _mlStripDead(mf, c)); };
+    if (typeof oi === 'function') M.onInput = function (t) { const s = _mlStripDead(mf, t); return s === '' ? undefined : oi.call(this, s); };
+  } catch (ex) { /* defensiv */ }
+}
+// Jede andere Taste beendet das Zeitfenster der Tottaste (danach ist "^" wieder eine neue Hochstellung).
+document.addEventListener('keyup', function (e) {
+  if (!e.key || e.key === 'Dead' || e.key === '^' || e.key === 'Process' || e.key.length !== 1) return;
+  const mf = _mlFieldFromEvent(e);
+  if (mf && mf.__mlDeadAt && !e.isComposing) setTimeout(() => { mf.__mlDeadAt = 0; }, 0);
 }, true);
 
 document.addEventListener('beforeinput', function (e) {
@@ -392,8 +450,15 @@ document.addEventListener('input', function (e) {
 // Felder auf einmal beim Start). Wird von allen mlSetFromRaw()-Implementierungen
 // im Projekt direkt nach "inp.value = latex;" aufgerufen.
 function _mlMoveCursorToEnd(mf) {
-  try { mf.executeCommand('moveToMathfieldEnd'); } catch (ex) { /* defensiv */ }
+  // nur bewegen, wenn der Cursor nicht schon am Ende steht (sonst «Plonk»-Ton von MathLive)
+  try { if (typeof mf.position === 'number' && typeof mf.lastOffset === 'number' && mf.position >= mf.lastOffset) return; mf.executeCommand('moveToMathfieldEnd'); } catch (ex) { /* defensiv */ }
 }
+// MathLive: keine Töne (Tastenklick der virtuellen Tastatur, «Plonk» bei nicht möglichen Befehlen).
+// Der Plonk erklang z. B. beim Ziehen eines Schiebers, weil das Formelfeld laufend neu gesetzt wird.
+(function mlMute() {
+  const off = () => { const M = typeof window !== 'undefined' ? window.MathfieldElement : null; if (!M) return; ['plonkSound', 'keypressSound', 'soundsDirectory'].forEach(k => { try { M[k] = null; } catch (e) { /* ältere Version */ } }); };
+  try { off(); if (typeof customElements !== 'undefined' && customElements.whenDefined) customElements.whenDefined('math-field').then(off); } catch (e) { /* ohne MathLive */ }
+})();
 
 const MI_FNAMES = new Set([
   'sin', 'cos', 'tan', 'sqrt', 'abs', 'log', 'exp',
@@ -418,11 +483,14 @@ function miTokenize(s, strict) {
     if (c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\u00a0') { i++; continue; }
     if (strict) {
       if (c === '-' && s[i + 1] === ':') { toks.push({ t: '/', v: '/' }); i += 2; continue; }   // ÷ (ASCIIMath: "-:")
-      if (c === '\u00f7') { toks.push({ t: '/', v: '/' }); i++; continue; }
-      if (c === '\u00d7' || c === '\u00b7' || c === '\u22c5' || c === '\u2217') { toks.push({ t: '*', v: '*' }); i++; continue; }
-      if (c === '\u2212' || c === '\u2013') { toks.push({ t: '-', v: '-' }); i++; continue; }
       if (c === '\u2223' || c === '\u2016') { toks.push({ t: '|', v: '|' }); i++; continue; }
     }
+    // Typografische Rechenzeichen gelten in BEIDEN Modi: Früher wurden sie im nachsichtigen Modus (Zahlfelder,
+    // Rohausdrücke) als «unbekannt» übersprungen — aus «−2» (Minuszeichen U+2212, so zeigt das Programm negative
+    // Zahlen selbst an) wurde stillschweigend 2, aus «6÷2» wurde 62.
+    if (c === '\u00f7') { toks.push({ t: '/', v: '/' }); i++; continue; }
+    if (c === '\u00d7' || c === '\u00b7' || c === '\u22c5' || c === '\u2217') { toks.push({ t: '*', v: '*' }); i++; continue; }
+    if (c === '\u2212' || c === '\u2013' || c === '\u2014' || c === '\u2010' || c === '\u2011' || c === '\ufe63' || c === '\uff0d') { toks.push({ t: '-', v: '-' }); i++; continue; }
     if (/[0-9]/.test(c) || (c === '.' && /[0-9]/.test(s[i + 1] || ''))) {
       let j = i;
       while (j < s.length && /[0-9.]/.test(s[j])) j++;
@@ -834,7 +902,8 @@ function miToLatex(node, parentPrec, side, parentType) {
       break;
     }
     case 'pow': {
-      out = '{' + miToLatex(node.a, 100) + '}^{' + miToLatex(node.b, 0) + '}';
+      // Bruch als Basis immer klammern: (1/2)^k → \left(\frac{1}{2}\right)^{k} (sonst sähe es aus wie 1^k/2)
+      out = (node.a.type === 'div' ? '\\left(' + miToLatex(node.a, 0) + '\\right)' : '{' + miToLatex(node.a, 100) + '}') + '^{' + miToLatex(node.b, 0) + '}';
       myPrec = MI_PREC.pow;
       break;
     }
@@ -1016,3 +1085,71 @@ function rawToLatex(rawStr) {
 if (typeof module !== 'undefined') {
   module.exports = { miTokenize, miParse, miParseRaw, miParseAsciiMath, miToRaw, miToLatex, asciiMathToRaw, rawToLatex, miCanonicalizeAsciiMath, mlFilterMenuItems };
 }
+
+
+// ═════════════ Allgemeine Robustheit der Text- und Zahlfelder (alle Umgebungen) ═════════════
+// (1) Panel-Neuaufbau, während ein Feld noch den Fokus hat. Chrome/Edge feuern beim ENTFERNEN eines
+//     fokussierten <input>/<select> noch «change»/«blur». Folge vorher: Der (veraltete) Feldinhalt wurde ein
+//     zweites Mal übernommen — z.B. Winkel 30 eintippen + Enter, dann den Punkt am Kreis auf 90° ziehen: beim
+//     Loslassen sprang er auf 30 zurück; Rückgängig (Strg+Z) im Feld «tat nichts»; ein leeres Feld + Enter warf
+//     «The node to be removed is no longer a child». Darum verliert das Feld den Fokus VOR dem Neuaufbau,
+//     und zwar still (ohne dass seine Übernahme-Funktion nochmals läuft). Formelfelder (math-field) sind nicht
+//     betroffen: sie lesen nach dem Aufbau das NEUE Feld und bleiben daher unberührt.
+function uiQuietBlur(root) {
+  const a = document.activeElement;
+  if (!a || a === document.body || a === root || !root || typeof root.contains !== 'function' || !root.contains(a)) return;
+  if (a.tagName !== 'INPUT' && a.tagName !== 'SELECT' && a.tagName !== 'TEXTAREA') return;
+  const stop = function (e) { e.stopImmediatePropagation(); };
+  const T = ['change', 'blur', 'focusout'];
+  T.forEach(function (t) { window.addEventListener(t, stop, true); });
+  try { a.blur(); } catch (ex) { /* defensiv */ }
+  T.forEach(function (t) { window.removeEventListener(t, stop, true); });
+}
+(function () {
+  const P = typeof Element !== 'undefined' && Element.prototype;
+  if (!P || typeof P.replaceChildren !== 'function' || P.__j10QuietBlur) return;
+  const rc = P.replaceChildren;
+  P.__j10QuietBlur = true;
+  P.replaceChildren = function () {
+    try {
+      const a = document.activeElement;
+      // bleibt das fokussierte Element erhalten (wird gleich wieder eingehängt), nichts tun
+      let keep = false;
+      for (let i = 0; i < arguments.length && !keep; i++) { const n = arguments[i]; keep = !!(n && n.contains && a && n.contains(a)); }
+      if (!keep) uiQuietBlur(this);
+    } catch (ex) { /* defensiv */ }
+    return rc.apply(this, arguments);
+  };
+})();
+// (2) Wer nach einer Eingabe direkt in die Zeichenfläche greift (Maus, Finger, Stift), schliesst damit das Feld
+//     ab: Der getippte Wert wird übernommen, die Bildschirmtastatur von Tablet/Handy klappt zu. In einigen
+//     Umgebungen (Trigonometrie, Wahrscheinlichkeit, Finanzmathematik, 3D) und bei Wischgesten blieb der Fokus
+//     sonst im Feld stehen.
+document.addEventListener('pointerdown', function (e) {
+  const a = document.activeElement, t = e.target;
+  if (!a || a === document.body || !t || typeof t.closest !== 'function') return;
+  if (a.tagName !== 'INPUT' && a.tagName !== 'TEXTAREA' && a.tagName !== 'SELECT' && a.tagName !== 'MATH-FIELD') return;
+  if (a === t || a.contains(t) || !a.closest('#sidebar') || !t.closest('#canvas-wrap')) return;
+  try { a.blur(); } catch (ex) { /* defensiv */ }
+}, true);
+// (3) Dezimalkomma in <input type="number">: Chrome/Edge lassen je nach Sprache des Browsers nur EIN
+//     Dezimalzeichen zu und verschlucken das andere kommentarlos (aus «1000,5» wurde 10005). Das Komma wird
+//     darum als Punkt eingefügt; der Punkt gilt in allen Browsern.
+document.addEventListener('keydown', function (e) {
+  const t = e.target;
+  if (e.key !== ',' || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || !t || t.tagName !== 'INPUT' || t.type !== 'number') return;
+  e.preventDefault();
+  try { if (!document.execCommand('insertText', false, '.')) throw 0; }
+  catch (ex) { try { t.value = String(t.value) + '.'; t.dispatchEvent(new Event('input', { bubbles: true })); } catch (ex2) { /* defensiv */ } }
+}, true);
+// (4) iPhone: Die Zifferntastatur (inputmode="decimal") hat dort kein Minuszeichen und keinen Bruchstrich —
+//     negative Werte, «1/4» oder «pi» liessen sich nicht eingeben. Auf dem iPhone erscheint darum die normale
+//     Tastatur (iPad und Android zeigen bei "decimal" ohnehin eine Tastatur mit Minus).
+(function () {
+  let phone = false;
+  try { phone = /iPhone|iPod/.test(navigator.userAgent || ''); } catch (ex) { /* defensiv */ }
+  if (!phone) return;
+  const fix = function (e) { const t = e.target; if (t && t.tagName === 'INPUT' && (t.inputMode === 'decimal' || t.getAttribute('inputmode') === 'decimal')) { t.inputMode = 'text'; t.setAttribute('autocapitalize', 'off'); t.setAttribute('autocorrect', 'off'); } };
+  document.addEventListener('touchstart', fix, { capture: true, passive: true });
+  document.addEventListener('focusin', fix, true);
+})();

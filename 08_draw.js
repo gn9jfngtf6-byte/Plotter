@@ -1639,7 +1639,7 @@ function rectCollides(r) {
 // nur die (kollidierende) erste Option übrig.
 function placeLabel(ctx, text, cx, cy, dir, size) {
   // size (optional): tatsächlich gemessene Grösse eines HTML-Labels (Brüche machen es höher als 14px)
-  const m = ctx.measureText(mnus(text)); const tw = (size ? size.w : m.width) + 4, th = size ? Math.max(14, size.h + 2) : 14;
+  const tw = (size ? size.w : ctx.measureText(mnus(text)).width) + 4, th = size ? Math.max(14, size.h + 2) : 14;   // gemessene Grösse genügt (measureText ist bei vielen Labels teuer)
   const near = 8, far = 22;
   const rightFirst = [
     [near,-th], [near,2], [near,-th*2], [near,th],
@@ -1674,9 +1674,20 @@ function placeLabel(ctx, text, cx, cy, dir, size) {
 // Kollisionsvermeidung (ctx.measureText), nicht der eigentlichen Anzeige.
 // Grösse eines HTML-Labels im Overlay messen (unsichtbar eingefügt, damit Brüche/grosse Klammern
 // bei der Kollisionsvermeidung mit ihrer echten Höhe zählen)
+// Gemessene Grössen werden gemerkt: dasselbe Label (z.B. «N(1,77 | 0)») kommt bei jedem Neuzeichnen wieder, und
+// jedes Messen erzwingt ein Layout des Dokuments (bei 200 Sonderpunkten sonst ~200 ms pro Bild).
+const _mathLabelSizes = new Map();
 function measureMathLabel(html, fontSize) {
   const ov = document.getElementById('canvas-label-overlay');
   if (!ov || !html) return null;
+  const key = (fontSize || 11) + '|' + (typeof beamMode !== 'undefined' && beamMode ? 'b' : '') + '|' + html;
+  if (_mathLabelSizes.has(key)) return _mathLabelSizes.get(key);
+  const r0 = _measureMathLabel0(ov, html, fontSize);
+  if (_mathLabelSizes.size > 3000) _mathLabelSizes.clear();
+  if (r0) _mathLabelSizes.set(key, r0);
+  return r0;
+}
+function _measureMathLabel0(ov, html, fontSize) {
   const d = document.createElement('div');
   d.className = 'canvas-math-label';
   d.style.visibility = 'hidden'; d.style.left = '0px'; d.style.top = '0px';
@@ -1696,7 +1707,7 @@ function drawLabel(ctx, text, cx, cy, col, dir = 'r', html) {
     // Unterkante des Labels = p.y (bei gemessener Höhe exakt, sonst wie bisher)
     let x = p.x, y = p.y;
     // im sichtbaren Canvas halten
-    const W = canvas.clientWidth || 0, H = canvas.clientHeight || 0;
+    const W = getW(), H = getH();                              // zwischengespeichert (clientWidth erzwingt bei jedem Label ein Layout)
     if (size && W) { x = Math.max(2, Math.min(x, W - size.w - 2)); }
     if (size && H) { y = Math.max(size.h + 2, Math.min(y, H - 2)); }
     drawMathLabel(html, x, y, col, { align: 'left', baseline: 'alphabetic' });
@@ -1773,6 +1784,8 @@ function draw() {
   if (typeof simActive === 'function' && simActive()) { simDraw(w, h); return; }   // Ähnlichkeit (105_sim_ui.js)
   if (typeof seqActive === 'function' && seqActive()) { seqDraw(w, h); return; }   // Folgen und Reihen (108_seq_ui.js)
   if (typeof lopActive === 'function' && lopActive()) { lopDraw(w, h); return; }   // Lineare Optimierung (111_lop_ui.js)
+  if (typeof setActive === 'function' && setActive()) { setDraw(w, h); return; }   // Mengen und Intervalle (112_set.js)
+  if (typeof probActive === 'function' && probActive()) { probDraw(w, h); return; }   // Stochastik rechnen (113_prob.js)
   const v = isoView || view; // isometrischer View für diesen Frame
   try { if (window.EGGS) EGGS.onView(v); } catch (e) {} // Easter-Egg: extremes Zoomen (24_eggs.js)
   const axisFontSize = bf(parseInt(document.getElementById('axis-font-size')?.value || 12));
