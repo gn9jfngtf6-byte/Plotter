@@ -6,12 +6,12 @@
 // senkrechte Gerade t, Anwendung app mit Markierung xm, Ausschnitt, Optionen. Umgebung «intro» in 32_env.js.
 // ═══════════════════════════════════════════════════════════════════
 
-const FUN_VIEWS = [['map', 'Zuordnung und Wertetabelle'], ['bars', 'Balken über den Stellen → Graph'], ['def', 'Funktionsbegriff und Eigenschaften'], ['app', 'Anwendungen mit Einheiten']];
+const FUN_VIEWS = [['map', 'Zuordnung und Wertetabelle'], ['def', 'Funktionsbegriff und Eigenschaften'], ['app', 'Anwendungen mit Einheiten']];
 const FUN_DESC = {
-  map: ['Eine Funktion ordnet jeder Zahl x genau eine Zahl y = f(x) zu. Die Rechenvorschrift sagt, wie aus x der Wert entsteht. Setzt man Stellen ein, entsteht die Wertetabelle; jede Zeile ist ein Punkt (x | f(x)) im Koordinatensystem.', 'Tippe eine Funktion ein, wähle Start und Schrittweite der Tabelle und ziehe den ersten Punkt P. Rechts siehst du das Einsetzen Schritt für Schritt.'],
-  bars: ['Über jeder Stelle x im Abstand h steht ein Balken bis zur Höhe f(x). Verkleinert man den Abstand, rücken die Balken zusammen; bei h → 0 werden ihre Enden zur Kurve: Das ist der Graph der Funktion.', 'Schiebe den Abstand h langsam gegen 0 oder starte die Animation. Mit den Kästchen zeigst du Werte, Koordinaten, nur Punkte oder die Kurve.'],
-  def: ['Begriffe am Graphen: Definitionsbereich (welche x darf man einsetzen), Wertebereich (welche Werte kommen heraus), Nullstellen, y-Achsenabschnitt, steigend und fallend, Hoch- und Tiefpunkte. Jede senkrechte Gerade trifft den Graphen höchstens einmal.', 'Ziehe die violette Gerade x = t über das Bild. Blende den Kreis ein: Er wird zweimal getroffen und ist darum kein Funktionsgraph.'],
-  app: ['Funktionen beschreiben Zusammenhänge zwischen Grössen: Weg und Zeit, Kosten und Minuten, Temperatur und Uhrzeit. Die Achsen tragen dann Grössen mit Einheiten, und jeder Funktionswert hat eine Bedeutung.', 'Wähle eine Anwendung und ziehe den Punkt auf dem Graphen: Links und unten liest du die Werte ab, rechts steht, was sie bedeuten.']
+  map: ['Gib oben eine Funktion ein und ziehe den {{Punkt P|P}}: Jede Stelle x wird eingesetzt, das Ergebnis f(x) ergibt einen {{Punkt (x | f(x))|pts}} im Bild. Rechts steht das Einsetzen Schritt für Schritt.', 'Eine Funktion ordnet jeder Zahl x genau eine Zahl y = f(x) zu. Die Rechenvorschrift sagt, wie aus x der Wert entsteht. Setzt man Stellen ein, entsteht die Wertetabelle; jede Zeile ist ein Punkt (x | f(x)) im Koordinatensystem.'],
+  bars: ['Schiebe den Abstand h langsam gegen 0 (oder starte die Animation): Die {{Balken|bar}} über den Stellen x rücken zusammen, und ihre Enden bilden am Schluss den Graphen der Funktion.', 'Über jeder Stelle x im Abstand h steht ein Balken bis zur Höhe f(x). Verkleinert man den Abstand, rücken die Balken zusammen; bei h → 0 werden ihre Enden zur Kurve: Das ist der Graph der Funktion.'],
+  def: ['Ziehe die {{senkrechte Gerade x = t|T,vl}} über das Bild: Sie trifft den {{Graphen|f}} nie mehr als einmal – darum ist er ein Funktionsgraph. Markiert sind Nullstellen, y-Achsenabschnitt, Hoch- und Tiefpunkte.', 'Begriffe am Graphen: Definitionsbereich (welche x darf man einsetzen), Wertebereich (welche Werte kommen heraus), Nullstellen, y-Achsenabschnitt, steigend und fallend, Hoch- und Tiefpunkte. Jede senkrechte Gerade trifft den Graphen höchstens einmal.'],
+  app: ['Wähle eine Anwendung und ziehe den {{Punkt|X}} auf dem Graphen: An den Achsen liest du die beiden Grössen mit Einheiten ab ({{Ablesehilfen|ab}}), rechts steht, was der Wert bedeutet.', 'Funktionen beschreiben Zusammenhänge zwischen Grössen: Weg und Zeit, Kosten und Minuten, Temperatur und Uhrzeit. Die Achsen tragen dann Grössen mit Einheiten, und jeder Funktionswert hat eine Bedeutung.']
 };
 const FUN_EX = [['x^2-2x', 'x² − 2x'], ['2*x+1', '2x + 1'], ['(-1/2)*x+2', '−x/2 + 2'], ['x^3-3x', 'x³ − 3x'], ['-x^2+4', '−x² + 4'], ['x^2/4-1', 'x²/4 − 1'], ['sqrt(x)', '√x'], ['1/x', '1/x'], ['2^x', '2^x'], ['sin(x)', 'sin x'], ['abs(x)-2', '|x| − 2'], ['x^2*(x-2)', 'x²(x − 2)']];
 const FUN_WIN0 = { x0: null, x1: null, y0: null, y1: null };
@@ -188,7 +188,7 @@ function funRefreshUI() {
   const ui = FUN.ui; if (!ui) return;
   const v = FUN.view, sh = FUN.show;
   ui.sel.value = v;
-  const d = FUN_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[0]), Object.assign(difEl('div', null, d[1]), { style: 'margin-top:5px;' }));
+  const d = FUN_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[1])); if (typeof envHint === 'function') envHint('intro', d[0], () => FUN.S);   // Hinweis als Überschrift über dem Bild
   const showF = v !== 'app';
   ['intro-f-row', 'intro-field-head'].forEach(id => { const e = $dif(id); if (e) e.style.display = showF ? '' : 'none'; });
   funSyncFields();
@@ -237,7 +237,10 @@ function funRefreshUI() {
     top.append(lb, val);
     const sl = difEl('input'); sl.type = 'range'; sl.min = min; sl.max = max; sl.step = step; sl.value = Math.max(min, Math.min(max, get())); sl.style.width = '100%';
     sl.addEventListener('input', () => { FUN.anim = null; set(funR6(parseFloat(sl.value))); val.textContent = difFmtIn(get()); FUN.cardKey = ''; difRedraw(); funCardSoon(); });
-    sl.addEventListener('change', () => { funRefreshUI(); difCommit(); });
+    // Während des Ziehens bleibt der Ausschnitt stehen; danach passt er sich einmal ruhig an
+    const hold = () => { if (FUN.win.x0 === null) { FUN.win = funResolvedWin(); FUN._slAuto = true; } };
+    ['pointerdown', 'mousedown', 'touchstart'].forEach(ev => sl.addEventListener(ev, hold, { passive: true }));
+    sl.addEventListener('change', () => { if (FUN._slAuto) { FUN.win = Object.assign({}, FUN_WIN0); FUN._slAuto = false; } funRefreshUI(); difCommit(); difRedraw(); });
     wrap.append(top, sl); const r1 = difEl('div', 'settings-row'); r1.appendChild(wrap); P.appendChild(r1); return sl;
   };
   const group = txt => { const g = difEl('div', 'subpanel-label', txt); g.style.marginTop = '8px'; P.appendChild(g); };
@@ -273,7 +276,7 @@ function funRefreshUI() {
     check('Gegenbeispiel Kreis (keine Funktion)', () => sh.rel, x => { sh.rel = x; });
   } else {
     select('Anwendung', Fun.APPS.map(a => [a.id, a.name]), () => FUN.app, x => { FUN.app = x; FUN.xm = funApp().x0; FUN.Fx = null; FUN.win = Object.assign({}, FUN_WIN0); });
-    const A = funApp(); const h = difEl('div', 'act-hint', A.desc); h.style.margin = '2px 2px 4px'; P.appendChild(h);
+    const A = funApp();   // der Sachverhalt steht als «Situation» im Rechenweg
     group('Markierung auf dem Graphen');
     numRow(A.xv, () => FUN.xm, x => { FUN.xm = Math.max(A.xmin, Math.min(A.xmax, x)); }, { step: A.step / 2 });
   }

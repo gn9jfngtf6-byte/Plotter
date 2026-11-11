@@ -51,14 +51,14 @@ function lpSceneUng1(S, W, H, C) {
   const b = R ? R.bound : 0;
   const lf = x => I.l.x * x + I.l.c, rf = x => I.r.x * x + I.r.c;
   const xs = [b - 3, b + 3, 0], pts = xs.map(x => [x, lf(x)]).concat(xs.map(x => [x, rf(x)]));
-  const win = lpWindow(C, Rl[0], pts, 'ung1');
+  const win = lpWindow(C, Rl[0], pts, 'ung1|' + (I.raw || JSON.stringify([I.l, I.r])));
   const m = difFrame(S, Rl[0], win, C, { title: '\\col{b}{y=' + Lp.sideTex(I.l) + '}\\quad\\col{o}{y=' + Lp.sideTex(I.r) + '}', xlab: 'x', ylab: 'y' });
   S.maps.main = m;
   if (R && R.rel !== '=') {
     const lo = R.rel === '<=' || R.rel === '<' ? win.x0 : b, hi = R.rel === '<=' || R.rel === '<' ? b : win.x1;
     S.rect(m.X(Math.max(lo, win.x0)), m.T, m.X(Math.min(hi, win.x1)) - m.X(Math.max(lo, win.x0)), m.B - m.T, { fill: LP_F, a: 0.1 });
   }
-  difCurve(S, m, lf, { col: ST_B, lw: 2.4, exp: C.exp }); difCurve(S, m, rf, { col: LP_Z, lw: 2.4, exp: C.exp });
+  difCurve(S, m, lf, { hl: 'ls', col: ST_B, lw: 2.4, exp: C.exp }); difCurve(S, m, rf, { hl: 'rs', col: LP_Z, lw: 2.4, exp: C.exp });
   if (R) { difSeg(S, m, b, win.y0, b, win.y1, { col: LP_F, lw: 1.2, dash: true }); linPt(S, m, null, b, lf(b), C, { fill: LP_F, r: 5.5, lab: '\\col{g}{x=' + Lp.q(b) + '}', w: fs * 5, lines: [[1, I.l.x], [1, I.r.x], [0, 1]] }); }
   // Zahlengerade (gleiche x-Achse wie oben)
   const r2 = Rl[1]; if (typeof stKeep === 'function') stKeep(r2);
@@ -84,11 +84,11 @@ function lpSceneHalf(S, W, H, C) {
   const Rl = linLayout(W, H, [{ w: 0.66, rows: [2.3] }, { w: 0.34, rows: [1] }]);
   const pts = [[0, 0], T];
   if (Math.abs(J.a) > 1e-12) pts.push([J.c / J.a, 0]); if (Math.abs(J.b) > 1e-12) pts.push([0, J.c / J.b]);
-  const win = lpWindow(C, Rl[0], pts, 'half');
+  const win = lpWindow(C, Rl[0], pts, 'half|' + JSON.stringify([J.a, J.b, J.c]));
   const m = difFrame(S, Rl[0], win, C, { title: '\\col{b}{' + Lp.tex(I) + '}', xlab: 'x', ylab: 'y' });
   S.maps.main = m;
   const reg = lpClipWin(Lp.region([I], false).poly, win);
-  if (reg.length > 2) S.poly(reg.map(p => [m.X(p[0]), m.Y(p[1])]), { fill: LP_F, a: 0.16, col: LP_F, lw: 0.01, close: true });
+  if (reg.length > 2) S.poly(shlP(S, 'hp', reg.map(p => [m.X(p[0]), m.Y(p[1])])), { fill: LP_F, a: 0.16, col: LP_F, lw: 0.01, close: true });
   lpLine(S, m, I, ST_B, { lw: 2.6 });
   if (Math.abs(J.a) > 1e-12 && Math.abs(J.c) > 1e-12) linPt(S, m, null, J.c / J.a, 0, C, { fill: ST_B, r: 4.5, lab: '\\col{b}{' + lpPt(J.c / J.a, 0) + '}', w: fs * 5, lines: [[1, 0], [J.b, -J.a]] });
   if (Math.abs(J.b) > 1e-12 && Math.abs(J.c) > 1e-12) linPt(S, m, null, 0, J.c / J.b, C, { fill: ST_B, r: 4.5, lab: '\\col{b}{' + lpPt(0, J.c / J.b) + '}', w: fs * 5, lines: [[0, 1], [J.b, -J.a]] });
@@ -109,12 +109,12 @@ function lpScenePoly(S, W, H, C, withObj) {
   const mxX = Math.max(1, ...V.map(v => Math.abs(v.x))), mxY = Math.max(1, ...V.map(v => Math.abs(v.y))), lim = R.bounded ? 1.6 : 1e9;
   L0.forEach(I => { if (Math.abs(I.a) > 1e-12 && Math.abs(I.c / I.a) < Math.min(1e6, mxX * lim)) pts.push([I.c / I.a, 0]); if (Math.abs(I.b) > 1e-12 && Math.abs(I.c / I.b) < Math.min(1e6, mxY * lim)) pts.push([0, I.c / I.b]); });
   if (C.P && !withObj) pts.push(C.P);
-  const win = lpWindow(C, Rl[0], pts, withObj ? 'opt' : 'poly');
+  const win = lpWindow(C, Rl[0], pts, (withObj ? 'opt' : 'poly') + '|' + L0.map(I => I.raw || [I.a, I.b, I.c].join(',')).join(';'));
   const O = C.O, mode = C.mode, res = withObj && O ? Lp.optimum(L0, nn, O, mode) : null;
   const title = withObj && O ? '\\col{o}{Z=' + Lp.linTex(O.p, O.q) + '\\ \\to\\ \\text{' + (mode === 'min' ? 'min' : 'max') + '}}' : '\\text{Planungspolygon}';
   const m = difFrame(S, Rl[0], win, C, { title, xlab: C.ctx && C.ctx.xl ? C.ctx.xl : 'x', ylab: C.ctx && C.ctx.yl ? C.ctx.yl : 'y' });
   S.maps.main = m;
-  if (!R.empty) { const pg = lpClipWin(R.poly, win); if (pg.length > 2) S.poly(pg.map(p => [m.X(p[0]), m.Y(p[1])]), { fill: LP_F, a: 0.2, col: LP_F, lw: 0.01, close: true }); }
+  if (!R.empty) { const pg = lpClipWin(R.poly, win); if (pg.length > 2) S.poly(shlP(S, 'pg', pg.map(p => [m.X(p[0]), m.Y(p[1])])), { fill: LP_F, a: 0.2, col: LP_F, lw: 0.01, close: true }); }
   L0.forEach((I, i) => lpLine(S, m, I, LP_COL[i % LP_COL.length], { lab: '\\col{' + (LP_CL[i % 8] || 'b') + '}{(' + Lp.roman(i) + ')}', t: 0.7 + 0.08 * (i % 3) }, C));
   // ganzzahlige Punkte
   if (C.int && C.show.intpts) { const IP = Lp.intPoints(L0, nn, 1500); if (IP) IP.forEach(p => { const px = m.X(p[0]), py = m.Y(p[1]); if (px >= m.L && px <= m.R && py >= m.T && py <= m.B) S.circ(px, py, 2.2, { fill: 'T', a: 0.55 }); }); }

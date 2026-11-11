@@ -4,34 +4,58 @@
 // Rechenkern: 103_sim.js, 103b_sim_docs.js (Sim). Bilder: 104_sim_draw.js. Aufbau wie 99d_inv_ui.js.
 // Zustand SIM: Ansicht; Dreieck P (fix, Ecken ziehbar); Abbildung T = {z, k, phi, refl, psi, v};
 // zweites Dreieck Q (Ansicht «Ähnlich oder nicht?»); Strahlensatzfigur ray; rechtwinkliges Dreieck rt; Ausschnitt; Anzeige.
-// Ziehen: Ecken und Z frei (Raster 0.5, Shift = frei); A′, B′, C′ drehen und strecken um Z; Inneres des Bildes verschiebt;
-// Achsengriff dreht die Spiegelachse; C (bzw. D) gleitet auf dem Strahl; C im rechtwinkligen Dreieck auf dem Thaleskreis.
+// Ziehen: Ecken und Z frei (Raster 0.5, Shift = frei); A′, B′, C′: im Kreis um den Ursprung ziehen dreht, von Z weg bzw.
+// zu Z hin ziehen streckt (je Ziehbewegung eines von beiden); Inneres des Bildes verschiebt;
+// C (bzw. D) gleitet auf dem Strahl; C im rechtwinkligen Dreieck auf dem Thaleskreis.
 // Die Umgebung selbst (Umschalten) steht in 32_env.js (Eintrag «sim»).
 // ═══════════════════════════════════════════════════════════════════
 
 const SIM_VIEWS = [['map', 'Ähnlichkeitsabbildungen'], ['test', 'Ähnlich oder nicht?'], ['ray', 'Strahlensätze'], ['right', 'Rechtwinkliges Dreieck mit Höhe']];
 const SIM_DESC = {
-  map: ['Das Dreieck ABC bleibt fest. Sein Bild A′B′C′ entsteht durch Spiegeln, Drehen, zentrisches Strecken und Verschieben. Winkel und Seitenverhältnisse bleiben dabei gleich: Alle entsprechenden Seiten stehen im Verhältnis |k|.', 'Ziehe A′, B′ oder C′, um das Bild um Z zu drehen und zu strecken; ziehe im Bild, um es zu verschieben. Z und die Ecken von ABC sind ebenfalls ziehbar. Shift: ohne Raster.'],
-  test: ['Zwei Dreiecke sind ähnlich, wenn sie in allen Winkeln übereinstimmen. Dann sind auch alle entsprechenden Seitenverhältnisse gleich. Gleiche Farben zeigen, welche Ecken und Seiten sich entsprechen.', 'Ziehe die Ecken von ABC und PQR oder ein ganzes Dreieck. Unten wählst du Beispiele: ähnlich gedreht, gespiegelt, fast ähnlich.'],
-  ray: ['Werden zwei Strahlen mit Anfangspunkt Z von zwei Parallelen geschnitten, so sind die Dreiecke ZAB und ZCD ähnlich. Daraus folgen die Strahlensätze.', 'Ziehe Z, A, B und C. Liegt C auf der anderen Seite von Z, entsteht die X-Figur. Mit «D frei» siehst du, dass die Verhältnisse ohne Parallelen nicht mehr stimmen.'],
-  right: ['Die Höhe CD teilt das rechtwinklige Dreieck ABC in zwei Teildreiecke. Alle drei Dreiecke haben die Winkel α, β und 90° und sind deshalb ähnlich: ΔADC ∼ ΔCDB ∼ ΔACB.', 'Ziehe C auf dem Thaleskreis oder die Ecken A und B. Rechts stehen die drei Dreiecke in gleicher Lage nebeneinander.']
+  map: ['Wähle links eine Abbildung und vergleiche das Bild {{A′B′C′|A2,B2,C2}} mit dem Original {{ABC|A,B,C}}: Verschiebung, Drehung um den Ursprung, Spiegelung an der x- oder y-Achse und zentrische Streckung lassen alle Winkel gleich, alle Seiten stehen im Verhältnis |k|.', 'Das Dreieck ABC bleibt fest. Sein Bild A′B′C′ entsteht durch Verschieben, Drehen um den Ursprung O, Spiegeln an der x- oder y-Achse und zentrisches Strecken von Z aus. Die ersten drei Abbildungen erhalten alle Längen (Bild und Original sind kongruent), die Streckung multipliziert jede Länge mit |k|. Die Winkel bleiben immer gleich.'],
+  test: ['Ziehe die Ecken von {{ABC|A,B,C}} und {{PQR|P,Q,R}}: Stimmen alle Winkel überein, sind die Dreiecke ähnlich, und alle entsprechenden Seitenverhältnisse sind gleich. Gleiche Farben zeigen, was sich entspricht.', 'Zwei Dreiecke (ABC und PQR) sind ähnlich, wenn sie in allen Winkeln übereinstimmen. Dann sind auch alle entsprechenden Seitenverhältnisse gleich. Gleiche Farben zeigen, welche Ecken und Seiten sich entsprechen.'],
+  ray: ['Ziehe {{Z|Z}}, {{A|A}}, {{B|B}} und {{C|C}}: Zwei Parallelen schneiden die Strahlen aus Z, die Dreiecke ZAB und ZCD sind ähnlich – daraus folgen die Strahlensätze. Mit «D frei» siehst du, dass es ohne Parallelen nicht mehr stimmt.', 'Werden zwei Strahlen mit Anfangspunkt Z von zwei Parallelen geschnitten, so sind die Dreiecke ZAB und ZCD ähnlich. Daraus folgen die Strahlensätze.'],
+  right: ['Ziehe {{C|C}} auf dem Thaleskreis oder die Ecken {{A|A}} und {{B|B}}: Die Höhe CD teilt das rechtwinklige Dreieck in zwei Teildreiecke, alle drei sind ähnlich (Winkel α, β, 90°). Rechts stehen sie in gleicher Lage nebeneinander.', 'Die Höhe CD teilt das rechtwinklige Dreieck ABC in zwei Teildreiecke. Alle drei Dreiecke haben die Winkel α, β und 90° und sind deshalb ähnlich: ΔADC ∼ ΔCDB ∼ ΔACB.']
 };
 const SIM_WIN0 = { x0: null, x1: null, y0: null, y1: null };
 const SIM_SHOW0 = { angles: true, lens: true, rays: true, card: true };
-const SIM_P0 = [[-1, 0], [2, 0], [0, 2]];
-// Vorführungen der Abbildungen [Name, Abbildung]
+const SIM_P0 = [[1, 1], [4, 1], [2, 3]];     // im ersten Quadranten, weg von den Achsen: Spiegelbilder und Drehbilder überdecken das Original nicht
+// Vorführungen der Abbildungen [Name, Abbildung]: zuerst die vier Grundabbildungen einzeln, dann Verknüpfungen
 const SIM_DEMO = [
-  ['Zentrische Streckung (k = 1.5)', { z: [-5, -2], k: 1.5, phi: 0, refl: false, psi: 90, v: [0, 0] }],
-  ['Zentrische Streckung (k = 0.5)', { z: [4, 4], k: 0.5, phi: 0, refl: false, psi: 90, v: [0, 0] }],
-  ['Streckung mit negativem k (k = −1.5)', { z: [3, 1], k: -1.5, phi: 0, refl: false, psi: 90, v: [0, 0] }],
-  ['Punktspiegelung (k = −1)', { z: [3, 1], k: -1, phi: 0, refl: false, psi: 90, v: [0, 0] }],
-  ['Verschiebung', { z: [0, 0], k: 1, phi: 0, refl: false, psi: 90, v: [4, 1.5] }],
-  ['Spiegelung an einer Achse', { z: [3, 0], k: 1, phi: 0, refl: true, psi: 90, v: [0, 0] }],
-  ['Drehung um Z (60°)', { z: [3, -1], k: 1, phi: 60, refl: false, psi: 90, v: [0, 0] }],
-  ['Drehstreckung (90°, k = 1.5)', { z: [3, -1], k: 1.5, phi: 90, refl: false, psi: 90, v: [0, 0] }],
-  ['Alles zusammen', { z: [3, 0], k: 0.75, phi: 30, refl: true, psi: 90, v: [1, 0.5] }],
-  ['Keine Abbildung (Bild = Original)', { z: [0, 0], k: 1, phi: 0, refl: false, psi: 90, v: [0, 0] }]
+  ['Verschiebung', { z: [-1, -1], k: 1, phi: 0, refl: false, psi: 0, v: [4, 1.5] }],
+  ['Drehung um den Ursprung (90°)', { z: [-1, -1], k: 1, phi: 90, refl: false, psi: 0, v: [0, 0] }],
+  ['Drehung um den Ursprung (180°)', { z: [-1, -1], k: 1, phi: 180, refl: false, psi: 0, v: [0, 0] }],
+  ['Spiegelung an der x-Achse', { z: [-1, -1], k: 1, phi: 0, refl: true, psi: 0, v: [0, 0] }],
+  ['Spiegelung an der y-Achse', { z: [-1, -1], k: 1, phi: 0, refl: true, psi: 90, v: [0, 0] }],
+  ['Zentrische Streckung (k = 2)', { z: [-1, -1], k: 2, phi: 0, refl: false, psi: 0, v: [0, 0] }],
+  ['Zentrische Streckung (k = 0.5)', { z: [-1, -1], k: 0.5, phi: 0, refl: false, psi: 0, v: [0, 0] }],
+  ['Streckung mit negativem k (k = −1.5)', { z: [0, 0], k: -1.5, phi: 0, refl: false, psi: 0, v: [0, 0] }],
+  ['Punktspiegelung an Z (k = −1)', { z: [0, 0], k: -1, phi: 0, refl: false, psi: 0, v: [0, 0] }],
+  ['Drehstreckung um den Ursprung (90°, k = 1.5)', { z: [0, 0], k: 1.5, phi: 90, refl: false, psi: 0, v: [0, 0] }],
+  ['Spiegelung und Verschiebung', { z: [-1, -1], k: 1, phi: 0, refl: true, psi: 90, v: [0, -4] }],
+  ['Keine Abbildung (Bild = Original)', { z: [-1, -1], k: 1, phi: 0, refl: false, psi: 0, v: [0, 0] }]
 ];
+const SIM_T0 = SIM_DEMO[5][1];                                        // Anfangsbild: zentrische Streckung
+// Art der Abbildung (SIM.mk): EINE Grundabbildung — dann sind alle anderen Anteile ausgeschaltet, damit das Bild genau
+// diese Abbildung zeigt (eine Drehung um O, die zusätzlich gestreckt oder verschoben ist, sieht nicht mehr wie eine
+// Drehung um O aus) — oder 'mix': mehrere nacheinander.
+const SIM_KINDS = [['trans', 'Verschiebung'], ['rot', 'Drehung um den Ursprung'], ['rx', 'Spiegelung an der x-Achse'], ['ry', 'Spiegelung an der y-Achse'], ['dil', 'Zentrische Streckung'], ['mix', 'Mehrere nacheinander']];
+function simKindOf(T) {
+  const K = Sim.kinds(T);
+  if (K.length > 1) return 'mix';
+  const k = K[0];
+  return k === 'trans' ? 'trans' : k === 'rot' ? 'rot' : k === 'refl' ? (Sim.axisOf(T) === 'x' ? 'rx' : 'ry') : 'dil';
+}
+// Auf eine Grundabbildung umstellen: deren Werte bleiben (oder bekommen einen sichtbaren Startwert), alles andere wird neutral
+function simSetKind(mk) {
+  const T = SIM.T, o = { z: T.z.slice(), k: 1, phi: 0, refl: false, psi: 0, v: [0, 0] };
+  if (mk === 'trans') o.v = Math.hypot(T.v[0], T.v[1]) > 1e-9 ? T.v.slice() : [4, 1.5];
+  else if (mk === 'rot') o.phi = Math.abs(Sim.normA(T.phi)) > 1e-9 ? T.phi : 90;
+  else if (mk === 'rx' || mk === 'ry') { o.refl = true; o.psi = mk === 'rx' ? 0 : 90; }
+  else if (mk === 'dil') o.k = Math.abs(T.k - 1) > 1e-9 ? T.k : 2;
+  else { SIM.mk = 'mix'; return; }
+  SIM.T = o; SIM.mk = mk;
+}
 // Beispiele für «Ähnlich oder nicht?» [Name, P, Q]
 const SIM_TEST = [
   ['Ähnlich: gedreht und gestreckt', [[-4, 0], [-1, 0], [-3, 2]], [[4, -2], [4, 2.5], [1, -0.5]]],
@@ -55,7 +79,7 @@ const SIM_RT = [
 ];
 
 function simDefaults() {
-  return { view: 'map', P: SIM_P0.map(p => p.slice()), T: JSON.parse(JSON.stringify(SIM_DEMO[0][1])), Q: SIM_TEST[0][2].map(p => p.slice()), QP: SIM_TEST[0][1].map(p => p.slice()), ray: JSON.parse(JSON.stringify(SIM_RAY[0][1])), rt: JSON.parse(JSON.stringify(SIM_RT[0][1])), win: Object.assign({}, SIM_WIN0), show: Object.assign({}, SIM_SHOW0) };
+  return { view: 'map', P: SIM_P0.map(p => p.slice()), T: JSON.parse(JSON.stringify(SIM_T0)), mk: 'dil', Q: SIM_TEST[0][2].map(p => p.slice()), QP: SIM_TEST[0][1].map(p => p.slice()), ray: JSON.parse(JSON.stringify(SIM_RAY[0][1])), rt: JSON.parse(JSON.stringify(SIM_RT[0][1])), win: Object.assign({}, SIM_WIN0), show: Object.assign({}, SIM_SHOW0) };
 }
 const SIM = Object.assign(simDefaults(), { ui: null, S: null, drag: null, cardKey: '', cardT: 0 });
 function simActive() { return typeof ENV !== 'undefined' && ENV.cur === 'sim'; }
@@ -89,7 +113,7 @@ function simCardRender() {
 }
 
 // ── Zustand sichern / laden ──
-function simCapture() { return difCopy({ view: SIM.view, P: SIM.P, T: SIM.T, Q: SIM.Q, QP: SIM.QP, ray: SIM.ray, rt: SIM.rt, win: SIM.win, show: SIM.show }); }
+function simCapture() { return difCopy({ view: SIM.view, P: SIM.P, T: SIM.T, mk: SIM.mk, Q: SIM.Q, QP: SIM.QP, ray: SIM.ray, rt: SIM.rt, win: SIM.win, show: SIM.show }); }
 function simApply(s) {
   const d = simDefaults(), num = (v, def) => { v = Number(v); return isFinite(v) && Math.abs(v) < 1e5 ? v : def; };
   const pt = (p, def) => (Array.isArray(p) && p.length === 2 ? [num(p[0], def[0]), num(p[1], def[1])] : def);
@@ -97,7 +121,7 @@ function simApply(s) {
   if (s && typeof s === 'object') {
     if (SIM_VIEWS.some(v => v[0] === s.view)) d.view = s.view;
     d.P = tri(s.P, d.P); d.Q = tri(s.Q, d.Q); d.QP = tri(s.QP, d.QP);
-    if (s.T && typeof s.T === 'object') { const T = s.T; d.T = { z: pt(T.z, d.T.z), k: num(T.k, d.T.k), phi: num(T.phi, 0), refl: !!T.refl, psi: num(T.psi, 90), v: pt(T.v, [0, 0]) }; if (Math.abs(d.T.k) < 0.05) d.T.k = 1; }
+    if (s.T && typeof s.T === 'object') { const T = s.T; d.T = { z: pt(T.z, d.T.z), k: num(T.k, d.T.k), phi: num(T.phi, 0), refl: !!T.refl, psi: num(T.psi, 0), v: pt(T.v, [0, 0]) }; d.T.psi = Sim.axisOf(d.T) === 'x' ? 0 : 90; /* nur x- oder y-Achse */ const kd = simKindOf(d.T); d.mk = SIM_KINDS.some(q => q[0] === s.mk) && (s.mk === 'mix' || s.mk === kd || !Sim.kinds(d.T).length) ? s.mk : kd; if (Math.abs(d.T.k) < 0.05) d.T.k = 1; }
     if (s.ray && typeof s.ray === 'object') { const r = s.ray; d.ray = { Z: pt(r.Z, d.ray.Z), A: pt(r.A, d.ray.A), B: pt(r.B, d.ray.B), t: num(r.t, d.ray.t), s: num(r.s, d.ray.s), free: !!r.free }; }
     if (s.rt && typeof s.rt === 'object') { const r = s.rt; d.rt = { A: pt(r.A, d.rt.A), B: pt(r.B, d.rt.B), d: num(r.d, d.rt.d) }; }
     if (s.win && typeof s.win === 'object') {
@@ -115,7 +139,7 @@ function simApply(s) {
 
 // ── Zeichnen ──
 function simCtx(W, H, exp) {
-  return { view: SIM.view, P: SIM.view === 'test' ? SIM.QP : SIM.P, T: SIM.T, Q: SIM.Q, ray: SIM.ray, rt: SIM.rt, win: SIM.win, fs: exp ? exp.fs : stSceneFs(W, H, 46), exp: !!exp, smooth: !exp, show: SIM.show };
+  return { view: SIM.view, P: SIM.view === 'test' ? SIM.QP : SIM.P, T: SIM.T, mk: SIM.mk, Q: SIM.Q, ray: SIM.ray, rt: SIM.rt, win: SIM.win, fs: exp ? exp.fs : stSceneFs(W, H, 46), exp: !!exp, smooth: !exp, show: SIM.show };
 }
 const simDock = w => (SIM.show.card && w >= 760 ? stCardW(w, 0.34) : 0);
 const simDockH = (w, h) => (SIM.show.card && w < 760 ? Math.round(h * 0.5) : 0);
@@ -157,7 +181,7 @@ function simZoom(f, cx, cy) {
   if (nx1 - nx0 < 0.5 || nx1 - nx0 > 1e4) return;
   SIM.win = { x0: nx0, x1: nx1, y0: ny0, y1: ny1 };
 }
-function simResetWin() { SIM.win = Object.assign({}, SIM_WIN0); simRefreshUI(); difRedraw(); simCardSoon(); difCommit(); }
+function simResetWin() { SIM.win = Object.assign({}, SIM_WIN0); if (typeof AUTOWIN !== 'undefined') delete AUTOWIN.sim; simRefreshUI(); difRedraw(); simCardSoon(); difCommit(); }
 
 // ── Panel ──
 function simBuildUI() {
@@ -186,17 +210,18 @@ function simRefreshUI() {
   const ui = SIM.ui; if (!ui) return;
   const v = SIM.view, sh = SIM.show, T = SIM.T;
   ui.sel.value = v;
-  const d = SIM_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[0]), Object.assign(difEl('div', null, d[1]), { style: 'margin-top:5px;' }));
+  const d = SIM_DESC[v]; ui.desc.replaceChildren(difEl('div', null, d[1])); if (typeof envHint === 'function') envHint('sim', d[0], () => SIM.S);   // Hinweis als Überschrift über dem Bild
   const exs = v === 'map' ? SIM_DEMO : v === 'test' ? SIM_TEST : v === 'ray' ? SIM_RAY : SIM_RT;
   ui.ex.replaceChildren(Object.assign(difEl('option', null, v === 'map' ? 'Abbildung vorführen …' : 'Beispiel wählen …'), { value: '' }));
   exs.forEach((e, i) => { const o = difEl('option', null, e[0]); o.value = String(i); ui.ex.appendChild(o); });
   ui.ex.onchange = () => {
     const i = ui.ex.value; ui.ex.value = ''; if (i === '') return; const e = exs[+i];
-    if (v === 'map') SIM.T = JSON.parse(JSON.stringify(e[1]));
+    if (v === 'map') { SIM.T = JSON.parse(JSON.stringify(e[1])); SIM.mk = simKindOf(SIM.T); }
     else if (v === 'test') { SIM.QP = simCopyP(e[1]); SIM.Q = simCopyP(e[2]); }
     else if (v === 'ray') SIM.ray = JSON.parse(JSON.stringify(e[1]));
     else SIM.rt = JSON.parse(JSON.stringify(e[1]));
-    SIM.win = Object.assign({}, SIM_WIN0); SIM.cardKey = ''; simRefreshUI(); difRedraw(); simCardSoon(); difCommit();
+    SIM.win = Object.assign({}, SIM_WIN0); SIM.cardKey = ''; if (typeof AUTOWIN !== 'undefined') delete AUTOWIN.sim;   // neues Beispiel: Ausschnitt frisch einpassen
+    simRefreshUI(); difRedraw(); simCardSoon(); difCommit();
   };
   ui.params.replaceChildren();
   const P = ui.params;
@@ -214,31 +239,47 @@ function simRefreshUI() {
     const lb = difEl('label', null, label), inp = difEl('input'); inp.type = 'text'; inp.inputMode = 'decimal'; inp.autocomplete = 'off'; inp.value = difFmtIn(get()); inp.style.cssText = 'flex:1;min-width:0;'; inp.setAttribute('translate', 'no');
     lb.setAttribute('translate', 'no'); lb.style.minWidth = '62px';
     const ok = x => (o.ok ? o.ok(x) : true);
-    const apply = () => { const x = difParseNum(inp.value); if (isFinite(x) && ok(x)) { set(simR6(x)); touch(); difCommit(); } inp.value = difFmtIn(get()); };
+    const kinds0 = v === 'map' ? Sim.kinds(SIM.T).join() : '';
+    const kindsChanged = () => v === 'map' && SIM.mk === 'mix' && Sim.kinds(SIM.T).join() !== kinds0;   // andere Abbildungsart: Hinweis und Felder neu aufbauen
+    const apply = () => { const x = difParseNum(inp.value); if (isFinite(x) && ok(x)) { set(simR6(x)); touch(); difCommit(); if (kindsChanged()) { simRefreshUI(); return; } } inp.value = difFmtIn(get()); };
     inp.addEventListener('change', apply); inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
-    const nudge = s => difBtn(s > 0 ? '▶' : '◀', () => { const st = o.step || 0.5, x = simR6(Math.round((get() + s * st) / st) * st); if (ok(x)) { set(x); inp.value = difFmtIn(get()); touch(); difCommit(); } }, s > 0 ? 'Grösser' : 'Kleiner');
+    const nudge = s => difBtn(s > 0 ? '▶' : '◀', () => { const st = o.step || 0.5, x = simR6(Math.round((get() + s * st) / st) * st); if (ok(x)) { set(x); inp.value = difFmtIn(get()); touch(); difCommit(); if (kindsChanged()) simRefreshUI(); } }, s > 0 ? 'Grösser' : 'Kleiner');
     row.append(lb, nudge(-1), inp, nudge(1)); P.appendChild(row); return inp;
+  };
+  const select = (label, opts, get, set) => {
+    const row = difEl('div', 'settings-row'); row.style.gap = '8px';
+    const lb = difEl('label', null, label), sel = difEl('select'); sel.style.cssText = 'flex:1;min-width:0;';
+    opts.forEach(o => sel.appendChild(Object.assign(difEl('option', null, o[1]), { value: o[0] })));
+    sel.value = get(); sel.addEventListener('change', () => { set(sel.value); SIM.cardKey = ''; redo(); });
+    row.append(lb, sel); P.appendChild(row);
   };
   const group = txt => { const g = difEl('div', 'subpanel-label', txt); g.style.marginTop = '8px'; P.appendChild(g); };
   const hint = txt => { const h = difEl('div', 'act-hint', txt); h.style.margin = '2px 2px 4px'; P.appendChild(h); };
 
   if (v === 'map') {
-    const K = Sim.kinds(T);
-    hint('Bild entsteht durch: ' + (K.length ? K.map(k => Sim.KIND_DE[k]).join(', ') : 'keine Abbildung') + '.');
-    group('Zentrische Streckung und Drehung um Z');
-    numRow('k', () => T.k, x => { T.k = x; }, { step: 0.25, ok: x => Math.abs(x) >= 0.1 && Math.abs(x) <= 10 });
-    numRow('Winkel φ°', () => T.phi, x => { T.phi = Sim.normA(x); }, { step: 15 });
-    group('Spiegelung');
-    check('Spiegeln an einer Achse durch Z', () => T.refl, x => { T.refl = x; });
-    if (T.refl) numRow('Achse ψ°', () => T.psi, x => { T.psi = Sim.normA(x); }, { step: 15 });
-    group('Verschiebung');
-    numRow('v_x', () => T.v[0], x => { T.v[0] = x; }, { step: 0.5 });
-    numRow('v_y', () => T.v[1], x => { T.v[1] = x; }, { step: 0.5 });
-    const rb = difBtn('⟲ Bild auf das Original legen', () => { SIM.T = { z: T.z.slice(), k: 1, phi: 0, refl: false, psi: 90, v: [0, 0] }; redo(); }); rb.style.width = '100%'; P.appendChild(rb);
+    const mk = SIM.mk;
+    select('Abbildung', SIM_KINDS, () => SIM.mk, x => { simSetKind(x); SIM.win = Object.assign({}, SIM_WIN0); if (typeof AUTOWIN !== 'undefined') delete AUTOWIN.sim; });
+    const rowsV = () => { numRow('nach rechts', () => T.v[0], x => { T.v[0] = x; }, { step: 0.5 }); numRow('nach oben', () => T.v[1], x => { T.v[1] = x; }, { step: 0.5 }); };
+    const rowPhi = () => numRow('Winkel φ°', () => T.phi, x => { T.phi = Sim.normA(x); }, { step: 15 });
+    const rowsK = () => { numRow('Faktor k', () => T.k, x => { T.k = x; }, { step: 0.25, ok: x => Math.abs(x) >= 0.1 && Math.abs(x) <= 10 }); numRow('Zentrum Z: x', () => T.z[0], x => { T.z[0] = x; }, { step: 0.5 }); numRow('Zentrum Z: y', () => T.z[1], x => { T.z[1] = x; }, { step: 0.5 }); };
+    if (mk === 'trans') { group('Verschiebung'); rowsV(); hint('Du kannst das Bild auch mit der Maus verschieben.'); }
+    else if (mk === 'rot') { group('Drehung um den Ursprung O'); rowPhi(); hint('Positiver Winkel: gegen den Uhrzeigersinn. Du kannst das Bild auch an einer Ecke drehen.'); }
+    else if (mk === 'rx' || mk === 'ry') hint('Jede Ecke und ihr Bild liegen gleich weit von der ' + (mk === 'rx' ? 'x' : 'y') + '-Achse entfernt. Ziehe die Ecken von ABC.');
+    else if (mk === 'dil') { group('Zentrische Streckung von Z aus'); rowsK(); hint('Du kannst Z und die Ecken des Bildes auch ziehen.'); }
+    else {
+      const K = Sim.kinds(T);
+      hint('Reihenfolge: zuerst spiegeln, dann um O drehen, dann von Z aus strecken, zuletzt verschieben. Jetzt: ' + (K.length ? K.map(k => Sim.KIND_DE[k]).join(', dann ') : 'keine Abbildung') + '.');
+      group('Spiegelung');
+      select('Spiegeln an der', [['', 'nicht spiegeln'], ['x', 'x-Achse'], ['y', 'y-Achse']], () => (T.refl ? Sim.axisOf(T) : ''), x => { T.refl = !!x; if (x) T.psi = x === 'x' ? 0 : 90; });
+      group('Drehung um den Ursprung O'); rowPhi();
+      group('Zentrische Streckung von Z aus'); rowsK();
+      group('Verschiebung'); rowsV();
+    }
+    if (mk !== 'rx' && mk !== 'ry') { const rb = difBtn('⟲ Bild auf das Original legen', () => { SIM.T = { z: T.z.slice(), k: 1, phi: 0, refl: false, psi: 0, v: [0, 0] }; redo(); }); rb.style.width = '100%'; rb.style.marginTop = '6px'; P.appendChild(rb); }
     group('Anzeige');
     check('Winkel markieren', () => sh.angles, x => { sh.angles = x; });
     check('Seitenlängen anzeigen', () => sh.lens, x => { sh.lens = x; });
-    check('Verbindungslinien zum Zentrum Z', () => sh.rays, x => { sh.rays = x; });
+    check('Hilfslinien vom Original zum Bild', () => sh.rays, x => { sh.rays = x; });
   } else if (v === 'test') {
     const t1 = Sim.tri(SIM.QP[0], SIM.QP[1], SIM.QP[2]), t2 = Sim.tri(SIM.Q[0], SIM.Q[1], SIM.Q[2]), M = Sim.match(t1, t2);
     hint(M.sim ? 'Die Dreiecke sind ähnlich (Faktor ' + Sim.n(M.k) + ').' : M.near ? 'Fast ähnlich: Die Winkel unterscheiden sich noch um bis zu ' + Sim.n(M.err, 1) + '°.' : 'Die Dreiecke sind nicht ähnlich.');
@@ -283,13 +324,35 @@ function simDragTo(id, x, y, shift, d) {
     const T = SIM.T, idx = { A: 0, B: 1, C: 2 }[id], jdx = { A2: 0, B2: 1, C2: 2 }[id];
     if (idx !== undefined) SIM.P[idx] = P;
     else if (id === 'Z') T.z = P;
-    else if (jdx !== undefined) {
-      const r = Sim.solveRS(T, SIM.P[jdx], [x, y]); if (!r) return;
-      let k = r.k, phi = r.phi;
-      if (!shift) { k = Math.sign(k) * Math.max(0.1, Math.round(Math.abs(k) / 0.05) * 0.05); phi = Math.round(phi / 5) * 5; }
-      if (Math.abs(k) >= 0.1 && Math.abs(k) <= 10) { T.k = simR6(k); T.phi = simR6(Sim.normA(phi)); }
-    } else if (id === 'S') { const a = Sim.deg(Math.atan2(y - T.z[1], x - T.z[0])); T.psi = simR6(Sim.normA(shift ? a : Math.round(a / 5) * 5)); }
-    else if (id === 'IMG') { T.v = [sn(d.v0[0] + x - d.x0), sn(d.v0[1] + y - d.y0)]; }
+    else if (jdx !== undefined || id === 'IMG') {
+      const mk = SIM.mk, vert = jdx !== undefined, Pj = vert ? SIM.P[jdx] : Sim.centroid(SIM.P);
+      const move = () => { T.v = [sn(d.v0[0] + x - d.x0), sn(d.v0[1] + y - d.y0)]; };
+      const turn = () => {                                              // um den Ursprung drehen: Winkel der Maus gegenüber dem Start
+        if (Math.hypot(x, y) < 1e-9 || Math.hypot(d.x0, d.y0) < 1e-9) return;
+        let phi = d.phi0 + Sim.deg(Math.atan2(y, x) - Math.atan2(d.y0, d.x0)); if (!shift) phi = Math.round(phi / 5) * 5; T.phi = simR6(Sim.normA(phi));
+      };
+      const stretch = () => {                                           // von Z aus strecken: Abstand der Maus von Z gegenüber dem Start
+        const a = [d.x0 - T.v[0] - T.z[0], d.y0 - T.v[1] - T.z[1]], w = [x - T.v[0] - T.z[0], y - T.v[1] - T.z[1]], l2 = a[0] * a[0] + a[1] * a[1]; if (l2 < 1e-6) return;
+        let k = d.k0 * (w[0] * a[0] + w[1] * a[1]) / l2; if (!shift) k = Math.round(k / 0.05) * 0.05; if (Math.abs(k) >= 0.1 && Math.abs(k) <= 10) T.k = simR6(k);
+      };
+      if (mk === 'trans') move();
+      else if (mk === 'rot') turn();
+      else if (mk === 'dil') stretch();
+      else if (mk === 'mix') {
+        if (!vert) move();
+        else {
+          // Eine Ziehbewegung dreht ODER streckt: Die Richtung der ersten Bewegung entscheidet (im Kreis → drehen; von Z weg → strecken)
+          if (!d.mode) {
+            const mx = x - d.x0, my = y - d.y0, ml = Math.hypot(mx, my); if (ml < (d.eps || 0.08)) return;
+            const c = Sim.core(T, Pj), ray = Sim.sub(c, T.z), tan = [-c[1], c[0]];
+            const cs = u => { const l = Math.hypot(u[0], u[1]); return l < 1e-9 ? 0 : Math.abs(mx * u[0] + my * u[1]) / (ml * l); };
+            d.mode = Math.abs(T.k - 1) > 1e-9 && cs(ray) > cs(tan) ? 'k' : 'phi';
+          }
+          if (d.mode === 'k') { let k = Sim.solveK(T, Pj, [x, y]); if (k === null) return; if (!shift) k = Math.round(k / 0.05) * 0.05; if (Math.abs(k) >= 0.1 && Math.abs(k) <= 10) T.k = simR6(k); }
+          else { let phi = Sim.solvePhi(T, Pj, [x, y]); if (phi === null) return; if (!shift) phi = Math.round(phi / 5) * 5; T.phi = simR6(Sim.normA(phi)); }
+        }
+      }                                                                 // Spiegelung: am Bild gibt es nichts zu ziehen
+    }
   } else if (v === 'test') {
     const i = { A: 0, B: 1, C: 2 }[id], j = { P: 0, Q: 1, R: 2 }[id];
     if (i !== undefined) SIM.QP[i] = P; else if (j !== undefined) SIM.Q[j] = P;
@@ -327,7 +390,7 @@ function simDragTo(id, x, y, shift, d) {
     const S = SIM.S; if (!S) return; const p = pos(e), m = S.maps.main;
     const q = near(p), tr = q ? null : inside(p);
     if (q || tr) {
-      SIM.drag = { type: q ? q.id : tr.id, x0: m.IX(p.x), y0: m.IY(p.y), v0: SIM.T.v.slice(), P0: tr ? simCopyP(tr.id === 'T1' ? SIM.QP : SIM.Q) : null };
+      SIM.drag = { type: q ? q.id : tr.id, x0: m.IX(p.x), y0: m.IY(p.y), v0: SIM.T.v.slice(), P0: tr ? simCopyP(tr.id === 'T1' ? SIM.QP : SIM.Q) : null, phi0: SIM.T.phi, k0: SIM.T.k, eps: Math.abs(m.IX(p.x + 5) - m.IX(p.x)) };
       if (SIM.win.x0 === null) { SIM.win = simResolvedWin(); SIM.drag.auto = true; }
     } else if (inMap(m, p)) SIM.drag = { type: 'pan', px: p.x, py: p.y, w: simResolvedWin() };
     if (SIM.drag) cv.style.cursor = SIM.drag.type === 'pan' ? 'grabbing' : (tr ? 'move' : 'pointer');

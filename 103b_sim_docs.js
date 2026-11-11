@@ -26,13 +26,22 @@
   // ───────── Ähnlichkeitsabbildung ─────────
   function map(P, T) {
     const B = mkSt(), Q = P.map(p => Sim.apply(T, p)), t1 = Sim.tri(P[0], P[1], P[2]), t2 = Sim.tri(Q[0], Q[1], Q[2]), K = Sim.kinds(T), k = Math.abs(T.k);
-    const parts = [];
-    if (T.refl) parts.push('Spiegelung an der Achse durch $Z$ (Richtung $' + deg(T.psi) + '$)');
-    if (K.indexOf('rot') >= 0) parts.push('Drehung um $Z$ um $' + deg(T.phi) + '$');
-    if (K.indexOf('point') >= 0) parts.push('Punktspiegelung an $Z$ ($k=-1$)');
-    else if (K.indexOf('dil') >= 0) parts.push('zentrische Streckung von $Z$ aus mit $k=' + n(T.k) + '$');
-    if (K.indexOf('trans') >= 0) parts.push('Verschiebung um $\\vec v=\\begin{pmatrix}' + n(T.v[0]) + '\\\\' + n(T.v[1]) + '\\end{pmatrix}$');
-    B.p('**Abbildung:** ' + (parts.length ? 'Das Dreieck $ABC$ wird nacheinander abgebildet durch: ' + parts.join(', dann ') + '. Zentrum $Z' + pt(T.z) + '$.' : 'keine (das Bild liegt auf dem Original).'));
+    const parts = [], ax = Sim.axisOf(T);
+    if (T.refl) parts.push('Spiegelung an der $' + ax + '$-Achse');
+    if (K.indexOf('rot') >= 0) parts.push('Drehung um den Ursprung $O$ um $' + deg(T.phi) + '$');
+    if (K.indexOf('point') >= 0) parts.push('Punktspiegelung an $Z' + pt(T.z) + '$ ($k=-1$)');
+    else if (K.indexOf('dil') >= 0) parts.push('zentrische Streckung von $Z' + pt(T.z) + '$ aus mit $k=' + n(T.k) + '$');
+    if (K.indexOf('trans') >= 0) parts.push('Verschiebung um $' + n(Math.abs(T.v[0])) + '$ nach ' + (T.v[0] < 0 ? 'links' : 'rechts') + ' und $' + n(Math.abs(T.v[1])) + '$ nach ' + (T.v[1] < 0 ? 'unten' : 'oben'));
+    B.p('**Abbildung:** ' + (parts.length ? (parts.length > 1 ? 'Das Dreieck $ABC$ wird nacheinander abgebildet durch: ' + parts.join(', dann ') + '.' : parts[0].charAt(0).toUpperCase() + parts[0].slice(1) + '.') : 'keine (das Bild liegt auf dem Original).'));
+    // So hängen die Ecken zusammen (nur bei EINER Grundabbildung gibt es eine einfache Regel)
+    if (K.length === 1) {
+      const one = K[0], ph = Sim.normA(T.phi);
+      if (one === 'trans') B.p('**Zusammenhang:** Jeder Punkt wandert um dieselbe Strecke in dieselbe Richtung: $P(x\\,|\\,y)\\mapsto P\'(x' + (T.v[0] < 0 ? '-' : '+') + n(Math.abs(T.v[0])) + '\\,|\\,y' + (T.v[1] < 0 ? '-' : '+') + n(Math.abs(T.v[1])) + ')$. Die Strecken $AA\'$, $BB\'$, $CC\'$ sind parallel und gleich lang.');
+      else if (one === 'refl') B.p('**Zusammenhang:** Punkt und Bildpunkt liegen gleich weit von der Achse entfernt, ihre Verbindung steht senkrecht auf der Achse: $P(x\\,|\\,y)\\mapsto P\'(' + (ax === 'x' ? 'x\\,|\\,-y' : '-x\\,|\\,y') + ')$. Der Umlaufsinn kehrt sich um.');
+      else if (one === 'rot') B.p('**Zusammenhang:** Punkt und Bildpunkt liegen auf demselben Kreis um $O$, der Winkel $\\angle POP\'$ ist für jeden Punkt $' + deg(Math.abs(ph)) + '$ (' + (ph > 0 ? 'gegen den' : 'im') + ' Uhrzeigersinn)' + (Math.abs(ph - 90) < 1e-9 ? ': $P(x\\,|\\,y)\\mapsto P\'(-y\\,|\\,x)$.' : Math.abs(ph + 90) < 1e-9 ? ': $P(x\\,|\\,y)\\mapsto P\'(y\\,|\\,-x)$.' : Math.abs(Math.abs(ph) - 180) < 1e-9 ? ': $P(x\\,|\\,y)\\mapsto P\'(-x\\,|\\,-y)$.' : '.'));
+      else B.p('**Zusammenhang:** Punkt und Bildpunkt liegen auf einer Geraden durch $Z$, und es gilt $|ZP\'|=|k|\\cdot|ZP|$' + (T.k < 0 ? ' (für $k<0$ auf der anderen Seite von $Z$)' : '') + '. Entsprechende Seiten sind parallel.');
+    }
+    NM.forEach((nm, i) => B.e(nm + pt(P[i]) + '\\ \\mapsto\\ ' + NP[i] + pt(Q[i])));
     B.p('**Winkel bleiben gleich:** Bei jeder Ähnlichkeitsabbildung sind entsprechende Winkel gleich gross.');
     B.e('\\alpha=\\alpha\'=' + deg(t1.al) + ',\\quad\\beta=\\beta\'=' + deg(t1.be) + ',\\quad\\gamma=\\gamma\'=' + deg(t1.ga));
     B.p('**Entsprechende Seiten:** Jede Länge wird mit dem gleichen Faktor $|k|=' + n(k) + '$ multipliziert. Das Verhältnis Bild : Original ist für alle drei Seiten gleich:');
@@ -43,7 +52,7 @@
     B.p('**Flächen** werden mit $k^2$ multipliziert:');
     B.e('F_{A\'B\'C\'}=k^2\\cdot F_{ABC}=' + n(k * k, 4) + '\\cdot' + n(t1.area) + eq(t2.area) + n(t2.area));
     if (T.k < 0) B.note('Für $k<0$ liegt das Bild auf der anderen Seite von $Z$; es gilt $|ZA\'|=|k|\\cdot|ZA|$. Der Fall $k=-1$ ist die Punktspiegelung.');
-    if (Math.abs(k - 1) < 1e-9) B.note('Mit $|k|=1$ sind Bild und Original sogar kongruent (deckungsgleich).');
+    if (Math.abs(k - 1) < 1e-9 && K.length) B.note('Mit $|k|=1$ sind Bild und Original sogar kongruent (deckungsgleich): Verschiebung, Drehung und Spiegelung ändern keine Länge. Erst die zentrische Streckung macht aus «kongruent» «ähnlich».');
     B.res('$\\triangle ABC\\sim\\triangle A\'B\'C\'$: gleiche Winkel, alle entsprechenden Seitenverhältnisse gleich $' + n(k) + '$');
     return { title: 'Ähnlichkeitsabbildung', st: B.st };
   }

@@ -19,6 +19,7 @@ const Sq = (function () {
   const fmt = (v, d) => Dif.fmtT(v, d === undefined ? 4 : d);
   function q(v, d) {
     if (!isFinite(v)) return v > 0 ? '\\infty' : v < 0 ? '-\\infty' : '\\text{–}';
+    if (Math.abs(v) >= 1e15) { const k = Math.floor(Math.log10(Math.abs(v))), mt = +(v / Math.pow(10, k)).toFixed(4); return String(mt) + '\\cdot10^{' + k + '}'; }   // sonst falsche Ziffern (2^63 → …776000)
     if (Math.abs(v - Math.round(v)) < 1e-9) return String(Math.round(v) + 0);
     const r = E.qFromFloat(v);
     if (r && Math.abs(Number(r.d)) <= 1000 && Math.abs(Number(r.n)) < 1e7) return E.qTex(r);
@@ -104,11 +105,24 @@ const Sq = (function () {
     else if (Math.abs(L - Math.round(L)) < 2e-3) L = Math.round(L);
     return { conv: true, L, Ltex: q(L) };
   }
-  // kleinstes N mit |a_n − L| < ε für alle n ≥ N (geprüft bis 2000)
+  // kleinstes N mit |a_n − L| < ε für alle n ≥ N: bis 2000 genau geprüft, darüber (explizite Folgen)
+  // durch Verdoppeln und Halbieren gesucht (Annahme: der Abstand zu L wird auf Dauer kleiner)
   function nEps(S, L, eps) {
     const t = terms(S, 2000); let N = 1;
     for (let n = t.length; n >= 1; n--) if (!(Math.abs(t[n - 1] - L) < eps)) { N = n + 1; break; }
-    return N > 2000 ? null : N;
+    if (N <= 2000) return N;
+    return S.kind === 'exp' ? nEpsBig(n => S.f(n), L, eps, 2000) : null;
+  }
+  // kleine Zahlen (z. B. ε) lesbar: zwei gültige Ziffern statt «0»
+  const qs = v => (!isFinite(v) || v === 0 || Math.abs(v) >= 0.001 ? q(v) : String(+v.toPrecision(2)).replace(/e-(\d+)/, (m, k) => '\\cdot10^{-' + k + '}'));
+  function nEpsBig(f, L, eps, from, max) {
+    max = max || 1e9; from = from || 1;
+    const ok = n => Math.abs(f(n) - L) < eps, good = n => ok(n) && ok(n + 1);
+    let hi = Math.max(1, from); while (hi <= max && !(good(hi) && good(2 * hi) && good(Math.round(hi * 1.5)))) hi *= 2;
+    if (hi > max) return null;
+    let a = Math.max(0, from - 1), b = hi;
+    while (b - a > 1) { const m = Math.floor((a + b) / 2); if (good(m)) b = m; else a = m; }
+    return b;
   }
   // vollständige Induktion: Summand s(k), rechte Seite r(n), Beweisschritte (LaTeX)
   const IND = [
@@ -125,6 +139,6 @@ const Sq = (function () {
   const isPrime = m => { if (m < 2 || m !== Math.round(m)) return false; for (let d = 2; d * d <= m; d++) if (m % d === 0) return false; return true; };
   const smallestFactor = m => { for (let d = 2; d * d <= m; d++) if (m % d === 0) return d; return m; };
 
-  return { fmt, q, isQ, toX, texBack, mkExp, mkRec, terms, termTex, detect, ari, geo, solveAri, solveGeo, sumAri, sumGeo, sumInf, limit, nEps, IND, isPrime, smallestFactor };
+  return { fmt, q, isQ, toX, texBack, mkExp, mkRec, terms, termTex, detect, ari, geo, solveAri, solveGeo, sumAri, sumGeo, sumInf, limit, nEps, nEpsBig, qs, IND, isPrime, smallestFactor };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = { Sq };

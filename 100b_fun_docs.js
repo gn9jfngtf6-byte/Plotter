@@ -84,7 +84,7 @@
   // ───────── Anwendung ─────────
   function app(A, Fx, x) {
     const B = mkSt(), y = Fx.f(x), y1 = Fx.f(x + A.step), xl = A.xlab.replace(/\\ \\text\{(.*?)\}/, ' $1'), fx = A.fn + '(' + A.xv + ')';
-    B.p('**Grössen:** ' + (A.descTex || A.desc));
+    B.st.push({ k: 'sit', s: A.descTex || A.desc, q: 'Welchen Wert hat $' + A.fn + '$ für $' + A.xv + '=' + nv(x, 2) + '$, und was bedeutet er?' });
     B.e(fx + '=' + Fun.subVar(Fx.tex, A.xv), 'b');
     B.p('**Ablesen:** Für $' + A.xv + '=' + nv(x, 2) + '$ liefert die Funktion den Wert $' + A.fn + '(' + nv(x, 2) + ')$. Im Bild: von $' + A.xv + '$ senkrecht zum Graphen, dann waagrecht zur Achse.');
     B.e(A.fn + '(' + nv(x, 2) + ')=' + nv(y, 3), 'g');
@@ -101,7 +101,7 @@
   // ───────── Ausgabe ─────────
   function doc(r) {
     const d = DOC(); d.h(r.title);
-    r.st.forEach(s => { if (s.k === 'h') d.h(s.s); else if (s.k === 'p') d.p(s.s); else if (s.k === 'e') d.e(s.s); else if (s.k === 'res') d.res(s.s); else if (s.k === 'note') d.note(s.s); else if (s.k === 'tab') d.b.push({ k: 'tab', head: s.head, rows: s.rows }); });
+    r.st.forEach(s => { if (s.k === 'h') d.h(s.s); else if (s.k === 'p') d.p(s.s); else if (s.k === 'e') d.e(s.s); else if (s.k === 'res') d.res(s.s); else if (s.k === 'note') d.note(s.s); else if (s.k === 'tab') d.b.push({ k: 'tab', head: s.head, rows: s.rows }); else if (s.k === 'sit') d.b.push({ k: 'sit', t: s.s, q: s.q || '' }); });
     return d;
   }
   function sceneLines(r) {

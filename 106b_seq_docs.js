@@ -134,8 +134,8 @@
       B.e('\\lim_{n\\to\\infty}a_n=' + L.Ltex);
       if (S.kind === 'exp' && /frac/.test(S.tex)) B.note('Bei Brüchen Zähler und Nenner durch die höchste Potenz von $n$ teilen; dann gehen Terme wie $\\frac1n$ gegen 0.');
       const N = Sq.nEps(S, L.L, o.eps);
-      B.p('**Streifen um den Grenzwert:** Für $\\varepsilon=' + q(o.eps) + '$ liegen ab dem Glied $N$ alle Glieder im Streifen $' + L.Ltex + '\\pm' + q(o.eps) + '$:');
-      B.e(N ? '|a_n-' + L.Ltex + '|<' + q(o.eps) + '\\quad\\text{für alle } n\\ge' + N : '\\text{(bis } n=2000 \\text{ nicht erreicht)}');
+      B.p('**Streifen um den Grenzwert:** Für $\\varepsilon=' + Sq.qs(o.eps) + '$ liegen ab dem Glied $N$ alle Glieder im Streifen $' + L.Ltex + '\\pm' + Sq.qs(o.eps) + '$:');
+      B.e(N ? '|a_n-' + L.Ltex + '|<' + Sq.qs(o.eps) + '\\quad\\text{für alle } n\\ge' + N : '\\text{(bis } n=2000 \\text{ nicht erreicht)}');
       B.note('Je schmaler der Streifen, desto später beginnt er: Zu jedem $\\varepsilon>0$ gibt es ein solches $N$. Wichtig: $\\lim\\frac1n=0$ und $\\lim q^n=0$ für $|q|<1$.');
       B.res('$\\lim\\limits_{n\\to\\infty}a_n=' + L.Ltex + '$');
     } else {

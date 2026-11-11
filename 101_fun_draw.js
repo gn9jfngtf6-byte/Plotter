@@ -49,7 +49,7 @@ function funSceneMap(S, W, H, C) {
     difSeg(S, m, r.x, 0, r.x, r.y, { col: FN_F, lw: 1, dash: true, a: 0.5 });
     if (C.show.coords) difSeg(S, m, 0, r.y, r.x, r.y, { col: FN_F, lw: 1, dash: true, a: 0.35 });
     const lab = every && i % every === 0 ? { lab: '\\col{b}{' + (C.show.coords ? funCoord(r.x, r.y) : linFmtS(r.y)) + '}', lines: [funDir(f, r.x), [0, 1]], w: labW } : {};
-    linPt(S, m, i === 0 ? 'P' : null, r.x, r.y, C, Object.assign({ fill: FN_F, r: i === 0 ? 5.8 : 4.6 }, lab));
+    linPt(S, m, i === 0 ? 'P' : null, r.x, r.y, C, Object.assign({ hl: 'pts', fill: FN_F, r: i === 0 ? 5.8 : 4.6 }, lab));
   });
   difLines(S, R[1], Fun.sceneLines(Fun.st.map(Fx, C.x0, C.step, C.n)), C, { max: fs * 1.12 });
   const xT = r => r.xT.replace(/^-/, '−'), yT = r => (r.ok ? r.yT.replace(/^-/, '−') : '–');
@@ -86,8 +86,8 @@ function funSceneBars(S, W, H, C) {
   const bw = Math.max(1.2, Math.min(8, (m.X(h) - m.X(0)) * 0.35));
   bs.forEach(b => {
     if (!b.ok) return;
-    if (!C.show.dots) difSeg(S, m, b.x, 0, b.x, b.y, { col: FN_B, lw: bw, a: 0.6 });
-    if (!many || C.show.dots) linPt(S, m, null, b.x, b.y, C, { fill: FN_B, r: many ? 2 : 3.6 });
+    if (!C.show.dots) difSeg(S, m, b.x, 0, b.x, b.y, { hl: 'bar', col: FN_B, lw: bw, a: 0.6 });
+    if (!many || C.show.dots) linPt(S, m, null, b.x, b.y, C, { hl: 'bar', fill: FN_B, r: many ? 2 : 3.6 });
     if (few && (C.show.vals || C.show.coords)) difLabel(S, m, m.X(b.x), m.Y(b.y), '\\col{g}{' + (C.show.coords ? funCoord(b.x, b.y) : linFmtS(b.y)) + '}', C, { dy: b.y >= 0 ? -fs * 1.1 : fs * 1.1, w: fs * 5, size: 0.85 });
   });
   difLines(S, R[1], Fun.sceneLines(Fun.st.bars(Fx, h, bs)), C, { max: fs * 1.12 });
@@ -107,7 +107,7 @@ function funSceneDef(S, W, H, C) {
   S.maps.main = m;
   // Monotonie: steigend blau, fallend rot
   const colAt = x => { const seg = P.mono.find(s => x >= s.a && x <= s.b); return seg ? (seg.up ? FN_F : FN_R) : FN_F; };
-  difCurve(S, m, f, { colorAt: C.show.mono ? colAt : undefined, col: FN_F, lw: 2.6, exp: C.exp });
+  difCurve(S, m, f, { hl: 'f', colorAt: C.show.mono ? colAt : undefined, col: FN_F, lw: 2.6, exp: C.exp });
   if (C.show.rel) {
     // Gegenbeispiel: Kreis x² + y² = r² (keine Funktion)
     const rr = Math.min(win.x1 - win.x0, win.y1 - win.y0) * 0.16, cx = win.x1 - (win.x1 - win.x0) * 0.2, cy = win.y1 - (win.y1 - win.y0) * 0.26;
@@ -117,7 +117,7 @@ function funSceneDef(S, W, H, C) {
     if (Math.abs(t - cx) < rr) { const dy = Math.sqrt(rr * rr - (t - cx) * (t - cx)); linPt(S, m, null, t, cy + dy, C, { fill: FN_R, r: 4.6 }); linPt(S, m, null, t, cy - dy, C, { fill: FN_R, r: 4.6 }); S.rich(m.X(t) + fs * 0.6, m.Y(cy), '\\col{r}{\\text{2 Punkte!}}', { size: fs * 0.85, col: 'T', al: 'l', bs: 'm' }); }
   }
   // senkrechte Gerade x = t
-  difSeg(S, m, t, win.y0, t, win.y1, { col: FN_E, lw: 1.3, dash: true, a: 0.9 });
+  difSeg(S, m, t, win.y0, t, win.y1, { hl: 'vl', col: FN_E, lw: 1.3, dash: true, a: 0.9 });
   const ft = f(t);
   if (isFinite(ft)) linPt(S, m, null, t, ft, C, { fill: FN_E, r: 5.2, lab: '\\col{v}{' + funCoord(t, ft) + '}', lines: [funDir(f, t), [0, 1]], w: fs * 6 });
   linPt(S, m, 'T', t, 0, C, { fill: FN_E, r: 5.6, lab: '\\col{v}{x=' + linFmtS(t) + '}', dy: fs * 1.4, w: fs * 4 });
@@ -141,8 +141,8 @@ function funSceneApp(S, W, H, C) {
   S.maps.main = m;
   funCurve(S, m, x => (x >= A.xmin ? f(x) : NaN), { exp: C.exp });
   if (isFinite(ym)) {
-    difSeg(S, m, xm, 0, xm, ym, { col: FN_Y, lw: 1.4, dash: true, a: 0.9 });
-    difSeg(S, m, 0, ym, xm, ym, { col: FN_Y, lw: 1.4, dash: true, a: 0.9 });
+    difSeg(S, m, xm, 0, xm, ym, { hl: 'ab', col: FN_Y, lw: 1.4, dash: true, a: 0.9 });
+    difSeg(S, m, 0, ym, xm, ym, { hl: 'ab', col: FN_Y, lw: 1.4, dash: true, a: 0.9 });
     linPt(S, m, null, xm, 0, C, { fill: FN_Y, r: 4, lab: '\\col{o}{' + A.xv + '=' + linFmtS(xm) + '}', dy: fs * 1.4, w: fs * 5 });
     linPt(S, m, null, 0, ym, C, { fill: FN_Y, r: 4, lab: '\\col{o}{' + linFmtS(ym) + '}', dx: -fs * 2.2, dy: 0, w: fs * 4 });
     linPt(S, m, 'X', xm, ym, C, { fill: FN_F, r: 6, lab: '\\col{b}{' + A.fn + '(' + linFmtS(xm) + ')=' + linFmtS(ym) + '}', lines: [funDir(f, xm), [0, 1], [1, 0]], w: fs * 8 });

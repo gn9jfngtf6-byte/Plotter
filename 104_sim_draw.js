@@ -53,12 +53,12 @@ function simArcPx(S, V, U, W, rr, col, lab, C, o) {
     if (o.fill) S.poly([V].concat(pts), { fill: col, a: 0.16, col, lw: 0.1, close: true });
     S.poly(pts, { col, lw: 1.7 });
   }
-  if (lab) { const am = a1 + d / 2, r2 = rr + C.fs * (deg < 35 ? 1.05 : 0.75); S.rich(V[0] + Math.cos(am) * r2, V[1] + Math.sin(am) * r2, lab, { size: C.fs * 0.9, col: 'T', al: 'c', bs: 'm' }); (S.labs || (S.labs = [])).push({ x0: V[0] + Math.cos(am) * r2 - C.fs * 0.5, x1: V[0] + Math.cos(am) * r2 + C.fs * 0.5, y0: V[1] + Math.sin(am) * r2 - C.fs * 0.5, y1: V[1] + Math.sin(am) * r2 + C.fs * 0.5 }); }
+  if (lab) { const ls = o.ls || 0.9, am = a1 + d / 2, r2 = rr + C.fs * (deg < 35 ? 1.05 : 0.75) * ls / 0.9; S.rich(V[0] + Math.cos(am) * r2, V[1] + Math.sin(am) * r2, lab, { size: C.fs * ls, col: 'T', al: 'c', bs: 'm' }); (S.labs || (S.labs = [])).push({ x0: V[0] + Math.cos(am) * r2 - C.fs * 0.5, x1: V[0] + Math.cos(am) * r2 + C.fs * 0.5, y0: V[1] + Math.sin(am) * r2 - C.fs * 0.5, y1: V[1] + Math.sin(am) * r2 + C.fs * 0.5 }); }
 }
-function simAngles(S, q, cols, labs, C, scale) {
+function simAngles(S, q, cols, labs, C, scale, ls) {                // ls: Schriftgrösse der Winkelnamen (Anteil von fs)
   [0, 1, 2].forEach(i => {
     const V = q[i], U = q[(i + 1) % 3], W = q[(i + 2) % 3], sl = Math.min(Math.hypot(U[0] - V[0], U[1] - V[1]), Math.hypot(W[0] - V[0], W[1] - V[1]));
-    simArcPx(S, V, U, W, Math.min(C.fs * 1.7 * (scale || 1), sl * 0.32), cols[i], labs ? labs[i] : null, C, { fill: true });
+    simArcPx(S, V, U, W, Math.min(C.fs * 1.7 * (scale || 1), sl * 0.32), cols[i], labs ? labs[i] : null, C, { fill: true, ls });
   });
 }
 // Ecken beschriften (nach aussen, weg vom Schwerpunkt) und als ziehbare Punkte anmelden
@@ -96,35 +96,55 @@ const smFr2 = (a, b, va, vb, ca, cb) => '\\frac{' + smCol(ca, '|' + a + '|') + '
 const smDeg = v => Sim.n(v, 1) + '^\\circ';
 
 // ═════════════ Ähnlichkeitsabbildungen ═════════════
+// Kurzbeschreibung der Abbildung (rechts über dem Bild)
+function simMapInfo(T, K) {
+  const t = x => '\\text{' + x + '}', one = K.length === 1 ? K[0] : '';
+  if (!K.length) return t('Bild = Original');
+  if (one === 'trans') return t('Verschiebung um ') + '(' + Sim.n(T.v[0]) + '\\,|\\,' + Sim.n(T.v[1]) + ')';
+  if (one === 'rot') return t('Drehung um ') + 'O' + t(' um ') + smDeg(T.phi);
+  if (one === 'refl') return t('Spiegelung an der ') + Sim.axisOf(T) + t('-Achse');
+  if (one === 'point') return t('Punktspiegelung an ') + 'Z';
+  if (one === 'dil') return t('Zentrische Streckung von ') + 'Z' + t(' aus, ') + 'k=' + Sim.n(T.k);
+  return K.map(k => t({ refl: 'Spiegelung', rot: 'Drehung', point: 'Streckung', dil: 'Streckung', trans: 'Verschiebung' }[k])).join(',\\ ') + (K.indexOf('dil') >= 0 ? ',\\ |k|=' + Sim.n(Math.abs(T.k)) : '');
+}
 function simSceneMap(S, W, H, C) {
   const fs = C.fs, P = C.P, T = C.T, Q = P.map(p => Sim.apply(T, p)), t1 = Sim.tri(P[0], P[1], P[2]), t2 = Sim.tri(Q[0], Q[1], Q[2]), k = Math.abs(T.k), sh = C.show;
   const Rl = linLayout(W, H, [{ w: 0.57, rows: [2.3] }, { w: 0.43, rows: [1.3, 1.2] }]);
-  const ax = [Math.cos(Sim.rad(T.psi)), Math.sin(Sim.rad(T.psi))];
-  const need = P.concat(Q, [T.z]); if (T.refl) need.push(Sim.add(T.z, Sim.mul(ax, 2)));
+  const K = Sim.kinds(T), has = x => K.indexOf(x) >= 0, dil = has('dil') || has('point') || C.mk === 'dil', rot = has('rot') || C.mk === 'rot', one = K.length === 1 ? K[0] : '';
+  const need = P.concat(Q, [[0, 0]]); if (dil) need.push(T.z);        // Z zählt nur bei einer Streckung
   const win = simWindow(C, Rl[0], need, 'map');
-  const K = Sim.kinds(T);
-  const m = difFrame(S, Rl[0], win, C, { title: '\\triangle ABC\\sim\\triangle A\'B\'C\'', info: '|k|=' + Sim.n(k), xlab: 'x', ylab: 'y' });
+  const m = difFrame(S, Rl[0], win, C, { title: '\\triangle ABC\\sim\\triangle A\'B\'C\'', info: simMapInfo(T, K), xlab: 'x', ylab: 'y' });
   S.maps.main = m;
-  const big = (win.x1 - win.x0) * 4;
+  const clip = [m.L, m.T, m.R - m.L, m.B - m.T];
+  // Spiegelachse = x- oder y-Achse, hervorgehoben
   if (T.refl) {
-    difSeg(S, m, T.z[0] - ax[0] * big, T.z[1] - ax[1] * big, T.z[0] + ax[0] * big, T.z[1] + ax[1] * big, { col: ST_T, lw: 1.8, dash: true });
-    const al = Math.max(1.2, (win.x1 - win.x0) * 0.16), Hd = Sim.add(T.z, Sim.mul(ax, al)), hp = smPx(m, Hd);
-    if (smIn(m, hp)) { S.circ(hp[0], hp[1], 5, { fill: ST_T, stroke: ST_T }); S.pts.push({ id: 'S', x: hp[0], y: hp[1], r: 11 }); difLabel(S, m, hp[0] + fs * 1.6, hp[1] - fs * 0.6, '\\text{Achse}', C, { size: 0.85 }); }
+    if (Sim.axisOf(T) === 'x') { difSeg(S, m, win.x0, 0, win.x1, 0, { col: ST_T, lw: 2.4, dash: true }); if (win.y0 < 0 && win.y1 > 0) difLabel(S, m, m.R - fs * 3.6, m.Y(0) - fs * 0.85, '\\text{Spiegelachse}', C, { size: 0.82 }); }
+    else { difSeg(S, m, 0, win.y0, 0, win.y1, { col: ST_T, lw: 2.4, dash: true }); if (win.x0 < 0 && win.x1 > 0) difLabel(S, m, m.X(0) + fs * 3.4, m.T + fs * 2.0, '\\text{Spiegelachse}', C, { size: 0.82 }); }
   }
-  if (sh.rays) [0, 1, 2].forEach(i => { difSeg(S, m, T.z[0], T.z[1], P[i][0], P[i][1], { col: 'M', lw: 1, dash: true, a: 0.6 }); if (K.indexOf('trans') < 0) difSeg(S, m, T.z[0], T.z[1], Q[i][0], Q[i][1], { col: ST_V, lw: 1, dash: true, a: 0.55 }); });
-  if (K.indexOf('trans') >= 0) {
-    const Q0 = P.map(p => Sim.applyNoV(T, p));
-    if (K.length > 1) simTri(S, m, Q0, { col: ST_V, lw: 1.2, dash: true, sa: 0.55 });
-    simArrow(S, m, Sim.centroid(Q0), Sim.centroid(Q), ST_V, '\\col{v}{v}', C);
+  // Hilfslinien: zeigen bei EINER Grundabbildung, wie Original und Bild zusammenhängen
+  if (sh.rays && one) {
+    if (one === 'dil' || one === 'point') [0, 1, 2].forEach(i => { difSeg(S, m, T.z[0], T.z[1], P[i][0], P[i][1], { col: 'M', lw: 1, dash: true, a: 0.6 }); difSeg(S, m, T.z[0], T.z[1], Q[i][0], Q[i][1], { col: ST_V, lw: 1, dash: true, a: 0.55 }); });
+    else if (one === 'rot') {
+      const ph = Sim.normA(T.phi), nA = Math.max(8, Math.round(Math.abs(ph) / 4));
+      [0, 1, 2].forEach(i => {                                         // Kreisbogen um O von der Ecke zu ihrem Bild
+        difSeg(S, m, 0, 0, P[i][0], P[i][1], { col: 'M', lw: 1, dash: true, a: 0.6 }); difSeg(S, m, 0, 0, Q[i][0], Q[i][1], { col: ST_V, lw: 1, dash: true, a: 0.55 });
+        const pts = []; for (let j = 0; j <= nA; j++) pts.push(smPx(m, Sim.rotU(ph * j / nA, P[i])));
+        S.poly(pts, { col: ST_V, lw: 1.1, a: 0.6, clip });
+      });
+      const o = smPx(m, [0, 0]), far = [0, 1, 2].reduce((a, i) => (Math.hypot(P[i][0], P[i][1]) > Math.hypot(P[a][0], P[a][1]) ? i : a), 0);
+      if (smIn(m, o) && Math.abs(ph) > 4) simArcPx(S, o, smPx(m, P[far]), smPx(m, Q[far]), fs * 1.5, ST_V, '\\col{v}{' + smDeg(Math.abs(ph)) + '}', C, { noRight: true, ls: 0.78 });
+    } else [0, 1, 2].forEach(i => difSeg(S, m, P[i][0], P[i][1], Q[i][0], Q[i][1], { col: ST_V, lw: 1, dash: true, a: 0.6 }));   // Spiegelung: senkrecht zur Achse; Verschiebung: parallel und gleich lang
   }
   const q1 = simTri(S, m, P, { fill: 'M', a: 0.1, cols: SM_SIDE }), q2 = simTri(S, m, Q, { fill: ST_V, a: 0.13, cols: SM_SIDE });
-  if (sh.angles) { simAngles(S, q1, SM_ANG, SM_GREEK.map((g, i) => smCol(SM_AL[i], g)), C); simAngles(S, q2, SM_ANG, SM_GREEK.map((g, i) => smCol(SM_AL[i], g + "'")), C); }
+  if (sh.angles) { simAngles(S, q1, SM_ANG, SM_GREEK.map((g, i) => smCol(SM_AL[i], g)), C, 0.85, 0.75); simAngles(S, q2, SM_ANG, SM_GREEK.map((g, i) => smCol(SM_AL[i], g + "'")), C, 0.85, 0.75); }
   if (sh.lens) {
     const g1 = Sim.centroid(P), g2 = Sim.centroid(Q);
     [0, 1, 2].forEach(i => { const j = (i + 1) % 3, l = (i + 2) % 3; simLen(S, m, P[j], P[l], g1, smCol(SM_SL[i], Sim.n([t1.a, t1.b, t1.c][i])), C); simLen(S, m, Q[j], Q[l], g2, smCol(SM_SL[i], Sim.n([t2.a, t2.b, t2.c][i])), C); });
   }
-  const zp = smPx(m, T.z);
-  if (smIn(m, zp)) { S.circ(zp[0], zp[1], 5.4, { fill: ST_O, stroke: 'T', lw: 1.2 }); S.pts.push({ id: 'Z', x: zp[0], y: zp[1], r: 11 }); difLabel(S, m, zp[0] - fs * 0.9, zp[1] + fs * 1.0, '\\col{o}{Z}', C, { size: 1.05 }); }
+  const zp = smPx(m, T.z), op = smPx(m, [0, 0]);
+  const zo = dil && Math.hypot(T.z[0], T.z[1]) < 1e-9;                 // Zentrum im Ursprung: nur EIN Punkt, beschriftet «Z = O»
+  if (rot && !zo && smIn(m, op)) { S.circ(op[0], op[1], 4.6, { fill: ST_V, stroke: 'T', lw: 1.2 }); difLabel(S, m, op[0] - fs * 0.9, op[1] + fs * 1.0, '\\col{v}{O}', C, { size: 1.05 }); }
+  if (dil && smIn(m, zp)) { S.circ(zp[0], zp[1], 5.4, { fill: ST_O, stroke: 'T', lw: 1.2 }); S.pts.push({ id: 'Z', x: zp[0], y: zp[1], r: 11 }); difLabel(S, m, zp[0] - fs * (zo && rot ? 1.7 : 0.9), zp[1] + fs * 1.0, zo && rot ? '\\col{o}{Z=O}' : '\\col{o}{Z}', C, { size: 1.05 }); }
   simVerts(S, m, P, ['A', 'B', 'C'], ['A', 'B', 'C'], C);
   simVerts(S, m, Q, ["A'", "B'", "C'"], ['A2', 'B2', 'C2'], C, { fill: ST_V, lab: 'v' });
   S.tris = [{ id: 'IMG', q: q2 }];

@@ -194,12 +194,22 @@ const Fun = (function () {
         if (lim.kind === 'inf') { if (lim.sign > 0) ub = true; else lb = true; return; }
         if (lim.kind !== 'value') return;
         const v = lim.v, ach = !isFinite(x0) && !!lim.achieved;
-        // Grenzwert im Unendlichen, nur angenähert (2^x → 0): ein Stichprobenwert weit draussen, der ihn praktisch erreicht, zählt nicht
-        const far = m => !isFinite(x0) && Math.abs(m.x) > 50 && Math.abs(m.v - v) < 1e-6 * (1 + Math.abs(v));
-        if (!ach && far(mn)) mn = { v, c: false, x: x0 };
-        if (!ach && far(mx)) mx = { v, c: false, x: x0 };
+        // Ein Grenzwert, den eine Stichprobe nur praktisch erreicht (2^x → 0 weit draussen, e^x/(1+e^x) → 1, oder
+        // (x²−1)/(x−1) → 2 dicht an der Lücke), zählt nicht als angenommen. Echt angenommen ist er nur, wenn die
+        // Stichprobe ihn genau trifft und links und rechts davon andere Werte liegen (x²·e^(−x²) hat bei x = 0 wirklich 0).
+        const sc = 1e-12 * Math.max(1, Math.abs(v));
+        const genuine = m => { if (Math.abs(m.v - v) > sc) return false; const h = 1e-3 * Math.max(1, Math.abs(m.x)), a1 = ev(m.x - h), a2 = ev(m.x + h); return isFinite(a1) && isFinite(a2) && Math.abs(a1 - m.v) > sc && Math.abs(a2 - m.v) > sc && (!isFinite(x0) || Math.abs(m.x - x0) > 1e-6 * Math.max(1, Math.abs(x0))); };
+        const only = m => Math.abs(m.v - v) < 1e-6 * (1 + Math.abs(v)) && !genuine(m);
+        if (!ach && only(mn)) mn = { v, c: false, x: x0 };
+        if (!ach && only(mx)) mx = { v, c: false, x: x0 };
         take(v, ach, x0);
       });
+      // Schwingung mit wachsender Amplitude (x·sin x): Extremwerte am Rand der Stichproben, viel grösser als bei |x| ≤ 50
+      if ((!isFinite(P.lo) || !isFinite(P.hi)) && isFinite(mx.v)) {
+        let iMin = Infinity, iMax = -Infinity; for (let i = 0; i <= 400; i++) { const x = Math.max(L, -50) + (Math.min(H, 50) - Math.max(L, -50)) * i / 400, y = ev(x); if (isFinite(y)) { iMin = Math.min(iMin, y); iMax = Math.max(iMax, y); } }
+        if (isFinite(iMax) && Math.abs(mx.x) > 150 && mx.v > 2 * Math.max(1, Math.abs(iMax)) + 1 && isFinite(mx.x)) ub = true;
+        if (isFinite(iMin) && Math.abs(mn.x) > 150 && mn.v < -2 * Math.max(1, Math.abs(iMin)) - 1 && isFinite(mn.x)) lb = true;
+      }
       if (!isFinite(mn.v) && !lb && !ub) return;
       const sn = v => { const q = snapNum(v); return Math.abs(q) < 1e-9 ? 0 : q; };
       W.push({ lo: lb ? -Infinity : sn(mn.v), hi: ub ? Infinity : sn(mx.v), loC: !lb && mn.c, hiC: !ub && mx.c });

@@ -10,21 +10,21 @@
 
 const LOP_VIEWS = [['ung1', 'Ungleichung mit einer Variablen'], ['half', 'Ungleichung mit zwei Variablen'], ['poly', 'Ungleichungssystem und Planungspolygon'], ['opt', 'Zielfunktion und Optimum']];
 const LOP_DESC = {
-  ung1: ['Ungleichungen formt man wie Gleichungen um. Aber: Multipliziert oder dividiert man mit einer negativen Zahl, kehrt sich das Ungleichheitszeichen um. Die Lösungsmenge ist ein Intervall.', 'Tippe eine Ungleichung mit x ein, z. B. −2x+5>=1 oder 20+0.1x>35. Oben siehst du beide Seiten als Geraden, unten das Intervall.'],
-  half: ['Die Lösungen einer Ungleichung mit x und y bilden eine Halbebene. Grenzgerade zeichnen (bei ≤, ≥ durchgezogen, bei <, > gestrichelt), dann mit einem Testpunkt die richtige Seite bestimmen.', 'Tippe eine Ungleichung ein, z. B. 15x+6y<=60. Ziehe den Testpunkt T auf die andere Seite der Geraden.'],
-  poly: ['Mehrere Ungleichungen gleichzeitig: Die Lösungsmenge ist der Durchschnitt der Halbebenen, das Planungspolygon. Seine Eckpunkte sind Schnittpunkte von zwei Grenzgeraden.', 'Gib die Ungleichungen ein (eine pro Zeile). Ziehe den Punkt P: Ist der Produktionsplan möglich?'],
-  opt: ['Die Zielfunktion Z = px + qy soll maximal oder minimal werden. Punkte mit gleichem Z liegen auf einer Niveaulinie. Das Optimum liegt in einem Eckpunkt (oder auf einer ganzen Kante).', 'Ziehe die orange Niveaulinie parallel, bis sie das Polygon gerade noch berührt. Rechts stehen die Werte von Z in allen Eckpunkten.']
+  ung1: ['Tippe eine Ungleichung mit x ein, z. B. −2x + 5 ≥ 1: Oben stehen {{linke|ls}} und {{rechte Seite|rs}} als Geraden, unten die Lösungsmenge als Intervall. Achtung: Beim Multiplizieren mit einer negativen Zahl kehrt sich das Zeichen um.', 'Ungleichungen formt man wie Gleichungen um. Aber: Multipliziert oder dividiert man mit einer negativen Zahl, kehrt sich das Ungleichheitszeichen um. Die Lösungsmenge ist ein Intervall.'],
+  half: ['Tippe eine Ungleichung mit x und y ein und ziehe den {{Testpunkt T|T}} auf beide Seiten der Grenzgeraden: Die Lösungen bilden die {{Halbebene|hp}} auf der Seite, auf der T die Ungleichung erfüllt.', 'Die Lösungen einer Ungleichung mit x und y bilden eine Halbebene. Grenzgerade zeichnen (bei ≤, ≥ durchgezogen, bei <, > gestrichelt), dann mit einem Testpunkt die richtige Seite bestimmen.'],
+  poly: ['Gib die Ungleichungen ein (eine pro Zeile) und ziehe den {{Punkt P|P}}: Er ist zulässig, wenn er im {{Planungspolygon|pg}} liegt, dem Durchschnitt aller Halbebenen. Die Eckpunkte sind Schnittpunkte von zwei Grenzgeraden.', 'Mehrere Ungleichungen gleichzeitig: Die Lösungsmenge ist der Durchschnitt der Halbebenen, das Planungspolygon. Seine Eckpunkte sind Schnittpunkte von zwei Grenzgeraden.'],
+  opt: ['Ziehe die {{Niveaulinie|N}} parallel, bis sie das {{Polygon|pg}} gerade noch berührt: Dort ist Z = px + qy maximal oder minimal («▶ Niveaulinie wandern lassen» zeigt den Weg von Ecke zu Ecke). Das Optimum liegt in einem Eckpunkt; rechts stehen die Werte von Z in allen Ecken.', 'Die Zielfunktion Z = px + qy soll maximal oder minimal werden. Punkte mit gleichem Z liegen auf einer Niveaulinie. Das Optimum liegt in einem Eckpunkt (oder auf einer ganzen Kante).']
 };
 const LOP_EX1 = [['−2x + 5 ≥ 1', '-2x+5>=1'], ['Handyabo: 20 + 0.10·x > 35', '20+0.1x>35'], ['3x − 4 < 2x + 1', '3x-4<2x+1'], ['2(x − 1) ≤ 5x + 4', '2(x-1)<=5x+4'], ['x/2 + 3 > 1', 'x/2+3>1'], ['−3x ≤ 12', '-3x<=12']];
 const LOP_EXH = [['Kino: 15x + 6y ≤ 60', '15x+6y<=60'], ['Tankstelle: 2x + 1.8y ≤ 60', '2x+1.8y<=60'], ['y > 2x − 1', 'y>2x-1'], ['x − 2y ≥ 4', 'x-2y>=4'], ['y ≤ −2/3·x + 4', 'y<=-2/3x+4'], ['x ≥ 3', 'x>=3']];
 const LOP_EX = [
-  { name: 'Computerhersteller (Dossier)', list: ['x+3y<=12', 'x+y<=6'], obj: '1000x+2000y', mode: 'max', nn: true, int: true, vars: '$x$ = Anzahl Computer A, $y$ = Anzahl Computer B', unit: 'CHF', xl: 'x\\ (A)', yl: 'y\\ (B)', P: [2, 4], ans: (x, y, z) => x + ' Computer A und ' + y + ' Computer B, Gewinn ' + z + ' CHF.' },
-  { name: 'Schreinerei: Tische und Stühle', list: ['8x+4y<=40', '2x+6y<=30'], obj: '80x+60y', mode: 'max', nn: true, int: true, vars: '$x$ = Anzahl Tische, $y$ = Anzahl Stühle', unit: 'CHF', xl: 'x\\ (Tische)', yl: 'y\\ (Stühle)', P: [4, 3], ans: (x, y, z) => x + ' Tische und ' + y + ' Stühle, Gewinn ' + z + ' CHF.' },
-  { name: 'Automobilwerk', list: ['x<=600', 'y<=300', 'x+y<=750'], obj: '2400x+3600y', mode: 'max', nn: true, int: true, vars: '$x$ = Anzahl Wagen A, $y$ = Anzahl Wagen B (pro Tag)', unit: 'CHF', xl: 'x\\ (A)', yl: 'y\\ (B)', P: [500, 250], ans: (x, y, z) => x + ' Wagen A und ' + y + ' Wagen B, Reingewinn ' + z + ' CHF.' },
-  { name: 'Architekten: Einfamilien- und Mehrfamilienhäuser', list: ['500x+2000y<=30000', '750000x+2000000y<=36000000'], obj: '36000x+120000y', mode: 'max', nn: true, int: true, vars: '$x$ = Anzahl Einfamilienhäuser, $y$ = Anzahl Mehrfamilienhäuser', unit: 'CHF', xl: 'x\\ (EFH)', yl: 'y\\ (MFH)', P: [20, 10], ans: (x, y, z) => x + ' Einfamilien- und ' + y + ' Mehrfamilienhäuser, Honorar ' + z + ' CHF.' },
-  { name: 'Kaffeehändler: zwei Mischungen', list: ['0.3x+0.4y<=360', '0.2x+0.4y<=320', '0.5x+0.2y<=390'], obj: '12x+18y', mode: 'max', nn: true, int: true, vars: '$x$ = Pakete Mischung A, $y$ = Pakete Mischung B', unit: 'CHF', xl: 'x\\ (A)', yl: 'y\\ (B)', P: [500, 500], ans: (x, y, z) => x + ' Pakete A und ' + y + ' Pakete B, Erlös ' + z + ' CHF.' },
-  { name: 'Minimum: Futtermischung', list: ['2x+y>=8', 'x+3y>=9'], obj: '3x+2y', mode: 'min', nn: true, int: false, vars: '$x$, $y$ = Mengen der beiden Futtersorten (kg)', unit: 'CHF', P: [2, 2] },
-  { name: 'Optimum auf einer ganzen Kante', list: ['x+3y<=12', 'x+y<=6'], obj: '2000x+2000y', mode: 'max', nn: true, int: true, vars: 'Computerhersteller, beide Modelle bringen je 2000 CHF', unit: 'CHF', P: [2, 2] },
+  { name: 'Computerhersteller (Dossier)', sit: 'Ein Computerhersteller baut zwei Modelle A und B. Für die Montage stehen pro Tag 12 Stunden zur Verfügung; Modell A braucht 1 Stunde, Modell B 3 Stunden. In der Endkontrolle können pro Tag höchstens 6 Geräte geprüft werden. Ein Computer A bringt 1000 CHF Gewinn, ein Computer B 2000 CHF.', ask: 'Wie viele Computer jedes Modells sollen pro Tag gebaut werden, damit der Gewinn möglichst gross ist?', list: ['x+3y<=12', 'x+y<=6'], obj: '1000x+2000y', mode: 'max', nn: true, int: true, vars: '$x$ = Anzahl Computer A, $y$ = Anzahl Computer B', unit: 'CHF', xl: 'x\\ (A)', yl: 'y\\ (B)', P: [2, 4], ans: (x, y, z) => x + ' Computer A und ' + y + ' Computer B, Gewinn ' + z + ' CHF.' },
+  { name: 'Schreinerei: Tische und Stühle', sit: 'Eine Schreinerei stellt Tische und Stühle her. Ein Tisch braucht 8 Stunden Zuschnitt und 2 Stunden Montage, ein Stuhl 4 Stunden Zuschnitt und 6 Stunden Montage. Pro Woche stehen 40 Stunden für den Zuschnitt und 30 Stunden für die Montage zur Verfügung. Ein Tisch bringt 80 CHF Gewinn, ein Stuhl 60 CHF.', ask: 'Wie viele Tische und Stühle soll die Schreinerei pro Woche herstellen, damit der Gewinn möglichst gross ist?', list: ['8x+4y<=40', '2x+6y<=30'], obj: '80x+60y', mode: 'max', nn: true, int: true, vars: '$x$ = Anzahl Tische, $y$ = Anzahl Stühle', unit: 'CHF', xl: 'x\\ (Tische)', yl: 'y\\ (Stühle)', P: [4, 3], ans: (x, y, z) => x + ' Tische und ' + y + ' Stühle, Gewinn ' + z + ' CHF.' },
+  { name: 'Automobilwerk', sit: 'Ein Automobilwerk baut die Modelle A und B. Die Lackiererei schafft pro Tag höchstens 600 Wagen A und höchstens 300 Wagen B, das Montageband insgesamt höchstens 750 Wagen. Ein Wagen A bringt 2400 CHF Reingewinn, ein Wagen B 3600 CHF.', ask: 'Wie viele Wagen jedes Modells sollen pro Tag gebaut werden, damit der Reingewinn möglichst gross ist?', list: ['x<=600', 'y<=300', 'x+y<=750'], obj: '2400x+3600y', mode: 'max', nn: true, int: true, vars: '$x$ = Anzahl Wagen A, $y$ = Anzahl Wagen B (pro Tag)', unit: 'CHF', xl: 'x\\ (A)', yl: 'y\\ (B)', P: [500, 250], ans: (x, y, z) => x + ' Wagen A und ' + y + ' Wagen B, Reingewinn ' + z + ' CHF.' },
+  { name: 'Architekten: Einfamilien- und Mehrfamilienhäuser', sit: 'Ein Architekturbüro plant Einfamilienhäuser (EFH) und Mehrfamilienhäuser (MFH). Ein EFH braucht 500 m² Bauland und kostet 750 000 CHF, ein MFH braucht 2000 m² Bauland und kostet 2 000 000 CHF. Zur Verfügung stehen 30 000 m² Bauland und 36 Mio. CHF Kapital. Ein EFH bringt 36 000 CHF Gewinn, ein MFH 120 000 CHF.', ask: 'Wie viele Häuser jeder Art sollen gebaut werden, damit der Gewinn möglichst gross ist?', list: ['500x+2000y<=30000', '750000x+2000000y<=36000000'], obj: '36000x+120000y', mode: 'max', nn: true, int: true, vars: '$x$ = Anzahl Einfamilienhäuser, $y$ = Anzahl Mehrfamilienhäuser', unit: 'CHF', xl: 'x\\ (EFH)', yl: 'y\\ (MFH)', P: [20, 10], ans: (x, y, z) => x + ' Einfamilien- und ' + y + ' Mehrfamilienhäuser, Honorar ' + z + ' CHF.' },
+  { name: 'Kaffeehändler: zwei Mischungen', sit: 'Ein Kaffeehändler mischt aus drei Kaffeesorten zwei Mischungen. Ein Paket Mischung A enthält 0.3 kg Sorte I, 0.2 kg Sorte II und 0.5 kg Sorte III, ein Paket Mischung B 0.4 kg Sorte I, 0.4 kg Sorte II und 0.2 kg Sorte III. An Lager sind 360 kg Sorte I, 320 kg Sorte II und 390 kg Sorte III. Ein Paket A bringt 12 CHF Gewinn, ein Paket B 18 CHF.', ask: 'Wie viele Pakete jeder Mischung soll er abfüllen, damit der Gewinn möglichst gross ist?', list: ['0.3x+0.4y<=360', '0.2x+0.4y<=320', '0.5x+0.2y<=390'], obj: '12x+18y', mode: 'max', nn: true, int: true, vars: '$x$ = Pakete Mischung A, $y$ = Pakete Mischung B', unit: 'CHF', xl: 'x\\ (A)', yl: 'y\\ (B)', P: [500, 500], ans: (x, y, z) => x + ' Pakete A und ' + y + ' Pakete B, Erlös ' + z + ' CHF.' },
+  { name: 'Minimum: Futtermischung', sit: 'Ein Bauer mischt zwei Futtersorten. 1 kg Sorte 1 enthält 2 Einheiten Eiweiss und 1 Einheit Vitamine, 1 kg Sorte 2 enthält 1 Einheit Eiweiss und 3 Einheiten Vitamine. Die Tiere brauchen pro Tag mindestens 8 Einheiten Eiweiss und 9 Einheiten Vitamine. Sorte 1 kostet 3 CHF pro kg, Sorte 2 kostet 2 CHF pro kg.', ask: 'Wie viele kg jeder Sorte soll er mischen, damit das Futter möglichst wenig kostet?', list: ['2x+y>=8', 'x+3y>=9'], obj: '3x+2y', mode: 'min', nn: true, int: false, vars: '$x$, $y$ = Mengen der beiden Futtersorten (kg)', unit: 'CHF', P: [2, 2] },
+  { name: 'Optimum auf einer ganzen Kante', sit: 'Wie beim Computerhersteller (Montage: A 1 Stunde, B 3 Stunden, höchstens 12 Stunden pro Tag; Endkontrolle höchstens 6 Geräte pro Tag), aber jetzt bringen beide Modelle je 2000 CHF Gewinn.', ask: 'Gibt es nur eine beste Lösung?', list: ['x+3y<=12', 'x+y<=6'], obj: '2000x+2000y', mode: 'max', nn: true, int: true, vars: 'Computerhersteller, beide Modelle bringen je 2000 CHF', unit: 'CHF', P: [2, 2] },
   { name: 'Gebiet nicht beschränkt (kein Maximum)', list: ['x-y<=2', 'y-x<=3'], obj: 'x+y', mode: 'max', nn: true, int: false, P: [1, 1] }
 ];
 const LOP_WIN0 = { x0: null, x1: null, y0: null, y1: null };
@@ -34,7 +34,7 @@ function lopDefaults() {
   const E0 = LOP_EX[0];
   return { view: 'opt', i1: '-2x+5>=1', ih: '15x+6y<=60', T: [0, 0], list: E0.list.slice(), nn: true, int: true, obj: E0.obj, mode: 'max', z: null, P: E0.P.slice(), ex: 0, win: Object.assign({}, LOP_WIN0), show: Object.assign({}, LOP_SHOW0) };
 }
-const LOP = Object.assign(lopDefaults(), { ui: null, S: null, drag: null, cardKey: '', cardT: 0 });
+const LOP = Object.assign(lopDefaults(), { ui: null, S: null, drag: null, anim: null, cardKey: '', cardT: 0 });
 function lopActive() { return typeof ENV !== 'undefined' && ENV.cur === 'lo'; }
 const lopR6 = x => Math.round(x * 1e6) / 1e6 + 0;
 const lopI1 = () => { const I = Lp.parseIneq(LOP.i1); return I && Math.abs(I.b) < 1e-12 ? I : Lp.parseIneq('-2x+5>=1'); };
@@ -44,7 +44,7 @@ const lopO = () => Lp.parseObj(LOP.obj) || Lp.parseObj('x+y');
 function lopCtx0() {
   const E = LOP_EX[LOP.ex], same = E && JSON.stringify(E.list) === JSON.stringify(LOP.list) && E.obj === LOP.obj;
   const c = { int: LOP.int };
-  if (same) { c.vars = E.vars; c.unit = E.unit; c.xl = E.xl; c.yl = E.yl; if (E.ans) c.answer = (x, y, z) => E.ans(Lp.q(x), Lp.q(y), String(Math.round(z * 100) / 100).replace(/\B(?=(\d{3})+(?!\d))/g, "'")); }
+  if (same) { c.sit = E.sit; c.ask = E.ask; c.vars = E.vars; c.unit = E.unit; c.xl = E.xl; c.yl = E.yl; if (E.ans) c.answer = (x, y, z) => E.ans(Lp.q(x), Lp.q(y), String(Math.round(z * 100) / 100).replace(/\B(?=(\d{3})+(?!\d))/g, "'")); }
   return c;
 }
 
@@ -54,8 +54,9 @@ function lopCardDoc() {
     const v = LOP.view;
     if (v === 'ung1') return { t: 'Rechenweg: Ungleichung', d: Lp.doc(Lp.st.ung1(lopI1())) };
     if (v === 'half') return { t: 'Rechenweg: Halbebene', d: Lp.doc(Lp.st.half(lopIh(), LOP.T)) };
-    if (v === 'poly') return { t: 'Rechenweg: Planungspolygon', d: Lp.doc(Lp.st.poly(lopL(), LOP.nn, lopCtx0())) };
-    return { t: 'Rechenweg: Optimum', d: Lp.doc(Lp.st.opt(lopL(), LOP.nn, lopO(), LOP.mode, lopCtx0())) };
+    const c0 = lopCtx0();
+    if (v === 'poly') return { t: 'Rechenweg: Planungspolygon', d: Dif.withSit(Lp.doc(Lp.st.poly(lopL(), LOP.nn, c0)), c0.sit, c0.ask) };
+    return { t: 'Rechenweg: Optimum', d: Dif.withSit(Lp.doc(Lp.st.opt(lopL(), LOP.nn, lopO(), LOP.mode, c0)), c0.sit, c0.ask) };
   } catch (e) { return { t: 'Rechenweg', d: null, err: e }; }
 }
 function lopCardKey() { return LOP.view + '|' + JSON.stringify([LOP.i1, LOP.ih, LOP.view === 'half' ? LOP.T : 0, LOP.list, LOP.nn, LOP.int, LOP.obj, LOP.mode, LOP.ex]); }
@@ -74,8 +75,33 @@ function lopCardRender() {
 }
 
 // ── Zustand ──
+// ── Animation: Die Niveaulinie wandert parallel durch das Planungspolygon bis zur letzten Ecke (dem Optimum) ──
+function lopAnimStop() { const a = LOP.anim; if (!a) return; if (a.auto) LOP.win = Object.assign({}, LOP_WIN0); LOP.anim = null; lopRefreshUI(); difRedraw(); }
+function lopAnimToggle() {
+  if (LOP.anim) { lopAnimStop(); difCommit(); return; }
+  const O = lopO(), L0 = lopL(); if (!O || !L0) return;
+  const r = Lp.optimum(L0, LOP.nn, O, LOP.mode); if (!r || r.empty || r.unbounded || !r.vals || !r.vals.length) return;
+  const sg = LOP.mode === 'min' ? -1 : 1, vals = r.vals.slice().sort((p, q) => sg * (p - q)).filter((v, i, A) => !i || Math.abs(v - A[i - 1]) > 1e-9 * Math.max(1, Math.abs(v)));
+  const worst = vals[0], best = r.value, span = Math.abs(best - worst) || Math.max(1, Math.abs(best));
+  LOP.z = worst - sg * span * 0.12;                                           // Start knapp ausserhalb des Polygons
+  LOP.anim = { last: 0, stops: vals, i: 0, sp: span / 6, sg, wait: 0.6 };
+  if (LOP.win.x0 === null) { LOP.win = lopResolvedWin(); LOP.anim.auto = true; }           // Ausschnitt bleibt stehen
+  lopRefreshUI(); difRedraw(); requestAnimationFrame(lopAnimFrame);
+}
+function lopAnimFrame(ts) {
+  const a = LOP.anim; if (!a) return;
+  if (!lopActive() || LOP.view !== 'opt') { LOP.anim = null; return; }
+  const dt = a.last ? Math.min(0.1, (ts - a.last) / 1000) : 0.016; a.last = ts;
+  if (a.wait > 0) { a.wait -= dt; requestAnimationFrame(lopAnimFrame); return; }
+  const to = a.stops[a.i], d = to - LOP.z, st = a.sp * dt;
+  if (Math.abs(d) <= st) { LOP.z = to; a.i++; a.wait = a.i >= a.stops.length ? 0 : 0.7; }      // an jeder Ecke kurz halten
+  else LOP.z += Math.sign(d) * st;
+  if (a.i >= a.stops.length) { if (a.auto) LOP.win = Object.assign({}, LOP_WIN0); LOP.anim = null; LOP.z = null; LOP.cardKey = ''; lopRefreshUI(); difRedraw(); lopCardSoon(); difCommit(); return; }
+  difRedraw(); requestAnimationFrame(lopAnimFrame);
+}
 function lopCapture() { return difCopy({ view: LOP.view, i1: LOP.i1, ih: LOP.ih, T: LOP.T, list: LOP.list, nn: LOP.nn, int: LOP.int, obj: LOP.obj, mode: LOP.mode, z: LOP.z, P: LOP.P, ex: LOP.ex, win: LOP.win, show: LOP.show }); }
 function lopApply(s) {
+  LOP.anim = null;                                                       // laufende Animation beenden (Rückgängig, Laden, Zurücksetzen)
   const d = lopDefaults(), num = (v, def) => { v = Number(v); return isFinite(v) && Math.abs(v) < 1e9 ? v : def; }, pt = (p, def) => (Array.isArray(p) && p.length === 2 ? [num(p[0], def[0]), num(p[1], def[1])] : def);
   const str = v => typeof v === 'string' && v.length < 120;
   if (s && typeof s === 'object') {
@@ -145,7 +171,7 @@ function lopBuildUI() {
   const ui = LOP.ui = {}, body = $dif('lo-body');
   ui.sel = $dif('lo-view');
   LOP_VIEWS.forEach(([id, nm]) => { const o = difEl('option', null, nm); o.value = id; ui.sel.appendChild(o); });
-  ui.sel.addEventListener('change', () => { LOP.view = ui.sel.value; LOP.cardKey = ''; LOP.win = Object.assign({}, LOP_WIN0); lopRefreshUI(); difRedraw(); lopCardSoon(); difCommit(); });
+  ui.sel.addEventListener('change', () => { LOP.view = ui.sel.value; LOP.anim = null; LOP.cardKey = ''; LOP.win = Object.assign({}, LOP_WIN0); lopRefreshUI(); difRedraw(); lopCardSoon(); difCommit(); });
   ui.desc = $dif('lo-desc'); ui.ex = $dif('lo-ex');
   ui.params = difEl('div', 'alg-opts'); body.appendChild(ui.params);
   const det = difEl('details', 'geo-box td-sec'); det.append(difEl('summary', null, 'Export'));
@@ -164,7 +190,7 @@ function lopRefreshUI() {
   const ui = LOP.ui; if (!ui) return;
   const v = LOP.view, sh = LOP.show;
   ui.sel.value = v;
-  const dd = LOP_DESC[v]; ui.desc.replaceChildren(difEl('div', null, dd[0]), Object.assign(difEl('div', null, dd[1]), { style: 'margin-top:5px;' }));
+  const dd = LOP_DESC[v]; ui.desc.replaceChildren(difEl('div', null, dd[1])); if (typeof envHint === 'function') envHint('lo', dd[0], () => LOP.S);   // Hinweis als Überschrift über dem Bild
   const exs = v === 'ung1' ? LOP_EX1.map(e => [e[0], e[1]]) : v === 'half' ? LOP_EXH.map(e => [e[0], e[1]]) : LOP_EX.map(e => [e.name, e]);
   ui.ex.replaceChildren(Object.assign(difEl('option', null, 'Beispiel wählen …'), { value: '' }));
   exs.forEach((e, i) => { const o = difEl('option', null, e[0]); o.value = String(i); ui.ex.appendChild(o); });
@@ -200,7 +226,6 @@ function lopRefreshUI() {
     const tp = difBtn('Testpunkt auf (0 | 0)', () => { LOP.T = [0, 0]; redo(); }); tp.style.width = '100%'; P.appendChild(tp);
   } else {
     const E = LOP_EX[LOP.ex];
-    if (E && JSON.stringify(E.list) === JSON.stringify(LOP.list) && E.vars) { const h = difEl('div', 'act-hint', E.vars.replace(/\$/g, '')); h.style.margin = '2px 2px 4px'; P.appendChild(h); }
     group('Bedingungen');
     LOP.list.forEach((s, i) => textRow('(' + Lp.roman(i) + ')', () => LOP.list[i], x => { LOP.list[i] = x; }, x => !!Lp.parseIneq(x), '2x+3y<=12', () => { LOP.list.splice(i, 1); redo(); }));
     if (LOP.list.length < 8) { const add = difBtn('+ Ungleichung', () => { LOP.list.push('x+y<=10'); redo(); }); add.style.width = '100%'; P.appendChild(add); }
@@ -212,7 +237,8 @@ function lopRefreshUI() {
       const r = difEl('div'); r.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:4px;';
       ['max', 'min'].forEach(mm => { const b = difBtn(mm === 'max' ? 'Maximum' : 'Minimum', () => { LOP.mode = mm; LOP.z = null; redo(); }); if (LOP.mode === mm) b.classList.add('active'); r.appendChild(b); });
       P.appendChild(r);
-      const zb = difBtn('Niveaulinie zum Optimum', () => { LOP.z = null; redo(); }); zb.style.cssText = 'width:100%;margin-top:5px;'; P.appendChild(zb);
+      const za = difBtn(LOP.anim ? '⏸ Pause' : '▶ Niveaulinie wandern lassen', lopAnimToggle); za.style.cssText = 'width:100%;margin-top:5px;'; P.appendChild(za);
+      const zb = difBtn('Niveaulinie zum Optimum', () => { LOP.anim = null; LOP.z = null; redo(); }); zb.style.cssText = 'width:100%;margin-top:5px;'; P.appendChild(zb);
     }
     group('Anzeige');
     if (LOP.int) check('ganzzahlige Punkte zeigen', () => sh.intpts, x => { sh.intpts = x; });
@@ -243,7 +269,7 @@ function lopDragTo(id, x, y, shift) {
   const near = p => { const S = LOP.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + 4 && d < bd) { bd = d; best = q; } }); return best; };
   const down = e => {
     if (!lopActive()) return; e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault();
-    const S = LOP.S; if (!S) return; const p = pos(e), q = near(p), m = S.maps.main;
+    const S = LOP.S; if (!S) return; if (LOP.anim) lopAnimStop(); const p = pos(e), q = near(p), m = S.maps.main;
     if (q) { LOP.drag = { type: q.id }; if (LOP.win.x0 === null) { LOP.win = lopResolvedWin(); LOP.drag.auto = true; } }
     else if (inMap(m, p)) LOP.drag = { type: 'pan', px: p.x, py: p.y, w: lopResolvedWin() };
     if (LOP.drag) cv.style.cursor = LOP.drag.type === 'pan' ? 'grabbing' : 'pointer';

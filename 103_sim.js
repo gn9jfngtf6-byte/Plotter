@@ -1,11 +1,13 @@
 // ═════════════════════════════════════════════════════════════════
 // MODUL 103: Ähnlichkeit – Rechenkern (ohne DOM)
 //
-// Dreiecke als Eckpunkte [x, y]. Ähnlichkeitsabbildung T = {z, k, phi, refl, psi, v}:
-//   P′ = Z + k · Drehung(phi) · Spiegelung(psi)(P − Z) + v
-//   (erst an der Achse durch Z mit Richtung psi spiegeln, dann um Z drehen und von Z aus strecken, zuletzt verschieben)
+// Dreiecke als Eckpunkte [x, y]. Ähnlichkeitsabbildung T = {z, k, phi, refl, psi, v} aus den vier Grundabbildungen:
+//   P′ = Z + k · (Drehung(phi) · Spiegelung(psi)(P) − Z) + v
+//   (erst an der x-Achse (psi = 0) bzw. y-Achse (psi = 90) spiegeln, dann um den URSPRUNG drehen, dann von Z aus
+//   zentrisch strecken, zuletzt verschieben). Z spielt nur bei der Streckung eine Rolle.
 // Sim.tri(A, B, C)              Seiten a = |BC|, b = |CA|, c = |AB|, Winkel al, be, ga (Grad), Fläche, Umlaufsinn
-// Sim.apply(T, P)               Bildpunkt; Sim.solveRS(T, P, Q): Drehstreckung so, dass P′ = Q (Vorzeichen von k bleibt)
+// Sim.apply(T, P)               Bildpunkt; Sim.solveK(T, P, Q) / Sim.solvePhi(T, P, Q): Streckfaktor bzw. Drehwinkel so,
+//                               dass das Bild von P möglichst nahe bei Q liegt (Ziehen einer Bildecke)
 // Sim.kinds(T)                  beteiligte Abbildungen (Wörter)
 // Sim.match(t1, t2)             beste Zuordnung der Ecken (gleiche Winkel), ähnlich ja/nein, Faktor
 // Sim.ray(Z, A, B, t, s)        Strahlensatzfigur: C = Z + t(A − Z), D = Z + s(B − Z) (s = t: parallel)
@@ -42,17 +44,25 @@ const Sim = (function () {
   const centroid = P => [(P[0][0] + P[1][0] + P[2][0]) / 3, (P[0][1] + P[1][1] + P[2][1]) / 3];
 
   // ── Abbildung ──
-  const T0 = () => ({ z: [0, 0], k: 1, phi: 0, refl: false, psi: 90, v: [0, 0] });
-  function reflU(T, u) { if (!T.refl) return u; const c2 = Math.cos(rad(2 * T.psi)), s2 = Math.sin(rad(2 * T.psi)); return [c2 * u[0] + s2 * u[1], s2 * u[0] - c2 * u[1]]; }
+  const T0 = () => ({ z: [0, 0], k: 1, phi: 0, refl: false, psi: 0, v: [0, 0] });
+  function reflU(T, u) { if (!T.refl) return u; return Math.abs(Math.cos(rad(T.psi))) >= Math.abs(Math.sin(rad(T.psi))) ? [u[0], -u[1] + 0] : [-u[0] + 0, u[1]]; }   // x-Achse: (x | −y), y-Achse: (−x | y)
   function rotU(phi, u) { const c = Math.cos(rad(phi)), s = Math.sin(rad(phi)); return [c * u[0] - s * u[1], s * u[0] + c * u[1]]; }
-  function apply(T, P) { const u = rotU(T.phi, reflU(T, sub(P, T.z))); return [T.z[0] + T.k * u[0] + T.v[0], T.z[1] + T.k * u[1] + T.v[1]]; }
-  // Bild ohne Verschiebung (für den Verschiebungspfeil)
+  const axisOf = T => (Math.abs(Math.cos(rad(T.psi))) >= Math.abs(Math.sin(rad(T.psi))) ? 'x' : 'y');   // Spiegelachse
+  // Spiegeln und Drehen (beides um den Ursprung), noch ohne Streckung und Verschiebung
+  const core = (T, P) => rotU(T.phi, reflU(T, P));
+  function apply(T, P) { const u = core(T, P); return [T.z[0] + T.k * (u[0] - T.z[0]) + T.v[0], T.z[1] + T.k * (u[1] - T.z[1]) + T.v[1]]; }
+  // Bild ohne Verschiebung
   const applyNoV = (T, P) => apply(Object.assign({}, T, { v: [0, 0] }), P);
-  function solveRS(T, P, Q) {
-    const u = reflU(T, sub(P, T.z)), w = sub(sub(Q, T.v), T.z), lu = Math.hypot(u[0], u[1]);
-    if (lu < 1e-9 || Math.hypot(w[0], w[1]) < 1e-9) return null;
-    const r = Math.hypot(w[0], w[1]) / lu, a = deg(Math.atan2(w[1], w[0]) - Math.atan2(u[1], u[0])), neg = T.k < 0;
-    return { k: neg ? -r : r, phi: normA(a + (neg ? 180 : 0)) };
+  // Streckfaktor so, dass das Bild von P auf dem Strahl von Z aus möglichst nahe bei Q liegt
+  function solveK(T, P, Q) {
+    const d = sub(core(T, P), T.z), w = sub(sub(Q, T.v), T.z), l2 = d[0] * d[0] + d[1] * d[1];
+    return l2 < 1e-12 ? null : (w[0] * d[0] + w[1] * d[1]) / l2;
+  }
+  // Drehwinkel so, dass das Bild von P (bei festem k) in Richtung Q liegt
+  function solvePhi(T, P, Q) {
+    const u = reflU(T, P), w = sub(sub(Q, T.v), T.z), g = [T.z[0] + w[0] / T.k, T.z[1] + w[1] / T.k];
+    if (Math.hypot(u[0], u[1]) < 1e-9 || Math.hypot(g[0], g[1]) < 1e-9) return null;
+    return normA(deg(Math.atan2(g[1], g[0]) - Math.atan2(u[1], u[0])));
   }
   function kinds(T) {
     const out = [];
@@ -99,6 +109,6 @@ const Sim = (function () {
     return { A, B, C, D, c, p: d, q: c - d, h, b: dist(A, C), a: dist(B, C), M: mul(add(A, B), 0.5), al: deg(Math.atan2(h, d)), be: deg(Math.atan2(h, c - d)) };
   }
 
-  return { sub, add, mul, dist, rad, deg, normA, R6, n, ex, angleAt, tri, centroid, T0, apply, applyNoV, solveRS, reflU, rotU, kinds, KIND_DE, match, PERMS, ray, right };
+  return { sub, add, mul, dist, rad, deg, normA, R6, n, ex, angleAt, tri, centroid, T0, apply, applyNoV, core, axisOf, solveK, solvePhi, reflU, rotU, kinds, KIND_DE, match, PERMS, ray, right };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = { Sim };
