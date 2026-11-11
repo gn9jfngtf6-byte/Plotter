@@ -1,4 +1,4 @@
-// i18n_seed_es.js — mitgelieferte Basis-Übersetzungen Deutsch → Spanisch (2224 Textbausteine)
+// i18n_seed_es.js — mitgelieferte Basis-Übersetzungen Deutsch → Spanisch (2236 Textbausteine)
 // Wird von 23_autotranslate.js geladen, sobald die Sprache gewählt wird. Schlüssel = deutscher Text mit
 // Platzhaltern ({n} = geschützte Zahl/Formel, <n>…</n> = Auszeichnung). Von Hand gepflegte Texte aus
 // 01_i18n.js haben Vorrang; Texte, die hier fehlen, übersetzt die Engine automatisch online und merkt sie sich.
@@ -3622,6 +3622,7 @@
 "Die Karte rechts zeigt den Rechenweg Schritt für Schritt und verändert sich mit dem Bild. Sie lässt sich mit {0}schliessen und links wieder einschalten.": "La tarjeta de la derecha muestra el desarrollo paso a paso y cambia junto con la figura. Se puede cerrar con {0}y volver a activar a la izquierda.",
 "<0>Hilfe</0>{1}": "<0>Ayuda</0>{1}",
 "So bedienst du J√{0}": "Cómo usar J√{0}",
+"So bedienst du {0}": "Cómo usar {0}",
 "Thema finden": "Encontrar un tema",
 "Der Knopf mit dem Themennamen oben in der Leiste und das Logo links oben öffnen die Themenübersicht.": "El botón con el nombre del tema en la barra superior y el logo de arriba a la izquierda abren la vista general de temas.",
 "Dort kannst du nach Begriffen suchen (z.B. «Tangente», «Nullstellen», «Zinseszins») und direkt in die passende Ansicht springen.": "Allí puedes buscar conceptos (p. ej. «tangente», «ceros», «interés compuesto») y saltar directamente a la vista adecuada.",
@@ -4135,5 +4136,26 @@
 "{0}/x ist zu sich selbst invers: Der Graph ist symmetrisch zur Winkelhalbierenden.": "{0}/x es inversa de sí misma: la gráfica es simétrica respecto de la bisectriz.",
 "sin ist nur auf [−π/{0}; π/{1}] umkehrbar (dort streng monoton); arcsin liefert Winkel aus diesem Bereich.": "sin solo es invertible en [−π/{0}; π/{1}] (allí es estrictamente monótona); arcsin da ángulos de este intervalo.",
 "cos ist nur auf [{0}; π] umkehrbar; arccos liefert Winkel zwischen {1} und π.": "cos solo es invertible en [{0}; π]; arccos da ángulos entre {1} y π.",
-"tan ist auf ]−π/{0}; π/{1}[ streng monoton; arctan hat die waagrechten Asymptoten y = ±π/{2}.": "tan es estrictamente monótona en ]−π/{0}; π/{1}[; arctan tiene las asíntotas horizontales y = ±π/{2}."
+"tan ist auf ]−π/{0}; π/{1}[ streng monoton; arctan hat die waagrechten Asymptoten y = ±π/{2}.": "tan es estrictamente monótona en ]−π/{0}; π/{1}[; arctan tiene las asíntotas horizontales y = ±π/{2}.",
+"? Hilfe zum Thema": "? Ayuda sobre el tema",
+"Dieses Thema": "Este tema",
+"Allgemeine Bedienung": "Uso general",
+"Was in diesem Thema und in dieser Ansicht besonders ist": "Lo que es especial en este tema y en esta vista",
+"Das kannst du in dieser Ansicht einstellen": "Lo que puedes ajustar en esta vista",
+"Alle Ansichten dieses Themas (anklicken, um zu wechseln)": "Todas las vistas de este tema (haz clic para cambiar)",
+"Mathematik erleben, ausprobieren, verstehen.": "Vivir, probar y entender las matemáticas.",
+"Im {0} gibt es zu verschiedenen mathematischen Themen eine interaktive Umgebung mit Graphen, Bildern, Beispielen und Lösungswegen.": "{0} ofrece, para distintos temas de matemáticas, un entorno interactivo con gráficas, figuras, ejemplos y soluciones desarrolladas.",
+"{0} Themen mit {1} Ansichten": "{0} temas con {1} vistas",
+"Rechenwege Schritt für Schritt": "Desarrollos paso a paso",
+"Animationen und Schieberegler": "Animaciones y deslizadores",
+"Export als LaTeX und Bild": "Exportación a LaTeX e imagen",
+"{0} Sprachen": "{0} idiomas",
+"Kostenlos und ohne Anmeldung": "Gratis y sin registro",
+"Probier es aus: Verschiebe den Punkt.": "Pruébalo: mueve el punto.",
+"Mehr dazu ›": "Más sobre esto ›",
+"Punkt auf dem Graphen verschieben": "Mover el punto sobre la gráfica",
+"Differentialrechnung öffnen": "Abrir el cálculo diferencial",
+"Binomische Formeln": "Fórmulas notables",
+"Strahlensatz": "Teorema de Tales",
+"Baumdiagramm": "Diagrama de árbol",
 };

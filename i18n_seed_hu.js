@@ -1,4 +1,4 @@
-// i18n_seed_hu.js — mitgelieferte Basis-Übersetzungen Deutsch → Ungarisch (2224 Textbausteine)
+// i18n_seed_hu.js — mitgelieferte Basis-Übersetzungen Deutsch → Ungarisch (2236 Textbausteine)
 // Wird von 23_autotranslate.js geladen, sobald die Sprache gewählt wird. Schlüssel = deutscher Text mit
 // Platzhaltern ({n} = geschützte Zahl/Formel, <n>…</n> = Auszeichnung). Von Hand gepflegte Texte aus
 // 01_i18n.js haben Vorrang; Texte, die hier fehlen, übersetzt die Engine automatisch online und merkt sie sich.
@@ -3622,6 +3622,7 @@
 "Die Karte rechts zeigt den Rechenweg Schritt für Schritt und verändert sich mit dem Bild. Sie lässt sich mit {0}schliessen und links wieder einschalten.": "A jobb oldali kártya lépésről lépésre mutatja a levezetést, és együtt változik az ábrával. {0}bezárhatod, és bal oldalon újra bekapcsolhatod.",
 "<0>Hilfe</0>{1}": "<0>Súgó</0>{1}",
 "So bedienst du J√{0}": "Így használod a J√{0} eszközt",
+"So bedienst du {0}": "Így használod a {0} eszközt",
 "Thema finden": "Téma keresése",
 "Der Knopf mit dem Themennamen oben in der Leiste und das Logo links oben öffnen die Themenübersicht.": "A sáv felső, témanevet mutató gombja és a bal felső sarokban lévő logó megnyitja a témaáttekintőt.",
 "Dort kannst du nach Begriffen suchen (z.B. «Tangente», «Nullstellen», «Zinseszins») und direkt in die passende Ansicht springen.": "Ott fogalmakra kereshetsz (pl. „érintő”, „zérushelyek”, „kamatos kamat”), és közvetlenül a megfelelő nézetre ugorhatsz.",
@@ -3672,5 +3673,28 @@
 "Der Knopf führt zum zuletzt gewählten Thema. Die Hilfe findest du jederzeit unter «?».": "A gomb a legutóbb választott témához visz. A súgót bármikor megtalálod a „?” alatt.",
 "Alle Themen": "Minden téma",
 "Wonach suchst du? z.B. Tangente, Nullstellen, Zinseszins …": "Mit keresel? pl. érintő, zérushelyek, kamatos kamat …",
-"Willkommen bei {0}": "Üdvözöl a {0}"
+"Willkommen bei {0}": "Üdvözöl a {0}",
+"? Hilfe zum Thema": "? Súgó a témához",
+"Dieses Thema": "Ez a téma",
+"Allgemeine Bedienung": "Általános kezelés",
+"Was in diesem Thema und in dieser Ansicht besonders ist": "Ami ebben a témában és ebben a nézetben különleges",
+"Das kannst du in dieser Ansicht einstellen": "Amit ebben a nézetben beállíthatsz",
+"Alle Ansichten dieses Themas (anklicken, um zu wechseln)": "A téma összes nézete (kattints a váltáshoz)",
+"Mathematik erleben, ausprobieren, verstehen.": "A matematikát átélni, kipróbálni, megérteni.",
+"Im {0} gibt es zu verschiedenen mathematischen Themen eine interaktive Umgebung mit Graphen, Bildern, Beispielen und Lösungswegen.": "A {0} különböző matematikai témákhoz kínál interaktív környezetet grafikonokkal, ábrákkal, példákkal és megoldásmenetekkel.",
+"{0} Themen mit {1} Ansichten": "{0} témakör, {1} nézet",
+"Rechenwege Schritt für Schritt": "Levezetések lépésről lépésre",
+"Animationen und Schieberegler": "Animációk és csúszkák",
+"Export als LaTeX und Bild": "Exportálás LaTeX-be és képként",
+"{0} Sprachen": "{0} nyelv",
+"Kostenlos und ohne Anmeldung": "Ingyenes, regisztráció nélkül",
+"Probier es aus: Verschiebe den Punkt.": "Próbáld ki: mozgasd a pontot.",
+"Mehr dazu ›": "Bővebben ›",
+"Punkt auf dem Graphen verschieben": "A pont mozgatása a grafikonon",
+"Differentialrechnung öffnen": "Differenciálszámítás megnyitása",
+"Binomische Formeln": "Nevezetes azonosságok",
+"Strahlensatz": "Párhuzamos szelők tétele",
+"Baumdiagramm": "Fadiagram",
+"Sinus": "Szinusz",
+"Zinseszins": "Kamatos kamat",
 };

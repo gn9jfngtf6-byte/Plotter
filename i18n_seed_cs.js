@@ -1,4 +1,4 @@
-// i18n_seed_cs.js — mitgelieferte Basis-Übersetzungen Deutsch → Tschechisch (2224 Textbausteine)
+// i18n_seed_cs.js — mitgelieferte Basis-Übersetzungen Deutsch → Tschechisch (2236 Textbausteine)
 // Wird von 23_autotranslate.js geladen, sobald die Sprache gewählt wird. Schlüssel = deutscher Text mit
 // Platzhaltern ({n} = geschützte Zahl/Formel, <n>…</n> = Auszeichnung). Von Hand gepflegte Texte aus
 // 01_i18n.js haben Vorrang; Texte, die hier fehlen, übersetzt die Engine automatisch online und merkt sie sich.
@@ -3622,6 +3622,7 @@
 "Die Karte rechts zeigt den Rechenweg Schritt für Schritt und verändert sich mit dem Bild. Sie lässt sich mit {0}schliessen und links wieder einschalten.": "Karta vpravo ukazuje postup krok za krokem a mění se spolu s obrázkem. Zavřeš ji pomocí {0} a vlevo ji znovu zapneš.",
 "<0>Hilfe</0>{1}": "<0>Nápověda</0>{1}",
 "So bedienst du J√{0}": "Jak ovládat J√{0}",
+"So bedienst du {0}": "Jak ovládat {0}",
 "Thema finden": "Najdi téma",
 "Der Knopf mit dem Themennamen oben in der Leiste und das Logo links oben öffnen die Themenübersicht.": "Tlačítko s názvem tématu nahoře v liště a logo vlevo nahoře otevřou přehled témat.",
 "Dort kannst du nach Begriffen suchen (z.B. «Tangente», «Nullstellen», «Zinseszins») und direkt in die passende Ansicht springen.": "Tam můžeš hledat pojmy (např. „tečna“, „nulové body“, „složené úročení“) a skočit rovnou na správný pohled.",
@@ -3672,5 +3673,28 @@
 "Der Knopf führt zum zuletzt gewählten Thema. Die Hilfe findest du jederzeit unter «?».": "Tlačítko vede k naposledy zvolenému tématu. Nápovědu najdeš kdykoli pod „?“.",
 "Alle Themen": "Všechna témata",
 "Wonach suchst du? z.B. Tangente, Nullstellen, Zinseszins …": "Co hledáš? např. tečna, nulové body, složené úročení …",
-"Willkommen bei {0}": "Vítej v {0}"
+"Willkommen bei {0}": "Vítej v {0}",
+"? Hilfe zum Thema": "? Nápověda k tématu",
+"Dieses Thema": "Toto téma",
+"Allgemeine Bedienung": "Obecné ovládání",
+"Was in diesem Thema und in dieser Ansicht besonders ist": "Co je zvláštního v tomto tématu a v tomto zobrazení",
+"Das kannst du in dieser Ansicht einstellen": "Co můžeš v tomto zobrazení nastavit",
+"Alle Ansichten dieses Themas (anklicken, um zu wechseln)": "Všechna zobrazení tohoto tématu (kliknutím přepneš)",
+"Mathematik erleben, ausprobieren, verstehen.": "Matematiku zažít, vyzkoušet, pochopit.",
+"Im {0} gibt es zu verschiedenen mathematischen Themen eine interaktive Umgebung mit Graphen, Bildern, Beispielen und Lösungswegen.": "{0} nabízí k různým matematickým tématům interaktivní prostředí s grafy, obrázky, příklady a postupy řešení.",
+"{0} Themen mit {1} Ansichten": "Témata: {0}, zobrazení: {1}",
+"Rechenwege Schritt für Schritt": "Postupy krok za krokem",
+"Animationen und Schieberegler": "Animace a posuvníky",
+"Export als LaTeX und Bild": "Export do LaTeXu a obrázku",
+"{0} Sprachen": "Jazyky: {0}",
+"Kostenlos und ohne Anmeldung": "Zdarma a bez registrace",
+"Probier es aus: Verschiebe den Punkt.": "Vyzkoušej to: posuň bod.",
+"Mehr dazu ›": "Více k tomu ›",
+"Punkt auf dem Graphen verschieben": "Posunout bod na grafu",
+"Differentialrechnung öffnen": "Otevřít diferenciální počet",
+"Binomische Formeln": "Algebraické vzorce",
+"Strahlensatz": "Podobné trojúhelníky",
+"Baumdiagramm": "Stromový diagram",
+"Sinus": "Sinus",
+"Zinseszins": "Složené úročení",
 };

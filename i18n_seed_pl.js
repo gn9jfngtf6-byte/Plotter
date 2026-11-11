@@ -1,4 +1,4 @@
-// i18n_seed_pl.js — mitgelieferte Basis-Übersetzungen Deutsch → Polnisch (2224 Textbausteine)
+// i18n_seed_pl.js — mitgelieferte Basis-Übersetzungen Deutsch → Polnisch (2236 Textbausteine)
 // Wird von 23_autotranslate.js geladen, sobald die Sprache gewählt wird. Schlüssel = deutscher Text mit
 // Platzhaltern ({n} = geschützte Zahl/Formel, <n>…</n> = Auszeichnung). Von Hand gepflegte Texte aus
 // 01_i18n.js haben Vorrang; Texte, die hier fehlen, übersetzt die Engine automatisch online und merkt sie sich.
@@ -3622,6 +3622,7 @@
 "Die Karte rechts zeigt den Rechenweg Schritt für Schritt und verändert sich mit dem Bild. Sie lässt sich mit {0}schliessen und links wieder einschalten.": "Karta po prawej pokazuje tok rozwiązania krok po kroku i zmienia się razem z rysunkiem. Można ją zamknąć przyciskiem {0}i włączyć z powrotem po lewej.",
 "<0>Hilfe</0>{1}": "<0>Pomoc</0>{1}",
 "So bedienst du J√{0}": "Jak korzystać z J√{0}",
+"So bedienst du {0}": "Jak korzystać z {0}",
 "Thema finden": "Znajdowanie tematu",
 "Der Knopf mit dem Themennamen oben in der Leiste und das Logo links oben öffnen die Themenübersicht.": "Przycisk z nazwą tematu na górnym pasku i logo w lewym górnym rogu otwierają przegląd tematów.",
 "Dort kannst du nach Begriffen suchen (z.B. «Tangente», «Nullstellen», «Zinseszins») und direkt in die passende Ansicht springen.": "Tam możesz szukać pojęć (np. „styczna”, „miejsca zerowe”, „procent składany”) i od razu przejść do odpowiedniego widoku.",
@@ -3672,5 +3673,28 @@
 "Der Knopf führt zum zuletzt gewählten Thema. Die Hilfe findest du jederzeit unter «?».": "Przycisk prowadzi do ostatnio wybranego tematu. Pomoc znajdziesz zawsze pod „?”.",
 "Alle Themen": "Wszystkie tematy",
 "Wonach suchst du? z.B. Tangente, Nullstellen, Zinseszins …": "Czego szukasz? np. styczna, miejsca zerowe, procent składany …",
-"Willkommen bei {0}": "Witaj w {0}"
+"Willkommen bei {0}": "Witaj w {0}",
+"? Hilfe zum Thema": "? Pomoc do tematu",
+"Dieses Thema": "Ten temat",
+"Allgemeine Bedienung": "Obsługa ogólna",
+"Was in diesem Thema und in dieser Ansicht besonders ist": "Co jest szczególnego w tym temacie i w tym widoku",
+"Das kannst du in dieser Ansicht einstellen": "Co możesz ustawić w tym widoku",
+"Alle Ansichten dieses Themas (anklicken, um zu wechseln)": "Wszystkie widoki tego tematu (kliknij, aby przełączyć)",
+"Mathematik erleben, ausprobieren, verstehen.": "Matematykę odkryć, wypróbować, zrozumieć.",
+"Im {0} gibt es zu verschiedenen mathematischen Themen eine interaktive Umgebung mit Graphen, Bildern, Beispielen und Lösungswegen.": "{0} oferuje do różnych tematów matematycznych interaktywne środowisko z wykresami, rysunkami, przykładami i rozwiązaniami krok po kroku.",
+"{0} Themen mit {1} Ansichten": "Tematy: {0}, widoki: {1}",
+"Rechenwege Schritt für Schritt": "Rozwiązania krok po kroku",
+"Animationen und Schieberegler": "Animacje i suwaki",
+"Export als LaTeX und Bild": "Eksport do LaTeX-a i obrazu",
+"{0} Sprachen": "Języki: {0}",
+"Kostenlos und ohne Anmeldung": "Bezpłatnie i bez rejestracji",
+"Probier es aus: Verschiebe den Punkt.": "Spróbuj: przesuń punkt.",
+"Mehr dazu ›": "Więcej na ten temat ›",
+"Punkt auf dem Graphen verschieben": "Przesuń punkt na wykresie",
+"Differentialrechnung öffnen": "Otwórz rachunek różniczkowy",
+"Binomische Formeln": "Wzory skróconego mnożenia",
+"Strahlensatz": "Twierdzenie Talesa",
+"Baumdiagramm": "Drzewo prawdopodobieństwa",
+"Sinus": "Sinus",
+"Zinseszins": "Procent składany",
 };

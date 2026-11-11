@@ -1,4 +1,4 @@
-// i18n_seed_el.js — mitgelieferte Basis-Übersetzungen Deutsch → Griechisch (2224 Textbausteine)
+// i18n_seed_el.js — mitgelieferte Basis-Übersetzungen Deutsch → Griechisch (2236 Textbausteine)
 // Wird von 23_autotranslate.js geladen, sobald die Sprache gewählt wird. Schlüssel = deutscher Text mit
 // Platzhaltern ({n} = geschützte Zahl/Formel, <n>…</n> = Auszeichnung). Von Hand gepflegte Texte aus
 // 01_i18n.js haben Vorrang; Texte, die hier fehlen, übersetzt die Engine automatisch online und merkt sie sich.
@@ -3622,6 +3622,7 @@
 "Die Karte rechts zeigt den Rechenweg Schritt für Schritt und verändert sich mit dem Bild. Sie lässt sich mit {0}schliessen und links wieder einschalten.": "Η κάρτα δεξιά δείχνει τη λύση βήμα βήμα και αλλάζει μαζί με το σχήμα. Κλείνει με {0}και ενεργοποιείται ξανά αριστερά.",
 "<0>Hilfe</0>{1}": "<0>Βοήθεια</0>{1}",
 "So bedienst du J√{0}": "Πώς χρησιμοποιείς το J√{0}",
+"So bedienst du {0}": "Πώς χρησιμοποιείς το {0}",
 "Thema finden": "Εύρεση θέματος",
 "Der Knopf mit dem Themennamen oben in der Leiste und das Logo links oben öffnen die Themenübersicht.": "Το κουμπί με το όνομα του θέματος πάνω στη γραμμή και το λογότυπο πάνω αριστερά ανοίγουν την επισκόπηση θεμάτων.",
 "Dort kannst du nach Begriffen suchen (z.B. «Tangente», «Nullstellen», «Zinseszins») und direkt in die passende Ansicht springen.": "Εκεί μπορείς να ψάξεις όρους (π.χ. «εφαπτομένη», «ρίζες», «ανατοκισμός») και να πας κατευθείαν στην κατάλληλη προβολή.",
@@ -3672,5 +3673,28 @@
 "Der Knopf führt zum zuletzt gewählten Thema. Die Hilfe findest du jederzeit unter «?».": "Το κουμπί οδηγεί στο θέμα που επιλέχθηκε τελευταίο. Η βοήθεια βρίσκεται πάντα στο «?».",
 "Alle Themen": "Όλα τα θέματα",
 "Wonach suchst du? z.B. Tangente, Nullstellen, Zinseszins …": "Τι ψάχνεις; π.χ. εφαπτομένη, ρίζες, ανατοκισμός …",
-"Willkommen bei {0}": "Καλώς ήρθες στο {0}"
+"Willkommen bei {0}": "Καλώς ήρθες στο {0}",
+"? Hilfe zum Thema": "? Βοήθεια για το θέμα",
+"Dieses Thema": "Αυτό το θέμα",
+"Allgemeine Bedienung": "Γενική χρήση",
+"Was in diesem Thema und in dieser Ansicht besonders ist": "Τι είναι ιδιαίτερο σε αυτό το θέμα και σε αυτή την προβολή",
+"Das kannst du in dieser Ansicht einstellen": "Τι μπορείς να ρυθμίσεις σε αυτή την προβολή",
+"Alle Ansichten dieses Themas (anklicken, um zu wechseln)": "Όλες οι προβολές αυτού του θέματος (κλικ για αλλαγή)",
+"Mathematik erleben, ausprobieren, verstehen.": "Ζήσε, δοκίμασε και κατανόησε τα μαθηματικά.",
+"Im {0} gibt es zu verschiedenen mathematischen Themen eine interaktive Umgebung mit Graphen, Bildern, Beispielen und Lösungswegen.": "Το {0} προσφέρει για διάφορα μαθηματικά θέματα ένα διαδραστικό περιβάλλον με γραφικές παραστάσεις, εικόνες, παραδείγματα και λύσεις βήμα βήμα.",
+"{0} Themen mit {1} Ansichten": "{0} θέματα με {1} προβολές",
+"Rechenwege Schritt für Schritt": "Λύσεις βήμα βήμα",
+"Animationen und Schieberegler": "Κινούμενα σχέδια και ρυθμιστικά",
+"Export als LaTeX und Bild": "Εξαγωγή σε LaTeX και εικόνα",
+"{0} Sprachen": "{0} γλώσσες",
+"Kostenlos und ohne Anmeldung": "Δωρεάν και χωρίς εγγραφή",
+"Probier es aus: Verschiebe den Punkt.": "Δοκίμασέ το: μετακίνησε το σημείο.",
+"Mehr dazu ›": "Περισσότερα ›",
+"Punkt auf dem Graphen verschieben": "Μετακίνηση του σημείου πάνω στη γραφική παράσταση",
+"Differentialrechnung öffnen": "Άνοιγμα του διαφορικού λογισμού",
+"Binomische Formeln": "Ταυτότητες",
+"Strahlensatz": "Θεώρημα του Θαλή",
+"Baumdiagramm": "Δενδροδιάγραμμα",
+"Sinus": "Ημίτονο",
+"Zinseszins": "Ανατοκισμός",
 };

@@ -1,9 +1,24 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+<script>
+/* Keine Töne: J√10 spielt nie etwas ab. Web-Audio und <audio> werden stumm geschaltet, bevor eine Bibliothek
+   (z. B. MathLive mit Tasten- und «Plonk»-Tönen) sie benutzen kann. */
+(function () {
+  try {
+    var noop = function () {}, ok = function () { return Promise.resolve(); };
+    var node = function () { return { connect: noop, disconnect: noop, start: noop, stop: noop, buffer: null, gain: { value: 0, setValueAtTime: noop }, frequency: { value: 0, setValueAtTime: noop } }; };
+    var Quiet = function () { return { state: 'suspended', currentTime: 0, destination: {}, sampleRate: 44100, resume: ok, suspend: ok, close: ok,
+      createBufferSource: node, createGain: node, createOscillator: node, createBuffer: function () { return {}; }, decodeAudioData: function () { return Promise.resolve(null); } }; };
+    window.AudioContext = Quiet; window.webkitAudioContext = Quiet;
+    if (window.HTMLMediaElement) HTMLMediaElement.prototype.play = function () { try { this.muted = true; } catch (e) {} return Promise.resolve(); };
+  } catch (e) { /* ältere Browser */ }
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>J√10</title>
+<meta name="description" content="J√10 – Mathematik erleben, ausprobieren, verstehen: eine interaktive Umgebung zu verschiedenen mathematischen Themen mit Graphen, Bildern, Beispielen und Lösungswegen, kostenlos und ohne Anmeldung im Browser.">
 
 <!-- Für MathLive.convertLatexToMarkup() — statisches Formel-Rendering ausserhalb
      eines <math-field> (Legende, Kurven-Beschriftungen, ...), siehe
@@ -84,8 +99,8 @@ body { background: var(--bg-app); font-family: var(--font-ui); font-size: 13px; 
 .brand-name { color: var(--text); display: flex; align-items: center; }
 #home-btn { margin-left:auto; font-size:12px; font-weight:600; padding:6px 10px; border-radius:999px; border:1px solid var(--border-input); background:var(--accent-soft); color:var(--accent); box-shadow:none; }
 #home-btn:hover { background:var(--accent); color:#fff; }
-.brand-mark { width: 66px; height: 34px; flex: none; background: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2258%22 height=%2230%22 viewBox=%220 0 270.1 140.5%22%3E%3Cdefs%3E%3ClinearGradient id=%22g%22 x1=%220%22 y1=%221%22 x2=%221%22 y2=%220%22%3E%3Cstop offset=%220%22 stop-color=%22%235b92ff%22/%3E%3Cstop offset=%221%22 stop-color=%22%237c5cff%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg transform=%22translate(8.5,130.0)%22%3E%3Cg transform=%22scale(1,-1)%22%3E%3Cpath fill=%22none%22 stroke-width=%2213.0%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke=%22url(%23g)%22 d=%22M6.5 26.0A26.0 26.0 0 0 1 58.5 26.0V100.0H78.5L95.5 2.0L133.1 119.5H253.1%22/%3E%3Cpath fill=%22none%22 stroke-width=%2213.0%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke=%22%231a2033%22 d=%22M150.6 83.0L169.6 100.0M169.6 100.0V0 M193.1 50.0A30.0 50.0 0 1 0 253.1 50.0A30.0 50.0 0 1 0 193.1 50.0Z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") no-repeat center / 66px 34px; }
-body.dark .brand-mark { background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2258%22 height=%2230%22 viewBox=%220 0 270.1 140.5%22%3E%3Cdefs%3E%3ClinearGradient id=%22g%22 x1=%220%22 y1=%221%22 x2=%221%22 y2=%220%22%3E%3Cstop offset=%220%22 stop-color=%22%235b92ff%22/%3E%3Cstop offset=%221%22 stop-color=%22%237c5cff%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg transform=%22translate(8.5,130.0)%22%3E%3Cg transform=%22scale(1,-1)%22%3E%3Cpath fill=%22none%22 stroke-width=%2213.0%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke=%22url(%23g)%22 d=%22M6.5 26.0A26.0 26.0 0 0 1 58.5 26.0V100.0H78.5L95.5 2.0L133.1 119.5H253.1%22/%3E%3Cpath fill=%22none%22 stroke-width=%2213.0%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke=%22%23e8ebf4%22 d=%22M150.6 83.0L169.6 100.0M169.6 100.0V0 M193.1 50.0A30.0 50.0 0 1 0 253.1 50.0A30.0 50.0 0 1 0 193.1 50.0Z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
+.brand-mark, #boot-mark { width: 66px; height: 34px; flex: none; background: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2258%22 height=%2230%22 viewBox=%220 0 270.1 140.5%22%3E%3Cdefs%3E%3ClinearGradient id=%22g%22 x1=%220%22 y1=%221%22 x2=%221%22 y2=%220%22%3E%3Cstop offset=%220%22 stop-color=%22%235b92ff%22/%3E%3Cstop offset=%221%22 stop-color=%22%237c5cff%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg transform=%22translate(8.5,130.0)%22%3E%3Cg transform=%22scale(1,-1)%22%3E%3Cpath fill=%22none%22 stroke-width=%2213.0%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke=%22url(%23g)%22 d=%22M6.5 26.0A26.0 26.0 0 0 1 58.5 26.0V100.0H78.5L95.5 2.0L133.1 119.5H253.1%22/%3E%3Cpath fill=%22none%22 stroke-width=%2213.0%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke=%22%231a2033%22 d=%22M150.6 83.0L169.6 100.0M169.6 100.0V0 M193.1 50.0A30.0 50.0 0 1 0 253.1 50.0A30.0 50.0 0 1 0 193.1 50.0Z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") no-repeat center / 66px 34px; }
+body.dark .brand-mark, body.dark #boot-mark { background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2258%22 height=%2230%22 viewBox=%220 0 270.1 140.5%22%3E%3Cdefs%3E%3ClinearGradient id=%22g%22 x1=%220%22 y1=%221%22 x2=%221%22 y2=%220%22%3E%3Cstop offset=%220%22 stop-color=%22%235b92ff%22/%3E%3Cstop offset=%221%22 stop-color=%22%237c5cff%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg transform=%22translate(8.5,130.0)%22%3E%3Cg transform=%22scale(1,-1)%22%3E%3Cpath fill=%22none%22 stroke-width=%2213.0%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke=%22url(%23g)%22 d=%22M6.5 26.0A26.0 26.0 0 0 1 58.5 26.0V100.0H78.5L95.5 2.0L133.1 119.5H253.1%22/%3E%3Cpath fill=%22none%22 stroke-width=%2213.0%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke=%22%23e8ebf4%22 d=%22M150.6 83.0L169.6 100.0M169.6 100.0V0 M193.1 50.0A30.0 50.0 0 1 0 253.1 50.0A30.0 50.0 0 1 0 193.1 50.0Z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
 
 .panel { padding: 12px 16px; border-bottom: 1px solid var(--border); transition: background 0.15s; }
 .panel.collapsed:hover { background: var(--btn-hover); }
@@ -233,8 +248,11 @@ math-field.func-inp-ce {
   cursor: text;
 }
 math-field.func-inp-ce::part(virtual-keyboard-toggle) {
-  opacity: 0.45;
-  transform: scale(0.8);
+  opacity: 0.55;
+  /* Feste, kleine Fläche: MathLive reserviert bei Fingerbedienung sonst 60×60 px (und "transform: scale" verkleinert
+     nur das Bild, nicht den belegten Platz) — in den schmalen Feldern der Themen blieben dann rund 50 px für die
+     Formel, von «x² − 2x − 3» war nur noch «x − 3» zu sehen, und das Feld wurde doppelt so hoch. */
+  width: 30px; height: 30px; min-width: 30px; min-height: 30px; margin-right: 0;
   /* MathLive schaltet den Umschalter intern per Shadow-DOM-Regel
      ("@media (hover:none) and (pointer:coarse) { :host(:not(:focus))
      .ML__container { pointer-events:none } }") komplett stumm, SOLANGE
@@ -264,8 +282,20 @@ math-field.func-inp-ce::part(menu-toggle) {
    nicht mehr bei jedem Antippen des Feldes von selbst aufklappt und die
    Eingabe verdeckt); auf Geräten mit Maus/Trackpad blendet ihn das aus, da
    dort meist die physische Tastatur benutzt wird. */
-@media not (pointer: coarse) {
+/* any-pointer statt pointer: Ein Windows-Notebook mit Touchscreen oder eine interaktive Wandtafel meldet als
+   HAUPT-Zeiger die Maus (pointer: fine) — der Umschalter fehlte dort, und weil die Windows-Bildschirmtastatur bei
+   Formelfeldern nicht von selbst erscheint, liess sich an der Tafel ohne Tastatur gar nichts eintippen. */
+@media not (any-pointer: coarse) {
   math-field.func-inp-ce::part(virtual-keyboard-toggle) { display: none; }
+}
+@media (any-pointer: coarse) {
+  /* Zeile «f(x) = [Feld] [Übernehmen]»: Der Knopf rutscht unter das Feld, damit dieses die ganze Breite bekommt. */
+  #sidebar .toolbar:has(> math-field.func-inp-ce) { flex-wrap: wrap !important; }
+  #sidebar .toolbar:has(> math-field.func-inp-ce) > math-field.func-inp-ce { flex: 1 1 150px !important; }
+  #sidebar .toolbar:has(> math-field.func-inp-ce) > button { margin-left: auto; }
+}
+@media (pointer: coarse) {
+  math-field.func-inp-ce::part(virtual-keyboard-toggle) { width: 36px; height: 34px; min-width: 36px; min-height: 34px; }
 }
 
 body.delete-mode #canvas { cursor:crosshair !important; }
@@ -690,6 +720,9 @@ body.beam #solve-tooltip:has(.sv) { width: min(720px, calc(100% - 20px)) !import
 body.beam .sv { font-size: 19px; }
 body.beam .sv span, body.beam .sv label { font-size: inherit; }
 body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !important; }
+.sv-sit { margin: 6px 0 10px; padding: 8px 11px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-input, transparent); line-height: 1.45; }
+.sv-sit-h { font-size: 0.78em; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 3px; }
+.sv-sit-q { margin-top: 5px; }
 .sv-note { margin: 5px 0; color: var(--text-muted); font-size: 0.88em; font-style: italic; }
 .sv-sub { margin: 3px 0 3px 4px; padding-left: 10px; border-left: 2px solid var(--border); }
 .sv-tabw { margin: 6px 0; overflow-x: auto; scrollbar-width: thin; }
@@ -776,13 +809,15 @@ body[data-env="inv"] #sidebar > .panel:not([data-envs~="inv"]),
 body[data-env="intro"] #sidebar > .panel:not([data-envs~="intro"]),
 body[data-env="sim"] #sidebar > .panel:not([data-envs~="sim"]),
 body[data-env="lo"] #sidebar > .panel:not([data-envs~="lo"]),
+body[data-env="set"] #sidebar > .panel:not([data-envs~="set"]),
+body[data-env="prob"] #sidebar > .panel:not([data-envs~="prob"]),
 body[data-env="geo"] #sidebar > .panel:not([data-envs~="geo"]),
 body[data-env="seq"] #sidebar > .panel:not([data-envs~="seq"]),
 body[data-env="3d"] #sidebar > .panel:not([data-envs~="3d"]),
 body[data-env="stat"] #sidebar > .panel:not([data-envs~="stat"]),
 body[data-env="fin"] #sidebar > .panel:not([data-envs~="fin"]),
 body[data-env="alg"] #sidebar > .panel:not([data-envs~="alg"]) { display:none !important; }
-body[data-env="3d"] .tb-2d button:not(#pointer-mode-btn), body[data-env="alg"] .tb-2d button:not(#pointer-mode-btn), body[data-env="stat"] .tb-2d button:not(#pointer-mode-btn), body[data-env="fin"] .tb-2d button:not(#pointer-mode-btn), body[data-env="diff"] .tb-2d button:not(#pointer-mode-btn), body[data-env="int"] .tb-2d button:not(#pointer-mode-btn), body[data-env="lin"] .tb-2d button:not(#pointer-mode-btn), body[data-env="quad"] .tb-2d button:not(#pointer-mode-btn), body[data-env="pow"] .tb-2d button:not(#pointer-mode-btn), body[data-env="exp"] .tb-2d button:not(#pointer-mode-btn), body[data-env="trig"] .tb-2d button:not(#pointer-mode-btn), body[data-env="inv"] .tb-2d button:not(#pointer-mode-btn), body[data-env="intro"] .tb-2d button:not(#pointer-mode-btn), body[data-env="sim"] .tb-2d button:not(#pointer-mode-btn) , body[data-env="seq"] .tb-2d button:not(#pointer-mode-btn), body[data-env="lo"] .tb-2d button:not(#pointer-mode-btn) { display:none !important; }
+body[data-env="3d"] .tb-2d button:not(#pointer-mode-btn), body[data-env="alg"] .tb-2d button:not(#pointer-mode-btn), body[data-env="stat"] .tb-2d button:not(#pointer-mode-btn), body[data-env="fin"] .tb-2d button:not(#pointer-mode-btn), body[data-env="diff"] .tb-2d button:not(#pointer-mode-btn), body[data-env="int"] .tb-2d button:not(#pointer-mode-btn), body[data-env="lin"] .tb-2d button:not(#pointer-mode-btn), body[data-env="quad"] .tb-2d button:not(#pointer-mode-btn), body[data-env="pow"] .tb-2d button:not(#pointer-mode-btn), body[data-env="exp"] .tb-2d button:not(#pointer-mode-btn), body[data-env="trig"] .tb-2d button:not(#pointer-mode-btn), body[data-env="inv"] .tb-2d button:not(#pointer-mode-btn), body[data-env="intro"] .tb-2d button:not(#pointer-mode-btn), body[data-env="sim"] .tb-2d button:not(#pointer-mode-btn) , body[data-env="seq"] .tb-2d button:not(#pointer-mode-btn), body[data-env="lo"] .tb-2d button:not(#pointer-mode-btn), body[data-env="set"] .tb-2d button:not(#pointer-mode-btn), body[data-env="prob"] .tb-2d button:not(#pointer-mode-btn) { display:none !important; }
 body[data-env="alg"] #canvas-label-overlay, body[data-env="alg"] #func-labels-overlay, body[data-env="alg"] #solve-tooltip, body[data-env="alg"] #tooltip,
 body[data-env="stat"] #canvas-label-overlay, body[data-env="stat"] #func-labels-overlay, body[data-env="stat"] #solve-tooltip, body[data-env="stat"] #tooltip,
 body[data-env="fin"] #canvas-label-overlay, body[data-env="fin"] #func-labels-overlay, body[data-env="fin"] #solve-tooltip, body[data-env="fin"] #tooltip,
@@ -797,7 +832,9 @@ body[data-env="inv"] #canvas-label-overlay, body[data-env="inv"] #func-labels-ov
 body[data-env="intro"] #canvas-label-overlay, body[data-env="intro"] #func-labels-overlay, body[data-env="intro"] #solve-tooltip, body[data-env="intro"] #tooltip,
 body[data-env="sim"] #canvas-label-overlay, body[data-env="sim"] #func-labels-overlay, body[data-env="sim"] #solve-tooltip, body[data-env="sim"] #tooltip,
 body[data-env="seq"] #canvas-label-overlay, body[data-env="seq"] #func-labels-overlay, body[data-env="seq"] #solve-tooltip, body[data-env="seq"] #tooltip,
-body[data-env="lo"] #canvas-label-overlay, body[data-env="lo"] #func-labels-overlay, body[data-env="lo"] #solve-tooltip, body[data-env="lo"] #tooltip { display:none !important; }
+body[data-env="lo"] #canvas-label-overlay, body[data-env="lo"] #func-labels-overlay, body[data-env="lo"] #solve-tooltip, body[data-env="lo"] #tooltip,
+body[data-env="set"] #canvas-label-overlay, body[data-env="set"] #func-labels-overlay, body[data-env="set"] #solve-tooltip, body[data-env="set"] #tooltip,
+body[data-env="prob"] #canvas-label-overlay, body[data-env="prob"] #func-labels-overlay, body[data-env="prob"] #solve-tooltip, body[data-env="prob"] #tooltip { display:none !important; }
 /* ── Themenübersicht, Hilfe, Hinweise (33_topics.js) ── */
 .tp-overlay { position:fixed; inset:0; z-index:10000; background:rgba(20,28,50,0.45); backdrop-filter:blur(3px); display:none; align-items:flex-start; justify-content:center; overflow:auto; padding:28px 16px; }
 /* Startseite: ganze Seite statt Fenster (kein abgedunkelter Hintergrund) */
@@ -909,7 +946,105 @@ body[data-env="lo"] #canvas-label-overlay, body[data-env="lo"] #func-labels-over
   #topics .tp-card.tp-open { border-radius:12px; }
   .tp-continue { max-width:100%; order:3; width:100%; justify-content:center; }
 }
-.tp-help { width:min(720px, 100%); }
+/* ── Startseite: Bühne mit Leitsatz, Bild zum Ziehen, Gruppenfarben (33_topics.js) ── */
+#topics.tp-overlay { background:radial-gradient(1100px 520px at 8% -8%, rgba(61,123,247,0.13), transparent 62%), radial-gradient(900px 480px at 100% 0%, rgba(124,92,240,0.11), transparent 60%), var(--bg-app); }
+.tp-hero { position:relative; z-index:2; border:1px solid var(--border); border-radius:22px; padding:18px 24px 22px; margin-bottom:14px; box-shadow:var(--shadow-md); background:linear-gradient(135deg, rgba(61,123,247,0.09), rgba(61,123,247,0) 42%), linear-gradient(315deg, rgba(124,92,240,0.09), rgba(124,92,240,0) 45%), var(--bg-sidebar); }
+#topics .tp-hero .tp-head { margin-bottom:6px; }
+#topics .tp-title b { font-size:19px; font-weight:600; color:var(--text-muted); letter-spacing:0; gap:9px; }
+#topics .tp-mark-inline.brand-mark { width:70px; height:36px; background-size:70px 36px; }
+.tp-hero-body { display:grid; grid-template-columns:minmax(0, 1.12fr) minmax(0, 0.88fr); gap:30px; align-items:center; }
+.tp-hero-l { min-width:0; }
+.tp-claim { font-size:38px; line-height:1.1; font-weight:800; letter-spacing:-0.028em; margin:2px 0 12px; color:var(--accent); background:linear-gradient(92deg, #2f6df0 0%, #7c5cf0 62%, #c2489f 100%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; padding-bottom:3px; }
+body.dark .tp-claim { background-image:linear-gradient(92deg, #7fa9ff 0%, #a994ff 62%, #f08fcb 100%); }
+.tp-lead { font-size:15.5px; line-height:1.55; color:var(--text); opacity:.86; margin:0 0 16px; max-width:60ch; }
+#topics .tp-search { margin:0 0 14px; max-width:none; padding:11px 16px; background:var(--bg-input); }
+.tp-facts { display:flex; flex-wrap:wrap; gap:6px 7px; }
+.tp-fact { display:inline-flex; align-items:center; gap:6px; font:inherit; font-size:12.5px; line-height:1.2; height:auto; color:var(--text); border:1px solid var(--border); background:var(--bg-app); border-radius:999px; padding:5px 11px 5px 9px; cursor:pointer; box-shadow:none; }
+.tp-fact:hover { border-color:var(--g, var(--accent)); background:var(--bg-input); }
+.tp-fact::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--g, var(--accent)); flex:none; }
+/* Bild zum Ziehen */
+.tp-demo { border:1px solid var(--border); border-radius:16px; background:var(--bg-input); box-shadow:var(--shadow-sm); overflow:hidden; min-width:0; }
+.tp-d-svg { display:block; width:100%; height:auto; cursor:grab; touch-action:pan-y; outline:none; -webkit-user-select:none; user-select:none; }
+.tp-d-svg:active { cursor:grabbing; }
+.tp-d-svg:focus-visible { box-shadow:inset 0 0 0 2px var(--accent); }
+.tp-d-grid { stroke:var(--border); stroke-width:1; fill:none; }
+.tp-d-ax { stroke:var(--text-label); stroke-width:1.3; fill:none; }
+.tp-d-curve { stroke:var(--accent); stroke-width:3; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+.tp-d-tan { stroke:#e8590c; stroke-width:2.4; fill:none; stroke-linecap:round; }
+.tp-d-tri { stroke:#12a150; stroke-width:1.6; stroke-dasharray:5 4; fill:none; }
+.tp-d-lab { font-size:12px; fill:#12a150; font-weight:600; font-variant-numeric:tabular-nums; }
+.tp-d-f { font-size:13px; fill:var(--accent); font-weight:600; }
+.tp-d-pt { fill:var(--bg-input); stroke:#e8590c; stroke-width:3; }
+.tp-d-halo { fill:#e8590c; opacity:.16; transform-box:fill-box; transform-origin:center; }
+.tp-d-idle .tp-d-halo { animation:tp-pulse 1.9s ease-in-out infinite; }
+@keyframes tp-pulse { 0%, 100% { transform:scale(0.75); opacity:.26; } 50% { transform:scale(1.45); opacity:.07; } }
+.tp-d-read { display:flex; flex-wrap:wrap; gap:4px 18px; padding:8px 14px 2px; font-size:13.5px; font-weight:600; font-variant-numeric:tabular-nums; border-top:1px solid var(--border); color:var(--text); }
+.tp-d-read span { min-width:6.4em; } .tp-d-ry { color:var(--accent); } .tp-d-rm { color:#e8590c; }
+.tp-d-cap { display:flex; align-items:center; gap:10px; padding:2px 8px 8px 14px; }
+.tp-d-hint { font-size:12px; color:var(--text-muted); flex:1; min-width:0; }
+.tp-d-more { border:none; background:transparent; box-shadow:none; color:var(--accent); font:inherit; font-size:12px; font-weight:600; cursor:pointer; padding:4px 8px; border-radius:8px; white-space:nowrap; }
+.tp-d-more:hover { background:var(--accent-soft); }
+@media (prefers-reduced-motion: reduce) { .tp-d-idle .tp-d-halo { animation:none; } #topics .tp-card { transition:none; } }
+/* Drei Schritte: schlanke Leiste mit Symbolkacheln */
+#topics .tp-welcome { margin:0 0 16px; }
+#topics .tp-step { background:transparent; border:none; padding:4px 6px; gap:11px; align-items:flex-start; }
+#topics .tp-step-ic { width:34px; height:34px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:17px; background:var(--bg-sidebar); border:1px solid var(--border); box-shadow:var(--shadow-sm); }
+#topics .tp-step b { font-size:13.5px; }
+/* «Alle Themen» mit Schnellwahl */
+.tp-allrow { display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; margin:0 0 2px; }
+#topics .tp-all { font-size:20px; letter-spacing:-0.01em; margin:0; }
+#topics .tp-nav { margin:0; }
+.tp-dot { width:8px; height:8px; border-radius:50%; background:var(--g, var(--accent)); flex:none; }
+#topics .tp-navbtn:hover { border-color:var(--g, var(--accent)); color:var(--text); background:var(--bg-input); }
+/* Gruppenfarben: Titel, Symbolkachel, Karte beim Überfahren */
+#topics .tp-group h2 { display:flex; align-items:center; gap:10px; font-size:21px; font-weight:700; letter-spacing:-0.012em; text-transform:none; color:var(--text); margin:22px 0 10px; }
+#topics .tp-group h2::before { content:''; width:6px; height:22px; border-radius:3px; background:var(--g, var(--accent)); }
+#topics .tp-card { border-radius:14px; transition:box-shadow .15s, border-color .15s, transform .15s; box-shadow:var(--shadow-sm); }
+#topics .tp-card:hover { border-color:var(--g, var(--accent)); box-shadow:var(--shadow-md); transform:translateY(-2px); }
+#topics .tp-card.tp-open { transform:none; border-color:var(--g, var(--accent)); }
+#topics .tp-card.tp-cur { border-color:var(--g, var(--accent)); box-shadow:0 0 0 2px var(--accent-soft); }
+#topics .tp-card-top { padding:12px 12px 6px; gap:11px; }
+#topics .tp-card-top:hover b { color:var(--g, var(--accent)); }
+#topics .tp-ic { width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--g, var(--accent)); background:var(--accent-soft); background:color-mix(in srgb, var(--g, var(--accent)) 13%, transparent); }
+#topics .tp-hit .tp-ic { width:auto; height:auto; background:none; font-size:20px; }
+#topics .tp-more { border-radius:0 0 13px 13px; }
+#topics .tp-more:hover { color:var(--g, var(--accent)); }
+#topics .tp-card.tp-open .tp-more { color:var(--g, var(--accent)); border-radius:0; }
+#topics .tp-views { border-color:var(--g, var(--accent)); border-top-color:var(--border); }
+@media (max-width: 980px) { .tp-hero-body { grid-template-columns:1fr; gap:16px; } .tp-claim { font-size:32px; } .tp-demo { max-width:520px; } }
+@media (max-width: 760px) {
+  .tp-hero { padding:12px 14px 14px; border-radius:16px; margin-bottom:12px; }
+  .tp-claim { font-size:25px; margin-bottom:8px; } .tp-lead { font-size:14px; margin-bottom:12px; }
+  .tp-demo { display:none; }
+  #topics .tp-title b { font-size:16px; } #topics .tp-mark-inline.brand-mark { width:58px; height:30px; background-size:58px 30px; }
+  .tp-searching .tp-claim, .tp-searching .tp-lead, .tp-searching .tp-facts { display:none; }
+  #topics .tp-card:hover { transform:none; }
+  #topics .tp-all { font-size:18px; }
+    #topics .tp-group h2 { font-size:19px; margin:18px 0 8px; }
+  .tp-facts { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; margin:0 -14px; padding:0 14px; } .tp-facts::-webkit-scrollbar { display:none; } .tp-fact { white-space:nowrap; flex:none; }
+}
+/* Name im Fliesstext: Wurzelstrich über der ganzen 10 (33_topics.js brandTxt) */
+.jw { white-space:nowrap; --jw:0.08em; } .jw-h { font-size:0; } b .jw, strong .jw, h1 .jw, h2 .jw, h3 .jw { --jw:0.1em; }
+.jw-r { position:relative; display:inline-block; line-height:0.94; margin-left:0.56em; padding:0 0.05em 0 0.03em; border-top:var(--jw) solid currentColor; }
+.jw-r svg { position:absolute; right:100%; top:calc(0px - var(--jw)); width:0.56em; height:calc(100% + var(--jw)); overflow:visible; fill:none; stroke:currentColor; stroke-width:var(--jw); }
+.tp-help { width:min(760px, 100%); }
+.tp-help-tabs { display:flex; gap:6px; border-bottom:1px solid var(--border); margin:0 0 10px; }
+.tp-help-tab { border:none; background:transparent; color:var(--text-muted); font:inherit; font-size:13px; font-weight:600; padding:7px 12px; border-bottom:2px solid transparent; margin-bottom:-1px; cursor:pointer; border-radius:8px 8px 0 0; }
+.tp-help-tab:hover { background:var(--btn-hover); color:var(--text); }
+.tp-help-tab.on { color:var(--accent); border-bottom-color:var(--accent); }
+.tp-help-about { font-size:14px; line-height:1.5; margin:4px 0 6px; color:var(--text); }
+.tp-help-now { background:var(--accent-soft); border-radius:10px; padding:2px 12px 8px; margin:8px 0 4px; }
+.tp-help-now p { font-size:13px; line-height:1.5; margin:4px 0; }
+.tp-help-views { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px; margin-top:6px; }
+.tp-help-view { display:flex; flex-direction:column; gap:2px; text-align:left; align-items:flex-start; padding:7px 10px; border:1px solid var(--border); border-radius:9px; background:var(--bg-sidebar); color:var(--text); font:inherit; cursor:pointer; white-space:normal; height:auto; }
+.tp-help-view:hover { background:var(--btn-hover); }
+.tp-help-view.on { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+.tp-help-view b { font-size:12.5px; }
+.tp-help-view span { font-size:11.5px; line-height:1.35; color:var(--text-muted); }
+@media (max-width: 700px) { .tp-help-views { grid-template-columns:1fr; } }
+#env-help-btn { font-weight:600; color:var(--accent); border-color:var(--accent); background:var(--accent-soft); }
+#env-help-btn:hover { filter:brightness(0.97); }
+body.beam .tp-help-sec ul, body.beam .tp-help-now p, body.beam .tp-help-about { font-size:17px; } body.beam .tp-help-view b { font-size:16px; } body.beam .tp-help-view span { font-size:14px; }
 .tp-help-sec h2 { font-size:13px; margin:12px 0 4px; }
 .tp-help-sec ul { margin:0 0 0 18px; padding:0; display:flex; flex-direction:column; gap:4px; font-size:13px; line-height:1.45; }
 #topic-foot { margin:14px 10px 18px; padding:10px 12px; border:1px dashed var(--border); border-radius:10px; font-size:11.5px; color:var(--text-muted); line-height:1.4; }
@@ -988,6 +1123,18 @@ body.mode3d .tb-2d button:not(#pointer-mode-btn), body.mode3d #canvas-label-over
 .td-opts { flex-direction:column; align-items:flex-start; row-gap:3px; }
 .td-hint { position:absolute; left:12px; top:10px; z-index:20; font-size:11.5px; line-height:1.4; color:var(--text-muted); background:var(--bg-sidebar); border:1px solid var(--border); border-radius:8px; padding:5px 10px; max-width:min(70%,420px); pointer-events:none; opacity:.9; }
 .td-hint { transition:opacity .5s; }
+/* Überschrift mit Hinweis zur Ansicht (02_core.js envHint): verlinkte Wörter heben Punkte im Bild hervor */
+.env-hint { flex-shrink:0; padding:7px 16px; font-size:14px; line-height:1.4; color:var(--text); background:var(--bg-canvas); border-bottom:1px solid var(--border); }
+.env-hint .eh-l { color:var(--active-text); font-weight:600; border-bottom:1.5px dotted currentColor; border-radius:3px; padding:0 1px; cursor:pointer; }
+.env-hint .eh-l:hover { background:var(--accent-soft); }
+.env-hint .eh-reset { float:right; margin:0 0 4px 12px; font-size:12.5px; padding:3px 10px; border-radius:8px; white-space:nowrap; }
+.eh-svg { position:absolute; pointer-events:none; z-index:40; overflow:visible; animation:ehPulse .75s ease-in-out infinite alternate; }
+.eh-svg .eh-glow { fill:none; stroke:var(--accent); stroke-width:11; stroke-opacity:0.28; stroke-linecap:round; stroke-linejoin:round; }
+.eh-svg .eh-core { fill:none; stroke:var(--accent); stroke-width:3.5; stroke-opacity:0.9; stroke-linecap:round; stroke-linejoin:round; }
+.eh-svg .eh-box { fill:var(--accent-soft); stroke:var(--accent); stroke-width:2.5; }
+.eh-svg .eh-ring { fill:none; stroke:var(--accent); stroke-width:3.5; }
+@keyframes ehPulse { from { opacity:1; } to { opacity:0.45; } }
+@media (max-width: 700px) { .env-hint { font-size:12.5px; padding:5px 10px; } }
 .td-hint.td-hint-done { opacity:0; }
 @media (max-width: 700px) { .td-hint { top:auto; bottom:10px; } }
 .td-h-touch { display:none; }
@@ -1050,9 +1197,14 @@ body.beam .guide-bar .geo-hint-btn { font-size:14px; }
   .geo-row { margin-bottom:8px; }
   .geo-num { width:74px; padding:5px 6px; }
 }
+/* Startbild: deckt die Arbeitsfläche ab, bis die Startseite aufgebaut ist (33_topics.js entfernt es), damit man beim Öffnen nicht kurz den alten Plotter sieht */
+#boot-cover { position:fixed; inset:0; z-index:10001; background:var(--bg-app); display:flex; align-items:center; justify-content:center; transition:opacity .15s ease; }
+#boot-cover.gone { opacity:0; pointer-events:none; }
+#boot-mark { transform:scale(1.8); opacity:.55; }
 </style>
 </head>
 <body>
+<div id="boot-cover" aria-hidden="true"><div id="boot-mark"></div></div>
 
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 <div class="app">
@@ -1433,14 +1585,14 @@ body.beam .guide-bar .geo-hint-btn { font-size:14px; }
     <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
     <select id="itg-view" style="width:100%;"></select>
     <div id="itg-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
-    <div class="subpanel-label">Funktion</div>
+    <div class="subpanel-label" id="itg-f-head">Funktion</div>
     <div class="toolbar" style="gap:5px;align-items:center;flex-wrap:nowrap;">
-      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">f(x) =</span>
+      <span id="itg-f-lab" translate="no" style="font-size:12px;color:var(--text-muted);flex-shrink:0;">f(x) =</span>
       <math-field id="itg-fn-input" class="func-inp-ce" placeholder="z.B. x^2" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
       <button type="button" id="itg-apply" style="flex-shrink:0;">Übernehmen</button>
     </div>
     <div id="itg-g-row" class="toolbar" style="gap:5px;align-items:center;flex-wrap:nowrap;margin-top:4px;display:none;">
-      <span style="font-size:12px;color:var(--text-muted);flex-shrink:0;">g(x) =</span>
+      <span id="itg-g-lab" translate="no" style="font-size:12px;color:var(--text-muted);flex-shrink:0;">g(x) =</span>
       <math-field id="itg-g-input" class="func-inp-ce" placeholder="z.B. x" style="flex:1;min-width:0;font-size:13px;padding:2px 8px;border:1px solid var(--border-input);border-radius:6px;background:var(--bg-input);color:var(--text);align-self:stretch;box-sizing:border-box;"></math-field>
       <button type="button" id="itg-g-apply" style="flex-shrink:0;">Übernehmen</button>
     </div>
@@ -1604,6 +1756,26 @@ body.beam .guide-bar .geo-hint-btn { font-size:14px; }
     <div id="lo-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
     <select id="lo-ex" style="width:100%;margin-top:6px;"></select>
     <div id="lo-body" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- PANEL: Mengen und Intervalle (wird von 112_set.js gefüllt). -->
+  <div class="panel" id="set-panel" data-envs="set">
+    <div class="panel-title">∪ Mengen und Intervalle</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="set-view" style="width:100%;"></select>
+    <div id="set-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <select id="set-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="set-body" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- PANEL: Stochastik rechnen (wird von 113_prob.js gefüllt). -->
+  <div class="panel" id="prob-panel" data-envs="prob">
+    <div class="panel-title">📊 Statistik und Stochastik rechnen</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="prob-view" style="width:100%;"></select>
+    <div id="prob-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <select id="prob-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="prob-body" style="margin-top:6px;"></div>
   </div>
 
   <!-- PANEL: Ähnlichkeit (wird von 105_sim_ui.js gefüllt). -->
@@ -1797,7 +1969,13 @@ body.beam .guide-bar .geo-hint-btn { font-size:14px; }
        Zeichnen/Drehen/Panel: 30_3d_ui.js. Sichtbar nur im 3D-Modus (body.mode3d). -->
   <div class="panel" id="td-panel" data-envs="3d">
     <div class="panel-title">🧊 3D-Raum</div>
-    <div class="subpanel-label" style="margin-top:0;">Ebene eingeben</div>
+    <div class="subpanel-label" style="margin-top:0;">Ansicht</div>
+    <select id="td-view" style="width:100%;"></select>
+    <div id="td-vg-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
+    <select id="td-vg-ex" style="width:100%;margin-top:6px;"></select>
+    <div id="td-vg-body" style="margin-top:6px;"></div>
+    <div id="td-pl-ui">
+    <div class="subpanel-label">Ebene eingeben</div>
     <div class="td-addrow">
       <input type="text" id="td-input" class="td-eq" placeholder="2x + 3y − z = 6" translate="no" autocomplete="off" autocapitalize="off" spellcheck="false">
       <button id="td-add">+ Ebene</button>
@@ -1811,8 +1989,9 @@ body.beam .guide-bar .geo-hint-btn { font-size:14px; }
       <div class="subpanel-label">Lage der Ebenen</div>
       <div id="td-rel"></div>
     </div>
+    </div>
     <div class="td-sec">
-      <div class="subpanel-label">Ansicht</div>
+      <div class="subpanel-label">Blickrichtung</div>
       <div class="geo-toolrow">
         <button id="td-v-std" class="geo-tool">Standard</button>
         <button id="td-v-top" class="geo-tool">Von oben</button>
@@ -1828,17 +2007,17 @@ body.beam .guide-bar .geo-hint-btn { font-size:14px; }
         <label><input type="checkbox" id="td-o-gridxz"> Gitter xz-Ebene</label>
         <label><input type="checkbox" id="td-o-gridyz"> Gitter yz-Ebene</label>
         <label><input type="checkbox" id="td-o-box"> Rahmen</label>
-        <label><input type="checkbox" id="td-o-icpt" checked> Achsenabschnitte</label>
-        <label><input type="checkbox" id="td-o-traces" checked> Spurgeraden (Schnitt mit den Koordinatenebenen)</label>
-        <label class="td-sub-opt"><input type="checkbox" id="td-o-tracexy" checked> in der xy-Ebene</label>
-        <label class="td-sub-opt"><input type="checkbox" id="td-o-tracexz" checked> in der xz-Ebene</label>
-        <label class="td-sub-opt"><input type="checkbox" id="td-o-traceyz" checked> in der yz-Ebene</label>
-        <label><input type="checkbox" id="td-o-normal"> Normalenvektor</label>
-        <label><input type="checkbox" id="td-o-inter" checked> Schnittgeraden und -punkte</label>
-        <label><input type="checkbox" id="td-o-names" checked> Namen der Ebenen</label>
+        <label class="td-pl-only"><input type="checkbox" id="td-o-icpt" checked> Achsenabschnitte</label>
+        <label class="td-pl-only"><input type="checkbox" id="td-o-traces" checked> Spurgeraden (Schnitt mit den Koordinatenebenen)</label>
+        <label class="td-sub-opt td-pl-only"><input type="checkbox" id="td-o-tracexy" checked> in der xy-Ebene</label>
+        <label class="td-sub-opt td-pl-only"><input type="checkbox" id="td-o-tracexz" checked> in der xz-Ebene</label>
+        <label class="td-sub-opt td-pl-only"><input type="checkbox" id="td-o-traceyz" checked> in der yz-Ebene</label>
+        <label class="td-pl-only"><input type="checkbox" id="td-o-normal"> Normalenvektor</label>
+        <label class="td-pl-only"><input type="checkbox" id="td-o-inter" checked> Schnittgeraden und -punkte</label>
+        <label class="td-pl-only"><input type="checkbox" id="td-o-names" checked> Namen der Ebenen</label>
       </div>
     </div>
-    <div class="td-sec">
+    <div class="td-sec" id="td-pl-bars">
       <div class="subpanel-label">Balken über dem Gitter</div>
       <div class="settings-row td-opts">
         <label><input type="checkbox" id="td-b-on"> Balken zeigen</label>
@@ -1865,7 +2044,7 @@ body.beam .guide-bar .geo-hint-btn { font-size:14px; }
       <textarea id="td-latex-out" class="ex-out" readonly placeholder="LaTeX-Code (TikZ) erscheint hier…"></textarea>
       <div id="td-latex-msg" class="ex-msg"></div>
     </details>
-    <button id="td-clear" style="width:100%;margin-top:6px;">Alles löschen</button>
+    <button id="td-clear" class="td-pl-only" style="width:100%;margin-top:6px;">Alles löschen</button>
   </div>
 
   <!-- Manuelle Punkte (ausgeblendet) -->
@@ -2019,6 +2198,7 @@ body.beam .guide-bar .geo-hint-btn { font-size:14px; }
     </div>
     <div class="tb-group" id="env-group">
       <button id="env-btn" onclick="topicsToggle()" aria-haspopup="dialog" aria-expanded="false" title="Thema wählen (Startseite mit allen Themen und Suche)">📈 Funktionen</button>
+      <button id="env-help-btn" onclick="helpOpen('env')" title="Hilfe zu diesem Thema: was hier besonders ist und wie du es bedienst">? Hilfe zum Thema</button>
     </div>
     <div class="tb-group tb-2d">
       <button id="pointer-mode-btn" onclick="togglePointerMode()" title="Laserpointer (Maus / Stift / Touch)">🔴 Pointer</button>
@@ -2028,7 +2208,6 @@ body.beam .guide-bar .geo-hint-btn { font-size:14px; }
     </div>
     <div class="tb-spacer"></div>
     <div class="tb-group">
-      <button onclick="helpOpen()" id="help-btn" title="Hilfe: So bedienst du J√10">? Hilfe</button>
       <button onclick="toggleDarkMode()" id="dark-btn" data-i18n="btn_darkmode" data-i18n-title="btn_darkmode" title="🌙 Dark Mode">🌙 Dark Mode</button>
       <button onclick="toggleBeamMode()" id="beam-btn" data-i18n="btn_beamer" title="Beamer-Modus EIN">📺 Beamer</button>
       <div style="position:relative;display:inline-block;">
@@ -2120,6 +2299,7 @@ body.beam .guide-bar .geo-hint-btn { font-size:14px; }
   <div id="env-menu" role="menu" style="display:none;position:fixed;z-index:9999;"></div>
   <!-- Themenübersicht mit Suche (33_topics.js) -->
   <div id="topics" class="tp-overlay" role="dialog" aria-label="Themenübersicht" style="display:none;"></div>
+  <div id="env-hint" class="env-hint" style="display:none;"></div>
   <div id="canvas-wrap" style="flex:1; position:relative; min-height:0;">
     <canvas id="canvas"></canvas>
     <div class="tooltip" id="tooltip"></div>
@@ -2181,7 +2361,10 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 </script>
-<script src="https://cdn.jsdelivr.net/npm/mathlive"></script>
+<!-- MathLive (Formelfelder). Version GEPINNT: 14_mathinput.js greift in interne Abläufe ein (Tottaste ^, Komposition,
+     Fokus); ohne Versionsangabe lieferte das CDN jeweils die neuste Fassung aus, die sich unbemerkt anders verhalten
+     kann. Vor einem Wechsel die Eingabetests (Tottaste, Tippen, Bildschirmtastatur) mit der neuen Version wiederholen. -->
+<script src="https://cdn.jsdelivr.net/npm/mathlive@0.111.4/mathlive.min.js"></script>
 <!-- Nerdamer (CAS) für 16_calculus.js: vereinfacht/integriert Ausdrücke. Version
      gepinnt (1.1.13) — vor jedem Versions-Update erneut gegen die Tests in
      16_calculus.js prüfen (bekannte Nerdamer-Bugs werden dort umgangen, siehe
@@ -2221,6 +2404,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="28_guide.js"></script><!-- gemeinsame Hinweisleiste («Was wähle ich gerade?») -->
 <script src="29_3d.js"></script><!-- 3D-Raum: Rechenkern (Ebenen, Schnitte, Projektion; kein DOM) -->
 <script src="30_3d_ui.js"></script><!-- 3D-Raum: Zeichnen, Drehen, Panel -->
+<script src="31b_vg.js"></script><!-- 3D-Raum: Vektorgeometrie (Vektoren, Geraden, Winkel, Abstände, Kugel) -->
 <script src="31_bars2d.js"></script><!-- Balken bei Funktionen (2D) -->
 <script src="33_alg_core.js"></script><!-- Algebra: Rechenkern (Terme, Binomische Formeln, Faktorisieren; kein DOM) -->
 <script src="35_alg_more.js"></script>
@@ -2286,6 +2470,9 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="109b_lop_docs.js"></script><!-- Lineare Optimierung: Rechenwege -->
 <script src="110_lop_draw.js"></script><!-- Lineare Optimierung: Bilder -->
 <script src="111_lop_ui.js"></script><!-- Lineare Optimierung: Panel und Maus -->
+<script src="112a_set_venn.js"></script><!-- Mengen: Venn-Diagramme und Übungen -->
+<script src="112_set.js"></script><!-- Mengen und Intervalle -->
+<script src="113_prob.js"></script><!-- Statistik und Stochastik rechnen -->
 <script src="32_env.js"></script><!-- Umgebungen: Themenwahl, eigener Zustand je Thema -->
 <script src="33_topics.js"></script><!-- Themenübersicht, Suche, Willkommen, Hilfe, Hinweise -->
 <script src="19_icons.js"></script><!-- moderne Linien-Icons statt Emojis (ersetzt Emoji-Zeichen im DOM) -->
@@ -2365,5 +2552,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof flaecheSetMode === 'function') flaecheSetMode();
 });
 </script>
+<script>window.addEventListener('load', () => setTimeout(() => { const b = document.getElementById('boot-cover'); if (b) b.remove(); }, 2000));</script>
 </body>
 </html>
