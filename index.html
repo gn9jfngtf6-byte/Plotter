@@ -778,6 +778,22 @@ body.beam #solve-tooltip:has(.sv) #solve-tooltip-title { font-size: 17px !import
   }
 }
 
+/* ── Handy hochkant: die Leiste erscheint als Blatt in der unteren Bildschirmhälfte ──
+   Das Bild bleibt darüber sichtbar und bedienbar (kein abgedunkelter Hintergrund). Höhe (--sbh), Platz für das Bild
+   und Bildschirmtastatur (--sb-kb) regelt sbSheetSync() weiter unten. Im Querformat bleibt die Leiste links. */
+#sb-close { display:none; }
+@media (max-width: 700px) and (orientation: portrait) {
+  .sidebar { left:0; right:0; top:auto; bottom:var(--sb-kb, 0px); width:100%; height:var(--sbh, 50vh); max-height:calc(100% - var(--sb-kb, 0px) - 56px); border-right:none; border-top:1px solid var(--border); border-radius:16px 16px 0 0; box-shadow:0 -6px 24px rgba(0,0,0,0.22); transform:translateY(calc(100% + 40px)); visibility:hidden; transition:transform .22s ease, visibility 0s linear .22s; overscroll-behavior:contain; }
+  .sidebar.open { left:0; transform:none; visibility:visible; transition:transform .22s ease, visibility 0s; }
+  .sidebar-overlay.open { display:none; }
+  .brand { height:42px; min-height:42px; padding:0 8px 0 14px; border-radius:16px 16px 0 0; }
+  .brand .brand-mark { width:50px; height:26px; background-size:50px 26px; }
+  #home-btn { padding:4px 10px; }
+  #sb-close { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0; font-size:15px; border-radius:50%; border:none; background:transparent; color:var(--text-muted); box-shadow:none; }
+  #sb-close:active { background:var(--btn-hover); }
+  body.sb-sheet-open #sidebar-toggle { background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
+}
+
 /* ── Touch-Bedienung ───────────────────────────────────────────────
    • Doppeltipp-Zoom der Seite aus (touch-action: manipulation), kein graues Tipp-Aufblitzen.
    • Zeichenfläche: kein Kontextmenü/keine Textauswahl durch langes Drücken.
@@ -1041,13 +1057,16 @@ body.dark .tp-claim { background-image:linear-gradient(92deg, #7fa9ff 0%, #a994f
 .tp-help-view.on { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
 .tp-help-view b { font-size:12.5px; }
 .tp-help-view span { font-size:11.5px; line-height:1.35; color:var(--text-muted); }
+#help-dlg .tp-title b { display:block; }
+.tp-help-view .tp-help-vd { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; } .tp-help-view .tp-help-vd span { font-size:inherit; }
 @media (max-width: 700px) { .tp-help-views { grid-template-columns:1fr; } }
 #env-help-btn { font-weight:600; color:var(--accent); border-color:var(--accent); background:var(--accent-soft); }
 #env-help-btn:hover { filter:brightness(0.97); }
-body.beam .tp-help-sec ul, body.beam .tp-help-now p, body.beam .tp-help-about { font-size:17px; } body.beam .tp-help-view b { font-size:16px; } body.beam .tp-help-view span { font-size:14px; }
+body.beam .tp-help-sec ul, body.beam .tp-help-now p, body.beam .tp-help-about { font-size:17px; } body.beam .tp-help-view b { font-size:16px; } body.beam .tp-help-view span { font-size:14px; } body.beam .tp-help-view .tp-help-vd span { font-size:inherit; }
 .tp-help-sec h2 { font-size:13px; margin:12px 0 4px; }
 .tp-help-sec ul { margin:0 0 0 18px; padding:0; display:flex; flex-direction:column; gap:4px; font-size:13px; line-height:1.45; }
 #topic-foot { margin:14px 10px 18px; padding:10px 12px; border:1px dashed var(--border); border-radius:10px; font-size:11.5px; color:var(--text-muted); line-height:1.4; }
+#topic-foot .tf-env:not(:empty)::before { content:'«'; } #topic-foot .tf-env:not(:empty)::after { content:'»'; }
 #topic-foot .tf-row { display:flex; gap:6px; margin-top:8px; }
 #topic-foot .tf-row button { flex:1; font-size:11.5px; padding:5px 8px; }
 #topic-tip { display:none; position:absolute; left:50%; bottom:14px; transform:translateX(-50%); max-width:min(640px, calc(100% - 24px)); align-items:center; gap:10px; background:var(--bg-sidebar); color:var(--text); border:1px solid var(--border); border-radius:12px; padding:8px 10px 8px 14px; box-shadow:var(--shadow-md); font-size:13px; line-height:1.4; z-index:45; pointer-events:auto; }
@@ -1217,6 +1236,7 @@ body.beam .guide-bar .geo-hint-btn { font-size:14px; }
       <div class="brand-mark"></div>
     </div>
     <button type="button" id="home-btn" title="Startseite: alle Themen, Suche und Hilfe">🏠 Startseite</button>
+    <button type="button" id="sb-close" onclick="closeSidebar()" title="Leiste schliessen" aria-label="Leiste schliessen">✕</button>
   </div>
 
   <!-- PANEL 1: Funktionen eingeben + Mathematik-Tastatur -->
@@ -2343,11 +2363,50 @@ body.beam .guide-bar .geo-hint-btn { font-size:14px; }
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('sidebar-overlay').classList.toggle('open');
+  sbSheetSync();
 }
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-overlay').classList.remove('open');
+  sbSheetSync();
 }
+// ── Handy hochkant: Leiste als Blatt in der unteren Bildschirmhälfte ──
+// Das Blatt ist so hoch wie die halbe Zeichenfläche. Zeigt das Thema den Rechenweg als untere Hälfte (Karte), deckt
+// das Blatt genau diese Karte zu und das Bild darüber bleibt unverändert. Ohne Karte (Werkzeug, Geometrie, 3D …)
+// wird die Zeichenfläche um die Blatthöhe verkürzt, damit das ganze Bild über dem Blatt Platz hat.
+function sbIsSheet() { try { return window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches; } catch (e) { return false; } }
+function sbSheetSync() {
+  const sb = document.getElementById('sidebar'), wrap = document.getElementById('canvas-wrap'); if (!sb || !wrap) return;
+  const root = document.documentElement, open = sbIsSheet() && sb.classList.contains('open');
+  const full = wrap.clientHeight + (parseFloat(wrap.style.marginBottom) || 0);   // Höhe der Zeichenfläche ohne Blatt
+  if (full > 0) { const h = Math.max(220, Math.round(full * 0.5)) + 'px'; if (root.style.getPropertyValue('--sbh') !== h) root.style.setProperty('--sbh', h); }
+  const card = document.getElementById('dif-card');
+  const cardSheet = !!card && card.classList.contains('dif-card-sheet') && getComputedStyle(card).display !== 'none';
+  const want = open && !cardSheet ? root.style.getPropertyValue('--sbh') : '';
+  if (wrap.style.marginBottom !== want) wrap.style.marginBottom = want;
+  document.body.classList.toggle('sb-sheet-open', open);
+  sbKbSync();
+}
+// Bildschirmtastatur (Formeltastatur oder die des Geräts): das Blatt rückt über die Tastatur, sonst läge das Feld darunter
+function sbKbSync() {
+  const sb = document.getElementById('sidebar'); if (!sb) return;
+  let kb = 0;
+  if (sbIsSheet() && sb.classList.contains('open')) {
+    try { const vk = window.mathVirtualKeyboard; if (vk && vk.visible) kb = Math.max(kb, vk.boundingRect.height || 0); } catch (e) {}
+    try { const vv = window.visualViewport, a = document.activeElement; if (vv && a && sb.contains(a) && /^(INPUT|TEXTAREA|MATH-FIELD)$/.test(a.tagName)) kb = Math.max(kb, window.innerHeight - vv.height - vv.offsetTop); } catch (e) {}
+  }
+  const v = kb >= 80 ? Math.round(kb) + 'px' : '0px';
+  if (document.documentElement.style.getPropertyValue('--sb-kb') !== v) document.documentElement.style.setProperty('--sb-kb', v);
+}
+document.addEventListener('DOMContentLoaded', () => {
+  let t = 0; const soon = () => { if (!t) t = requestAnimationFrame(() => { t = 0; sbSheetSync(); }); };
+  window.addEventListener('resize', soon); window.addEventListener('orientationchange', soon);
+  try { new ResizeObserver(soon).observe(document.getElementById('canvas-wrap')); } catch (e) {}
+  try { new MutationObserver(soon).observe(document.getElementById('dif-card'), { attributes: true, attributeFilter: ['class', 'style'] }); } catch (e) {}   // Karte ein/aus, Themenwechsel
+  try { window.visualViewport.addEventListener('resize', sbKbSync); } catch (e) {}
+  try { window.mathVirtualKeyboard.addEventListener('geometrychange', sbKbSync); } catch (e) {}
+  document.addEventListener('focusin', sbKbSync); document.addEventListener('focusout', () => setTimeout(sbKbSync, 60));
+});
 // Sidebar automatisch schließen wenn ein Pick-Modus gestartet wird
 // (damit man danach gleich in den Canvas tippen kann)
 document.addEventListener('DOMContentLoaded', () => {
@@ -2355,8 +2414,8 @@ document.addEventListener('DOMContentLoaded', () => {
     '#lin-pick-btn, #quad-pick-btn, #slopetri-pick-btn'
   ).forEach(btn => {
     btn.addEventListener('click', () => {
-      // Nur auf mobil schließen
-      if (window.innerWidth <= 700) closeSidebar();
+      // Nur auf mobil schließen (als Blatt unten bleibt die Leiste offen: das Bild ist ja sichtbar)
+      if (window.innerWidth <= 700 && !sbIsSheet()) closeSidebar();
     });
   });
 });

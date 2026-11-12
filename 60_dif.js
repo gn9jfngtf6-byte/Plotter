@@ -190,6 +190,7 @@ const Dif = (function () {
     else if (Math.abs(dR) > 1e5) res.status = 'steep';
     // Ableitung (exakt über die symbolische Ableitung, sonst Näherung)
     const d1 = F.f(1)(x0);
+    if (res.status === 'ok' && !isFinite(d1) && Math.abs(dR) > 1e3 && Math.abs(dL) > 1e3) res.status = 'steep';   // z. B. x^(1/3) bei 0: die Steigung wächst über alle Grenzen
     res.fp = isFinite(d1) ? d1 : (res.status === 'ok' ? (dR + dL) / 2 : NaN);
     return res;
   }

@@ -223,10 +223,55 @@
     return s;
   }
 
+  // Baustein-Rückfall: Schlüssel, die nur aus ausgezeichneten Teilen bestehen ("<0>Titel</0>{1}" = Knopf mit Pfeil,
+  // "<0>Titel</0><1>Text</1>" = Karte mit Titel und Text), werden aus den Übersetzungen ihrer Teile zusammengesetzt.
+  // So braucht nicht jede Verpackung einen eigenen Eintrag: Der Titel allein genügt. Fehlt ein Teil, wird nur dieser
+  // Teil angefragt. Steht zwischen den Teilen freier Text (ein Satz mit Hervorhebungen), bleibt der Schlüssel ganz.
+  const LETANY = /\p{L}/u;
+  function structSeg(lang, key, depth) {
+    if (key.indexOf('<') < 0 || depth > 4) return null;
+    const re = /<(\d+)>([\s\S]*?)<\/\1>/g;
+    let out = '', last = 0, m, n = 0, wait = null;
+    while ((m = re.exec(key))) {
+      const gap = key.slice(last, m.index);
+      if (LETANY.test(gap.replace(TOK_RE, ''))) return null;
+      out += gap; n++;
+      const c = canonSeg(m[2]);
+      let inner = m[2];
+      if (c.key && needsTr(c.key)) {
+        const r = resolveSeg(lang, c.key, depth + 1);
+        if (r.out !== undefined) inner = c.pre + remap(r.out, c.map, c.runs) + c.post;
+        else if (!wait) wait = r.wait || c.key;
+      }
+      out += '<' + m[1] + '>' + inner + '</' + m[1] + '>'; last = m.index + m[0].length;
+    }
+    const tail = key.slice(last);
+    if (!n || LETANY.test(tail.replace(TOK_RE, ''))) return null;
+    return wait ? { wait } : { out: out + tail };
+  }
+  // Ankreuzfelder: «{0} Text» (Kästchen + Text) und «Text» allein teilen sich einen Eintrag
+  function affixSeg(lang, key) {
+    const m = /^\{0\} ([^{}<>]+)$/.exec(key);
+    if (m) { const v = lookup(lang, m[1]); return v !== undefined && !/[{}<>]/.test(v) ? '{0} ' + v : undefined; }
+    if (!/[{}<>]/.test(key)) { const v = lookup(lang, '{0} ' + key), mm = v !== undefined ? /^\{0\} ([^{}<>]+)$/.exec(v) : null; return mm ? mm[1] : undefined; }
+    return undefined;
+  }
   // Ergebnis für ein Segment: {out} oder {wait:srcKey}
-  function resolveSeg(lang, key) {
-    const v = lookup(lang, key);
+  function resolveSeg(lang, key, depth) {
+    let v = lookup(lang, key);
     if (v !== undefined) return { out: v };
+    v = affixSeg(lang, key);
+    if (v !== undefined) return { out: v };
+    // Kartentitel «Rechenweg: <Thema>»: Rahmen und Thema getrennt übersetzen (sonst ein eigener Eintrag je Ansicht)
+    // «Pfade: rr, rb, br»: nur das Wort davor wird übersetzt, die Pfadliste (Buchstaben r/b) bleibt, wie sie ist
+    const pm = /^(Pfade:) ((?:[rb]+(?:, [rb]+)*(?:, …)?)|–)$/.exec(key);
+    if (pm && mem(lang).seedLoaded) { const a = lookup(lang, pm[1]); if (a === undefined) return { wait: pm[1] }; return { out: a + ' ' + pm[2] }; }
+    const fm = /^(Rechenweg:) ([^{}<>]+)$/.exec(key);
+    if (fm && mem(lang).seedLoaded) {
+      const a = lookup(lang, fm[1]);
+      if (a === undefined) return { wait: fm[1] };
+      const r = resolveSeg(lang, fm[2], (depth || 0) + 1); if (r.out !== undefined) return { out: a + ' ' + r.out }; if (r.wait) return { wait: r.wait };
+    }
     const M = mem(lang);
     if (M.native.has(key)) return { out: key };         // schon in Zielsprache
     if (!M.seedLoaded) return { defer: true };           // Seed-Datei noch nicht da → später erneut versuchen, nichts anfragen
@@ -240,9 +285,10 @@
     const g2 = regerman(lang, key);                      // Mischtext: t()-Teile zurück ins Deutsche, dann Seed/Übersetzer
     if (g2 !== key) {
       const v3 = lookup(lang, g2);
-      return v3 !== undefined ? { out: v3 } : { wait: g2 };
+      if (v3 !== undefined) return { out: v3 };
+      return structSeg(lang, g2, depth || 0) || { wait: g2 };
     }
-    return { wait: key };
+    return structSeg(lang, key, depth || 0) || { wait: key };
   }
 
   // ---------- Seeds ----------
@@ -336,6 +382,7 @@
     const to = setTimeout(() => ac.abort(), ms || 9000);
     try { return await fetch(url, Object.assign({ signal: ac.signal }, opt || {})); } finally { clearTimeout(to); }
   }
+  function withTimeout(pr, ms) { return Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error('Zeit überschritten')), ms))]); }
   async function pool(items, n, fn) {
     const out = new Array(items.length); let i = 0;
     await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
@@ -380,21 +427,29 @@
         return j.translatedText != null ? j.translatedText : null;
       })
     },
+    // Der eingebaute Übersetzer von Chrome antwortet auf manchen Geräten gar nicht (die Anfrage bleibt offen). Ohne
+    // Zeitgrenze stand dann die ganze Warteschlange still und nichts wurde übersetzt. Darum: kurze Zeitgrenzen, und eine
+    // Sprache, bei der er nicht bereit war, wird für diese Sitzung nicht mehr über ihn versucht (weiter mit dem nächsten Dienst).
     chrome: {
       name: 'Chrome (lokal)',
-      tr: {},
+      tr: {}, no: {},
       avail: async function (lang) {
+        if (this.no[lang]) return false;
         if (typeof self.Translator === 'undefined' || !self.Translator.create) return false;
-        try { const a = await self.Translator.availability({ sourceLanguage: SRC, targetLanguage: lang }); return a === 'available'; }
-        catch (e) { return false; }
+        let ok = false;
+        try { ok = (await withTimeout(self.Translator.availability({ sourceLanguage: SRC, targetLanguage: lang }), 1500)) === 'available'; } catch (e) { ok = false; }
+        if (!ok) this.no[lang] = true;
+        return ok;
       },
       run: async function (keys, lang) {
         if (!(await this.avail(lang))) throw new Error('nicht verfügbar');
-        let t = this.tr[lang];
-        if (!t) t = this.tr[lang] = await self.Translator.create({ sourceLanguage: SRC, targetLanguage: lang });
-        const out = [];
-        for (const k of keys) out.push(await t.translate(k));
-        return out;
+        try {
+          let t = this.tr[lang];
+          if (!t) t = this.tr[lang] = await withTimeout(self.Translator.create({ sourceLanguage: SRC, targetLanguage: lang }), 4000);
+          const out = [];
+          for (const k of keys) out.push(await withTimeout(t.translate(k), 4000));
+          return out;
+        } catch (e) { this.no[lang] = true; delete this.tr[lang]; throw e; }
       }
     },
     gtx: {
@@ -532,7 +587,7 @@
         await ensureSeed(lang);
         // veraltete Einträge (andere Sprache / inzwischen durch Seed gelöst) bereinigen
         const batch = [];
-        for (const [id, e] of pending) {
+        for (const [id, e] of Array.from(pending).reverse()) {   // das zuletzt Angefragte zuerst: das ist, was man gerade sieht
           if (e.lang !== lang) { pending.delete(id); continue; }
           const v = lookup(lang, e.key);
           if (v !== undefined) { pending.delete(id); notify(e); continue; }
@@ -971,8 +1026,26 @@
     window[fn] = function (msg, def) { return orig.call(window, typeof msg === 'string' ? tr(msg) : msg, def); };
   });
 
+  // Deutscher Ursprungstext eines Elements, auch wenn gerade eine Übersetzung angezeigt wird (für Code, der Texte aus der
+  // Oberfläche liest und damit weiterrechnet, z.B. die Hilfe: sonst entstehen Mischtexte, die sich nicht hinterlegen lassen)
+  function srcOfRec(rec) {
+    return rec.german.replace(TOK_RE, (a, n) => { if (n == null) return ''; const it = rec.items[+n]; if (!it) return ''; if (it.t === 'lit') return it.s; if (it.br) return '\n'; return it.el && it.el.nodeType === 1 ? srcText(it.el) : ''; });
+  }
+  function srcText(el) {
+    if (!el) return '';
+    if (st.lang === SRC) return el.textContent || '';
+    let out = ''; const seen = new Set();
+    const one = n => {
+      if (n.nodeType !== 1 && n.nodeType !== 3) return;
+      const r = nodeRec.get(n);
+      if (r && records.has(r)) { if (!seen.has(r)) { seen.add(r); out += srcOfRec(r); } return; }
+      if (n.nodeType === 3) out += n.data; else n.childNodes.forEach(one);
+    };
+    el.childNodes.forEach(one);
+    return out;
+  }
   window.AI18N = {
-    setLanguage, tr, refresh: refreshAll, setOnline, setApiKey, exportCache, clearCache, addSeed, status,
+    srcText, setLanguage, tr, refresh: refreshAll, setOnline, setApiKey, exportCache, clearCache, addSeed, status,
     onStatus: f => { statusListeners.push(f); },
     cfg,
     savedLang: () => lsGet(LS_LANG),

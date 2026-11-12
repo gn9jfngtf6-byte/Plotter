@@ -407,7 +407,7 @@ const TOPIC_LS = 'jsqrt10_welcome_seen';
     const ov = $('topics'); ov.style.display = 'flex'; document.body.classList.add('topics-open');
     const cur = typeof ENV !== 'undefined' ? ENV.cur : 'func';
     const ce = typeof envById === 'function' ? envById(cur) : null, cb = $('tp-continue');
-    if (cb) { cb.replaceChildren(el('span', 'tp-cont-l', 'Weiter mit'), el('b', null, ce ? ce.title : ''), el('span', 'tp-cont-arrow', '→')); cb.title = 'Zurück zum Thema «' + (ce ? ce.title : '') + '»'; }
+    if (cb) { cb.replaceChildren(el('span', 'tp-cont-l', 'Weiter mit'), el('b', null, ce ? ce.title : ''), el('span', 'tp-cont-arrow', '→')); cb.title = 'Zurück zum zuletzt gewählten Thema'; }
     document.querySelectorAll('#tp-groups .tp-card').forEach(c => c.classList.toggle('tp-cur', c.getAttribute('data-env') === cur));
     const q = $('topics-q'); if (q) { q.value = ''; topicsSearch(''); if (window.innerWidth > 700) setTimeout(() => q.focus(), 50); }
     const b = $('env-btn'); if (b) b.setAttribute('aria-expanded', 'true');
@@ -426,6 +426,15 @@ const TOPIC_LS = 'jsqrt10_welcome_seen';
   const HELP_SEL = { lin: 'lin-view', quad: 'quad-view', pow: 'pow-view', exp: 'exp-view', trig: 'trig-view', inv: 'inv-view', intro: 'intro-view', sim: 'sim-view', seq: 'seq-view', lo: 'lo-view', set: 'set-view', prob: 'prob-view', '3d': 'td-view', diff: 'dif-view', int: 'itg-view', stat: 'stat-mode', fin: 'fin-mode' };
   const helpDesc = env => { try { return ({ intro: typeof FUN_DESC !== 'undefined' && FUN_DESC, lin: typeof LIN_DESC !== 'undefined' && LIN_DESC, quad: typeof QUAD_DESC !== 'undefined' && QUAD_DESC, pow: typeof POW_DESC !== 'undefined' && POW_DESC, exp: typeof EXP_DESC !== 'undefined' && EXP_DESC, trig: typeof TRIG_DESC !== 'undefined' && TRIG_DESC, inv: typeof INV_DESC !== 'undefined' && INV_DESC, diff: typeof DIF_DESC !== 'undefined' && DIF_DESC, int: typeof ITG_DESC !== 'undefined' && ITG_DESC, lo: typeof LOP_DESC !== 'undefined' && LOP_DESC, sim: typeof SIM_DESC !== 'undefined' && SIM_DESC, seq: typeof SEQ_DESC !== 'undefined' && SEQ_DESC, set: typeof SET_DESC !== 'undefined' && SET_DESC, prob: typeof PB_DESC !== 'undefined' && PB_DESC, '3d': typeof VG_DESC !== 'undefined' && VG_DESC, stat: typeof STAT_DESC !== 'undefined' && STAT_DESC, fin: typeof FIN_DESC !== 'undefined' && FIN_DESC })[env] || null; } catch (e) { return null; } };
   const helpPlain = t => String(t || '').replace(/\{\{(.+?)\|[^|{}]*\}\}/g, '$1');
+  // Hilfetexte so aufbauen, dass sie dieselben Übersetzungen nutzen wie die Oberfläche: ein Satz mit {{Wort|ids}} wie in der
+  // Zeile über dem Bild (Wörter als eigene Elemente), Titel als eigenes Element in einem festen Rahmentext.
+  function helpTxt(raw, cls) {
+    const sp = el('span', cls || 'tp-help-t'), text = String(raw || ''), re = /\{\{(.+?)\|([^|{}]*)\}\}/g; let i = 0, m;
+    while ((m = re.exec(text))) { if (m.index > i) sp.append(text.slice(i, m.index)); sp.append(el('span', 'eh-l', m[1])); i = re.lastIndex; }
+    if (i < text.length) sp.append(text.slice(i));
+    return sp;
+  }
+  const helpName = t => el('span', 'tp-help-n', t);
   function helpCurView(env) {
     if (env === 'alg') { const b = document.querySelector('#alg-modes .alg-mode.active-btn'); return b ? b.getAttribute('data-mode') : null; }
     const s = HELP_SEL[env] && $(HELP_SEL[env]); return s ? s.value : null;
@@ -433,18 +442,19 @@ const TOPIC_LS = 'jsqrt10_welcome_seen';
   // Was das Panel der aktuellen Ansicht anbietet (aus den sichtbaren Bedienelementen gelesen – stimmt darum immer)
   function helpScan(env) {
     const e = typeof envById === 'function' ? envById(env) : null, pn = e && e.open && $(e.open[0]), out = []; if (!pn) return out;
-    const vis = x => x.offsetParent !== null, txt = x => (x.textContent || '').replace(/\s+/g, ' ').trim(), all = q => [...pn.querySelectorAll(q)];
+    const vis = x => x.offsetParent !== null, src = x => (window.AI18N && AI18N.srcText ? AI18N.srcText(x) : x.textContent) || '', txt = x => src(x).replace(/\s+/g, ' ').trim(), all = q => [...pn.querySelectorAll(q)];   // src: deutscher Ursprungstext, auch wenn gerade eine Übersetzung angezeigt wird
+    const join = (parts, sep) => { const a = []; parts.forEach((t, i) => { if (i) a.push(sep); a.push([t]); }); return a; };   // Zeilen aus Bausteinen: [Text] wird einzeln übersetzt, Trenner bleiben
     const viewSel = HELP_SEL[env] && $(HELP_SEL[env]);
     if (env === 'func') return out;                                          // steht alles bei den Besonderheiten
     if (all('math-field').some(vis)) out.push('Eingabefeld: eigenen Term eintippen und mit ' + (all('button').some(x => vis(x) && txt(x) === 'Übernehmen') ? '«Übernehmen» oder ' : '') + 'Enter bestätigen. Das Panel «Tastatur» hilft bei Zeichen wie ², √ und π.');
     const sels = all('select').filter(x => vis(x) && x !== viewSel);
-    sels.forEach(x => { const o0 = txt(x.options[0] || x); if (/wählen|einsetzen|laden|vorführen/i.test(o0)) out.push('«' + o0 + '»: ' + (x.options.length - 1) + ' fertige Beispiele, die alles passend einstellen.'); });
+    sels.forEach(x => { const o0 = txt(x.options[0] || x); if (/wählen|einsetzen|laden|vorführen/i.test(o0)) out.push(['«', [o0], '»: ', [(x.options.length - 1) + ' fertige Beispiele, die alles passend einstellen.']]); });
     const lblOf = x => { const r = x.parentElement; if (!r) return ''; const c = [...r.children].find(k => k !== x && !k.contains(x) && /^(LABEL|SPAN|DIV)$/.test(k.tagName) && txt(k) && txt(k).length < 34 && !k.querySelector('select,input,button')); return c ? txt(c).replace(/[:：]\s*$/, '') : ''; };
-    sels.forEach(x => { const o0 = txt(x.options[0] || x); if (!/wählen|einsetzen|laden|vorführen|…|\.\.\./i.test(o0) && x.options.length >= 2 && x.options.length <= 7 && [...x.options].every(o => txt(o).length <= 44 && !/^[-\d.,\s]+$/.test(txt(o)))) { const l = lblOf(x); out.push((l ? '«' + l + '»: ' : 'Zur Wahl: ') + [...x.options].map(txt).join(' · ') + '.'); } });
-    const anim = all('button').filter(x => vis(x) && /^▶\s*\S/.test(txt(x)) && txt(x).length > 2).map(x => '«' + txt(x) + '»');
-    if (anim.length) out.push('Animation: ' + anim.join(', ') + '.');
+    sels.forEach(x => { const o0 = txt(x.options[0] || x); if (!/wählen|einsetzen|laden|vorführen|…|\.\.\./i.test(o0) && x.options.length >= 2 && x.options.length <= 7 && [...x.options].every(o => txt(o).length <= 44 && !/^[-\d.,\s]+$/.test(txt(o)))) { const l = lblOf(x); out.push((l ? ['«', [l], '»: '] : [['Zur Wahl:'], ' ']).concat(join([...x.options].map(txt), ' · '), ['.'])); } });
+    const anim = all('button').filter(x => vis(x) && /^▶\s*\S/.test(txt(x)) && txt(x).length > 2).map(txt);
+    if (anim.length) { const a = [['Animation:'], ' «']; anim.forEach((t, i) => { if (i) a.push('», «'); a.push([t]); }); a.push('».'); out.push(a); }
     const chk = all('label').filter(x => vis(x) && x.querySelector('input[type=checkbox]') && !/Rechenweg als Karte/.test(txt(x))).map(txt).filter(t => t.length < 60);
-    if (chk.length) out.push('Ein- und ausblenden: ' + chk.slice(0, 9).join(' · ') + (chk.length > 9 ? ' …' : '') + '.');
+    if (chk.length) out.push([['Ein- und ausblenden:'], ' '].concat(join(chk.slice(0, 9), ' · '), [chk.length > 9 ? ' ….' : '.']));
     // das Übliche in einem Satz (ausführlich im Reiter «Allgemeine Bedienung»)
     const gen = [];
     if (all('button').some(x => vis(x) && txt(x) === '◀')) gen.push('Zahlenfelder mit ◀ ▶');
@@ -452,32 +462,32 @@ const TOPIC_LS = 'jsqrt10_welcome_seen';
     const rs = document.querySelector('#env-hint .eh-reset'); if (rs && vis(rs)) gen.push('«⟲ Zurücksetzen» über dem Bild stellt den Anfang wieder her');
     if (all('label').some(x => /Rechenweg als Karte/.test(txt(x)))) gen.push('der Rechenweg steht in der Karte rechts');
     if (all('button').some(x => txt(x) === 'JPEG')) gen.push('Export als JPEG oder LaTeX links unten');
-    if (gen.length) out.push('Wie überall: ' + gen.join('; ') + '.');
+    if (gen.length) out.push([['Wie überall:'], ' '].concat(join(gen, '; '), ['.']));
     return out;
   }
   function helpEnvBody(env) {
     const box = el('div', 'tp-help-body'), e = typeof envById === 'function' ? envById(env) : null; if (!e) return box;
-    const sec = (title, items, cls) => { const s = el('section', 'tp-help-sec' + (cls ? ' ' + cls : '')); s.append(el('h2', null, title)); if (items && items.length) { const ul = el('ul'); items.forEach(i => ul.appendChild(el('li', null, i))); s.appendChild(ul); } return s; };
+    const sec = (title, items, cls) => { const s = el('section', 'tp-help-sec' + (cls ? ' ' + cls : '')); { const h = el('h2'); (Array.isArray(title) ? title : [title]).forEach(x => h.append(x)); s.append(h); } if (items && items.length) { const ul = el('ul'); items.forEach(i => { const li = el('li'); if (Array.isArray(i)) i.forEach(sg => li.append(Array.isArray(sg) ? el('span', null, sg[0]) : sg)); else li.textContent = i; ul.appendChild(li); }); s.appendChild(ul); } return s; };
     if (TOPIC_ABOUT[env]) box.append(el('p', 'tp-help-about', TOPIC_ABOUT[env]));
     const views = viewsOf(env), cur = helpCurView(env), cv = views.find(v => v.id === cur), D = helpDesc(env);
-    const dOf = id => { if (env === 'alg') return ['', typeof AlgLearn !== 'undefined' && AlgLearn.INTRO && AlgLearn.INTRO[id] ? AlgLearn.INTRO[id] : '']; const d = D && D[id]; return !d ? ['', ''] : Array.isArray(d) ? [helpPlain(d[0]), helpPlain(d[1])] : [helpPlain(d), '']; };
+    const dOf = id => { if (env === 'alg') return ['', typeof AlgLearn !== 'undefined' && AlgLearn.INTRO && AlgLearn.INTRO[id] ? AlgLearn.INTRO[id] : '']; const d = D && D[id]; return !d ? ['', ''] : Array.isArray(d) ? [d[0] || '', d[1] || ''] : [d, '']; };   // Rohtexte (mit {{Wort|ids}})
     // aktuelle Ansicht
     if (cv || (typeof ENVH !== 'undefined' && ENVH.by[env] && ENVH.by[env].text)) {
-      const d = cv ? dOf(cv.id) : ['', ''], task = d[0] || (typeof ENVH !== 'undefined' && ENVH.by[env] ? helpPlain(ENVH.by[env].text) : '') || (TOPIC_TIPS[env] && !d[1] ? TOPIC_TIPS[env] : '');
-      const s = sec(cv ? 'Du bist in der Ansicht «' + cv.title + '»' : 'Darum geht es hier', null, 'tp-help-now');
-      if (task) { const p1 = el('p'); p1.append(el('b', null, 'Das machst du: '), document.createTextNode(task)); s.append(p1); }
-      if (d[1] && d[1] !== task) { const p2 = el('p'); p2.append(el('b', null, 'Das siehst du: '), document.createTextNode(d[1])); s.append(p2); }
+      const d = cv ? dOf(cv.id) : ['', ''], task = d[0] || (typeof ENVH !== 'undefined' && ENVH.by[env] ? ENVH.by[env].text : '') || (TOPIC_TIPS[env] && !d[1] ? TOPIC_TIPS[env] : '');
+      const s = sec(cv ? ['Du bist in der Ansicht «', helpName(cv.title), '»'] : 'Darum geht es hier', null, 'tp-help-now');
+      if (task) { const p1 = el('p'); p1.append(el('b', null, 'Das machst du:'), ' ', helpTxt(task)); s.append(p1); }
+      if (d[1] && d[1] !== task) { const p2 = el('p'); p2.append(el('b', null, 'Das siehst du:'), ' ', helpTxt(d[1])); s.append(p2); }
       box.append(s);
     }
     const sc = helpScan(env); if (sc.length) box.append(sec('Das kannst du in dieser Ansicht einstellen', sc));
-    if (TOPIC_HELP[env]) box.append(sec('Besonderheiten im Thema «' + e.title + '»', TOPIC_HELP[env]));
+    if (TOPIC_HELP[env]) box.append(sec(['Besonderheiten im Thema «', helpName(e.title), '»'], TOPIC_HELP[env]));
     // alle Ansichten
     if (views.length > 1) {
       const s = sec('Alle Ansichten dieses Themas (anklicken, um zu wechseln)'), list = el('div', 'tp-help-views');
       views.forEach(v => {
         const b = el('button', 'tp-help-view' + (v.id === cur ? ' on' : '')); b.type = 'button';
-        const d = dOf(v.id), full = d[1] || d[0], m = /^(.{30,160}?[.!?])(\s|$)/.exec(full), t = m ? m[1] : full.length > 160 ? full.slice(0, 150).replace(/\s+\S*$/, '') + ' …' : full;
-        b.append(el('b', null, v.title)); if (t) b.append(el('span', null, t));
+        const d = dOf(v.id), full = d[1] || d[0];   // ganzer Text (dieselbe Übersetzung wie in der Leiste), per CSS auf zwei Zeilen gekürzt
+        b.append(el('b', null, v.title)); if (full) b.append(helpTxt(full, 'tp-help-vd'));
         b.addEventListener('click', () => { helpClose(); v.go(); });
         list.appendChild(b);
       });
@@ -487,7 +497,7 @@ const TOPIC_LS = 'jsqrt10_welcome_seen';
   }
   function helpGenBody() {
     const box = el('div', 'tp-help-body');
-    const sec = (title, items) => { const s = el('section', 'tp-help-sec'); s.append(el('h2', null, title)); const ul = el('ul'); items.forEach(i => ul.appendChild(el('li', null, i))); s.appendChild(ul); return s; };
+    const sec = (title, items) => { const s = el('section', 'tp-help-sec'); s.append(el('h2', null, title)); const ul = el('ul'); items.forEach(i => { const li = el('li'); if (Array.isArray(i)) i.forEach(sg => li.append(Array.isArray(sg) ? el('span', null, sg[0]) : sg)); else li.textContent = i; ul.appendChild(li); }); s.appendChild(ul); return s; };
     box.append(
       sec('Thema finden', ['«Startseite» oben links, das Logo und der Knopf mit dem Themennamen in der Leiste öffnen die Startseite mit allen Themen.', 'Dort kannst du nach Begriffen suchen (z.B. «Tangente», «Nullstellen», «Zinseszins») und direkt in die passende Ansicht springen.', 'Jedes Thema hat links oben eine Auswahl «Ansicht» mit mehreren Unterthemen.', 'Der Knopf «? Hilfe zum Thema» in der Leiste erklärt, was im aktuellen Thema und in der aktuellen Ansicht besonders ist.']),
       sec('Im Bild arbeiten', ['Punkte und farbige Griffe lassen sich mit der Maus oder dem Finger ziehen; sie rasten auf dem Raster ein. Mit gedrückter Shift-Taste ziehst du frei.', 'Mausrad oder zwei Finger zoomen, Ziehen auf leerer Fläche verschiebt, Doppelklick setzt den Ausschnitt zurück.', 'Die Zahlenfelder links haben Pfeile ◀ ▶ für Schritte; Eingabe mit Enter bestätigen.', 'Unterstrichene Wörter im Satz über dem Bild heben beim Darüberfahren die zugehörigen Teile im Bild hervor.']),
@@ -506,7 +516,7 @@ const TOPIC_LS = 'jsqrt10_welcome_seen';
     const env = typeof ENV !== 'undefined' ? ENV.cur : null, e = env && typeof envById === 'function' ? envById(env) : null;
     const tab = which === 'gen' || !e ? 'gen' : 'env', box = d.firstChild; box.replaceChildren();
     const head = el('div', 'tp-head'), t = el('div', 'tp-title');
-    t.append(el('b', null, tab === 'env' ? 'Hilfe: ' + e.title : 'Hilfe'), (() => { const s = el('span', 'tp-sub'); if (tab === 'env') s.textContent = 'Was in diesem Thema und in dieser Ansicht besonders ist'; else s.append('So bedienst du ', brandTxt()); return s; })());
+    t.append((() => { const b = el('b'); if (tab === 'env') b.append('Hilfe: ', helpName(e.title)); else b.textContent = 'Hilfe'; return b; })(), (() => { const s = el('span', 'tp-sub'); if (tab === 'env') s.textContent = 'Was in diesem Thema und in dieser Ansicht besonders ist'; else s.append('So bedienst du ', brandTxt()); return s; })());
     const cl = el('button', 'tp-close', '✕'); cl.type = 'button'; cl.setAttribute('aria-label', 'Schliessen'); cl.addEventListener('click', helpClose); head.append(t, cl);
     const tabs = el('div', 'tp-help-tabs');
     const mk = (id, label) => { const b = el('button', 'tp-help-tab' + (tab === id ? ' on' : ''), label); b.type = 'button'; b.addEventListener('click', () => helpOpen(id)); return b; };
@@ -522,12 +532,12 @@ const TOPIC_LS = 'jsqrt10_welcome_seen';
     let f = $('topic-foot');
     if (!f) {
       f = el('div'); f.id = 'topic-foot';
-      const d = el('div', 'tf-desc'); d.append(el('span', 'tf-lead', 'Du bist im Thema'), document.createTextNode(' '), el('b', 'tf-env'), document.createTextNode('. '), el('span', 'tf-more', 'Anderes Thema gesucht? Die Startseite zeigt alle Themen und hat eine Suche.'));
+      const d = el('div', 'tf-desc'); d.append(el('span', 'tf-lead', 'Du bist im Thema'), document.createTextNode(' '), (() => { const b = el('b', 'tf-env'); b.id = 'tf-env'; return b; })(), document.createTextNode('. '), el('span', 'tf-more', 'Anderes Thema gesucht? Die Startseite zeigt alle Themen und hat eine Suche.'));
       f.append(d, (() => { const r = el('div', 'tf-row'); const b1 = el('button', null, '🏠 Startseite'); b1.type = 'button'; b1.addEventListener('click', () => topicsOpen(true)); const b2 = el('button', null, '? Hilfe zum Thema'); b2.type = 'button'; b2.addEventListener('click', () => helpOpen('env')); r.append(b1, b2); return r; })());
       sb.appendChild(f);
     }
     const e = typeof envById === 'function' && typeof ENV !== 'undefined' ? envById(ENV.cur) : null;
-    f.querySelector('.tf-env').textContent = e ? '«' + e.title + '»' : '';
+    f.querySelector('.tf-env').textContent = e ? e.title : '';   // Anführungszeichen per CSS: so gilt die Übersetzung des Titels
   }
 
   // ── Tipp im Bild ──

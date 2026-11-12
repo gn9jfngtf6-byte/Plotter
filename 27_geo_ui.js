@@ -772,7 +772,7 @@ function geoBuildPanel() {
     b.addEventListener('click', () => {
       geoSetTool(geoTool === t.id && t.id !== 'move' ? 'move' : t.id);
       // Handy: Seitenleiste schliessen, damit man gleich in die Zeichenfläche tippen kann (wie bei den Pick-Modi)
-      if (geoTool !== 'move' && window.innerWidth <= 700 && typeof closeSidebar === 'function') closeSidebar();
+      if (geoTool !== 'move' && window.innerWidth <= 700 && typeof closeSidebar === 'function' && !(typeof sbIsSheet === 'function' && sbIsSheet())) closeSidebar();   // als Blatt unten (hochkant) bleibt die Leiste offen
     });
     grpBox.appendChild(b);
   });
@@ -786,7 +786,7 @@ function geoBuildPanel() {
       if (!id) return;
       if (geoAll().length > 3 && !window.confirm('Die bisherige Konstruktion wird durch die Vorlage ersetzt (rückgängig mit Undo). Fortfahren?')) return;
       geoLoadPreset(id);
-      if (window.innerWidth <= 700 && typeof closeSidebar === 'function') closeSidebar();
+      if (window.innerWidth <= 700 && typeof closeSidebar === 'function' && !(typeof sbIsSheet === 'function' && sbIsSheet())) closeSidebar();
     });
   }
   // Gitter-Snapping: dieselbe Einstellung wie unter «Einstellungen», hier nur nochmals griffbereit

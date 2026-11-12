@@ -349,8 +349,23 @@
     }
     const a = qOf(x0);
     if (!poly || !a) {
+      if (!isFinite(F.f(0)(x0))) return d;                    // f ist hier nicht definiert: das steht schon im Abschnitt «Sekante und Tangente»
       d.h('Differenzenquotient und Grenzwert');
       d.e('f(x)=' + tx(ast));
+      // Knick, senkrechte Tangente, kein Grenzwert: Hier fehlt die Ableitung, weil die einseitigen Grenzwerte nicht zusammenpassen – nicht, weil sich h nicht kürzen lässt.
+      const T = Dif.dqTable(F, x0), xs = a ? E.qTex(a) : fmtT(x0, 4), none = () => d.res("$f'(" + xs + ')\\text{ existiert nicht}$');
+      if (T.status === 'kink') {
+        const f = F.f(0), isAbs0 = x0 === 0 && [-2.5, -1, -0.3, 0.4, 1, 3].every(t => f(t) === Math.abs(t));
+        if (isAbs0) {
+          d.p('Für $h>0$ ist $|h|=h$, für $h<0$ ist $|h|=-h$. Der Differenzenquotient lässt sich auf beiden Seiten kürzen, ergibt aber verschiedene Werte:');
+          d.e('h>0:\\quad\\frac{|0+h|-|0|}{h}=\\frac{h}{h}=1'); d.e('h<0:\\quad\\frac{|0+h|-|0|}{h}=\\frac{-h}{h}=-1');
+        } else d.p('Die Differenzenquotienten streben von rechts und von links gegen verschiedene Werte:');
+        d.e('\\lim_{h\\to0^+}\\frac{f(x_0+h)-f(x_0)}{h}=' + fmtT(T.limR, 4) + ',\\qquad\\lim_{h\\to0^-}\\frac{f(x_0+h)-f(x_0)}{h}=' + fmtT(T.limL, 4));
+        d.p('Die **rechtsseitige** und die **linksseitige Ableitung** stimmen nicht überein. Darum hat der Differenzenquotient für $h\\to0$ keinen Grenzwert.');
+        none(); return d;
+      }
+      if (T.status === 'steep') { d.p('Die Differenzenquotienten wachsen für $h\\to0$ über alle Grenzen: Der Graph hat an dieser Stelle eine senkrechte Tangente.'); none(); return d; }
+      if (T.status === 'undef') { d.p('Die Differenzenquotienten haben für $h\\to0$ keinen endlichen Grenzwert.'); none(); return d; }
       d.p('Bei dieser Funktion lässt sich der Differenzenquotient nicht zu einem Term vereinfachen, der sich durch $h$ kürzen lässt. Die Tabelle zeigt, wohin die Differenzenquotienten streben. Die Ableitung berechnest du mit den Ableitungsregeln.');
       const dv = F.f(1)(x0);
       if (isFinite(dv)) d.res("$f'(" + (a ? E.qTex(a) : fmtT(x0, 4)) + ')\\approx' + fmtT(dv, 4) + '$');
