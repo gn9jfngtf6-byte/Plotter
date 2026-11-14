@@ -1,0 +1,297 @@
+// quiz_prob.js — Quizfragen zu Datenanalyse und Wahrscheinlichkeit (wird von 116_quiz.js bei Bedarf geladen)
+// Je Ansicht 30 Fragen: 12 × Stufe 1 (Grundwissen), 10 × Stufe 2 (Verständnis), 8 × Stufe 3 (Knacknuss).
+// Die Reihenfolge hier ist die Reihenfolge im Quiz und auf dem Arbeitsblatt (Frage 1 bis 30).
+// {l, q, a, e}: a[0] ist die richtige Antwort (Anzeige gemischt)   ·   {l, q, tf, e}: Aussage, tf = wahr/falsch
+(function () {
+  const r = String.raw;
+  (window.QUIZ_DATA = window.QUIZ_DATA || {}).prob = {
+
+    // ───────────────────────── Datenanalyse: Kennwerte und Diagramme ─────────────────────────
+    data: [
+      { l: 1, q: r`Wie berechnet man den Mittelwert einer Datenliste?`, a: [r`Summe aller Werte durch ihre Anzahl`, r`Grösster Wert minus kleinster Wert`, r`Der Wert in der Mitte der geordneten Liste`, r`Der häufigste Wert`], e: r`Das arithmetische Mittel.` },
+      { l: 1, q: r`Was ist der Median?`, a: [r`Der Wert in der Mitte der geordneten Liste`, r`Der häufigste Wert`, r`Die Summe durch die Anzahl`, r`Der grösste Wert`], e: r`Die Hälfte der Werte liegt darunter, die Hälfte darüber.` },
+      { l: 1, q: r`Was ist der Modus?`, a: [r`Der häufigste Wert`, r`Der mittlere Wert`, r`Der kleinste Wert`, r`Der Durchschnitt`], e: r`Der Wert, der am meisten vorkommt.` },
+      { l: 1, q: r`Welchen Mittelwert haben 2, 4 und 9?`, a: [r`$5$`, r`$4$`, r`$15$`, r`$7.5$`], e: r`$\frac{2+4+9}{3}$.` },
+      { l: 1, q: r`Welchen Median haben 3, 1 und 7?`, a: [r`$3$`, r`$1$`, r`$7$`, r`$3.67$`], e: r`Geordnet: 1, 3, 7.` },
+      { l: 1, q: r`Was ist die Spannweite?`, a: [r`Grösster Wert minus kleinster Wert`, r`Die Anzahl der Werte`, r`Der Mittelwert der äussersten Werte`, r`Der Abstand zwischen Median und Mittelwert`], e: r`Das einfachste Mass für die Streuung.` },
+      { l: 1, q: r`Welche Spannweite haben 4, 9, 2 und 7?`, a: [r`$7$`, r`$3$`, r`$5.5$`, r`$9$`], e: r`$9-2$.` },
+      { l: 1, q: r`Für den Median muss man die Daten zuerst der Grösse nach ordnen.`, tf: true, e: r`Erst dann steht fest, welcher Wert in der Mitte liegt.` },
+      { l: 1, q: r`Welchen Modus haben 2, 3, 3, 5 und 7?`, a: [r`$3$`, r`$4$`, r`$5$`, r`$7$`], e: r`Die 3 kommt zweimal vor.` },
+      { l: 1, q: r`Welche fünf Kennwerte zeigt ein Boxplot?`, a: [r`Minimum, unteres Quartil, Median, oberes Quartil, Maximum`, r`Mittelwert, Modus, Median, Summe, Anzahl`, r`Die fünf grössten Werte`, r`Die fünf häufigsten Werte`], e: r`Die Box reicht vom unteren zum oberen Quartil.` },
+      { l: 1, q: r`Welchen Median haben 1, 3, 5 und 9?`, a: [r`$4$`, r`$3$`, r`$5$`, r`$4.5$`], e: r`Bei gerader Anzahl: der Durchschnitt der beiden mittleren Werte.` },
+      { l: 1, q: r`Der Mittelwert ist immer einer der Datenwerte.`, tf: false, e: r`Der Mittelwert von 1 und 2 ist 1.5.` },
+
+      { l: 2, q: r`Die Daten sind 1, 2, 3, 4 und 100. Welches Lagemass beschreibt die «typische» Grösse besser?`, a: [r`Der Median (3)`, r`Der Mittelwert (22)`, r`Die Spannweite (99)`, r`Das Maximum (100)`], e: r`Der Ausreisser 100 zieht den Mittelwert stark nach oben, den Median nicht.` },
+      { l: 2, q: r`Welchen Mittelwert haben 1, 2, 3, 4 und 100?`, a: [r`$22$`, r`$3$`, r`$27.5$`, r`$50$`], e: r`$\frac{110}{5}$.` },
+      { l: 2, q: r`Was misst der Quartilsabstand $Q_3-Q_1$?`, a: [r`Die Breite des Bereichs, in dem die mittlere Hälfte der Daten liegt.`, r`Den Abstand zwischen grösstem und kleinstem Wert.`, r`Den Abstand zwischen Mittelwert und Median.`, r`Die Anzahl der Werte in der Box.`], e: r`Ausreisser beeinflussen ihn kaum.` },
+      { l: 2, q: r`Die Daten sind 2, 4, 4, 6, 8, 10 und 12. Wie gross ist der Quartilsabstand?`, a: [r`$6$`, r`$10$`, r`$4$`, r`$8$`], e: r`Median 6; untere Hälfte 2, 4, 4 mit $Q_1=4$, obere Hälfte 8, 10, 12 mit $Q_3=10$.` },
+      { l: 2, q: r`Zu allen Werten wird 5 addiert. Was geschieht?`, a: [r`Der Mittelwert steigt um 5, die Streuung bleibt gleich.`, r`Mittelwert und Streuung steigen um 5.`, r`Der Mittelwert bleibt, die Streuung steigt um 5.`, r`Beides bleibt gleich.`], e: r`Die ganze Verteilung wird nur verschoben.` },
+      { l: 2, q: r`Alle Werte werden verdoppelt. Was geschieht mit der Standardabweichung?`, a: [r`Sie verdoppelt sich.`, r`Sie bleibt gleich.`, r`Sie vervierfacht sich.`, r`Sie halbiert sich.`], e: r`Alle Abstände zum Mittelwert verdoppeln sich.` },
+      { l: 2, q: r`Etwa die Hälfte der Daten liegt in der Box des Boxplots.`, tf: true, e: r`Zwischen dem unteren und dem oberen Quartil.` },
+      { l: 2, q: r`Was zeigt ein Histogramm?`, a: [r`Wie viele Werte in jede Klasse (jeden Bereich) fallen.`, r`Jeden Wert als einzelnen Punkt.`, r`Die Anteile als Kreissektoren.`, r`Nur den Mittelwert.`], e: r`Bei gleich breiten Klassen entspricht die Säulenhöhe der Häufigkeit.` },
+      { l: 2, q: r`Fünf Zahlen haben den Mittelwert 8; vier davon sind 6, 7, 9 und 10. Wie gross ist die fünfte?`, a: [r`$8$`, r`$10$`, r`$6$`, r`$12$`], e: r`Summe $5\cdot8=40$, minus $6+7+9+10=32$.` },
+      { l: 2, q: r`Was misst die Standardabweichung?`, a: [r`Wie weit die Werte typischerweise vom Mittelwert entfernt sind.`, r`Den Abstand zwischen grösstem und kleinstem Wert.`, r`Den häufigsten Wert.`, r`Die Anzahl der Ausreisser.`], e: r`Die Wurzel aus der mittleren quadratischen Abweichung.` },
+
+      { l: 3, q: r`Welche Standardabweichung haben die Daten 2, 4, 4, 4, 5, 5, 7 und 9 (durch die Anzahl 8 geteilt)?`, a: [r`$2$`, r`$4$`, r`$1.5$`, r`$2.5$`], e: r`Mittelwert 5; die quadrierten Abweichungen ergeben zusammen 32, geteilt durch 8 ist 4.` },
+      { l: 3, q: r`20 Lernende haben den Notenschnitt 4.5, weitere 30 den Schnitt 5.0. Welchen Schnitt haben alle 50 zusammen?`, a: [r`$4.8$`, r`$4.75$`, r`$4.7$`, r`$4.85$`], e: r`$\frac{20\cdot4.5+30\cdot5.0}{50}$: gewichtetes Mittel.` },
+      { l: 3, q: r`Hat eine Verteilung einige sehr grosse Werte (rechtsschief), so ist der Mittelwert grösser als der Median.`, tf: true, e: r`Typisch bei Einkommen: Wenige sehr hohe Werte heben den Mittelwert.` },
+      { l: 3, q: r`In einer Liste von 10 Werten wird der grösste um 20 erhöht. Wie ändert sich der Mittelwert?`, a: [r`Er steigt um 2.`, r`Er steigt um 20.`, r`Er bleibt gleich.`, r`Er steigt um 10.`], e: r`Die Summe steigt um 20, verteilt auf 10 Werte. Der Median bleibt dabei gleich.` },
+      { l: 3, q: r`Man fährt eine Strecke mit 60 km/h hin und mit 40 km/h zurück. Wie gross ist die Durchschnittsgeschwindigkeit?`, a: [r`48 km/h`, r`50 km/h`, r`52 km/h`, r`45 km/h`], e: r`Für die langsame Fahrt braucht man länger. Bei 120 km je Richtung: 240 km in 5 Stunden.` },
+      { l: 3, q: r`Ein Wert steigt in einem Jahr um 50 % und sinkt im nächsten um 50 %. Wie hat er sich im Mittel pro Jahr verändert?`, a: [r`Er ist um etwa 13 % pro Jahr gesunken.`, r`Er ist gleich geblieben.`, r`Er ist um 25 % pro Jahr gesunken.`, r`Er ist um 12.5 % pro Jahr gestiegen.`], e: r`$1.5\cdot0.5=0.75$; der mittlere Faktor ist $\sqrt{0.75}\approx0.866$ (geometrisches Mittel).` },
+      { l: 3, q: r`Zu den Daten $1,\ 2,\ \ldots,\ 9$ kommt der Wert 95 hinzu. Was geschieht?`, a: [r`Der Mittelwert steigt von 5 auf 14, der Median nur von 5 auf 5.5.`, r`Mittelwert und Median steigen beide auf 14.`, r`Der Mittelwert bleibt 5, der Median steigt auf 14.`, r`Beide bleiben bei 5.`], e: r`Summe $45+95=140$ bei 10 Werten; Median zwischen 5 und 6.` },
+      { l: 3, q: r`Schneidet A in jeder von zwei Teilgruppen besser ab als B, so schneidet A auch insgesamt besser ab.`, tf: false, e: r`Sind die Teilgruppen bei A und B verschieden gross, kann sich das Verhältnis beim Zusammenlegen umkehren (Simpson-Paradoxon).` }
+    ],
+
+    // ───────────────────────── Baumdiagramm und Pfadregeln ─────────────────────────
+    tree: [
+      { l: 1, q: r`Was sagt die erste Pfadregel?`, a: [r`Die Wahrscheinlichkeiten entlang eines Pfades werden multipliziert.`, r`Die Wahrscheinlichkeiten entlang eines Pfades werden addiert.`, r`Alle Pfade sind gleich wahrscheinlich.`, r`Die Wahrscheinlichkeiten entlang eines Pfades werden subtrahiert.`], e: r`«Erst dies und dann das».` },
+      { l: 1, q: r`Was sagt die zweite Pfadregel?`, a: [r`Die Wahrscheinlichkeiten aller Pfade eines Ereignisses werden addiert.`, r`Die Wahrscheinlichkeiten aller Pfade werden multipliziert.`, r`Man nimmt den wahrscheinlichsten Pfad.`, r`Man zählt die Pfade und teilt durch 2.`], e: r`«Dieser Pfad oder jener Pfad».` },
+      { l: 1, q: r`Was ergeben die Wahrscheinlichkeiten an allen Ästen, die von einem Knoten ausgehen, zusammen?`, a: [r`$1$`, r`$0$`, r`$\frac12$`, r`Die Anzahl der Äste`], e: r`Einer der Äste wird sicher gewählt.` },
+      { l: 1, q: r`In einer Urne sind 2 rote und 3 blaue Kugeln. Wie gross ist die Wahrscheinlichkeit, eine rote zu ziehen?`, a: [r`$\frac25$`, r`$\frac23$`, r`$\frac12$`, r`$\frac35$`], e: r`2 von 5 Kugeln.` },
+      { l: 1, q: r`Wie viele Pfade hat das Baumdiagramm für zwei Münzwürfe?`, a: [r`$4$`, r`$2$`, r`$3$`, r`$8$`], e: r`KK, KZ, ZK, ZZ.` },
+      { l: 1, q: r`Wie gross ist die Wahrscheinlichkeit für zweimal «Kopf» bei zwei Münzwürfen?`, a: [r`$\frac14$`, r`$\frac12$`, r`$\frac13$`, r`$1$`], e: r`$\frac12\cdot\frac12$.` },
+      { l: 1, q: r`Was gilt beim Ziehen mit Zurücklegen?`, a: [r`Die Wahrscheinlichkeiten sind auf jeder Stufe gleich.`, r`Die Wahrscheinlichkeiten ändern sich von Stufe zu Stufe.`, r`Jede Kugel kann nur einmal gezogen werden.`, r`Die Urne wird immer leerer.`], e: r`Vor jedem Zug ist die Urne wieder gleich gefüllt.` },
+      { l: 1, q: r`Beim Ziehen ohne Zurücklegen ändern sich die Wahrscheinlichkeiten von Stufe zu Stufe.`, tf: true, e: r`Nach jedem Zug ist eine Kugel weniger in der Urne.` },
+      { l: 1, q: r`Aus einer Urne mit 2 roten und 3 blauen Kugeln zieht man zweimal mit Zurücklegen. Wie gross ist die Wahrscheinlichkeit für zwei rote?`, a: [r`$\frac{4}{25}$`, r`$\frac{1}{10}$`, r`$\frac45$`, r`$\frac25$`], e: r`$\frac25\cdot\frac25$.` },
+      { l: 1, q: r`Was ist ein mehrstufiges Zufallsexperiment?`, a: [r`Mehrere Zufallsversuche, die nacheinander ausgeführt werden.`, r`Ein Versuch mit mehr als zwei Ergebnissen.`, r`Ein Versuch, der mehrere Tage dauert.`, r`Ein Versuch ohne Zufall.`], e: r`Jede Stufe des Baums steht für einen Versuch.` },
+      { l: 1, q: r`Was ergeben die Wahrscheinlichkeiten aller Pfade eines Baumdiagramms zusammen?`, a: [r`$1$`, r`Die Anzahl der Pfade`, r`$0$`, r`Die Anzahl der Stufen`], e: r`Genau einer der Pfade tritt ein.` },
+      { l: 1, q: r`Entlang eines Pfades werden die Wahrscheinlichkeiten addiert.`, tf: false, e: r`Sie werden multipliziert. Addiert werden verschiedene Pfade.` },
+
+      { l: 2, q: r`Aus einer Urne mit 2 roten und 3 blauen Kugeln zieht man zweimal ohne Zurücklegen. Wie gross ist die Wahrscheinlichkeit für zwei rote?`, a: [r`$\frac{1}{10}$`, r`$\frac{4}{25}$`, r`$\frac15$`, r`$\frac{2}{25}$`], e: r`$\frac25\cdot\frac14$.` },
+      { l: 2, q: r`Aus einer Urne mit 2 roten und 3 blauen Kugeln zieht man zweimal ohne Zurücklegen. Wie gross ist die Wahrscheinlichkeit für zwei verschiedene Farben?`, a: [r`$\frac35$`, r`$\frac{3}{10}$`, r`$\frac{12}{25}$`, r`$\frac25$`], e: r`Rot-blau und blau-rot: $\frac25\cdot\frac34+\frac35\cdot\frac24$.` },
+      { l: 2, q: r`Aus einer Urne mit 2 roten und 3 blauen Kugeln zieht man zweimal ohne Zurücklegen. Wie gross ist die Wahrscheinlichkeit für zwei gleiche Farben?`, a: [r`$\frac25$`, r`$\frac35$`, r`$\frac{1}{10}$`, r`$\frac{13}{25}$`], e: r`$\frac{1}{10}+\frac{3}{10}$, oder als Gegenereignis zu «verschieden».` },
+      { l: 2, q: r`Aus einer Urne mit 2 roten und 3 blauen Kugeln zieht man zweimal mit Zurücklegen. Wie gross ist die Wahrscheinlichkeit für genau eine rote?`, a: [r`$\frac{12}{25}$`, r`$\frac{6}{25}$`, r`$\frac35$`, r`$\frac25$`], e: r`Zwei Pfade: $2\cdot\frac25\cdot\frac35$.` },
+      { l: 2, q: r`Aus einer Urne mit 2 roten und 3 blauen Kugeln zieht man zweimal mit Zurücklegen. Wie gross ist die Wahrscheinlichkeit für mindestens eine rote?`, a: [r`$\frac{16}{25}$`, r`$\frac45$`, r`$\frac{9}{25}$`, r`$\frac{12}{25}$`], e: r`$1-\frac35\cdot\frac35$.` },
+      { l: 2, q: r`Wie gross ist die Wahrscheinlichkeit für genau zweimal «Kopf» bei drei Münzwürfen?`, a: [r`$\frac38$`, r`$\frac14$`, r`$\frac23$`, r`$\frac18$`], e: r`Drei Pfade (KKZ, KZK, ZKK) mit je $\frac18$.` },
+      { l: 2, q: r`«Mindestens einmal» berechnet man oft am einfachsten über das Gegenereignis «keinmal».`, tf: true, e: r`«Keinmal» ist ein einziger Pfad.` },
+      { l: 2, q: r`Wie viele Pfade hat ein Baum mit drei Stufen und je zwei Ästen?`, a: [r`$8$`, r`$6$`, r`$5$`, r`$9$`], e: r`$2\cdot2\cdot2$.` },
+      { l: 2, q: r`Aus einer Urne mit 2 roten und 3 blauen Kugeln zieht man zweimal ohne Zurücklegen. Wie gross ist die Wahrscheinlichkeit, dass die zweite Kugel rot ist?`, a: [r`$\frac25$`, r`$\frac14$`, r`$\frac12$`, r`$\frac{3}{10}$`], e: r`$\frac25\cdot\frac14+\frac35\cdot\frac24$: dieselbe wie beim ersten Zug.` },
+      { l: 2, q: r`Ein Glücksrad gewinnt mit der Wahrscheinlichkeit $\frac14$. Wie gross ist die Wahrscheinlichkeit, bei drei Drehungen nie zu gewinnen?`, a: [r`$\frac{27}{64}$`, r`$\frac14$`, r`$\frac{1}{64}$`, r`$\frac{37}{64}$`], e: r`$\left(\frac34\right)^3$.` },
+
+      { l: 3, q: r`Aus einer Urne mit 3 roten und 2 blauen Kugeln zieht man dreimal ohne Zurücklegen. Wie gross ist die Wahrscheinlichkeit für genau zwei rote?`, a: [r`$\frac35$`, r`$\frac{3}{10}$`, r`$\frac{54}{125}$`, r`$\frac12$`], e: r`Drei Pfade mit je $\frac35\cdot\frac24\cdot\frac23=\frac15$.` },
+      { l: 3, q: r`Aus einer Urne mit 2 roten und 3 blauen Kugeln zieht man ohne Zurücklegen, bis eine rote kommt. Wie gross ist die Wahrscheinlichkeit, dass das im dritten Zug geschieht?`, a: [r`$\frac15$`, r`$\frac{18}{125}$`, r`$\frac{3}{10}$`, r`$\frac{1}{10}$`], e: r`Blau, blau, rot: $\frac35\cdot\frac24\cdot\frac23$.` },
+      { l: 3, q: r`Beim Ziehen ohne Zurücklegen sind «erst rot, dann blau» und «erst blau, dann rot» gleich wahrscheinlich.`, tf: true, e: r`Mit 2 roten und 3 blauen: $\frac25\cdot\frac34=\frac35\cdot\frac24$. Die Zähler und Nenner sind dieselben, nur anders verteilt.` },
+      { l: 3, q: r`Von 5 Schlüsseln passt einer. Man probiert sie der Reihe nach, jeden nur einmal. Wie gross ist die Wahrscheinlichkeit, dass der dritte passt?`, a: [r`$\frac15$`, r`$\frac13$`, r`$\frac{16}{125}$`, r`$\frac{3}{5}$`], e: r`$\frac45\cdot\frac34\cdot\frac13$. Jeder Platz ist für den richtigen Schlüssel gleich wahrscheinlich.` },
+      { l: 3, q: r`Eine Münze entscheidet, ob man aus Urne A (2 rote, 1 blaue) oder aus Urne B (1 rote, 3 blaue) zieht. Wie gross ist die Wahrscheinlichkeit für eine rote Kugel?`, a: [r`$\frac{11}{24}$`, r`$\frac37$`, r`$\frac12$`, r`$\frac{11}{12}$`], e: r`$\frac12\cdot\frac23+\frac12\cdot\frac14$.` },
+      { l: 3, q: r`Eine Spielerin gewinnt jeden Satz mit der Wahrscheinlichkeit 0.6. Gespielt wird, bis jemand zwei Sätze gewonnen hat. Mit welcher Wahrscheinlichkeit gewinnt sie das Spiel?`, a: [r`$0.648$`, r`$0.6$`, r`$0.36$`, r`$0.72$`], e: r`Zwei Sätze in Folge ($0.36$) oder mit einem verlorenen Satz davor oder dazwischen ($2\cdot0.6\cdot0.4\cdot0.6$).` },
+      { l: 3, q: r`Aus einer Urne mit den Kugeln 1, 2, 3 und 4 zieht man zwei ohne Zurücklegen. Wie gross ist die Wahrscheinlichkeit für die Summe 5?`, a: [r`$\frac13$`, r`$\frac14$`, r`$\frac16$`, r`$\frac12$`], e: r`Von den 6 Paaren passen $\{1,4\}$ und $\{2,3\}$.` },
+      { l: 3, q: r`In einer Urne sind $r$ rote Kugeln und 1 blaue. Die Wahrscheinlichkeit, ohne Zurücklegen zwei rote zu ziehen, ist $\frac12$. Wie gross ist $r$?`, a: [r`$3$`, r`$2$`, r`$4$`, r`$5$`], e: r`$\frac{r}{r+1}\cdot\frac{r-1}{r}=\frac{r-1}{r+1}=\frac12$.` }
+    ],
+
+    // ───────────────────────── Binomialverteilung ─────────────────────────
+    bin: [
+      { l: 1, q: r`Was ist ein Bernoulli-Versuch?`, a: [r`Ein Zufallsversuch mit genau zwei Ausgängen: Treffer oder Niete.`, r`Ein Zufallsversuch mit sechs Ausgängen.`, r`Ein Versuch, der immer gelingt.`, r`Ein Versuch ohne Zufall.`], e: r`Zum Beispiel «Sechs» oder «keine Sechs».` },
+      { l: 1, q: r`Was ist eine Bernoulli-Kette?`, a: [r`Ein Bernoulli-Versuch, der $n$-mal unabhängig mit gleicher Trefferwahrscheinlichkeit wiederholt wird.`, r`Eine Kette von Versuchen, bei der die Trefferwahrscheinlichkeit wächst.`, r`Ein Versuch, der bei einem Treffer abbricht.`, r`Eine Folge von Ziehungen ohne Zurücklegen.`], e: r`Die Anzahl der Treffer ist dann binomialverteilt.` },
+      { l: 1, q: r`Wie lautet die Formel der Binomialverteilung?`, a: [r`$P(X=k)=\binom nk\,p^k\,(1-p)^{n-k}$`, r`$P(X=k)=p^k\,(1-p)^{n-k}$`, r`$P(X=k)=\binom nk\,p^k$`, r`$P(X=k)=\frac{\lambda^k}{k!}\,e^{-\lambda}$`], e: r`Anzahl der Pfade mit $k$ Treffern mal Wahrscheinlichkeit eines solchen Pfades.` },
+      { l: 1, q: r`Welchen Erwartungswert hat eine binomialverteilte Trefferzahl?`, a: [r`$\mu=n\cdot p$`, r`$\mu=\frac np$`, r`$\mu=n+p$`, r`$\mu=p$`], e: r`Anzahl der Versuche mal Trefferwahrscheinlichkeit.` },
+      { l: 1, q: r`Welche Standardabweichung hat eine binomialverteilte Trefferzahl?`, a: [r`$\sigma=\sqrt{n\,p\,(1-p)}$`, r`$\sigma=n\,p\,(1-p)$`, r`$\sigma=\sqrt{n\,p}$`, r`$\sigma=\frac{p}{\sqrt n}$`], e: r`Die Wurzel aus der Varianz $n\,p\,(1-p)$.` },
+      { l: 1, q: r`Es ist $n=10$ und $p=0.5$. Wie gross ist der Erwartungswert?`, a: [r`$5$`, r`$10$`, r`$0.5$`, r`$2.5$`], e: r`$10\cdot0.5$.` },
+      { l: 1, q: r`Was zählt $\binom nk$ in der Formel?`, a: [r`Die Anzahl der Pfade mit genau $k$ Treffern.`, r`Die Anzahl der Versuche.`, r`Die Wahrscheinlichkeit eines Treffers.`, r`Die Anzahl aller Pfade.`], e: r`Auf wie viele Arten sich die $k$ Treffer auf die $n$ Versuche verteilen lassen.` },
+      { l: 1, q: r`In einer Bernoulli-Kette ist die Trefferwahrscheinlichkeit in jedem Versuch gleich.`, tf: true, e: r`Und die Versuche beeinflussen sich nicht.` },
+      { l: 1, q: r`Es ist $n=3$ und $p=0.5$. Wie gross ist $P(X=0)$?`, a: [r`$\frac18$`, r`$\frac13$`, r`$\frac12$`, r`$0$`], e: r`Dreimal Niete: $\left(\frac12\right)^3$.` },
+      { l: 1, q: r`Welche Werte kann die Trefferzahl bei $n$ Versuchen annehmen?`, a: [r`$0,\ 1,\ 2,\ \ldots,\ n$`, r`$1,\ 2,\ \ldots,\ n$`, r`Alle reellen Zahlen von 0 bis 1`, r`Nur 0 und 1`], e: r`Von «kein Treffer» bis «lauter Treffer».` },
+      { l: 1, q: r`Es ist $n=20$ und $p=0.1$. Wie gross ist der Erwartungswert?`, a: [r`$2$`, r`$0.2$`, r`$10$`, r`$200$`], e: r`$20\cdot0.1$.` },
+      { l: 1, q: r`Zieht man aus einer kleinen Urne ohne Zurücklegen, so ist das eine Bernoulli-Kette.`, tf: false, e: r`Die Trefferwahrscheinlichkeit ändert sich von Zug zu Zug. Mit Zurücklegen wäre es eine.` },
+
+      { l: 2, q: r`Es ist $n=4$ und $p=0.5$. Wie gross ist $P(X=2)$?`, a: [r`$0.375$`, r`$0.5$`, r`$0.25$`, r`$0.0625$`], e: r`$\binom42\cdot\frac{1}{16}$.` },
+      { l: 2, q: r`Es ist $n=5$ und $p=0.2$. Wie gross ist $P(X=0)$?`, a: [r`Etwa $0.328$`, r`$0.2$`, r`Etwa $0.0003$`, r`$0.8$`], e: r`$0.8^5$.` },
+      { l: 2, q: r`Es ist $n=5$ und $p=0.2$. Wie gross ist $P(X\ge1)$?`, a: [r`Etwa $0.672$`, r`$1$`, r`Etwa $0.328$`, r`Etwa $0.410$`], e: r`$1-0.8^5$.` },
+      { l: 2, q: r`Es ist $n=100$ und $p=0.5$. Wie gross ist die Standardabweichung?`, a: [r`$5$`, r`$25$`, r`$50$`, r`$10$`], e: r`$\sqrt{100\cdot0.5\cdot0.5}$.` },
+      { l: 2, q: r`Man würfelt dreimal. Wie gross ist die Wahrscheinlichkeit für genau eine Sechs?`, a: [r`Etwa $0.347$`, r`Etwa $0.167$`, r`$0.5$`, r`Etwa $0.116$`], e: r`$3\cdot\frac16\cdot\left(\frac56\right)^2=\frac{75}{216}$.` },
+      { l: 2, q: r`Für welches $p$ ist die Binomialverteilung symmetrisch?`, a: [r`Für $p=0.5$`, r`Für $p=0.1$`, r`Für $p=1$`, r`Für kein $p$`], e: r`Treffer und Niete sind dann gleich wahrscheinlich.` },
+      { l: 2, q: r`Für $p=0.5$ gilt $P(X=k)=P(X=n-k)$.`, tf: true, e: r`$\binom nk=\binom{n}{n-k}$, und jeder Pfad hat die Wahrscheinlichkeit $\frac{1}{2^n}$.` },
+      { l: 2, q: r`Es ist $n=50$ und $p=0.4$. Wie gross sind $\mu$ und $\sigma$?`, a: [r`$\mu=20$ und $\sigma\approx3.46$`, r`$\mu=20$ und $\sigma=12$`, r`$\mu=30$ und $\sigma\approx3.46$`, r`$\mu=20$ und $\sigma\approx4.47$`], e: r`$50\cdot0.4$ und $\sqrt{50\cdot0.4\cdot0.6}=\sqrt{12}$.` },
+      { l: 2, q: r`Ein Test hat 10 Fragen mit je 4 Antworten, von denen eine stimmt. Wie viele richtige Antworten erwartet man beim Raten?`, a: [r`$2.5$`, r`$4$`, r`$5$`, r`$1$`], e: r`$10\cdot\frac14$.` },
+      { l: 2, q: r`Es ist $n=4$ und $p=0.5$. Wie gross ist $P(X\le1)$?`, a: [r`$\frac{5}{16}$`, r`$\frac14$`, r`$\frac{1}{16}$`, r`$\frac12$`], e: r`$\frac{1+4}{16}$.` },
+
+      { l: 3, q: r`Es ist $n=10$ und $p=0.5$. Wie gross ist $P(X\ge8)$?`, a: [r`Etwa $0.055$`, r`Etwa $0.044$`, r`Etwa $0.172$`, r`Etwa $0.011$`], e: r`$\frac{45+10+1}{1024}$.` },
+      { l: 3, q: r`Die Trefferwahrscheinlichkeit ist 0.1. Wie viele Versuche braucht es mindestens, damit man mit mindestens 99 % Wahrscheinlichkeit mindestens einen Treffer hat?`, a: [r`$44$`, r`$10$`, r`$22$`, r`$100$`], e: r`$0.9^n\le0.01$ gilt ab $n=44$.` },
+      { l: 3, q: r`Die wahrscheinlichste Trefferzahl ist immer genau der Erwartungswert $\mu$.`, tf: false, e: r`$\mu$ muss keine ganze Zahl sein, zum Beispiel $\mu=2.5$. Die wahrscheinlichste Trefferzahl liegt aber in seiner Nähe.` },
+      { l: 3, q: r`Eine Binomialverteilung hat $\mu=12$ und $\sigma=3$. Wie gross sind $n$ und $p$?`, a: [r`$n=48$ und $p=0.25$`, r`$n=24$ und $p=0.5$`, r`$n=36$ und $p=\frac13$`, r`$n=16$ und $p=0.75$`], e: r`$n\,p\,(1-p)=9$ und $n\,p=12$ ergeben $1-p=0.75$.` },
+      { l: 3, q: r`Es ist $n=6$ und $p=\frac13$. Welche Trefferzahl ist am wahrscheinlichsten?`, a: [r`$2$`, r`$3$`, r`$1$`, r`$0$`], e: r`$\mu=2$; $P(X=2)=\binom62\cdot\frac19\cdot\frac{16}{81}\approx0.33$.` },
+      { l: 3, q: r`Es ist $n=400$ und $p=0.5$. In welchem Bereich liegt die Trefferzahl mit etwa 95 % Wahrscheinlichkeit?`, a: [r`Zwischen 180 und 220`, r`Zwischen 190 und 210`, r`Zwischen 150 und 250`, r`Zwischen 195 und 205`], e: r`$\mu=200$, $\sigma=10$; Bereich $\mu\pm2\sigma$.` },
+      { l: 3, q: r`Es ist $n=5$ und $p=0.6$. Wie gross ist $P(X=3)$?`, a: [r`Etwa $0.346$`, r`Etwa $0.313$`, r`$0.6$`, r`Etwa $0.216$`], e: r`$\binom53\cdot0.6^3\cdot0.4^2=10\cdot0.216\cdot0.16$.` },
+      { l: 3, q: r`Für welches $p$ ist die Standardabweichung bei festem $n$ am grössten?`, a: [r`Für $p=0.5$`, r`Für $p=1$`, r`Für $p=0.1$`, r`Sie hängt nicht von $p$ ab.`], e: r`$p\,(1-p)$ ist eine Parabel mit dem Scheitel bei 0.5.` }
+    ],
+
+    // ───────────────────────── Poissonverteilung ─────────────────────────
+    poi: [
+      { l: 1, q: r`Was zählt eine poissonverteilte Zufallsgrösse?`, a: [r`Wie oft ein Ereignis in einem festen Zeitraum (oder Bereich) eintritt.`, r`Wie lange es bis zum ersten Ereignis dauert.`, r`Wie gross ein Messwert ist.`, r`Wie viele Versuche man durchführt.`], e: r`Voraussetzung: Die Ereignisse treten unabhängig und im Mittel gleich häufig auf.` },
+      { l: 1, q: r`Was bedeutet $\lambda$?`, a: [r`Die mittlere Anzahl der Ereignisse`, r`Die grösste mögliche Anzahl`, r`Die Wahrscheinlichkeit eines Ereignisses`, r`Die Dauer des Zeitraums`], e: r`Der einzige Parameter der Poissonverteilung.` },
+      { l: 1, q: r`Wie lautet die Formel der Poissonverteilung?`, a: [r`$P(X=k)=\frac{\lambda^k}{k!}\,e^{-\lambda}$`, r`$P(X=k)=\binom nk\,p^k\,(1-p)^{n-k}$`, r`$P(X=k)=\lambda^k\,e^{-k}$`, r`$P(X=k)=\frac{k^\lambda}{\lambda!}$`], e: r`Sie braucht nur $\lambda$ und $k$.` },
+      { l: 1, q: r`Welchen Erwartungswert hat die Poissonverteilung?`, a: [r`$\lambda$`, r`$\sqrt\lambda$`, r`$\lambda^2$`, r`$e^{-\lambda}$`], e: r`$\lambda$ ist die mittlere Anzahl.` },
+      { l: 1, q: r`Welche Standardabweichung hat die Poissonverteilung?`, a: [r`$\sqrt\lambda$`, r`$\lambda$`, r`$\lambda^2$`, r`$\frac1\lambda$`], e: r`Die Varianz ist $\lambda$.` },
+      { l: 1, q: r`Wie gross ist $P(X=0)$?`, a: [r`$e^{-\lambda}$`, r`$0$`, r`$\lambda$`, r`$1-\lambda$`], e: r`$\frac{\lambda^0}{0!}\,e^{-\lambda}$.` },
+      { l: 1, q: r`Welche Werte kann eine poissonverteilte Zufallsgrösse annehmen?`, a: [r`$0,\ 1,\ 2,\ 3,\ \ldots$ ohne obere Grenze`, r`$0$ bis $\lambda$`, r`Alle reellen Zahlen`, r`Nur 0 und 1`], e: r`Sehr grosse Werte sind möglich, aber äusserst unwahrscheinlich.` },
+      { l: 1, q: r`Bei der Poissonverteilung sind Erwartungswert und Varianz gleich gross.`, tf: true, e: r`Beide sind $\lambda$.` },
+      { l: 1, q: r`Es ist $\lambda=2$. Wie gross ist $P(X=0)$?`, a: [r`Etwa $0.135$`, r`$0.5$`, r`Etwa $0.271$`, r`$0$`], e: r`$e^{-2}$.` },
+      { l: 1, q: r`Welche Grösse ist typischerweise poissonverteilt?`, a: [r`Die Anzahl der Anrufe, die in einer Stunde bei einer Zentrale eingehen.`, r`Die Körpergrösse von Erwachsenen.`, r`Die Augenzahl eines Würfels.`, r`Die Anzahl «Kopf» bei zehn Münzwürfen.`], e: r`Viele Gelegenheiten, jede mit kleiner Wahrscheinlichkeit.` },
+      { l: 1, q: r`Es ist $\lambda=4$. Wie gross ist die Standardabweichung?`, a: [r`$2$`, r`$4$`, r`$16$`, r`$0.5$`], e: r`$\sqrt4$.` },
+      { l: 1, q: r`Eine poissonverteilte Zufallsgrösse hat einen grössten möglichen Wert.`, tf: false, e: r`Anders als bei der Binomialverteilung gibt es keine Obergrenze $n$.` },
+
+      { l: 2, q: r`Es ist $\lambda=2$. Wie gross ist $P(X=1)$?`, a: [r`Etwa $0.271$`, r`Etwa $0.135$`, r`$0.5$`, r`Etwa $0.368$`], e: r`$2\cdot e^{-2}$.` },
+      { l: 2, q: r`Es ist $\lambda=2$. Wie gross ist $P(X=2)$?`, a: [r`Etwa $0.271$`, r`Etwa $0.541$`, r`Etwa $0.135$`, r`Etwa $0.180$`], e: r`$\frac{2^2}{2!}\,e^{-2}=2\,e^{-2}$: gleich gross wie $P(X=1)$.` },
+      { l: 2, q: r`Es ist $\lambda=3$. Wie gross ist $P(X\ge1)$?`, a: [r`Etwa $0.950$`, r`Etwa $0.050$`, r`Etwa $0.149$`, r`Etwa $0.667$`], e: r`$1-e^{-3}$.` },
+      { l: 2, q: r`Im Mittel gehen 3 Anrufe pro Stunde ein. Welches $\lambda$ gilt für einen Zeitraum von 2 Stunden?`, a: [r`$6$`, r`$3$`, r`$1.5$`, r`$9$`], e: r`$\lambda$ ist proportional zur Länge des Zeitraums.` },
+      { l: 2, q: r`Wann nähert die Poissonverteilung die Binomialverteilung gut an?`, a: [r`Für grosses $n$ und kleines $p$`, r`Für kleines $n$ und grosses $p$`, r`Für $p=0.5$`, r`Nie`], e: r`Dann setzt man $\lambda=n\cdot p$.` },
+      { l: 2, q: r`Es ist $n=1000$ und $p=0.002$. Welches $\lambda$ gehört zur Poisson-Näherung?`, a: [r`$2$`, r`$0.002$`, r`$500$`, r`$20$`], e: r`$n\cdot p$.` },
+      { l: 2, q: r`Für $\lambda=1$ ist $P(X=0)=P(X=1)$.`, tf: true, e: r`Beide sind $e^{-1}\approx0.368$.` },
+      { l: 2, q: r`Es ist $\lambda=0.5$. Wie gross ist $P(X=0)$?`, a: [r`Etwa $0.607$`, r`$0.5$`, r`Etwa $0.303$`, r`Etwa $0.368$`], e: r`$e^{-0.5}$.` },
+      { l: 2, q: r`Ein Buch hat im Mittel 2 Druckfehler pro Seite. Wie gross ist die Wahrscheinlichkeit, dass eine Seite fehlerfrei ist?`, a: [r`Etwa 13.5 %`, r`50 %`, r`0 %`, r`Etwa 27 %`], e: r`$e^{-2}$.` },
+      { l: 2, q: r`Wie hängen $P(X=k+1)$ und $P(X=k)$ zusammen?`, a: [r`$P(X=k+1)=\frac{\lambda}{k+1}\cdot P(X=k)$`, r`$P(X=k+1)=\lambda\cdot P(X=k)$`, r`$P(X=k+1)=\frac{k+1}{\lambda}\cdot P(X=k)$`, r`$P(X=k+1)=P(X=k)-\lambda$`], e: r`Ein Faktor $\lambda$ mehr im Zähler, ein Faktor $k+1$ mehr im Nenner.` },
+
+      { l: 3, q: r`Es ist $\lambda=2$. Wie gross ist $P(X\le2)$?`, a: [r`Etwa $0.677$`, r`Etwa $0.406$`, r`Etwa $0.541$`, r`Etwa $0.865$`], e: r`$e^{-2}\cdot(1+2+2)$.` },
+      { l: 3, q: r`Für welches $\lambda$ ist $P(X=0)=0.05$?`, a: [r`Für $\lambda\approx3$`, r`Für $\lambda=0.05$`, r`Für $\lambda=20$`, r`Für $\lambda\approx1.3$`], e: r`$e^{-\lambda}=0.05$ ergibt $\lambda=\ln20$.` },
+      { l: 3, q: r`Die Summe zweier unabhängiger poissonverteilter Grössen mit $\lambda_1$ und $\lambda_2$ ist poissonverteilt mit $\lambda_1+\lambda_2$.`, tf: true, e: r`Zum Beispiel die Anrufe am Vormittag und am Nachmittag zusammen.` },
+      { l: 3, q: r`Es ist $\lambda=3$. Welche Werte sind am wahrscheinlichsten?`, a: [r`2 und 3, beide gleich`, r`Nur 3`, r`Nur 2`, r`3 und 4, beide gleich`], e: r`$P(X=3)=\frac33\cdot P(X=2)$. Bei ganzzahligem $\lambda$ sind $\lambda-1$ und $\lambda$ gleich wahrscheinlich.` },
+      { l: 3, q: r`Im Mittel fällt alle zwei Minuten eine Sternschnuppe. Wie gross ist die Wahrscheinlichkeit, in vier Minuten mindestens eine zu sehen?`, a: [r`Etwa 86 %`, r`100 %`, r`Etwa 63 %`, r`50 %`], e: r`$\lambda=2$; $1-e^{-2}$.` },
+      { l: 3, q: r`In einem Saal sitzen 500 Personen. Wie gross ist die Wahrscheinlichkeit, dass heute niemand von ihnen Geburtstag hat?`, a: [r`Etwa 25 %`, r`Etwa 73 %`, r`Etwa 1 %`, r`Etwa 50 %`], e: r`$\lambda=\frac{500}{365}\approx1.37$; $e^{-1.37}$.` },
+      { l: 3, q: r`Im Mittel treten 3 Ereignisse pro Stunde ein. Wie lange wartet man im Mittel von einem Ereignis bis zum nächsten?`, a: [r`20 Minuten`, r`3 Minuten`, r`30 Minuten`, r`60 Minuten`], e: r`Der Kehrwert der Rate: $\frac13$ Stunde.` },
+      { l: 3, q: r`Es ist $\lambda=4$. Wie gross ist $P(X=4)$?`, a: [r`Etwa $0.195$`, r`$0.25$`, r`$0.5$`, r`Etwa $0.092$`], e: r`$\frac{4^4}{4!}\,e^{-4}=\frac{256}{24}\cdot0.0183$.` }
+    ],
+
+    // ───────────────────────── Erwartungswert und faire Spiele ─────────────────────────
+    ev: [
+      { l: 1, q: r`Was ist eine Zufallsgrösse?`, a: [r`Eine Vorschrift, die jedem Ergebnis eines Zufallsversuchs eine Zahl zuordnet.`, r`Eine Zahl, die man zufällig erfindet.`, r`Die Wahrscheinlichkeit eines Ergebnisses.`, r`Die Anzahl der Versuche.`], e: r`Zum Beispiel die Auszahlung bei einem Spiel.` },
+      { l: 1, q: r`Wie berechnet man den Erwartungswert?`, a: [r`Jeden Wert mit seiner Wahrscheinlichkeit multiplizieren und alles addieren.`, r`Alle Werte addieren und durch ihre Anzahl teilen.`, r`Den grössten Wert mit seiner Wahrscheinlichkeit multiplizieren.`, r`Alle Wahrscheinlichkeiten addieren.`], e: r`$E(X)=\sum x_i\cdot P(X=x_i)$.` },
+      { l: 1, q: r`Was bedeutet der Erwartungswert anschaulich?`, a: [r`Den Mittelwert, der sich auf lange Sicht einstellt.`, r`Den Wert, der beim nächsten Versuch herauskommt.`, r`Den wahrscheinlichsten Wert.`, r`Den grössten möglichen Wert.`], e: r`Bei vielen Wiederholungen pendelt sich der Durchschnitt dort ein.` },
+      { l: 1, q: r`Wann heisst ein Spiel fair?`, a: [r`Wenn der Einsatz gleich dem Erwartungswert der Auszahlung ist.`, r`Wenn man in der Hälfte der Fälle gewinnt.`, r`Wenn alle Auszahlungen gleich gross sind.`, r`Wenn der Einsatz 0 ist.`], e: r`Auf lange Sicht gewinnt und verliert dann niemand.` },
+      { l: 1, q: r`Welchen Erwartungswert hat die Augenzahl eines Würfels?`, a: [r`$3.5$`, r`$3$`, r`$4$`, r`$6$`], e: r`$\frac{1+2+3+4+5+6}{6}$.` },
+      { l: 1, q: r`Bei «Kopf» erhält man 2 Fr., bei «Zahl» nichts. Wie gross ist der Erwartungswert der Auszahlung?`, a: [r`1 Fr.`, r`2 Fr.`, r`0.50 Fr.`, r`0 Fr.`], e: r`$\frac12\cdot2+\frac12\cdot0$.` },
+      { l: 1, q: r`Ein Spiel zahlt mit der Wahrscheinlichkeit 0.1 den Betrag 10 Fr. aus, sonst nichts. Wie gross ist der Erwartungswert der Auszahlung?`, a: [r`1 Fr.`, r`10 Fr.`, r`0.10 Fr.`, r`5 Fr.`], e: r`$0.1\cdot10$.` },
+      { l: 1, q: r`Der Erwartungswert muss einer der möglichen Werte sein.`, tf: false, e: r`Beim Würfel ist er 3.5, und das kann man nicht würfeln.` },
+      { l: 1, q: r`Ein Spiel zahlt im Mittel 1 Fr. aus. Welcher Einsatz ist fair?`, a: [r`1 Fr.`, r`2 Fr.`, r`0.50 Fr.`, r`Kein Einsatz ist fair.`], e: r`Einsatz gleich Erwartungswert der Auszahlung.` },
+      { l: 1, q: r`Was ergeben alle Wahrscheinlichkeiten einer Verteilung zusammen?`, a: [r`$1$`, r`$0$`, r`Den Erwartungswert`, r`Die Anzahl der Werte`], e: r`Einer der Werte tritt sicher ein.` },
+      { l: 1, q: r`Der Einsatz ist grösser als der Erwartungswert der Auszahlung. Was folgt?`, a: [r`Auf lange Sicht verliert die Spielerin.`, r`Auf lange Sicht gewinnt die Spielerin.`, r`Das Spiel ist fair.`, r`Man verliert in jeder Runde.`], e: r`Im Mittel zahlt sie mehr ein, als sie zurückbekommt.` },
+      { l: 1, q: r`Bei einem fairen Spiel erhält man in jeder Runde genau den Einsatz zurück.`, tf: false, e: r`Fair heisst nur: im Mittel über viele Runden. In einer einzelnen Runde gewinnt oder verliert man.` },
+
+      { l: 2, q: r`Eine Zufallsgrösse nimmt die Werte 0, 1 und 5 mit den Wahrscheinlichkeiten 0.5, 0.3 und 0.2 an. Wie gross ist der Erwartungswert?`, a: [r`$1.3$`, r`$2$`, r`$1$`, r`$0.3$`], e: r`$0\cdot0.5+1\cdot0.3+5\cdot0.2$.` },
+      { l: 2, q: r`Man würfelt und erhält bei einer Sechs 12 Fr., sonst nichts. Der Einsatz ist 3 Fr. Wie gross ist der mittlere Gewinn pro Spiel?`, a: [r`$-1$ Fr.`, r`$+1$ Fr.`, r`$0$ Fr.`, r`$-3$ Fr.`], e: r`Erwartete Auszahlung $\frac16\cdot12=2$ Fr., minus 3 Fr. Einsatz.` },
+      { l: 2, q: r`Ein Los kostet 2 Fr. Mit 1 % gewinnt man 50 Fr., mit 10 % gewinnt man 5 Fr. Wie viel verliert man im Mittel pro Los?`, a: [r`1 Fr.`, r`2 Fr.`, r`0.50 Fr.`, r`Nichts, das Spiel ist fair.`], e: r`Erwartete Auszahlung $0.01\cdot50+0.1\cdot5=1$ Fr.` },
+      { l: 2, q: r`Zu jeder Auszahlung kommen 2 Fr. dazu. Was geschieht mit dem Erwartungswert?`, a: [r`Er steigt um 2 Fr.`, r`Er bleibt gleich.`, r`Er verdoppelt sich.`, r`Er steigt um 2 Fr. mal die Anzahl der Werte.`], e: r`$E(X+c)=E(X)+c$.` },
+      { l: 2, q: r`Alle Auszahlungen werden verdoppelt. Was geschieht mit dem Erwartungswert?`, a: [r`Er verdoppelt sich.`, r`Er bleibt gleich.`, r`Er vervierfacht sich.`, r`Er steigt um 2.`], e: r`$E(2X)=2\cdot E(X)$.` },
+      { l: 2, q: r`Beim Roulette (37 Felder) setzt man 1 Fr. auf eine Zahl und erhält bei einem Treffer 36 Fr. Wie viel verliert man im Mittel pro Spiel?`, a: [r`Etwa 2.7 Rappen`, r`Nichts`, r`Etwa 27 Rappen`, r`1 Fr.`], e: r`Erwartete Auszahlung $\frac{36}{37}$ Fr.; es fehlt $\frac{1}{37}$ Fr.` },
+      { l: 2, q: r`Der Erwartungswert ist der Schwerpunkt der Verteilung.`, tf: true, e: r`Denkt man sich die Säulen als Gewichte, so ist das Diagramm dort im Gleichgewicht.` },
+      { l: 2, q: r`Welchen Erwartungswert hat die Augensumme zweier Würfel?`, a: [r`$7$`, r`$6$`, r`$6.5$`, r`$12.25$`], e: r`$3.5+3.5$: Erwartungswerte addieren sich.` },
+      { l: 2, q: r`Ein Schaden von 10 000 Fr. tritt pro Jahr mit der Wahrscheinlichkeit 0.002 ein. Wie hoch ist die faire Jahresprämie einer Versicherung?`, a: [r`20 Fr.`, r`200 Fr.`, r`2 Fr.`, r`2000 Fr.`], e: r`$0.002\cdot10\,000$. In Wirklichkeit kommen Kosten und Gewinn dazu.` },
+      { l: 2, q: r`Was misst die Varianz einer Zufallsgrösse?`, a: [r`Die mittlere quadratische Abweichung vom Erwartungswert`, r`Den Abstand zwischen grösstem und kleinstem Wert`, r`Den wahrscheinlichsten Wert`, r`Die Summe aller Werte`], e: r`Ihre Wurzel ist die Standardabweichung.` },
+
+      { l: 3, q: r`Bei «Kopf» erhält man 2 Fr., bei «Zahl» nichts. Wie gross ist die Standardabweichung der Auszahlung?`, a: [r`1 Fr.`, r`2 Fr.`, r`0.50 Fr.`, r`$\sqrt2$ Fr.`], e: r`Erwartungswert 1 Fr.; beide Werte weichen um genau 1 Fr. ab.` },
+      { l: 3, q: r`Welche Varianz hat die Augenzahl eines Würfels?`, a: [r`$\frac{35}{12}\approx2.92$`, r`$3.5$`, r`$\frac{35}{6}\approx5.83$`, r`$1.71$`], e: r`$\frac{1^2+2^2+\ldots+6^2}{6}-3.5^2=\frac{91}{6}-12.25$.` },
+      { l: 3, q: r`Für zwei beliebige Zufallsgrössen gilt $E(X\cdot Y)=E(X)\cdot E(Y)$.`, tf: false, e: r`Das gilt für unabhängige Grössen. Gegenbeispiel $Y=X$ beim Würfel: $E(X^2)=\frac{91}{6}\approx15.2$, aber $3.5^2=12.25$.` },
+      { l: 3, q: r`Man wirft eine Münze höchstens dreimal. Fällt «Kopf» zum ersten Mal im $k$-ten Wurf, erhält man $2^k$ Fr.; fällt nie «Kopf», erhält man nichts. Welcher Einsatz ist fair?`, a: [r`3 Fr.`, r`2 Fr.`, r`4 Fr.`, r`7 Fr.`], e: r`$\frac12\cdot2+\frac14\cdot4+\frac18\cdot8$: Jede Stufe trägt 1 Fr. bei.` },
+      { l: 3, q: r`Man wirft zwei Würfel und erhält bei einem Pasch 10 Fr., sonst 1 Fr. Welcher Einsatz ist fair?`, a: [r`2.50 Fr.`, r`5.50 Fr.`, r`1.50 Fr.`, r`3 Fr.`], e: r`$\frac16\cdot10+\frac56\cdot1$.` },
+      { l: 3, q: r`Man würfelt mit dem Einsatz 2 Fr. und erhält nur bei einer Sechs eine Auszahlung. Wie gross muss sie sein, damit das Spiel fair ist?`, a: [r`12 Fr.`, r`6 Fr.`, r`2 Fr.`, r`10 Fr.`], e: r`$\frac16\cdot a=2$.` },
+      { l: 3, q: r`Welchen Erwartungswert hat die grössere der beiden Augenzahlen beim Wurf zweier Würfel?`, a: [r`Etwa $4.47$`, r`$3.5$`, r`$5$`, r`Etwa $4.08$`], e: r`Das Maximum $k$ hat die Wahrscheinlichkeit $\frac{2k-1}{36}$; die Summe ergibt $\frac{161}{36}$.` },
+      { l: 3, q: r`Eine Lotterie verkauft 1000 Lose zu 5 Fr. Es gibt einen Gewinn von 1000 Fr., zehn von 100 Fr. und hundert von 10 Fr. Welcher Anteil der Einnahmen wird ausgeschüttet?`, a: [r`60 %`, r`30 %`, r`50 %`, r`100 %`], e: r`Gewinnsumme 3000 Fr. bei 5000 Fr. Einnahmen: Ein Los zahlt im Mittel 3 Fr. aus.` }
+    ],
+
+    // ───────────────────────── Normalverteilung ─────────────────────────
+    norm: [
+      { l: 1, q: r`Welche Form hat die Dichte der Normalverteilung?`, a: [r`Eine Glockenkurve, symmetrisch zum Mittelwert $\mu$`, r`Ein Rechteck`, r`Ein Dreieck`, r`Eine ansteigende Gerade`], e: r`In der Mitte am höchsten, nach beiden Seiten gleichmässig abfallend.` },
+      { l: 1, q: r`Wie liest man bei der Normalverteilung Wahrscheinlichkeiten ab?`, a: [r`Als Flächen unter der Glockenkurve`, r`Als Höhen der Kurve`, r`Als Steigungen der Kurve`, r`Als Längen auf der $x$-Achse`], e: r`Die Fläche zwischen zwei Grenzen ist die Wahrscheinlichkeit für diesen Bereich.` },
+      { l: 1, q: r`Welcher Anteil liegt im Bereich $\mu\pm1\sigma$?`, a: [r`Etwa 68 %`, r`Etwa 50 %`, r`Etwa 95 %`, r`Etwa 99.7 %`], e: r`Genauer 68.3 %.` },
+      { l: 1, q: r`Welcher Anteil liegt im Bereich $\mu\pm2\sigma$?`, a: [r`Etwa 95 %`, r`Etwa 68 %`, r`Etwa 90 %`, r`Etwa 99.7 %`], e: r`Genauer 95.4 %.` },
+      { l: 1, q: r`Welcher Anteil liegt im Bereich $\mu\pm3\sigma$?`, a: [r`Etwa 99.7 %`, r`Etwa 95 %`, r`Genau 100 %`, r`Etwa 98 %`], e: r`Fast alles; nur etwa 3 von 1000 Werten liegen ausserhalb.` },
+      { l: 1, q: r`Wie berechnet man, wie viele Standardabweichungen ein Wert $x$ vom Mittelwert entfernt ist?`, a: [r`$z=\frac{x-\mu}{\sigma}$`, r`$z=\frac{x}{\sigma}$`, r`$z=x-\mu$`, r`$z=\frac{\mu-\sigma}{x}$`], e: r`Abstand zum Mittelwert, gemessen in Einheiten von $\sigma$.` },
+      { l: 1, q: r`Wie gross ist die gesamte Fläche unter der Glockenkurve?`, a: [r`$1$`, r`$\mu$`, r`$\sigma$`, r`Unendlich`], e: r`Alle Wahrscheinlichkeiten zusammen ergeben 100 %.` },
+      { l: 1, q: r`Bei der Normalverteilung fallen Mittelwert und Median zusammen.`, tf: true, e: r`Die Kurve ist symmetrisch: Links und rechts von $\mu$ liegen je 50 %.` },
+      { l: 1, q: r`Was geschieht mit der Glockenkurve, wenn $\sigma$ grösser wird?`, a: [r`Sie wird breiter und flacher.`, r`Sie wird schmaler und höher.`, r`Sie verschiebt sich nach rechts.`, r`Sie bleibt gleich.`], e: r`Die Fläche bleibt 1, also muss eine breitere Kurve niedriger sein.` },
+      { l: 1, q: r`Es ist $\mu=100$ und $\sigma=15$. Welcher $z$-Wert gehört zu $x=130$?`, a: [r`$2$`, r`$30$`, r`$1.3$`, r`$8.67$`], e: r`$\frac{130-100}{15}$.` },
+      { l: 1, q: r`Wie gross ist die Wahrscheinlichkeit, dass ein Wert über dem Mittelwert liegt?`, a: [r`50 %`, r`68 %`, r`34 %`, r`Das hängt von $\sigma$ ab.`], e: r`Symmetrie.` },
+      { l: 1, q: r`Die Normalverteilung ist eine diskrete Verteilung: Sie kennt nur ganzzahlige Werte.`, tf: false, e: r`Sie ist stetig; jeder reelle Wert ist möglich.` },
+
+      { l: 2, q: r`Die Körpergrösse sei normalverteilt mit $\mu=170$ cm und $\sigma=10$ cm. Welcher Anteil liegt zwischen 160 cm und 180 cm?`, a: [r`Etwa 68 %`, r`Etwa 95 %`, r`Etwa 50 %`, r`Etwa 34 %`], e: r`Das ist $\mu\pm1\sigma$.` },
+      { l: 2, q: r`Welcher Anteil liegt über $\mu+2\sigma$?`, a: [r`Etwa 2.3 %`, r`Etwa 4.6 %`, r`Etwa 5 %`, r`Etwa 16 %`], e: r`Ausserhalb von $\mu\pm2\sigma$ liegen 4.6 %, je zur Hälfte links und rechts.` },
+      { l: 2, q: r`Welcher Anteil liegt unter $\mu-\sigma$?`, a: [r`Etwa 16 %`, r`Etwa 32 %`, r`Etwa 34 %`, r`Etwa 2.3 %`], e: r`Ausserhalb von $\mu\pm1\sigma$ liegen 31.7 %, die Hälfte davon links.` },
+      { l: 2, q: r`Wie viele Standardabweichungen muss man nach beiden Seiten gehen, um genau 95 % einzuschliessen?`, a: [r`$1.96$`, r`$1.645$`, r`$2.576$`, r`$1$`], e: r`Etwas weniger als 2.` },
+      { l: 2, q: r`Eine Maschine füllt im Mittel 500 g ab, mit $\sigma=5$ g. Welcher Anteil der Packungen wiegt weniger als 490 g?`, a: [r`Etwa 2.3 %`, r`Etwa 16 %`, r`Etwa 5 %`, r`Etwa 0.1 %`], e: r`490 g liegt $2\sigma$ unter dem Mittelwert.` },
+      { l: 2, q: r`Welcher Anteil liegt zwischen $\mu$ und $\mu+\sigma$?`, a: [r`Etwa 34 %`, r`Etwa 68 %`, r`Etwa 50 %`, r`Etwa 16 %`], e: r`Die Hälfte von 68.3 %.` },
+      { l: 2, q: r`Die Wahrscheinlichkeit, dass eine normalverteilte Grösse einen Wert ganz genau trifft, ist 0.`, tf: true, e: r`Über einem einzelnen Punkt liegt keine Fläche. Sinnvoll sind nur Wahrscheinlichkeiten für Bereiche.` },
+      { l: 2, q: r`Ein Testwert ist normalverteilt mit $\mu=100$ und $\sigma=15$. Welcher Anteil liegt über 115?`, a: [r`Etwa 16 %`, r`Etwa 34 %`, r`Etwa 32 %`, r`Etwa 2.3 %`], e: r`115 liegt $1\sigma$ über dem Mittelwert.` },
+      { l: 2, q: r`Was bedeutet $z=-1.5$?`, a: [r`Der Wert liegt 1.5 Standardabweichungen unter dem Mittelwert.`, r`Der Wert ist negativ.`, r`Der Wert liegt 1.5 Einheiten unter dem Mittelwert.`, r`Die Wahrscheinlichkeit ist negativ.`], e: r`Das Vorzeichen zeigt die Seite, der Betrag den Abstand in $\sigma$.` },
+      { l: 2, q: r`Wie viele Standardabweichungen muss man nach beiden Seiten gehen, um 90 % einzuschliessen?`, a: [r`$1.645$`, r`$1.96$`, r`$0.9$`, r`$1.28$`], e: r`Für weniger Sicherheit genügt ein schmalerer Bereich.` },
+
+      { l: 3, q: r`Es ist $\mu=50$ und $\sigma=4$. Welche Grenze wird von etwa 97.7 % der Werte unterschritten?`, a: [r`$58$`, r`$54$`, r`$62$`, r`$56.6$`], e: r`Über $\mu+2\sigma$ liegen etwa 2.3 %.` },
+      { l: 3, q: r`Welcher Anteil liegt zwischen $\mu+\sigma$ und $\mu+2\sigma$?`, a: [r`Etwa 13.6 %`, r`Etwa 27 %`, r`Etwa 34 %`, r`Etwa 4.6 %`], e: r`$\frac{95.4\,\%-68.3\,\%}{2}$.` },
+      { l: 3, q: r`Die Wendepunkte der Glockenkurve liegen bei $\mu-\sigma$ und $\mu+\sigma$.`, tf: true, e: r`Dort wechselt die Kurve von der Rechts- in die Linkskurve. So lässt sich $\sigma$ am Bild ablesen.` },
+      { l: 3, q: r`Eine Maschine füllt mit $\sigma=5$ g ab. Höchstens 2.3 % der Packungen dürfen weniger als 500 g enthalten. Auf welchen Mittelwert stellt man sie ein?`, a: [r`Auf 510 g`, r`Auf 505 g`, r`Auf 500 g`, r`Auf 515 g`], e: r`500 g muss $2\sigma$ unter dem Mittelwert liegen.` },
+      { l: 3, q: r`95 % der Werte einer Normalverteilung liegen symmetrisch zwischen 40 und 60. Wie gross ist $\sigma$?`, a: [r`Etwa $5.1$`, r`$10$`, r`$20$`, r`Etwa $3.3$`], e: r`$1.96\,\sigma=10$.` },
+      { l: 3, q: r`Wie gross ist die Wahrscheinlichkeit, dass ein Wert mehr als $3\sigma$ vom Mittelwert abweicht?`, a: [r`Etwa 0.3 %`, r`Etwa 3 %`, r`Etwa 0.03 %`, r`0 %`], e: r`$100\,\%-99.7\,\%$.` },
+      { l: 3, q: r`$X$ ist normalverteilt mit $\mu=10$ und $\sigma=2$. Welche Parameter hat $Y=3X+1$?`, a: [r`$\mu=31$ und $\sigma=6$`, r`$\mu=31$ und $\sigma=7$`, r`$\mu=30$ und $\sigma=2$`, r`$\mu=31$ und $\sigma=18$`], e: r`Der Mittelwert macht alles mit, die Streuung nur den Faktor 3.` },
+      { l: 3, q: r`Ein Testwert ist normalverteilt mit $\mu=100$ und $\sigma=15$. Ab welchem Wert gehört man zu den besten 5 %?`, a: [r`Ab etwa 125`, r`Ab etwa 130`, r`Ab etwa 115`, r`Ab etwa 145`], e: r`Einseitig 5 % gehören zu $z=1.645$: $100+1.645\cdot15$.` }
+    ],
+
+    // ───────────────────────── Grenzwerte: Binomial → Poisson und → Normal ─────────────────────────
+    lim: [
+      { l: 1, q: r`Wann nähert die Poissonverteilung die Binomialverteilung gut an?`, a: [r`Wenn $n$ gross und $p$ klein ist.`, r`Wenn $n$ klein und $p$ gross ist.`, r`Wenn $p=0.5$ ist.`, r`Immer.`], e: r`Viele Versuche mit kleiner Trefferwahrscheinlichkeit.` },
+      { l: 1, q: r`Welches $\lambda$ wählt man für die Poisson-Näherung?`, a: [r`$\lambda=n\cdot p$`, r`$\lambda=\frac np$`, r`$\lambda=\sqrt{n\,p}$`, r`$\lambda=p$`], e: r`Der Erwartungswert bleibt derselbe.` },
+      { l: 1, q: r`Wann nähert die Normalverteilung die Binomialverteilung gut an?`, a: [r`Wenn $n$ gross ist (Faustregel: $n\,p\,(1-p)>9$).`, r`Wenn $n$ klein ist.`, r`Nur für $p=0.5$.`, r`Wenn $p$ sehr nahe bei 0 liegt.`], e: r`Die Verteilung muss breit genug sein.` },
+      { l: 1, q: r`Welche Parameter hat die Normalverteilung, die eine Binomialverteilung annähert?`, a: [r`$\mu=n\,p$ und $\sigma=\sqrt{n\,p\,(1-p)}$`, r`$\mu=n$ und $\sigma=p$`, r`$\mu=p$ und $\sigma=\sqrt n$`, r`$\mu=\frac n2$ und $\sigma=\frac n4$`], e: r`Erwartungswert und Standardabweichung der Binomialverteilung.` },
+      { l: 1, q: r`Worin unterscheiden sich Binomial- und Normalverteilung grundsätzlich?`, a: [r`Die Binomialverteilung ist diskret, die Normalverteilung stetig.`, r`Die Binomialverteilung ist stetig, die Normalverteilung diskret.`, r`Nur die Normalverteilung hat einen Erwartungswert.`, r`Nur die Binomialverteilung hat eine Streuung.`], e: r`Säulen über ganzen Zahlen gegen eine durchgehende Kurve.` },
+      { l: 1, q: r`Welcher Satz sagt, dass die Binomialverteilung für grosses $n$ in die Normalverteilung übergeht?`, a: [r`Der Satz von de Moivre und Laplace`, r`Der Satz von Bayes`, r`Der Satz des Pythagoras`, r`Der Satz von Vieta`], e: r`Ein Sonderfall des zentralen Grenzwertsatzes.` },
+      { l: 1, q: r`Es ist $n=1000$ und $p=0.003$. Welches $\lambda$ gehört dazu?`, a: [r`$3$`, r`$0.003$`, r`$30$`, r`$333$`], e: r`$1000\cdot0.003$.` },
+      { l: 1, q: r`Misst man in Einheiten von $\sigma$, so rücken die Säulen der Binomialverteilung für wachsendes $n$ immer dichter zusammen.`, tf: true, e: r`$\sigma$ wächst; der Abstand 1 zwischen zwei Säulen wird im Verhältnis dazu immer kleiner.` },
+      { l: 1, q: r`Es ist $n=100$ und $p=0.5$. Welche Normalverteilung passt dazu?`, a: [r`$\mu=50$ und $\sigma=5$`, r`$\mu=50$ und $\sigma=25$`, r`$\mu=100$ und $\sigma=0.5$`, r`$\mu=50$ und $\sigma=10$`], e: r`$\sqrt{100\cdot0.5\cdot0.5}=5$.` },
+      { l: 1, q: r`Welchen Vorteil haben die Näherungen?`, a: [r`Man kommt ohne riesige Binomialkoeffizienten aus.`, r`Sie sind genauer als die Binomialverteilung.`, r`Sie gelten auch ohne Zufall.`, r`Man braucht $n$ und $p$ nicht zu kennen.`], e: r`Für $n=1000$ ist die exakte Formel von Hand kaum zu rechnen.` },
+      { l: 1, q: r`Wie viele Parameter braucht die Poissonverteilung?`, a: [r`Einen: $\lambda$`, r`Zwei: $n$ und $p$`, r`Zwei: $\mu$ und $\sigma$`, r`Keinen`], e: r`$n$ und $p$ kommen nur noch als Produkt vor.` },
+      { l: 1, q: r`Für $p=0.5$ ist die Poisson-Näherung besonders gut.`, tf: false, e: r`Sie verlangt ein kleines $p$. Für $p=0.5$ passt die Normalverteilung.` },
+
+      { l: 2, q: r`Es ist $n=200$ und $p=0.01$. Wie gross ist $P(X=0)$ nach der Poisson-Näherung?`, a: [r`Etwa $0.135$`, r`Etwa $0.01$`, r`Etwa $0.368$`, r`Etwa $0.271$`], e: r`$e^{-2}$; exakt ist $0.99^{200}\approx0.134$.` },
+      { l: 2, q: r`Für welche Binomialverteilung ist die Normalnäherung brauchbar?`, a: [r`$n=100$, $p=0.5$`, r`$n=10$, $p=0.5$`, r`$n=100$, $p=0.01$`, r`$n=20$, $p=0.1$`], e: r`Nur dort ist $n\,p\,(1-p)=25$ grösser als 9.` },
+      { l: 2, q: r`Es ist $n=400$ und $p=0.5$. Wie gross ist $P(180\le X\le220)$ ungefähr?`, a: [r`95 %`, r`68 %`, r`99.7 %`, r`50 %`], e: r`$\mu=200$, $\sigma=10$: der Bereich $\mu\pm2\sigma$.` },
+      { l: 2, q: r`Welchen Grenzwert hat $\left(1-\frac{\lambda}{n}\right)^n$ für $n\to\infty$?`, a: [r`$e^{-\lambda}$`, r`$1$`, r`$0$`, r`$1-\lambda$`], e: r`Daraus entsteht $P(X=0)$ der Poissonverteilung.` },
+      { l: 2, q: r`Wozu dient die Stetigkeitskorrektur ($\pm0.5$) bei der Normalnäherung?`, a: [r`Jede Säule reicht von $k-0.5$ bis $k+0.5$; so wird sie ganz mitgezählt.`, r`Sie gleicht Rundungsfehler des Taschenrechners aus.`, r`Sie macht die Verteilung symmetrisch.`, r`Sie ist nur für $p=0.5$ nötig.`], e: r`$P(X\le k)$ entspricht der Fläche bis $k+0.5$.` },
+      { l: 2, q: r`Bei festem $p$ wird die Binomialverteilung mit wachsendem $n$ immer symmetrischer.`, tf: true, e: r`Die Schiefe nimmt wie $\frac{1}{\sqrt n}$ ab.` },
+      { l: 2, q: r`Es ist $n=10\,000$ und $p=0.0002$. Wie gross ist $P(X\ge1)$ ungefähr?`, a: [r`$0.865$`, r`$0.135$`, r`$0.5$`, r`$0.0002$`], e: r`$\lambda=2$; $1-e^{-2}$.` },
+      { l: 2, q: r`Was bleibt beim Übergang von der Binomial- zur Poissonverteilung fest?`, a: [r`Das Produkt $n\cdot p=\lambda$`, r`Die Anzahl $n$`, r`Die Wahrscheinlichkeit $p$`, r`Die Summe $n+p$`], e: r`$n$ wächst, $p$ schrumpft, der Erwartungswert bleibt.` },
+      { l: 2, q: r`Es ist $n=900$ und $p=0.1$. Welche Normalverteilung passt dazu?`, a: [r`$\mu=90$ und $\sigma=9$`, r`$\mu=90$ und $\sigma=81$`, r`$\mu=90$ und $\sigma=30$`, r`$\mu=9$ und $\sigma=3$`], e: r`$\sqrt{900\cdot0.1\cdot0.9}=\sqrt{81}$.` },
+      { l: 2, q: r`Welche Näherung passt zu $n=500$ und $p=0.004$?`, a: [r`Die Poissonverteilung mit $\lambda=2$`, r`Die Normalverteilung mit $\mu=2$ und $\sigma=1.4$`, r`Die Poissonverteilung mit $\lambda=0.004$`, r`Keine`], e: r`$n\,p\,(1-p)\approx2$ ist für die Normalnäherung zu klein.` },
+
+      { l: 3, q: r`Es ist $n=100$ und $p=0.5$. Wie gross ist $P(X\ge60)$ ungefähr?`, a: [r`Etwa 3 %`, r`Etwa 16 %`, r`Etwa 0.1 %`, r`Etwa 10 %`], e: r`Mit Stetigkeitskorrektur: $z=\frac{59.5-50}{5}=1.9$.` },
+      { l: 3, q: r`Beim Übergang zur Poissonverteilung geht die Varianz $n\,p\,(1-p)$ gegen $\lambda$.`, tf: true, e: r`$n\,p=\lambda$ bleibt fest, und $1-p$ geht gegen 1.` },
+      { l: 3, q: r`Warum steht in der Formel der Glockenkurve der Faktor $\frac{1}{\sigma\sqrt{2\pi}}$?`, a: [r`Damit die Fläche unter der Kurve genau 1 ist.`, r`Damit die Kurve symmetrisch ist.`, r`Damit der Mittelwert stimmt.`, r`Weil die Kurve ein Kreisbogen ist.`], e: r`Die Fläche unter $e^{-\frac{x^2}{2}}$ ist $\sqrt{2\pi}$.` },
+      { l: 3, q: r`Man wirft eine faire Münze 10 000-mal. Wie gross ist die Wahrscheinlichkeit für mehr als 5100-mal «Kopf»?`, a: [r`Etwa 2.3 %`, r`Etwa 16 %`, r`Etwa 49 %`, r`Etwa 0.1 %`], e: r`$\sigma=50$; 5100 liegt $2\sigma$ über dem Erwartungswert.` },
+      { l: 3, q: r`1 % der Bevölkerung hat ein bestimmtes Merkmal. Wie gross ist die Wahrscheinlichkeit, dass es in einer Stichprobe von 300 Personen genau 3 haben?`, a: [r`Etwa 22 %`, r`Etwa 1 %`, r`Etwa 5 %`, r`Etwa 50 %`], e: r`Poisson mit $\lambda=3$: $\frac{3^3}{3!}\,e^{-3}=4.5\cdot0.0498$.` },
+      { l: 3, q: r`Wie oft muss man eine faire Münze werfen, damit der Anteil «Kopf» mit 95 % Wahrscheinlichkeit zwischen 0.49 und 0.51 liegt?`, a: [r`Etwa 9600-mal`, r`Etwa 1000-mal`, r`Etwa 2500-mal`, r`Etwa 100 000-mal`], e: r`$1.96\cdot\frac{0.5}{\sqrt n}=0.01$ ergibt $n=98^2$.` },
+      { l: 3, q: r`Es ist $n=50$ und $p=0.5$. Wie gross ist $P(X=25)$ ungefähr?`, a: [r`$0.11$`, r`$0.5$`, r`$0.02$`, r`$0.25$`], e: r`Höhe der Glockenkurve in der Mitte: $\frac{1}{\sigma\sqrt{2\pi}}$ mit $\sigma\approx3.54$.` },
+      { l: 3, q: r`Was geschieht bei festem $p$ mit der Wahrscheinlichkeit des wahrscheinlichsten Werts, wenn $n$ wächst?`, a: [r`Sie geht gegen 0, etwa wie $\frac{1}{\sqrt n}$.`, r`Sie bleibt gleich.`, r`Sie geht gegen 1.`, r`Sie geht gegen $p$.`], e: r`Die Wahrscheinlichkeit verteilt sich auf immer mehr Werte.` }
+    ],
+
+    // ───────────────────────── Hypothesentest ─────────────────────────
+    test: [
+      { l: 1, q: r`Was ist die Nullhypothese $H_0$?`, a: [r`Die Annahme, die der Test prüft.`, r`Die Annahme, dass die Wahrscheinlichkeit 0 ist.`, r`Das Ergebnis des Tests.`, r`Die Anzahl der Versuche.`], e: r`Zum Beispiel «die Münze ist fair: $p=0.5$».` },
+      { l: 1, q: r`Was gibt das Signifikanzniveau $\alpha$ an?`, a: [r`Die höchste zugelassene Wahrscheinlichkeit, eine wahre Nullhypothese zu verwerfen.`, r`Die Wahrscheinlichkeit, dass die Nullhypothese stimmt.`, r`Die Anzahl der Versuche.`, r`Die Trefferwahrscheinlichkeit.`], e: r`Man legt es vor dem Test fest.` },
+      { l: 1, q: r`Was ist ein Fehler 1. Art?`, a: [r`Die Nullhypothese wird verworfen, obwohl sie stimmt.`, r`Die Nullhypothese wird beibehalten, obwohl sie falsch ist.`, r`Man hat sich verrechnet.`, r`Die Stichprobe ist zu klein.`], e: r`Ein falscher Alarm.` },
+      { l: 1, q: r`Was ist ein Fehler 2. Art?`, a: [r`Die Nullhypothese wird beibehalten, obwohl sie falsch ist.`, r`Die Nullhypothese wird verworfen, obwohl sie stimmt.`, r`Man hat zwei Fehler gemacht.`, r`Die Nullhypothese wurde falsch aufgeschrieben.`], e: r`Eine Abweichung wird übersehen.` },
+      { l: 1, q: r`Was ist der Ablehnungsbereich?`, a: [r`Die Ergebnisse, bei denen die Nullhypothese verworfen wird.`, r`Die Ergebnisse, bei denen die Nullhypothese beibehalten wird.`, r`Der Bereich der unmöglichen Ergebnisse.`, r`Der Erwartungswert.`], e: r`Ergebnisse, die unter $H_0$ sehr unwahrscheinlich wären.` },
+      { l: 1, q: r`Welches Signifikanzniveau ist am gebräuchlichsten?`, a: [r`5 %`, r`50 %`, r`25 %`, r`95 %`], e: r`Auch 1 % ist üblich.` },
+      { l: 1, q: r`Wie ist die Trefferzahl verteilt, wenn die Nullhypothese $p=p_0$ stimmt?`, a: [r`Binomial mit $n$ und $p_0$`, r`Gleichverteilt`, r`Immer normal mit $\mu=0$`, r`Gar nicht; sie ist fest.`], e: r`Daraus berechnet man den Ablehnungsbereich.` },
+      { l: 1, q: r`Fällt das Ergebnis in den Ablehnungsbereich, so wird die Nullhypothese verworfen.`, tf: true, e: r`So lautet die Entscheidungsregel.` },
+      { l: 1, q: r`Was geschieht mit dem Ablehnungsbereich, wenn man $\alpha$ kleiner wählt?`, a: [r`Er wird kleiner.`, r`Er wird grösser.`, r`Er bleibt gleich.`, r`Er verschwindet immer.`], e: r`Man verlangt stärkere Belege, bevor man verwirft.` },
+      { l: 1, q: r`Was ist die Alternativhypothese $H_1$?`, a: [r`Die Gegenannahme zur Nullhypothese.`, r`Eine zweite Nullhypothese.`, r`Das Ergebnis der Stichprobe.`, r`Das Signifikanzniveau.`], e: r`Zum Beispiel «die Münze ist nicht fair: $p\ne0.5$».` },
+      { l: 1, q: r`Was ist ein zweiseitiger Test?`, a: [r`Ein Test, der Abweichungen nach oben und nach unten prüft.`, r`Ein Test mit zwei Stichproben.`, r`Ein Test, der zweimal durchgeführt wird.`, r`Ein Test mit zwei Nullhypothesen.`], e: r`Der Ablehnungsbereich liegt an beiden Rändern.` },
+      { l: 1, q: r`Wird die Nullhypothese nicht verworfen, so ist sie bewiesen.`, tf: false, e: r`Man hat nur keinen ausreichenden Beleg gegen sie gefunden.` },
+
+      { l: 2, q: r`Man wirft eine Münze 100-mal und testet $H_0$: $p=0.5$ zweiseitig mit $\alpha=5\,\%$. Bei welchen Anzahlen «Kopf» behält man $H_0$ bei?`, a: [r`Etwa von 40 bis 60`, r`Etwa von 45 bis 55`, r`Etwa von 30 bis 70`, r`Nur bei genau 50`], e: r`$\mu=50$, $\sigma=5$; etwa $\mu\pm2\sigma$.` },
+      { l: 2, q: r`Im selben Test fällt 65-mal «Kopf». Wie entscheidet man?`, a: [r`$H_0$ wird verworfen.`, r`$H_0$ wird beibehalten.`, r`Der Test muss wiederholt werden.`, r`Es lässt sich nichts entscheiden.`], e: r`65 liegt $3\sigma$ über dem Erwartungswert, weit im Ablehnungsbereich.` },
+      { l: 2, q: r`Was ist der p-Wert?`, a: [r`Die Wahrscheinlichkeit unter $H_0$ für ein mindestens so extremes Ergebnis wie das beobachtete.`, r`Die Wahrscheinlichkeit, dass $H_0$ stimmt.`, r`Die Trefferwahrscheinlichkeit $p$.`, r`Das Signifikanzniveau.`], e: r`Ein kleiner p-Wert spricht gegen $H_0$.` },
+      { l: 2, q: r`Der p-Wert ist 0.03, das Signifikanzniveau 5 %. Wie entscheidet man?`, a: [r`$H_0$ wird verworfen.`, r`$H_0$ wird beibehalten.`, r`$H_0$ ist bewiesen.`, r`Man braucht einen zweiten Test.`], e: r`$0.03<0.05$.` },
+      { l: 2, q: r`Der p-Wert ist 0.03, das Signifikanzniveau 1 %. Wie entscheidet man?`, a: [r`$H_0$ wird beibehalten.`, r`$H_0$ wird verworfen.`, r`$H_1$ ist bewiesen.`, r`Der Test ist ungültig.`], e: r`$0.03>0.01$: Der Beleg reicht für das strengere Niveau nicht.` },
+      { l: 2, q: r`Wählt man bei gleicher Stichprobengrösse ein kleineres $\alpha$, so wird ein Fehler 2. Art wahrscheinlicher.`, tf: true, e: r`Wer seltener verwirft, übersieht eine falsche Nullhypothese häufiger.` },
+      { l: 2, q: r`Wann wählt man einen einseitigen Test?`, a: [r`Wenn nur eine Abweichung in eine Richtung interessiert, zum Beispiel «wirkt besser».`, r`Wenn man nur eine Stichprobe hat.`, r`Wenn die Stichprobe klein ist.`, r`Wenn $p=0.5$ ist.`], e: r`Der Ablehnungsbereich liegt dann nur an einem Rand.` },
+      { l: 2, q: r`Wie oft wird bei $\alpha=5\,\%$ eine Nullhypothese verworfen, die in Wahrheit stimmt?`, a: [r`In höchstens 5 % der Fälle`, r`Nie`, r`In 95 % der Fälle`, r`In der Hälfte der Fälle`], e: r`Genau das begrenzt das Signifikanzniveau.` },
+      { l: 2, q: r`Man würfelt 60-mal und erhält 20 Sechsen. Was sagt ein Test von $H_0$: $p=\frac16$?`, a: [r`$H_0$ wird verworfen; 20 liegt weit über dem Erwartungswert 10.`, r`$H_0$ wird beibehalten; 20 ist nahe bei 10.`, r`Der Würfel ist sicher fair.`, r`Bei 60 Würfen kann man nicht testen.`], e: r`$\sigma=\sqrt{60\cdot\frac16\cdot\frac56}\approx2.9$; die Abweichung beträgt etwa $3.5\,\sigma$.` },
+      { l: 2, q: r`Was bewirkt eine grössere Stichprobe?`, a: [r`Der Test erkennt eine falsche Nullhypothese mit grösserer Wahrscheinlichkeit.`, r`Der Fehler 1. Art wird unmöglich.`, r`Das Signifikanzniveau wird automatisch kleiner.`, r`Die Nullhypothese wird immer verworfen.`], e: r`Der Fehler 2. Art wird seltener; der Test wird trennschärfer.` },
+
+      { l: 3, q: r`Man wirft eine Münze 10-mal und verwirft $H_0$: $p=0.5$ bei 0, 1, 9 oder 10-mal «Kopf». Wie gross ist die Wahrscheinlichkeit für einen Fehler 1. Art?`, a: [r`Etwa 2.1 %`, r`5 %`, r`Etwa 0.2 %`, r`Etwa 11 %`], e: r`$\frac{1+10+10+1}{1024}$.` },
+      { l: 3, q: r`Der p-Wert ist die Wahrscheinlichkeit, dass die Nullhypothese stimmt.`, tf: false, e: r`Er wird unter der Annahme berechnet, dass $H_0$ stimmt, und sagt, wie ungewöhnlich die Daten dann wären.` },
+      { l: 3, q: r`Man führt 20 unabhängige Tests mit $\alpha=5\,\%$ durch; alle Nullhypothesen stimmen. Wie gross ist die Wahrscheinlichkeit für mindestens ein «signifikantes» Ergebnis?`, a: [r`Etwa 64 %`, r`5 %`, r`100 %`, r`Etwa 36 %`], e: r`$1-0.95^{20}$. Wer viel testet, findet zufällig etwas.` },
+      { l: 3, q: r`Man testet mit 100 Versuchen $H_0$: $p=0.5$ gegen $H_1$: $p>0.5$ mit $\alpha=5\,\%$. Ab welcher Trefferzahl verwirft man $H_0$?`, a: [r`Ab 59`, r`Ab 55`, r`Ab 51`, r`Ab 65`], e: r`$50+1.645\cdot5\approx58.2$; erst ab 59 Treffern liegt die Wahrscheinlichkeit unter 5 %.` },
+      { l: 3, q: r`Was ist die Trennschärfe (Macht) eines Tests?`, a: [r`Die Wahrscheinlichkeit, eine falsche Nullhypothese zu verwerfen.`, r`Die Wahrscheinlichkeit, eine wahre Nullhypothese zu verwerfen.`, r`Das Signifikanzniveau.`, r`Die Grösse der Stichprobe.`], e: r`Eins minus die Wahrscheinlichkeit für einen Fehler 2. Art.` },
+      { l: 3, q: r`Ein Test mit nur 10 Versuchen verwirft die Nullhypothese nicht. Was folgt daraus?`, a: [r`Wenig: Bei so kleinen Stichproben werden auch deutliche Abweichungen oft nicht erkannt.`, r`Die Nullhypothese stimmt.`, r`Die Alternativhypothese ist widerlegt.`, r`Der Test war fehlerhaft.`], e: r`«Nicht signifikant» heisst nicht «kein Unterschied».` },
+      { l: 3, q: r`Man würfelt 600-mal und testet $H_0$: $p=\frac16$ zweiseitig mit $\alpha=5\,\%$. Bei welchen Anzahlen Sechsen behält man $H_0$ etwa bei?`, a: [r`Von 82 bis 118`, r`Von 91 bis 109`, r`Von 95 bis 105`, r`Von 60 bis 140`], e: r`$\mu=100$, $\sigma=\sqrt{600\cdot\frac16\cdot\frac56}\approx9.1$; etwa $\mu\pm1.96\,\sigma$.` },
+      { l: 3, q: r`Ein signifikantes Ergebnis bedeutet, dass der gefundene Unterschied gross und praktisch wichtig ist.`, tf: false, e: r`Bei sehr grossen Stichproben werden auch winzige Unterschiede signifikant. Signifikant heisst nur: kaum durch Zufall zu erklären.` }
+    ]
+  };
+})();

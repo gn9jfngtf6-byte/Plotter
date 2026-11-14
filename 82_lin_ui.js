@@ -30,7 +30,6 @@ const LIN = Object.assign(linDefaults(), { ui: null, S: null, drag: null, anim: 
 function linActive() { return typeof ENV !== 'undefined' && ENV.cur === 'lin'; }
 
 const linR6 = x => Math.round(x * 1e6) / 1e6 + 0;
-const linLineOf = (m, q) => Lin.mk(m, q);
 // Gerade als Eingabetext («-3/2*x+4»)
 function linRaw(m, q) {
   const L = Lin.mk(m, q), qr = z => { const n = Number(z.n), d = Number(z.d); return d === 1 ? String(n) : n + '/' + d; };
@@ -220,12 +219,7 @@ function linCardLatex() {
   return '% ' + r.t + ' aus J\\sqrt{10} — benötigt \\usepackage{amsmath,amssymb}\n' + Dif.docTex(r.d);
 }
 function linMakeLatex(which) { const ui = LIN.ui; if (!ui) return ''; try { ui.ta.value = which === 'calc' ? linCardLatex() : linLatex(); } catch (e) { ui.ta.value = '% Fehler beim Erzeugen: ' + e.message; } return ui.ta.value; }
-function linCopyLatex() {
-  const ui = LIN.ui; if (!ui) return; if (!ui.ta.value) linMakeLatex('pic');
-  const done = () => { ui.msg.textContent = (typeof t === 'function' ? t('msg_copied') : 'Kopiert'); setTimeout(() => { ui.msg.textContent = ''; }, 2500); };
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ui.ta.value).then(done).catch(() => { ui.ta.select(); document.execCommand('copy'); done(); });
-  else { ui.ta.select(); document.execCommand('copy'); done(); }
-}
+function linCopyLatex() { texCopy(LIN.ui, () => linMakeLatex('pic')); }
 
 // ── Ausschnitt (immer alle vier Werte; gleicher Massstab bleibt beim Zoomen erhalten) ──
 function linResolvedWin() {
@@ -432,7 +426,7 @@ function linAnimFrame(ts) {
   const cv = document.getElementById('canvas'); if (!cv) return;
   const pos = e => { const r = cv.getBoundingClientRect(), t = e.touches && e.touches[0] ? e.touches[0] : (e.changedTouches && e.changedTouches[0]) || e; return { x: t.clientX - r.left, y: t.clientY - r.top }; };
   const inMap = (m, p) => m && p.x >= m.L && p.x <= m.R && p.y >= m.T && p.y <= m.B;
-  const near = p => { const S = LIN.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + 4 && d < bd) { bd = d; best = q; } }); return best; };
+  const near = p => { const S = LIN.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + hitR(4) && d < bd) { bd = d; best = q; } }); return best; };
   const setPt = (id, x, y, shift) => {
     const m = LIN.S && LIN.S.maps.main; if (!m) return;
     const st = Stat.niceStep(m.win.x1 - m.win.x0, 14), sx = difSnap(x, st, shift), sy = difSnap(y, st, shift), r = linR6;

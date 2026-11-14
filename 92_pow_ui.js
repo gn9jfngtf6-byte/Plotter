@@ -12,7 +12,7 @@ const POW_DESC = {
   fam: ['Wähle n und ziehe den {{Punkt P|P}} auf dem {{Graphen von xⁿ|f}}: Der Spiegelpunkt P′ zeigt die Symmetrie – bei geradem n zur y-Achse, bei ungeradem n zum Ursprung. Alle gehen durch (0 | 0) und (1 | 1).', 'Potenzfunktionen f(x) = xⁿ mit natürlichem n. Für gerades n ist der Graph achsensymmetrisch zur y-Achse, für ungerades n punktsymmetrisch zum Ursprung. Alle gehen durch (0|0) und (1|1).'],
   neg: ['Ziehe den {{Punkt P|P}} nahe an die y-Achse und weit nach aussen: Der {{Graph von x⁻ⁿ|f}} wächst bei x = 0 über alle Grenzen und schmiegt sich aussen an die x-Achse – die Achsen sind Asymptoten.', 'Negative Exponenten: f(x) = x⁻ⁿ = 1/xⁿ. Bei x = 0 hat f eine Definitionslücke; die Achsen sind Asymptoten. Je grösser |x|, desto näher kommt f der 0.'],
   root: ['Ziehe den {{Punkt P|P}} auf der {{Potenzfunktion|pw}}: Sein Spiegelbild an der {{Winkelhalbierenden y = x|diag}} liegt auf der {{Wurzelfunktion|rt}}. Die Wurzel ist die Umkehrfunktion: ⁿ√x = x^(1/n); «▶ xⁿ an y = x umklappen» zeigt die Spiegelung als Bewegung.', 'Die Wurzelfunktion ⁿ√x ist die Umkehrfunktion von xⁿ: Ihr Graph ist das Spiegelbild an der Winkelhalbierenden y = x. In Potenzschreibweise ist ⁿ√x = x^(1/n), allgemein x^(m/n) = ⁿ√(xᵐ).'],
-  gen: ['Ziehe den {{Punkt S|S}} (Verschiebung v und h) und den {{roten Punkt a|A}} (Streckung) oder starte die Animation: Die {{Grundfunktion|base}} wird Schritt für Schritt in {{f(x) = a·(x − v)ⁿ + h|f}} verwandelt.', 'Die allgemeine Form f(x) = a·(x−v)ⁿ + h entsteht aus der Grundfunktion xⁿ (oder ⁿ√x, 1/xⁿ) durch Strecken mit a (bei a < 0 gespiegelt), Verschieben um v nach rechts und um h nach oben (Punkt (v ).'],
+  gen: ['Ziehe den {{Punkt S|S}} (Verschiebung v und h) und den {{roten Punkt a|A}} (Streckung) oder starte die Animation: Die {{Grundfunktion|base}} wird Schritt für Schritt in {{f(x) = a·(x − v)ⁿ + h|f}} verwandelt.', 'Die allgemeine Form f(x) = a·(x−v)ⁿ + h entsteht aus der Grundfunktion xⁿ (oder ⁿ√x, 1/xⁿ) durch Strecken mit a (bei a < 0 gespiegelt), Verschieben um v nach rechts und um h nach oben (Punkt S(v | h)).'],
   eq: ['Ziehe die {{Gerade y = y₀|Y,yl}} auf und ab: Ihre Schnittpunkte mit dem {{Graphen|f}} sind die Lösungen von f(x) = y₀ – je nach Lage zwei, eine oder keine. Der Rechenweg rechts passt sich an.', 'Gleichung f(x) = y₀ lösen: Die Potenz wird isoliert, dann entscheidet die Fallunterscheidung (gerade/ungerade, Wurzel, negative rechte Seite), wie viele Lösungen es gibt. Die Lösungen sind die Schnittstellen mit der Geraden y = y₀.']
 };
 // Beispiele
@@ -183,12 +183,7 @@ function powCardLatex() {
   return '% ' + r.t + ' aus J\\sqrt{10} — benötigt \\usepackage{amsmath,amssymb}\n' + Dif.docTex(r.d);
 }
 function powMakeLatex(which) { const ui = POW.ui; if (!ui) return ''; try { ui.ta.value = which === 'calc' ? powCardLatex() : powLatex(); } catch (e) { ui.ta.value = '% Fehler beim Erzeugen: ' + e.message; } return ui.ta.value; }
-function powCopyLatex() {
-  const ui = POW.ui; if (!ui) return; if (!ui.ta.value) powMakeLatex('pic');
-  const done = () => { ui.msg.textContent = (typeof t === 'function' ? t('msg_copied') : 'Kopiert'); setTimeout(() => { ui.msg.textContent = ''; }, 2500); };
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ui.ta.value).then(done).catch(() => { ui.ta.select(); document.execCommand('copy'); done(); });
-  else { ui.ta.select(); document.execCommand('copy'); done(); }
-}
+function powCopyLatex() { texCopy(POW.ui, () => powMakeLatex('pic')); }
 
 // ── Ausschnitt ──
 function powResolvedWin() {
@@ -379,7 +374,7 @@ function powAnimFrame(ts) {
   const cv = document.getElementById('canvas'); if (!cv) return;
   const pos = e => { const r = cv.getBoundingClientRect(), t = e.touches && e.touches[0] ? e.touches[0] : (e.changedTouches && e.changedTouches[0]) || e; return { x: t.clientX - r.left, y: t.clientY - r.top }; };
   const inMap = (m, p) => m && p.x >= m.L && p.x <= m.R && p.y >= m.T && p.y <= m.B;
-  const near = p => { const S = POW.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + 4 && d < bd) { bd = d; best = q; } }); return best; };
+  const near = p => { const S = POW.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + hitR(4) && d < bd) { bd = d; best = q; } }); return best; };
   const setPt = (id, x, y, shift) => {
     const m = POW.S && POW.S.maps.main; if (!m) return;
     const st = Stat.niceStep(m.win.x1 - m.win.x0, 14), sty = Stat.niceStep(m.win.y1 - m.win.y0, 14), sx = powR6(difSnap(x, st, shift)), sy = powR6(difSnap(y, sty, shift)), v = POW.view;

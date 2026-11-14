@@ -16,7 +16,7 @@
 })();
 </script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>J√10</title>
 <meta name="description" content="J√10 – Mathematik erleben, ausprobieren, verstehen: eine interaktive Umgebung zu verschiedenen mathematischen Themen mit Graphen, Bildern, Beispielen und Lösungswegen, kostenlos und ohne Anmeldung im Browser.">
 
@@ -997,6 +997,13 @@ body.dark .tp-claim { background-image:linear-gradient(92deg, #7fa9ff 0%, #a994f
 .tp-d-read { display:flex; flex-wrap:wrap; gap:4px 18px; padding:8px 14px 2px; font-size:13.5px; font-weight:600; font-variant-numeric:tabular-nums; border-top:1px solid var(--border); color:var(--text); }
 .tp-d-read span { min-width:6.4em; } .tp-d-ry { color:var(--accent); } .tp-d-rm { color:#e8590c; }
 .tp-d-cap { display:flex; align-items:center; gap:10px; padding:2px 8px 8px 14px; }
+/* Zweites Bild der Startseite (Ober-/Untersumme): Rechtecke, Regler, Beschriftung */
+.tp-d-up { fill:#e8590c; fill-opacity:.2; stroke:#e8590c; stroke-opacity:.6; stroke-width:1; }
+.tp-d-lo { fill:#12a150; fill-opacity:.28; stroke:#12a150; stroke-opacity:.85; stroke-width:1; }
+.tp-d-track { stroke:var(--border); stroke-width:4; stroke-linecap:round; fill:none; }
+.tp-d-a { font-size:12px; fill:var(--text-muted); font-weight:600; }
+.tp-d-tk { font-size:11px; fill:var(--text-muted); }
+.tp-d-ru { color:#12a150; } .tp-d-ro { color:#e8590c; }
 .tp-d-hint { font-size:12px; color:var(--text-muted); flex:1; min-width:0; }
 .tp-d-more { border:none; background:transparent; box-shadow:none; color:var(--accent); font:inherit; font-size:12px; font-weight:600; cursor:pointer; padding:4px 8px; border-radius:8px; white-space:nowrap; }
 .tp-d-more:hover { background:var(--accent-soft); }
@@ -1062,6 +1069,9 @@ body.dark .tp-claim { background-image:linear-gradient(92deg, #7fa9ff 0%, #a994f
 @media (max-width: 700px) { .tp-help-views { grid-template-columns:1fr; } }
 #env-help-btn { font-weight:600; color:var(--accent); border-color:var(--accent); background:var(--accent-soft); }
 #env-help-btn:hover { filter:brightness(0.97); }
+/* Schmale Fenster: «? Hilfe zum Thema» wird zu «?», damit daneben der Knopf «Quiz» (116_quiz.js) sichtbar bleibt */
+@media (max-width: 700px) { #env-help-btn { font-size:0; } #env-help-btn::before { content:'?'; font-size:13px; padding:0 3px; }
+  #env-btn .env-btn-t { display:inline-block; max-width:26vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; } }
 body.beam .tp-help-sec ul, body.beam .tp-help-now p, body.beam .tp-help-about { font-size:17px; } body.beam .tp-help-view b { font-size:16px; } body.beam .tp-help-view span { font-size:14px; } body.beam .tp-help-view .tp-help-vd span { font-size:inherit; }
 .tp-help-sec h2 { font-size:13px; margin:12px 0 4px; }
 .tp-help-sec ul { margin:0 0 0 18px; padding:0; display:flex; flex-direction:column; gap:4px; font-size:13px; line-height:1.45; }
@@ -1119,6 +1129,7 @@ body.mode3d .tb-2d button:not(#pointer-mode-btn), body.mode3d #canvas-label-over
 .td-sec { border-top:1px solid var(--border); margin-top:10px; padding-top:10px; }
 .td-sec.geo-box { padding-top:0; }
 #td-legend .flo-expr { white-space:nowrap; }
+.td-step { font-size:12px; font-weight:600; color:var(--text); margin:8px 2px 2px; }
 .td-err { color:#c2262a; font-size:11px; line-height:1.35; min-height:0; margin:0 0 2px; }
 .td-err:empty { display:none; }
 .td-plane { margin-bottom:2px; }
@@ -1994,6 +2005,32 @@ body.beam .guide-bar .geo-hint-btn { font-size:14px; }
     <div id="td-vg-desc" class="act-hint" style="margin:6px 2px 8px;"></div>
     <select id="td-vg-ex" style="width:100%;margin-top:6px;"></select>
     <div id="td-vg-body" style="margin-top:6px;"></div>
+    <div id="td-pl-bars" style="margin-bottom:12px;">
+      <div class="subpanel-label">Ebene Schritt für Schritt entdecken</div>
+      <div class="td-step">Zuerst: Balken über den Gitterpunkten</div>
+      <div class="settings-row td-opts">
+        <label><input type="checkbox" id="td-b-on"> Balken zeigen</label>
+        <label><input type="checkbox" id="td-b-coords"> Koordinaten (x | y) der Gitterpunkte</label>
+        <label><input type="checkbox" id="td-b-vals"> z-Werte beschriften</label>
+      </div>
+      <div class="act-hint" style="margin:4px 2px 6px;">Jedem Gitterpunkt der xy-Ebene gehört ein z-Wert der Ebene. Der Balken reicht vom Gitterpunkt bis zur Ebene.</div>
+      <div class="td-step">Danach: nur die Spitzen der Balken</div>
+      <div class="settings-row td-opts">
+        <label><input type="checkbox" id="td-b-dots"> Nur Punkte (ohne Balken)</label>
+      </div>
+      <div class="td-step">Zum Schluss: Gitterabstand verkleinern</div>
+      <div class="settings-row" style="gap:8px;"><label for="td-b-step">Gitterabstand</label> <input type="range" id="td-b-step" min="0" max="4" step="0.1" value="1" style="flex:1;min-width:60px;"> <b id="td-b-stepv" translate="no" style="min-width:34px;text-align:right;font-size:12px;">1</b></div>
+      <div class="settings-row" style="gap:8px;"><label for="td-b-sstep">Schrittweite des Schiebers</label>
+        <select id="td-b-sstep" translate="no" style="width:78px;"><option value="0.01">0,01</option><option value="0.05">0,05</option><option value="0.1" selected>0,1</option><option value="0.25">0,25</option><option value="0.5">0,5</option><option value="1">1</option></select></div>
+      <div id="td-b-note2" class="act-hint" style="margin:2px 2px 4px;"></div>
+      <div class="settings-row td-opts">
+        <label><input type="checkbox" id="td-b-hide"> Ebene ausblenden</label>
+        <label><input type="checkbox" id="td-b-card" checked> Rechenweg als Karte anzeigen</label>
+      </div>
+      <select id="td-b-plane" style="width:100%;margin:6px 0;"></select>
+      <button type="button" id="td-b-latex" style="margin-top:2px;">LaTeX (Rechenweg)</button>
+      <div id="td-b-note" class="td-err"></div>
+    </div>
     <div id="td-pl-ui">
     <div class="subpanel-label">Ebene eingeben</div>
     <div class="td-addrow">
@@ -2036,23 +2073,6 @@ body.beam .guide-bar .geo-hint-btn { font-size:14px; }
         <label class="td-pl-only"><input type="checkbox" id="td-o-inter" checked> Schnittgeraden und -punkte</label>
         <label class="td-pl-only"><input type="checkbox" id="td-o-names" checked> Namen der Ebenen</label>
       </div>
-    </div>
-    <div class="td-sec" id="td-pl-bars">
-      <div class="subpanel-label">Balken über dem Gitter</div>
-      <div class="settings-row td-opts">
-        <label><input type="checkbox" id="td-b-on"> Balken zeigen</label>
-        <label><input type="checkbox" id="td-b-coords"> Koordinaten (x | y) der Gitterpunkte</label>
-        <label><input type="checkbox" id="td-b-vals"> z-Werte beschriften</label>
-        <label><input type="checkbox" id="td-b-dots"> Nur Punkte (ohne Balken)</label>
-        <label><input type="checkbox" id="td-b-hide"> Ebene ausblenden</label>
-      </div>
-      <div class="act-hint" style="margin:4px 2px 6px;">Jedem Gitterpunkt der xy-Ebene gehört ein z-Wert der Ebene. Der Balken reicht vom Gitterpunkt bis zur Ebene.</div>
-      <select id="td-b-plane" style="width:100%;margin-bottom:6px;"></select>
-      <div class="settings-row" style="gap:8px;"><label for="td-b-step">Gitterabstand</label> <input type="range" id="td-b-step" min="0" max="4" step="0.1" value="1" style="flex:1;min-width:60px;"> <b id="td-b-stepv" translate="no" style="min-width:34px;text-align:right;font-size:12px;">1</b></div>
-      <div class="settings-row" style="gap:8px;"><label for="td-b-sstep">Schrittweite des Schiebers</label>
-        <select id="td-b-sstep" translate="no" style="width:78px;"><option value="0.01">0,01</option><option value="0.05">0,05</option><option value="0.1" selected>0,1</option><option value="0.25">0,25</option><option value="0.5">0,5</option><option value="1">1</option></select></div>
-      <div id="td-b-note2" class="act-hint" style="margin:2px 2px 4px;"></div>
-      <div id="td-b-note" class="td-err"></div>
     </div>
     <details class="geo-box td-sec">
       <summary>Export</summary>
@@ -2393,6 +2413,7 @@ function sbKbSync() {
   let kb = 0;
   if (sbIsSheet() && sb.classList.contains('open')) {
     try { const vk = window.mathVirtualKeyboard; if (vk && vk.visible) kb = Math.max(kb, vk.boundingRect.height || 0); } catch (e) {}
+    try { if (typeof kbdHeight === 'function') kb = Math.max(kb, kbdHeight()); } catch (e) {}   // eigene Bildschirmtastatur (115_kbd.js)
     try { const vv = window.visualViewport, a = document.activeElement; if (vv && a && sb.contains(a) && /^(INPUT|TEXTAREA|MATH-FIELD)$/.test(a.tagName)) kb = Math.max(kb, window.innerHeight - vv.height - vv.offsetTop); } catch (e) {}
   }
   const v = kb >= 80 ? Math.round(kb) + 'px' : '0px';
@@ -2532,6 +2553,16 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="112a_set_venn.js"></script><!-- Mengen: Venn-Diagramme und Übungen -->
 <script src="112_set.js"></script><!-- Mengen und Intervalle -->
 <script src="113_prob.js"></script><!-- Statistik und Stochastik rechnen -->
+<script src="120_kit.js"></script><!-- Baukasten für Themen aus einer Beschreibung (Panel, Zustand, Maus, Karte, Export) -->
+<script src="121_cx.js"></script><!-- Komplexe Zahlen -->
+<script src="122_grow.js"></script><!-- Wachstumsmodelle -->
+<script src="123_invest.js"></script><!-- Investitionsrechnung -->
+<script src="124_logic.js"></script><!-- Aussagenlogik -->
+<script src="125_reg.js"></script><!-- Regression und Korrelation -->
+<script src="126_vec2.js"></script><!-- Vektoren in der Ebene -->
+<script src="127_rat.js"></script><!-- Gebrochenrationale Funktionen -->
+<script src="115_kbd.js"></script><!-- Bildschirmtastatur für Handy, Tablet und Touchscreen (alle Eingabefelder) -->
+<script src="116_quiz.js"></script><!-- Quiz zu den Ansichten (Fragen in quiz_<thema>.js, werden bei Bedarf nachgeladen) -->
 <script src="32_env.js"></script><!-- Umgebungen: Themenwahl, eigener Zustand je Thema -->
 <script src="33_topics.js"></script><!-- Themenübersicht, Suche, Willkommen, Hilfe, Hinweise -->
 <script src="19_icons.js"></script><!-- moderne Linien-Icons statt Emojis (ersetzt Emoji-Zeichen im DOM) -->

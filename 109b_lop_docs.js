@@ -115,11 +115,7 @@
     return { title: 'Zielfunktion und Optimum', st: B.st };
   }
 
-  function doc(r) {
-    const d = DOC(); d.h(r.title);
-    r.st.forEach(s => { if (s.k === 'h') d.h(s.s); else if (s.k === 'p') d.p(s.s); else if (s.k === 'e') d.e(s.s); else if (s.k === 'res') d.res(s.s); else if (s.k === 'note') d.note(s.s); });
-    return d;
-  }
+  function doc(r) { return Dif.stDoc(r); }
   Lp.st = { ung1, half, poly, opt };
   Lp.doc = doc; Lp.roman = romanOf;
 })();

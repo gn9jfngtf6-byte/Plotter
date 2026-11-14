@@ -60,7 +60,7 @@
     if (R) {
       const why = { ne0: c => 'Nenner: $' + c.tex + '\\ne0$', ge0: c => 'unter der Wurzel: $' + c.tex + '\\ge0$', gt0: c => 'im Logarithmus: $' + c.tex + '>0$', ne_val: c => '$' + c.tex + '\\ne' + c.val + '$', cos_ne0: c => 'beim Tangens: $\\cos(' + c.tex + ')\\ne0$' };
       const cs = R.conds.filter(c => why[c.kind]);
-      if (cs.length) B.p('**Bedingungen:** ' + cs.map(c => why[c.kind](c)).join('; ') + '.');
+      if (cs.length) { B.p('**Bedingungen:**'); cs.forEach(c => { const t = why[c.kind](c); B.p(t.charAt(0).toUpperCase() + t.slice(1) + '.'); }); }   // je Bedingung eine Zeile: so bleibt jede für sich übersetzbar
       else B.p('Hier kommt keine dieser Rechnungen mit $x$ vor, also darf man jede Zahl einsetzen.');
       B.e('D=' + R.Dtex, 'r');
       B.p('**Wertebereich** $W$: alle Werte, die $f$ auf dem ganzen Definitionsbereich annimmt. Man findet ihn über den kleinsten und grössten Wert (Tief- und Hochpunkte) und über das Verhalten an den Rändern von $D$, bei Polstellen und für $x\\to\\pm\\infty$; ein Wert, dem sich der Graph nur annähert, gehört nicht dazu.');
@@ -104,15 +104,7 @@
     r.st.forEach(s => { if (s.k === 'h') d.h(s.s); else if (s.k === 'p') d.p(s.s); else if (s.k === 'e') d.e(s.s); else if (s.k === 'res') d.res(s.s); else if (s.k === 'note') d.note(s.s); else if (s.k === 'tab') d.b.push({ k: 'tab', head: s.head, rows: s.rows }); else if (s.k === 'sit') d.b.push({ k: 'sit', t: s.s, q: s.q || '' }); });
     return d;
   }
-  function sceneLines(r) {
-    const out = [];
-    r.st.forEach(s => {
-      if (!s.sc || (s.k !== 'e' && s.k !== 'res')) return;
-      const body = s.k === 'res' ? s.s.replace(/\$/g, '') : s.s;
-      out.push({ s: typeof s.sc === 'string' && s.sc !== 'true' ? '\\col{' + s.sc + '}{' + body + '}' : body, bold: s.k === 'res' });
-    });
-    return out;
-  }
+  function sceneLines(r) { return Dif.stLines(r); }
   Fun.st = { map, bars, def, app };
   Fun.doc = doc; Fun.sceneLines = sceneLines;
   Fun.mapDoc = (F, x0, s, n) => doc(map(F, x0, s, n)); Fun.barsDoc = (F, h, b) => doc(bars(F, h, b)); Fun.defDoc = (F, P, a, b, t) => doc(def(F, P, a, b, t)); Fun.appDoc = (A, F, x) => doc(app(A, F, x));

@@ -50,14 +50,6 @@ function seqVals(S, m, vals, C, skip) {
   if (!C.show.vals || px < fs * 1.7) return;
   vals.forEach((v, i) => { const n = i + 1; if (!isFinite(v) || n === skip || i >= 30) return; const p = [m.X(n), m.Y(v)]; if (p[0] < m.L || p[0] > m.R || p[1] < m.T || p[1] > m.B) return; difLabel(S, m, p[0], p[1] - fs * 1.0, Sq.q(v), C, { size: 0.72, col: 'M' }); });
 }
-// Tabelle n | a_n (senkrecht)
-function seqTab(S, r, vals, hl, C, head, n0) {
-  const rows = []; n0 = n0 || 1;
-  const nn = Math.min(vals.length, 12);
-  for (let i = 0; i < nn; i++) rows.push([String(n0 + i), Sq.q(vals[i])]);
-  if (vals.length > 12) rows.push(['\\vdots', '\\vdots']);
-  linTab(S, r, [{ h: 'n', w: 3 }, { h: head || 'a_n', w: 6 }], rows, hl - n0 < 12 ? hl - n0 : -1, C);
-}
 const seqLab = (S, m, n, v, s, C, o) => linPt(S, m, (o && o.id) || null, n, v, C, Object.assign({ fill: SQ_K, r: 6, lab: s, w: C.fs * 7, lines: [[1, 0], [0, 1]] }, o || {}));
 
 // ═════════════ Folge: explizit / rekursiv ═════════════

@@ -12,7 +12,7 @@ const TRIG_DESC = {
   rt: ['Ziehe die Ecken {{A|A}} und {{B|B}}: Für den Winkel {{α|al}} ist a die {{Gegenkathete|gk}}, b die {{Ankathete|ak}} und c die {{Hypotenuse|hy}}. sin α, cos α und tan α sind ihre Verhältnisse – sie hängen nur vom Winkel ab, nicht von der Grösse des Dreiecks. Wähle oben, was gegeben ist.', 'Im rechtwinkligen Dreieck gilt bezogen auf einen spitzen Winkel α: sin α = Gegenkathete : Hypotenuse, cos α = Ankathete : Hypotenuse, tan α = Gegenkathete : Ankathete. Mit zwei bekannten Stücken (darunter eine Seite) berechnet man alle anderen; dazu kommen Pythagoras und α + β = 90°.'],
   tri: ['Ziehe die Ecken {{A|A}}, {{B|B}} und {{C|C}} und wähle, was {{gegeben|giv}} ist: Die {{übrigen Stücke|unk}} berechnet der Rechenweg mit dem Sinus- oder Kosinussatz. Die Beispiele zeigen Aufgaben aus der Vermessung.', 'Im allgemeinen Dreieck gelten der Sinussatz a : sin α = b : sin β = c : sin γ und der Kosinussatz a² = b² + c² − 2bc·cos α. Den Kosinussatz braucht man bei SSS und SWS, den Sinussatz bei WSW und SSW; bei SSW mit a < b kann es zwei Dreiecke geben.'],
   circ: ['Ziehe den {{Punkt P|P}} auf dem Einheitskreis oder lass den Winkel drehen: Die Höhe sin φ zeichnet rechts die {{Sinuskurve|sin,G}}, der waagrechte Abstand cos φ die {{Kosinuskurve|cos,GC}}. Besondere Winkel wie 30°, 45° und 60° liefern exakte Werte.', 'Am Einheitskreis (Radius 1) wird der Winkel φ gegen den Uhrzeigersinn abgetragen. Der Punkt P hat die Koordinaten (cos φ | sin φ): Kosinus = waagrechter Abstand, Sinus = Höhe. Im Bogenmass misst man den Winkel als Bogenlänge: 360° entsprechen 2π.'],
-  gen: ['Ziehe den {{Startpunkt S|S}} (c und d), den {{Hochpunkt H|A}} (Amplitude) oder das {{Periodenende|T}} (b), oder starte die Verwandlung: Die {{Grundfunktion|base}} wird Schritt für Schritt in {{f(x) = a·sin(b(x − c)) + d|f}} verwandelt.', 'Die allgemeine Sinusfunktion f(x) = a·sin(b(x − c)) + d entsteht aus sin x: a streckt (Amplitude |a|, Hochpunkt), b ändert die Periode T = 2π/b (Periodenende), c verschiebt in x-Richtung (Phase), d in y-Richtung (Mittellinie y = d); Startpunkt (c .'],
+  gen: ['Ziehe den {{Startpunkt S|S}} (c und d), den {{Hochpunkt H|A}} (Amplitude) oder das {{Periodenende|T}} (b), oder starte die Verwandlung: Die {{Grundfunktion|base}} wird Schritt für Schritt in {{f(x) = a·sin(b(x − c)) + d|f}} verwandelt.', 'Die allgemeine Sinusfunktion f(x) = a·sin(b(x − c)) + d entsteht aus sin x: a streckt (Amplitude |a|, Hochpunkt), b ändert die Periode T = 2π/b (Periodenende), c verschiebt in x-Richtung (Phase), d in y-Richtung (Mittellinie y = d); Startpunkt S(c | d).'],
   tan: ['Ziehe den {{Punkt P|P}} auf dem Kreis: Der Tangens ist die Steigung des Strahls durch P, abzulesen an der senkrechten Tangente bei x = 1. Rechts entsteht der {{Graph von tan|f,G}}; nahe 90° wächst er über alle Grenzen (Polstelle).', 'Der Tangens ist das Verhältnis sin φ / cos φ – die Steigung des Strahls durch P. Am Einheitskreis liest man ihn an der senkrechten Tangente bei x = 1 ab. Wo der Kosinus 0 ist (90°, 270°, …), hat der Tangens Polstellen; seine Periode ist nur π.']
 };
 const TRIG_ANG_EX = [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330, 360];
@@ -34,7 +34,6 @@ function trigActive() { return typeof ENV !== 'undefined' && ENV.cur === 'trig';
 const trigR6 = x => Math.round(x * 1e6) / 1e6 + 0;
 function trigF() { return Trig.mk(TRIG.a, TRIG.b, TRIG.c, TRIG.d, TRIG.kind); }
 function trigSetF(F) { if (!F) return; TRIG.a = trigR6(F.a); TRIG.b = trigR6(F.b); TRIG.c = trigR6(F.c); TRIG.d = trigR6(F.d); TRIG.kind = F.kind; }
-const trigNormDeg = d => { let r = d % 360; if (r < 0) r += 360; return trigR6(r); };
 
 // ── Eingabefeld f(x) = a·sin(b(x − c)) + d ──
 function trigParseRaw(raw) {
@@ -107,12 +106,15 @@ function trigCardRender() {
 }
 
 // ── Zustand sichern / laden ──
+// Winkel auf ±10 Umdrehungen begrenzen: grössere Werte zeigen nichts Neues und bremsen das Zeichnen
+const trigClampDeg = x => Math.max(-3600, Math.min(3600, x));
 function trigCapture() { return difCopy({ view: TRIG.view, deg: TRIG.deg, unit: TRIG.unit, a: TRIG.a, b: TRIG.b, c: TRIG.c, d: TRIG.d, kind: TRIG.kind, tt: TRIG.tt, ra: TRIG.ra, rb: TRIG.rb, rgv: TRIG.rgv, tA: TRIG.tA, tB: TRIG.tB, tC: TRIG.tC, tg: TRIG.tg, win: TRIG.win, show: TRIG.show }); }
 function trigApply(s) {
   const d = trigDefaults(), num = (v, def) => { v = Number(v); return isFinite(v) ? v : def; };
   if (s && typeof s === 'object') {
     if (TRIG_VIEWS.some(v => v[0] === s.view)) d.view = s.view;
     ['deg', 'a', 'b', 'c', 'd'].forEach(key => { d[key] = num(s[key], d[key]); });
+    d.deg = trigClampDeg(d.deg);
     if (d.a === 0) d.a = 1;
     if (!(d.b > 0)) d.b = 1;
     d.tt = Math.max(0, Math.min(1, num(s.tt, 1)));
@@ -172,12 +174,7 @@ function trigCardLatex() {
   return '% ' + r.t + ' aus J\\sqrt{10} — benötigt \\usepackage{amsmath,amssymb}\n' + Dif.docTex(r.d);
 }
 function trigMakeLatex(which) { const ui = TRIG.ui; if (!ui) return ''; try { ui.ta.value = which === 'calc' ? trigCardLatex() : trigLatex(); } catch (e) { ui.ta.value = '% Fehler beim Erzeugen: ' + e.message; } return ui.ta.value; }
-function trigCopyLatex() {
-  const ui = TRIG.ui; if (!ui) return; if (!ui.ta.value) trigMakeLatex('pic');
-  const done = () => { ui.msg.textContent = (typeof t === 'function' ? t('msg_copied') : 'Kopiert'); setTimeout(() => { ui.msg.textContent = ''; }, 2500); };
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ui.ta.value).then(done).catch(() => { ui.ta.select(); document.execCommand('copy'); done(); });
-  else { ui.ta.select(); document.execCommand('copy'); done(); }
-}
+function trigCopyLatex() { texCopy(TRIG.ui, () => trigMakeLatex('pic')); }
 
 // ── Ausschnitt (Graph rechts bzw. Hauptbild) ──
 function trigResolvedWin() {
@@ -284,7 +281,7 @@ function trigRefreshUI() {
   const angleRows = () => {
     group('Winkel φ');
     slider('φ', () => TRIG.deg, x => { TRIG.deg = Math.round(x); }, -360, 720, 1, x => difFmtIn(x) + '°');
-    numRow('φ in °', () => TRIG.deg, x => { TRIG.deg = x; }, { step: 5 });
+    numRow('φ in °', () => TRIG.deg, x => { TRIG.deg = trigClampDeg(x); }, { step: 5 });
     select('Einheit im Graphen', [['deg', 'Grad (°)'], ['rad', 'Bogenmass (π)']], () => TRIG.unit, x => { TRIG.unit = x; TRIG.win = Object.assign({}, TRIG_WIN0); });
     const ab = difEl('div'); ab.style.cssText = 'margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:5px;';
     ab.append(difBtn(TRIG.anim ? '⏸ Anhalten' : '▶ Winkel drehen', trigAnimToggle), difBtn('⟲ φ = 0°', () => { TRIG.anim = null; TRIG.deg = 0; redo(); })); P.appendChild(ab);
@@ -357,7 +354,7 @@ function trigAnimFrame(ts) {
   const cv = document.getElementById('canvas'); if (!cv) return;
   const pos = e => { const r = cv.getBoundingClientRect(), t = e.touches && e.touches[0] ? e.touches[0] : (e.changedTouches && e.changedTouches[0]) || e; return { x: t.clientX - r.left, y: t.clientY - r.top }; };
   const inMap = (m, p) => m && p.x >= m.L && p.x <= m.R && p.y >= m.T && p.y <= m.B;
-  const near = p => { const S = TRIG.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + 4 && d < bd) { bd = d; best = q; } }); return best; };
+  const near = p => { const S = TRIG.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + hitR(4) && d < bd) { bd = d; best = q; } }); return best; };
   const mapOf = id => (TRIG.S ? (id === 'P' && TRIG.S.maps.circ ? TRIG.S.maps.circ : TRIG.S.maps.main) : null);
   const snapDeg = (d, shift) => trigR6(shift ? Math.round(d) : Math.round(d / 5) * 5);
   const setPt = (id, x, y, shift) => {

@@ -137,7 +137,7 @@ function lpScenePoly(S, W, H, C, withObj) {
   // Testpunkt (nur Planungspolygon)
   if (!withObj && C.P) {
     const bad = L.map((I, i) => (Lp.ok(I, C.P[0], C.P[1]) ? -1 : i)).filter(i => i >= 0), ok = !bad.length;
-    linPt(S, m, 'P', C.P[0], C.P[1], C, { fill: ok ? LP_F : ST_R, r: 6.5, lab: '\\col{' + (ok ? 'g' : 'r') + '}{P' + lpPt(C.P[0], C.P[1]) + '\\ \\text{' + (ok ? 'zulässig' : 'verletzt ' + bad.map(i => (L[i].nn ? (L[i].a ? 'x\\ge0' : 'y\\ge0') : '(' + Lp.roman(i) + ')')).join(', ')) + '}}', w: fs * 11, lines: [[1, 0]] });
+    linPt(S, m, 'P', C.P[0], C.P[1], C, { fill: ok ? LP_F : ST_R, r: 6.5, lab: '\\col{' + (ok ? 'g' : 'r') + '}{P' + lpPt(C.P[0], C.P[1]) + '\\ ' + (ok ? '\\text{zulässig}' : '\\text{verletzt}\\ ' + bad.map(i => (L[i].nn ? (L[i].a ? 'x\\ge0' : 'y\\ge0') : '(' + Lp.roman(i) + ')')).join(',\\ ')) + '}', w: fs * 11, lines: [[1, 0]] });
   }
   // rechts: Bedingungen bzw. Eckpunkt-Tabelle
   if (withObj && res && !res.empty) {

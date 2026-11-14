@@ -56,7 +56,7 @@ function trigBand(W, H, C, tab) {
 const trAngLab = (C, deg) => (C.unit === 'deg' ? Trig.degTex(deg) : Trig.radTex(deg));
 // Bogen um O mit Radius rad (Welt) von 0 bis φ
 function trigArc(S, m, rad, deg, o) {
-  const n = Math.max(8, Math.round(Math.abs(deg) / 4)), pts = [];
+  const n = Math.max(8, Math.min(1800, Math.round(Math.abs(deg) / 4))), pts = [];
   for (let i = 0; i <= n; i++) { const a = Trig.deg2rad(deg) * i / n; pts.push([m.X(rad * Math.cos(a)), m.Y(rad * Math.sin(a))]); }
   S.poly(pts, o);
 }
@@ -239,7 +239,7 @@ function trigSceneTri(S, W, H, C) {
   difLines(S, R[1], [{ s: '\\text{Sinussatz}', col: 'M', size: 0.9 }, { s: '\\frac{a}{\\sin\\alpha}=\\frac{b}{\\sin\\beta}=\\frac{c}{\\sin\\gamma}=' + trigLn(V.a / Math.sin(V.al * Math.PI / 180)), size: 0.95, hl: 'giv' }, null,
     { s: '\\text{Kosinussatz}', col: 'M', size: 0.9 }, { s: 'a^2=b^2+c^2-2bc\\cos\\alpha', size: 0.95, hl: 'giv' }, null,
     { s: '\\alpha+\\beta+\\gamma=180^\\circ', size: 0.95 }, { s: 'A=\\frac{1}{2}\\,bc\\sin\\alpha=' + trigLn(V.F), size: 0.95 },
-    amb ? { s: '\\text{SSW mit } a<b\\text{: zwei Dreiecke möglich}', col: ST_R, size: 0.9 } : null].filter(x => x !== undefined), C, { max: fs * 1.15 });
+    amb ? { s: 'a<b\\text{: zwei Dreiecke möglich}', col: ST_R, size: 0.9 } : null].filter(x => x !== undefined), C, { max: fs * 1.15 });
 }
 
 const TRIG_SCENES = { circ: trigSceneCirc, gen: trigSceneGen, tan: trigSceneTan, rt: trigSceneRt, tri: trigSceneTri };

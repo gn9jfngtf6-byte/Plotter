@@ -42,7 +42,6 @@ function autoWinFit(cur, need, T) {
   if (cur.x1 - cur.x0 > 4 * (T.x1 - T.x0) || cur.y1 - cur.y0 > 4 * (T.y1 - T.y0)) return 'big';
   return 'ok';
 }
-function autoWinKeep(cur, need, T) { return autoWinFit(cur, need, T) === 'ok'; }
 // Ruhiger Ausschnitt: bleibt stehen, solange alles Wichtige Platz hat. Verlässt ein Punkt das Bild, gleitet er sofort (aber sanft)
 // zu einem Ziel mit 50 % Reserve; ist das Bild nur viel zu gross, wartet er 0,7 s, ob es so bleibt, bevor er hineinzoomt.
 function autoWin(name, key, T, need, C, explicit) {
@@ -138,7 +137,6 @@ function linLayout(W, H, spec, pw) {
   if (W < 820) { spec = spec.map((c, i) => ({ w: c.w, rows: c.rows.map(x => (i ? x * 0.8 : x)) })); spec[0].rows[0] = pw || 3.2; }
   return stLayout(W, H, spec);
 }
-const linAxisLab = (xl, yl) => ({ xlab: xl || 'x', ylab: yl || 'y' });
 
 // Wertetabelle: rows [[…]], Spalten
 function linTab(S, r, cols, rows, hl, C) {

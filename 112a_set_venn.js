@@ -94,7 +94,7 @@ function setVAnchors(n) {
 // Venn-Diagramm in die Zelle r zeichnen. o: {n, hatch: Bitmenge, hcol, marks: {m: Farbe}, els: {m: [Text]}, elCol(m, x), counts: [..], title, hl}
 function setVenn(S, r, C, o) {
   const fs = C.fs, n = o.n, G = SETV_GEO[n], top = r.y + (o.title ? fs * 2.6 : fs * 0.6), H = r.y + r.h - top - fs * 0.4, W = r.w - fs * 1.2;
-  const sc = Math.min(W / (G.g[1] - G.g[0]), H / (G.g[3] - G.g[2])), cx = r.x + r.w / 2, cy = top + H / 2, gmx = (G.g[0] + G.g[1]) / 2, gmy = (G.g[2] + G.g[3]) / 2;
+  const sc = Math.max(4, Math.min(W / (G.g[1] - G.g[0]), H / (G.g[3] - G.g[2]))) || 4, cx = r.x + r.w / 2, cy = top + H / 2, gmx = (G.g[0] + G.g[1]) / 2, gmy = (G.g[2] + G.g[3]) / 2;
   const X = x => cx + (x - gmx) * sc, Y = y => cy - (y - gmy) * sc, ux = p => gmx + (p - cx) / sc, uy = p => gmy - (p - cy) / sc;
   if (typeof stKeepFrame === 'function') stKeepFrame(r);
   if (o.title) S.rich(r.x + fs * 0.6, r.y + fs * 1.2, o.title, { size: fs * 1.1, col: 'T', al: 'l', bs: 'm' });
@@ -105,7 +105,8 @@ function setVenn(S, r, C, o) {
   // Schraffur: Linien unter 45°, an den Kreisen und am Rechteck zerschnitten; Teilstücke im Ziel werden gezeichnet
   const hatch = (bits, col, gap, lw) => {
     if (!bits) return;
-    const d = [Math.SQRT1_2, Math.SQRT1_2], step = gap / sc * Math.SQRT2;
+    const d = [Math.SQRT1_2, Math.SQRT1_2], step = Math.max(gap / sc * Math.SQRT2, (G.g[1] - G.g[0] + G.g[3] - G.g[2]) / 600);   // nie 0 oder negativ: sonst endet die Schleife nicht (flaches Bild auf dem Handy)
+    if (!(step > 0)) return;
     for (let c = G.g[0] - G.g[3]; c <= G.g[1] - G.g[2]; c += step) {
       // Punkt p(t) = (c, 0) + t·d  (Linie x − y = c)
       let t0 = -Infinity, t1 = Infinity;
@@ -186,7 +187,7 @@ const SetEx = (function () {
     }
     // Anzahlen: Feldzahlen zufällig, gegeben sind Mengen und Schnittmengen
     const c = [ri(0, 8), ri(8, 40), ri(6, 35), ri(2, 12), ri(5, 30), ri(1, 10), ri(1, 10), ri(1, 6)];
-    const ctx = fresh([['Sprachen im Dorf', 'Italienisch (I)', 'Deutsch (D)', 'Französisch (F)', 'Einwohner'], ['Sportarten in der Klasse', 'Fussball (F)', 'Volleyball (V)', 'Schwimmen (S)', 'Schülerinnen und Schüler'], ['Abos', 'Zeitung (Z)', 'Streaming (S)', 'Fitness (F)', 'Personen'], ['Wahlfächer', 'Chor (C)', 'Theater (T)', 'Robotik (R)', 'Lernende']], 'cnt');
+    const ctx = fresh([['Sprachen im Dorf', 'Italienisch (I)', 'Deutsch (D)', 'Französisch (F)', 'Einwohnern'], ['Sportarten in der Klasse', 'Fussball (F)', 'Volleyball (V)', 'Schwimmen (S)', 'Schülerinnen und Schülern'], ['Abos', 'Zeitung (Z)', 'Streaming (S)', 'Fitness (F)', 'Personen'], ['Wahlfächer', 'Chor (C)', 'Theater (T)', 'Robotik (R)', 'Lernenden']], 'cnt');
     const q = fresh([['nur A', 1 << 1], ['nur B', 1 << 2], ['nur C', 1 << 4], ['genau zwei Mengen', (1 << 3) | (1 << 5) | (1 << 6)], ['A oder B', (1 << 1) | (1 << 2) | (1 << 3) | (1 << 5) | (1 << 6) | (1 << 7)], ['keine Menge', 1], ['A, aber nicht C', (1 << 1) | (1 << 3)], ['mindestens zwei Mengen', (1 << 3) | (1 << 5) | (1 << 6) | (1 << 7)]], 'cntq');
     return { kind: 'cnt', n: 3, c, ctx, q };
   }
@@ -272,7 +273,7 @@ function setVennSeq(t, n) {
 }
 function setSceneVenn(S, W, H, C) {
   const fs = C.fs, D = setVennData(C), R = stLayout(W, H, [{ w: 0.66, rows: [1] }, { w: 0.34, rows: [1] }]);
-  const title = D.P.ok ? '\\col{g}{' + SetV.tex(D.P.t) + '}' : '\\col{r}{\\text{' + D.P.err + '}}';
+  const title = D.P.ok ? '\\col{g}{' + SetV.tex(D.P.t) + '}' : '\\col{r}{\\text{' + (/«[^A-Za-z0-9=+\-*\/().,;:!?]+»/.test(D.P.err) ? 'Term nicht lesbar' : D.P.err) + '}}';
   const els = {}, cnt = C.vm === 'cnt' ? C.vK.slice(0, 1 << D.n) : null;
   if (C.vm === 'el') D.U.forEach(x => { const m = SetV.regionOf(x, D.sets); (els[m] || (els[m] = [])).push(x); });
   // Animation (C.vAnim): der Term entsteht Schritt für Schritt – erst die einzelnen Mengen, dann von innen nach aussen

@@ -237,7 +237,7 @@
     B.e('f(x)=a\\left(x' + sg(neg(xs)) + '\\right)^2' + sg(ys), 'b');
     if (!Q) { B.note('Der Punkt $P$ hat dasselbe $x$ wie der Scheitel: $a$ lässt sich so nicht bestimmen.'); return { title: 'Scheitelpunkt und Punkt', st: B.st }; }
     B.p('**Schritt 2:** Den Punkt $P(' + T(px) + '\\,|\\,' + T(py) + ')$ einsetzen und nach $a$ auflösen.');
-    B.e(T(py) + '=a\\cdot' + TP(sub(px, xs)) + '^2' + sg(ys), 'o');
+    B.e(T(py) + '=a\\cdot ' + TP(sub(px, xs)) + '^2' + sg(ys), 'o');
     B.e('a=\\frac{' + T(sub(py, ys)) + '}{' + T(sq2(sub(px, xs))) + '}=' + T(Q.aq), 'g');
     B.p('**Schritt 3:** Scheitelform aufschreiben und ausmultiplizieren.');
     B.e(Quad.vertexTex(Q, 'f(x)'), 'v');
@@ -249,32 +249,20 @@
     const x1 = Quad.Qn(N1[0]), x2 = Quad.Qn(N2[0]), px = Quad.Qn(P[0]), py = Quad.Qn(P[1]);
     const fac = r => (isZ(r) ? 'x' : '(x' + sg(neg(r)) + ')');
     B.p('**Schritt 1:** Ansatz in Nullstellenform mit $x_1=' + T(x1) + '$ und $x_2=' + T(x2) + '$.');
-    B.e('f(x)=a\\cdot' + fac(x1) + fac(x2), 'b');
+    B.e('f(x)=a\\cdot ' + fac(x1) + fac(x2), 'b');
     if (!Q) { B.note('Der Punkt $P$ liegt auf einer Nullstelle: $a$ lässt sich so nicht bestimmen.'); return { title: 'Nullstellen und Punkt', st: B.st }; }
     B.p('**Schritt 2:** Den Punkt $P(' + T(px) + '\\,|\\,' + T(py) + ')$ einsetzen und nach $a$ auflösen.');
-    B.e(T(py) + '=a\\cdot' + TP(sub(px, x1)) + '\\cdot' + TP(sub(px, x2)), 'o');
+    B.e(T(py) + '=a\\cdot ' + TP(sub(px, x1)) + '\\cdot' + TP(sub(px, x2)), 'o');
     B.e('a=\\frac{' + T(py) + '}{' + T(mul(sub(px, x1), sub(px, x2))) + '}=' + T(Q.aq), 'g');
     B.p('**Schritt 3:** Nullstellenform aufschreiben und ausmultiplizieren.');
-    B.e('f(x)=' + (E.qEq(Q.aq, q1) ? '' : E.qEq(Q.aq, E.qNeg(q1)) ? '-' : TP(Q.aq) + '\\cdot') + fac(x1) + fac(x2), 'v');
+    B.e('f(x)=' + (E.qEq(Q.aq, q1) ? '' : E.qEq(Q.aq, E.qNeg(q1)) ? '-' : TP(Q.aq) + '\\cdot ') + fac(x1) + fac(x2), 'v');
     B.res('$' + Quad.stdTex(Q, 'f(x)') + '$');
     return { title: 'Parabel aus Nullstellen und Punkt', st: B.st };
   }
 
   // ───────── Ausgabe ─────────
-  function doc(r) {
-    const d = DOC(); d.h(r.title);
-    r.st.forEach(s => { if (s.k === 'h') d.h(s.s); else if (s.k === 'p') d.p(s.s); else if (s.k === 'e') d.e(s.s); else if (s.k === 'res') d.res(s.s); else if (s.k === 'note') d.note(s.s); });
-    return d;
-  }
-  function sceneLines(r) {
-    const out = [];
-    r.st.forEach(s => {
-      if (!s.sc || (s.k !== 'e' && s.k !== 'res')) return;
-      const body = s.k === 'res' ? s.s.replace(/\$/g, '') : s.s;
-      out.push({ s: typeof s.sc === 'string' && s.sc !== 'true' ? '\\col{' + s.sc + '}{' + body + '}' : body, bold: s.k === 'res' });
-    });
-    return out;
-  }
+  function doc(r) { return Dif.stDoc(r); }
+  function sceneLines(r) { return Dif.stLines(r); }
   Quad.st = { vtx, roots, forms, line, tan, pts, vp, np };
   Quad.doc = doc; Quad.sceneLines = sceneLines;
   Quad.vtxDoc = (Q, o) => doc(vtx(Q, o)); Quad.rootsDoc = (Q, m) => doc(roots(Q, m)); Quad.formsDoc = Q => doc(forms(Q)); Quad.lineDoc = (Q, L) => doc(line(Q, L)); Quad.tanDoc = (Q, x) => doc(tan(Q, x));

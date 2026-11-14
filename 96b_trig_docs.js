@@ -93,20 +93,8 @@
   }
 
   // ───────── Ausgabe ─────────
-  function doc(r) {
-    const d = DOC(); d.h(r.title);
-    r.st.forEach(s => { if (s.k === 'h') d.h(s.s); else if (s.k === 'p') d.p(s.s); else if (s.k === 'e') d.e(s.s); else if (s.k === 'res') d.res(s.s); else if (s.k === 'note') d.note(s.s); });
-    return d;
-  }
-  function sceneLines(r) {
-    const out = [];
-    r.st.forEach(s => {
-      if (!s.sc || (s.k !== 'e' && s.k !== 'res')) return;
-      const body = s.k === 'res' ? s.s.replace(/\$/g, '') : s.s;
-      out.push({ s: typeof s.sc === 'string' && s.sc !== 'true' ? '\\col{' + s.sc + '}{' + body + '}' : body, bold: s.k === 'res' });
-    });
-    return out;
-  }
+  function doc(r) { return Dif.stDoc(r); }
+  function sceneLines(r) { return Dif.stLines(r); }
   Trig.st = { circ, gen, tan };
   // ── Trigonometrie im Dreieck ──
   const RD = Math.PI / 180, dg = v => Dif.fmtT(Math.round(v * 100) / 100, 6) + '^\\circ', ln = v => Dif.fmtT(Math.round(v * 100) / 100, 6);

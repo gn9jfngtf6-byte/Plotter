@@ -161,12 +161,7 @@ function invDraw(w, h) {
 function invLatex() { const W = 760, H = 520; const S = invBuildScene(W, H, invCtx(W, H, { fs: 11 })); return stSceneTex(S, W, H, (INV_VIEWS.find(q => q[0] === INV.view) || [0, ''])[1], 11); }
 function invCardLatex() { const r = invCardDoc(); if (!r || !r.d) return '% Für diese Ansicht gibt es keinen Rechenweg.'; return '% ' + r.t + ' aus J\\sqrt{10} — benötigt \\usepackage{amsmath,amssymb}\n' + Dif.docTex(r.d); }
 function invMakeLatex(which) { const ui = INV.ui; if (!ui) return ''; try { ui.ta.value = which === 'calc' ? invCardLatex() : invLatex(); } catch (e) { ui.ta.value = '% Fehler beim Erzeugen: ' + e.message; } return ui.ta.value; }
-function invCopyLatex() {
-  const ui = INV.ui; if (!ui) return; if (!ui.ta.value) invMakeLatex('pic');
-  const done = () => { ui.msg.textContent = (typeof t === 'function' ? t('msg_copied') : 'Kopiert'); setTimeout(() => { ui.msg.textContent = ''; }, 2500); };
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ui.ta.value).then(done).catch(() => { ui.ta.select(); document.execCommand('copy'); done(); });
-  else { ui.ta.select(); document.execCommand('copy'); done(); }
-}
+function invCopyLatex() { texCopy(INV.ui, () => invMakeLatex('pic')); }
 
 // ── Ausschnitt ──
 function invResolvedWin() { const m = INV.S && INV.S.maps.main; if (m) return Object.assign({}, m.win); const w = INV.win; return w.x0 !== null && isFinite(w.x0) ? Object.assign({}, w) : { x0: -3, x1: 3, y0: -3, y1: 3 }; }
@@ -213,7 +208,7 @@ function invRefreshUI() {
   invSyncFields();
   ui.ex.replaceChildren(Object.assign(difEl('option', null, v === 'pairs' ? 'Paar wählen …' : 'Beispiel wählen …'), { value: '' }));
   const exs = v === 'pairs' ? Inv.PAIRS.map(p => p.name) : INV_EX.map(p => p[1]);
-  exs.forEach((nm, i) => { const o = difEl('option', null, nm); o.value = String(i); o.setAttribute('translate', 'no'); ui.ex.appendChild(o); });
+  exs.forEach((nm, i) => { const o = difEl('option', null, nm); o.value = String(i); if (!/eingeschränkt| und /.test(nm)) o.setAttribute('translate', 'no'); ui.ex.appendChild(o); });   // reine Formeln bleiben, Namen mit deutschen Wörtern werden übersetzt
   ui.ex.onchange = () => {
     const i = ui.ex.value; ui.ex.value = ''; if (i === '') return; const k = +i;
     if (v === 'pairs') { INV.pair = Inv.PAIRS[k].id; INV.x0 = Inv.PAIRS[k].x0; }
@@ -292,7 +287,7 @@ function invRefreshUI() {
   const cv = document.getElementById('canvas'); if (!cv) return;
   const pos = e => { const r = cv.getBoundingClientRect(), t = e.touches && e.touches[0] ? e.touches[0] : (e.changedTouches && e.changedTouches[0]) || e; return { x: t.clientX - r.left, y: t.clientY - r.top }; };
   const inMap = (m, p) => m && p.x >= m.L && p.x <= m.R && p.y >= m.T && p.y <= m.B;
-  const near = p => { const S = INV.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + 4 && d < bd) { bd = d; best = q; } }); return best; };
+  const near = p => { const S = INV.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + hitR(4) && d < bd) { bd = d; best = q; } }); return best; };
   const setPt = (id, x, y, shift) => {
     const m = INV.S && INV.S.maps.main; if (!m) return;
     const st = Stat.niceStep(m.win.x1 - m.win.x0, 14), sty = Stat.niceStep(m.win.y1 - m.win.y0, 14), sx = invR6(difSnap(x, st, shift)), sy = invR6(difSnap(y, sty, shift)), v = INV.view;

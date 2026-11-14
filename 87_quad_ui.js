@@ -192,12 +192,7 @@ function quadCardLatex() {
   return '% ' + r.t + ' aus J\\sqrt{10} — benötigt \\usepackage{amsmath,amssymb}\n' + Dif.docTex(r.d);
 }
 function quadMakeLatex(which) { const ui = QUAD.ui; if (!ui) return ''; try { ui.ta.value = which === 'calc' ? quadCardLatex() : quadLatex(); } catch (e) { ui.ta.value = '% Fehler beim Erzeugen: ' + e.message; } return ui.ta.value; }
-function quadCopyLatex() {
-  const ui = QUAD.ui; if (!ui) return; if (!ui.ta.value) quadMakeLatex('pic');
-  const done = () => { ui.msg.textContent = (typeof t === 'function' ? t('msg_copied') : 'Kopiert'); setTimeout(() => { ui.msg.textContent = ''; }, 2500); };
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ui.ta.value).then(done).catch(() => { ui.ta.select(); document.execCommand('copy'); done(); });
-  else { ui.ta.select(); document.execCommand('copy'); done(); }
-}
+function quadCopyLatex() { texCopy(QUAD.ui, () => quadMakeLatex('pic')); }
 
 // ── Ausschnitt ──
 function quadResolvedWin() {
@@ -438,7 +433,7 @@ function quadAnimFrame(ts) {
   const cv = document.getElementById('canvas'); if (!cv) return;
   const pos = e => { const r = cv.getBoundingClientRect(), t = e.touches && e.touches[0] ? e.touches[0] : (e.changedTouches && e.changedTouches[0]) || e; return { x: t.clientX - r.left, y: t.clientY - r.top }; };
   const inMap = (m, p) => m && p.x >= m.L && p.x <= m.R && p.y >= m.T && p.y <= m.B;
-  const near = p => { const S = QUAD.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + 4 && d < bd) { bd = d; best = q; } }); return best; };
+  const near = p => { const S = QUAD.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + hitR(4) && d < bd) { bd = d; best = q; } }); return best; };
   const setPt = (id, x, y, shift) => {
     const m = QUAD.S && QUAD.S.maps.main; if (!m) return;
     const st = Stat.niceStep(m.win.x1 - m.win.x0, 14), sx = quadR6(difSnap(x, st, shift)), sy = quadR6(difSnap(y, st, shift)), view = QUAD.view, mode = QUAD.mode;

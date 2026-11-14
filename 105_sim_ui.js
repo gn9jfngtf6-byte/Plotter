@@ -166,12 +166,7 @@ function simDraw(w, h) {
 function simLatex() { const W = 760, H = 520; const S = simBuildScene(W, H, simCtx(W, H, { fs: 11 })); return stSceneTex(S, W, H, (SIM_VIEWS.find(q => q[0] === SIM.view) || [0, ''])[1], 11); }
 function simCardLatex() { const r = simCardDoc(); if (!r || !r.d) return '% Für diese Ansicht gibt es keinen Rechenweg.'; return '% ' + r.t + ' aus J\\sqrt{10} — benötigt \\usepackage{amsmath,amssymb}\n' + Dif.docTex(r.d); }
 function simMakeLatex(which) { const ui = SIM.ui; if (!ui) return ''; try { ui.ta.value = which === 'calc' ? simCardLatex() : simLatex(); } catch (e) { ui.ta.value = '% Fehler beim Erzeugen: ' + e.message; } return ui.ta.value; }
-function simCopyLatex() {
-  const ui = SIM.ui; if (!ui) return; if (!ui.ta.value) simMakeLatex('pic');
-  const done = () => { ui.msg.textContent = (typeof t === 'function' ? t('msg_copied') : 'Kopiert'); setTimeout(() => { ui.msg.textContent = ''; }, 2500); };
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ui.ta.value).then(done).catch(() => { ui.ta.select(); document.execCommand('copy'); done(); });
-  else { ui.ta.select(); document.execCommand('copy'); done(); }
-}
+function simCopyLatex() { texCopy(SIM.ui, () => simMakeLatex('pic')); }
 
 // ── Ausschnitt ──
 function simResolvedWin() { const m = SIM.S && SIM.S.maps.main; if (m) return Object.assign({}, m.win); const w = SIM.win; return w.x0 !== null && isFinite(w.x0) ? Object.assign({}, w) : { x0: -6, x1: 6, y0: -4, y1: 4 }; }
@@ -268,7 +263,12 @@ function simRefreshUI() {
     else if (mk === 'dil') { group('Zentrische Streckung von Z aus'); rowsK(); hint('Du kannst Z und die Ecken des Bildes auch ziehen.'); }
     else {
       const K = Sim.kinds(T);
-      hint('Reihenfolge: zuerst spiegeln, dann um O drehen, dann von Z aus strecken, zuletzt verschieben. Jetzt: ' + (K.length ? K.map(k => Sim.KIND_DE[k]).join(', dann ') : 'keine Abbildung') + '.');
+      {                                                                // Bausteine einzeln (jeder für sich übersetzbar), dazwischen Pfeile
+        const h = difEl('div', 'act-hint'); h.style.margin = '2px 2px 4px';
+        h.append(difEl('span', 'hint-p', 'Reihenfolge: zuerst spiegeln, dann um O drehen, dann von Z aus strecken, zuletzt verschieben.'), ' ', difEl('span', 'hint-p', 'Jetzt:'), ' ');
+        (K.length ? K.map(k => Sim.KIND_DE[k]) : ['keine Abbildung']).forEach((t, i) => { if (i) h.append(' → '); h.append(difEl('span', 'hint-p', t)); });
+        P.appendChild(h);
+      }
       group('Spiegelung');
       select('Spiegeln an der', [['', 'nicht spiegeln'], ['x', 'x-Achse'], ['y', 'y-Achse']], () => (T.refl ? Sim.axisOf(T) : ''), x => { T.refl = !!x; if (x) T.psi = x === 'x' ? 0 : 90; });
       group('Drehung um den Ursprung O'); rowPhi();
@@ -383,7 +383,7 @@ function simDragTo(id, x, y, shift, d) {
   const cv = document.getElementById('canvas'); if (!cv) return;
   const pos = e => { const r = cv.getBoundingClientRect(), t = e.touches && e.touches[0] ? e.touches[0] : (e.changedTouches && e.changedTouches[0]) || e; return { x: t.clientX - r.left, y: t.clientY - r.top }; };
   const inMap = (m, p) => m && p.x >= m.L && p.x <= m.R && p.y >= m.T && p.y <= m.B;
-  const near = p => { const S = SIM.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + 4 && d < bd) { bd = d; best = q; } }); return best; };
+  const near = p => { const S = SIM.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + hitR(4) && d < bd) { bd = d; best = q; } }); return best; };
   const inside = p => { const S = SIM.S; if (!S || !S.tris) return null; return S.tris.find(t => simInTri(t.q, [p.x, p.y])) || null; };
   const down = e => {
     if (!simActive()) return; e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault();

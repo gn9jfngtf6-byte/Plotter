@@ -32,7 +32,10 @@
     if (K.indexOf('point') >= 0) parts.push('Punktspiegelung an $Z' + pt(T.z) + '$ ($k=-1$)');
     else if (K.indexOf('dil') >= 0) parts.push('zentrische Streckung von $Z' + pt(T.z) + '$ aus mit $k=' + n(T.k) + '$');
     if (K.indexOf('trans') >= 0) parts.push('Verschiebung um $' + n(Math.abs(T.v[0])) + '$ nach ' + (T.v[0] < 0 ? 'links' : 'rechts') + ' und $' + n(Math.abs(T.v[1])) + '$ nach ' + (T.v[1] < 0 ? 'unten' : 'oben'));
-    B.p('**Abbildung:** ' + (parts.length ? (parts.length > 1 ? 'Das Dreieck $ABC$ wird nacheinander abgebildet durch: ' + parts.join(', dann ') + '.' : parts[0].charAt(0).toUpperCase() + parts[0].slice(1) + '.') : 'keine (das Bild liegt auf dem Original).'));
+    // Mehrere Abbildungen: jede als eigene Zeile (so bleibt jeder Satz für sich übersetzbar, statt dass alle Kombinationen eigene Sätze wären)
+    const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+    if (parts.length > 1) { B.p('**Abbildung:** Das Dreieck $ABC$ wird nacheinander abgebildet:'); parts.forEach((s, i) => B.p((i + 1) + '. ' + cap(s) + '.')); }
+    else B.p('**Abbildung:** ' + (parts.length ? cap(parts[0]) + '.' : 'keine (das Bild liegt auf dem Original).'));
     // So hängen die Ecken zusammen (nur bei EINER Grundabbildung gibt es eine einfache Regel)
     if (K.length === 1) {
       const one = K[0], ph = Sim.normA(T.phi);
@@ -128,11 +131,7 @@
     return { title: 'Rechtwinkliges Dreieck mit Höhe', st: B.st };
   }
 
-  function doc(r) {
-    const d = DOC(); d.h(r.title);
-    r.st.forEach(s => { if (s.k === 'h') d.h(s.s); else if (s.k === 'p') d.p(s.s); else if (s.k === 'e') d.e(s.s); else if (s.k === 'res') d.res(s.s); else if (s.k === 'note') d.note(s.s); });
-    return d;
-  }
+  function doc(r) { return Dif.stDoc(r); }
   Sim.st = { map, test, ray, right };
   Sim.doc = doc;
   Sim.fr = fr; Sim.len = len; Sim.eqs = eq;

@@ -83,13 +83,6 @@ function simLen(S, m, P, Q, G, txt, C, o) {
   const d = C.fs * (o.d || 0.95);
   difLabel(S, m, mx + nx * d * (Math.abs(ny) > 0.8 ? 1 : 1.6), my + ny * d, txt, C, { size: 0.85 });
 }
-function simArrow(S, m, P, Q, col, lab, C) {
-  const p = smPx(m, P), q = smPx(m, Q), l = Math.hypot(q[0] - p[0], q[1] - p[1]); if (l < C.fs * 1.2) return;
-  const ux = (q[0] - p[0]) / l, uy = (q[1] - p[1]) / l, h = C.fs * 0.75;
-  S.line(p[0], p[1], q[0] - ux * h * 0.6, q[1] - uy * h * 0.6, { col, lw: 2 });
-  S.poly([[q[0], q[1]], [q[0] - ux * h - uy * h * 0.45, q[1] - uy * h + ux * h * 0.45], [q[0] - ux * h + uy * h * 0.45, q[1] - uy * h - ux * h * 0.45]], { col, fill: col, a: 1, lw: 1, close: true });
-  if (lab) difLabel(S, m, (p[0] + q[0]) / 2 - uy * C.fs * 0.9, (p[1] + q[1]) / 2 + ux * C.fs * 0.9, lab, C, { size: 0.95 });
-}
 // Bruch zweier Längen mit Zahlen (für das Bild)
 const smFr = (a, b, va, vb, col) => smCol(col, '\\frac{|' + a + '|}{|' + b + '|}=\\frac{' + Sim.n(va) + '}{' + Sim.n(vb) + '}' + Sim.eqs(va, vb, va / vb) + Sim.n(va / vb));
 const smFr2 = (a, b, va, vb, ca, cb) => '\\frac{' + smCol(ca, '|' + a + '|') + '}{' + smCol(cb, '|' + b + '|') + '}=\\frac{' + smCol(ca, Sim.n(va)) + '}{' + smCol(cb, Sim.n(vb)) + '}' + Sim.eqs(va, vb, va / vb) + Sim.n(va / vb);

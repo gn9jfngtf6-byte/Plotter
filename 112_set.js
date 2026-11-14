@@ -485,7 +485,7 @@ function setVennClick(p) {
   const cv = document.getElementById('canvas'); if (!cv) return;
   const pos = e => { const r = cv.getBoundingClientRect(), t = e.touches && e.touches[0] ? e.touches[0] : (e.changedTouches && e.changedTouches[0]) || e; return { x: t.clientX - r.left, y: t.clientY - r.top }; };
   const inMap = (m, p) => m && p.x >= m.L - 10 && p.x <= m.R + 10 && p.y >= m.r.y && p.y <= m.r.y + m.r.h;
-  const near = p => { const S = SET.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + 4 && d < bd) { bd = d; best = q; } }); return best; };
+  const near = p => { const S = SET.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + hitR(4) && d < bd) { bd = d; best = q; } }); return best; };
   const down = e => {
     if (!setActive()) return; e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault();
     const S = SET.S; if (!S) return; if (SET.anim) setAnimStop(); const p = pos(e), q = near(p), m = S.maps.main;

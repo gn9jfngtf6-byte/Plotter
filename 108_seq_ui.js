@@ -11,7 +11,7 @@ const SEQ_VIEWS = [['def', 'Folgen: explizit und rekursiv'], ['ari', 'Arithmetis
 const SEQ_DESC = {
   sig: ['Lies das Summenzeichen: Die {{untere Grenze|m}} sagt, bei welchem k du beginnst, die {{obere Grenze|n}}, wo du aufhörst. Den {{Summanden|f}} rechnest du für jedes k aus und addierst alle. Ziehe im Bild die Grenzen m und n und die {{Laufvariable k|k}}: Der Balken von k leuchtet, oben steht sein Summand. «▶ k von m bis n laufen lassen» addiert die Summanden der Reihe nach.', 'Das Summenzeichen ist eine Kurzschrift: ∑ von k = m bis n über aₖ bedeutet aₘ + aₘ₊₁ + … + aₙ. Die Laufvariable (meist k, i oder j) durchläuft alle ganzen Zahlen von der unteren bis zur oberen Grenze; es gibt n − m + 1 Summanden. Der Name der Laufvariablen spielt keine Rolle, und man kann den Index verschieben: ∑ von k = 3 bis 8 über (k − 2) = ∑ von j = 1 bis 6 über j.'],
   def: ['Tippe einen Term in n ein (z. B. 3n+1) oder eine rekursive Regel: Die Glieder erscheinen als Punkte (n | aₙ). Ziehe den {{violetten Punkt|K}} auf ein anderes Glied, rechts steht seine Berechnung.', 'Eine Folge ist eine durchnummerierte Liste von Zahlen a₁, a₂, a₃, … Explizit berechnet man jedes Glied direkt aus n, rekursiv aus dem Vorgänger. Die Glieder erscheinen als Punkte (n | aₙ).'],
-  ari: ['Ziehe {{a₁|A1}} und {{a₂|A2}}: Die Differenz d bleibt von Glied zu Glied gleich, die Punkte liegen auf einer {{Geraden|dl}}. Mit der {{roten Zielgeraden t|T}} suchst du, welches Glied {{aₙ|K}} diesen Wert hat.', 'Bei einer arithmetischen Folge ist die Differenz d benachbarter Glieder (a₁, a₂) konstant: aₙ = a₁ + (n − 1)·d. Die Punkte liegen auf einer Geraden (lineares Wachstum).'],
+  ari: ['Ziehe {{a₁|A1}} und {{a₂|A2}}: Die Differenz d bleibt von Glied zu Glied gleich, durch die Punkte geht eine {{Gerade|dl}}. Mit der {{roten Zielgeraden t|T}} suchst du, welches Glied {{aₙ|K}} diesen Wert hat.', 'Bei einer arithmetischen Folge ist die Differenz d benachbarter Glieder (a₁, a₂) konstant: aₙ = a₁ + (n − 1)·d. Die Punkte liegen auf einer Geraden (lineares Wachstum).'],
   geo: ['Ziehe {{a₁|A1}} und {{a₂|A2}}: Der Quotient q bleibt von Glied zu Glied gleich – Wachstum für q > 1, Zerfall für 0 < q < 1 ({{Kurve|dl}}). Mit der {{roten Zielgeraden t|T}} suchst du, ab welchem Glied {{aₙ|K}} sie überschritten wird.', 'Bei einer geometrischen Folge ist der Quotient q benachbarter Glieder (a₁, a₂) konstant: aₙ = a₁·qⁿ⁻¹. Für q > 1 exponentielles Wachstum, für 0 < q < 1 Zerfall.'],
   sum: ['Ziehe den {{violetten Punkt sₙ|N}} im unteren Bild nach links oder rechts, um n zu ändern: Oben kommen {{Glieder aₖ|bars}} dazu oder fallen weg, unten wächst sₙ = a₁ + … + aₙ. Beim Gauss-Trick ergänzt die rückwärts gelesene Folge die Balken zu einem Rechteck («▶ Gauss-Trick als Bewegung» zeigt, wie sie sich umdreht).', 'Die Summe der ersten n Glieder heisst Reihe: sₙ = a₁ + … + aₙ. Arithmetisch: sₙ = n·(a₁ + aₙ)/2 (Trick von Gauss), geometrisch: sₙ = a₁·(qⁿ − 1)/(q − 1).'],
   lim: ['Ziehe den {{grünen Punkt ε|E}}, um den {{ε-Streifen|eps}} um den {{Grenzwert|lim}} schmaler zu machen: Ab einem Index N liegen alle Glieder im Streifen – je kleiner ε, desto weiter rechts liegt N. Mit «▶ Animation: ε → 0» wird der Streifen immer schmaler, und es kommen immer mehr Glieder dazu.', 'Kommen die Glieder für grosse n einer Zahl beliebig nahe, ist das der Grenzwert. Zu jedem ε gibt es ein N, ab dem alle Glieder im ε-Streifen liegen. Eine unendliche geometrische Reihe hat für |q| < 1 den Wert a₁/(1 − q).'],
@@ -318,12 +318,7 @@ function seqDraw(w, h) {
 function seqLatex() { const W = 760, H = 520; const S = seqBuildScene(W, H, seqCtx(W, H, { fs: 11 })); return stSceneTex(S, W, H, (SEQ_VIEWS.find(q => q[0] === SEQ.view) || [0, ''])[1], 11); }
 function seqCardLatex() { const r = seqCardDoc(); if (!r || !r.d) return '% Für diese Ansicht gibt es keinen Rechenweg.'; return '% ' + r.t + ' aus J\\sqrt{10} — benötigt \\usepackage{amsmath,amssymb}\n' + Dif.docTex(r.d); }
 function seqMakeLatex(which) { const ui = SEQ.ui; if (!ui) return ''; try { ui.ta.value = which === 'calc' ? seqCardLatex() : seqLatex(); } catch (e) { ui.ta.value = '% Fehler beim Erzeugen: ' + e.message; } return ui.ta.value; }
-function seqCopyLatex() {
-  const ui = SEQ.ui; if (!ui) return; if (!ui.ta.value) seqMakeLatex('pic');
-  const done = () => { ui.msg.textContent = (typeof t === 'function' ? t('msg_copied') : 'Kopiert'); setTimeout(() => { ui.msg.textContent = ''; }, 2500); };
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ui.ta.value).then(done).catch(() => { ui.ta.select(); document.execCommand('copy'); done(); });
-  else { ui.ta.select(); document.execCommand('copy'); done(); }
-}
+function seqCopyLatex() { texCopy(SEQ.ui, () => seqMakeLatex('pic')); }
 
 // ── Ausschnitt ──
 function seqResolvedWin() { const m = SEQ.S && SEQ.S.maps.main; if (m) return Object.assign({}, m.win); const w = SEQ.win; return w.x0 !== null && isFinite(w.x0) ? Object.assign({}, w) : { x0: 0, x1: 12, y0: -2, y1: 10 }; }
@@ -494,7 +489,7 @@ function seqDragTo(id, x, y, shift) {
   const cv = document.getElementById('canvas'); if (!cv) return;
   const pos = e => { const r = cv.getBoundingClientRect(), t = e.touches && e.touches[0] ? e.touches[0] : (e.changedTouches && e.changedTouches[0]) || e; return { x: t.clientX - r.left, y: t.clientY - r.top }; };
   const inMap = (m, p) => m && p.x >= m.L && p.x <= m.R && p.y >= m.T && p.y <= m.B;
-  const near = p => { const S = SEQ.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + 4 && d < bd) { bd = d; best = q; } }); return best; };
+  const near = p => { const S = SEQ.S; if (!S) return null; let best = null, bd = 1e9; S.pts.forEach(q => { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d <= q.r + hitR(4) && d < bd) { bd = d; best = q; } }); return best; };
   const down = e => {
     if (!seqActive()) return; e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault();
     const S = SEQ.S; if (!S) return; if (SEQ.anim) seqAnimStop(); const p = pos(e), q = near(p), m = S.maps.main;
