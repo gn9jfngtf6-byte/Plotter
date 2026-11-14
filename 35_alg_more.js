@@ -216,12 +216,9 @@ const AlgMore = (function () {
     if (n > 1) out.push([n, 1]);
     return out;
   }
-  const simpleTex = t => /^[A-Za-z0-9.]$|^\d+$|^[A-Za-z]$/.test(t);
   const hasTopSign = t => { let d = 0; for (let i = 1; i < t.length; i++) { const c = t[i]; if (c === '(' || c === '{') d++; else if (c === ')' || c === '}') d--; else if (d === 0 && (c === '+' || c === '-')) return true; } return false; };
   const wrapMul = t => (hasTopSign(t) || /^-/.test(t) ? wrapPar(t) : t);
   const joinMul = (a, b) => (a === '1' ? b : b === '1' ? a : wrapMul(a) + '\\cdot ' + wrapMul(b));
-  const negTex = t => (t[0] === '-' ? t.slice(1) : (hasTopSign(t) ? '-' + wrapPar(t) : '-' + t));
-  const fmtQ = a => qTex(a);
   const cmpNum = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
   // ── Szene (Bild als Primitive) ─────────────────────────────────────
@@ -340,7 +337,6 @@ const AlgMore = (function () {
     parts.forEach((p, i) => { if (i && /^[0-9]/.test(p)) s += '\\cdot '; s += p; });
     return s;
   }
-  function coefParts(c) { return qeq(qabs(c), ONE) ? [] : [qTex(qabs(c))]; }
   function resultTex(c, groups, splitNeg) {
     // groups: [{o, E}] (E ≠ 0) → Text; mit splitNeg werden negative Hochzahlen in den Nenner verschoben
     const isNeg = G => { const cv = pConstVal(G.E); return cv && qsgn(cv) < 0; };
@@ -753,7 +749,6 @@ const AlgMore = (function () {
     if (dt) push('Definitionsmenge', dt);
     const split = pure;
     if (res.z) { out.caption = given + ' = 0'; push('Ergebnis', '0'); out.captionTxt = given; return out; }
-    const uniqPolys = [];
     let figData;
     if (seq) {
       seq.forEach(g => push('Schrittweise zusammenfassen und nach jedem Schritt kürzen', fracStr(g, {})));
@@ -816,7 +811,6 @@ const AlgMore = (function () {
     try { out.fig = fracFigure(figData); } catch (e) { out.fig = null; }
     return out;
   }
-  function polyOrFrac(res) { return fracStr(res, {}); }
 
   // ── Bilder zu den Bruchtermen ──────────────────────────────────────
   function fracFigure(fd) {
@@ -844,7 +838,6 @@ const AlgMore = (function () {
     }
     const OPW = 1.7;
     const lines = []; // {blocks:[{n,d,sign}], ops:[], eq}
-    const signOf = g => (g.s < 0 ? '-' : '');
     if (fd.kind === 'cancel') {
       lines.push({ blocks: [{ n: chipsOf(fd.N, fd.cancN), d: chipsOf(fd.D, fd.cancD) }], neg: fd.s < 0 });
       if (fd.cancN.size || fd.res.den.length !== fd.D.length) lines.push({ blocks: [{ n: chipsOf(fd.res.num, null, 'new'), d: chipsOf(fd.res.den, null, 'new') }], neg: fd.res.s < 0, eq: true });

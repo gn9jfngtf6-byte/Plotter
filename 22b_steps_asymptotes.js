@@ -124,7 +124,6 @@
 
 
   // ───────────────────── weitere Grenzwert-Regeln ─────────────────────
-  const sgnInf = (sign) => sign > 0 ? '+\\infty' : '-\\infty';
   // Brüche, in denen Sinus/Kosinus (beschränkt) bzw. log(x) (langsam wachsend) durch ein Polynom geteilt wird
   function growthQuotLimit(ast, dir, d) {
     const D = E.polyFromAst(ast.b);
@@ -371,7 +370,7 @@
     const d = new Doc(), fi = pt.fi;
     d.p('Eine **Polstelle** (senkrechte Asymptote) liegt bei einer Nullstelle des **Nenners** vor, an der der Zähler **nicht** $0$ ist.');
     const cancelled = E.pDeg(R.g) >= 1;
-    let Nast, Dast, Dtxt;
+    let Nast, Dast;
     if (ast.type === 'div' && !cancelled && E.polyFromAst(ast.a) && E.polyFromAst(ast.b)) { Nast = ast.a; Dast = ast.b; }
     else {
       if (cancelled) {

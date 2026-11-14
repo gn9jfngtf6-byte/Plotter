@@ -71,12 +71,32 @@ function tdAddPlane(eq, noHist, didactic) {
   TD.planes.push(np);
   // Didaktischer Einstieg: bei der ersten eingegebenen Ebene zuerst nur Balken (Abstand 2, mit Höhen und Koordinaten);
   // Ebene, Spurgeraden usw. schaltet man danach Schritt für Schritt dazu. Ohne Balken möglich (Ebene parallel zur z-Achse) → normale Ansicht.
-  if (didactic && first && Math.abs(tdPl(np).c) > TD_EPS) {
-    Object.assign(TD.bar, { on: true, id: np.id, step: 2, vals: true, coords: true, hide: true, dots: false });
-    Object.assign(TD.opt, { icpt: false, traces: false, inter: false, names: false });
-  }
+  if (didactic && first) { if (Math.abs(tdPl(np).c) > TD_EPS) tdDiscStart(np.id); else tdDiscOff(); }
   tdChanged(noHist);
   return null;
+}
+// ── «Ebene entdecken»: Die Ebene ist zuerst verborgen. Man sieht Balken über den Gitterpunkten (mit Koordinaten und Höhen),
+//    blendet danach die Balken aus (nur Punkte) und verkleinert den Gitterabstand, bis die Punkte zur Ebene zusammenwachsen.
+function tdDiscStart(id) {
+  Object.assign(TD.bar, { on: true, id: id, step: 2, vals: true, coords: true, hide: true, dots: false });
+  Object.assign(TD.opt, { icpt: false, traces: false, inter: false, names: false });
+}
+// gewohnte Ansicht (Beispiele mit mehreren Ebenen, Ebene parallel zur z-Achse): Ebene mit Achsenabschnitten, Spurgeraden und Schnitten
+function tdDiscOff() {
+  Object.assign(TD.bar, { on: false, hide: false, dots: false });
+  Object.assign(TD.opt, { icpt: true, traces: true, inter: true, names: true });
+}
+// Ebene, an der gerade entdeckt wird (Balken eingeschaltet, nach z auflösbar); sonst null
+function tdDisc() {
+  if ((TD.view || 'pl') !== 'pl' || !TD.bar.on) return null;
+  const cand = tdValid().filter(it => Math.abs(it.pl.c) > TD_EPS);
+  return cand.find(c => c.p.id === TD.bar.id) || cand[0] || null;
+}
+// Stufe des Entdeckens: 'a' Balken, 'b' nur Punkte, 'c' die Ebene ist sichtbar geworden; '' = gewohnte Ansicht
+function tdDiscStage() {
+  if (!tdDisc()) return '';
+  if (!tdBarHideId()) return TD.opt.icpt || TD.opt.traces ? '' : 'c';
+  return TD.bar.dots ? 'b' : 'a';
 }
 // Scrollposition der Seitenleiste festhalten: Beim Neuaufbau des Panels darf sie nicht springen
 function tdKeepScroll(fn) {
@@ -100,7 +120,14 @@ function tdCapture() {
 }
 function tdApply(s) {
   // ohne gespeicherten Zustand (erster Besuch, «Zurücksetzen»): eine Beispielebene, damit das Bild nicht leer ist
-  if (!s || !Array.isArray(s.planes)) { TD.planes = []; TD.seq = 0; if (!s || !s.view || s.view === 'pl') tdAddPlane('2x+3y-z=6', true); }
+  // Sie wird zum Entdecken angeboten (tdDiscStart): zuerst nur Balken, die Ebene selbst erscheint erst durch das Verfeinern.
+  if (!s || !Array.isArray(s.planes)) {
+    const pl = !s || !s.view || s.view === 'pl';
+    TD.planes = []; TD.seq = 0;
+    Object.assign(TD.opt, { grid: true, gridxz: false, gridyz: false, box: false, tracexy: true, tracexz: true, traceyz: true, normal: false });
+    TD.bar.sstep = 0.1; tdDiscOff();
+    if (pl) { TD.range = 6; tdAddPlane('2x+3y-z=6', true, true); }
+  }
   else {
     TD.planes = s.planes.filter(p => p && typeof p.eq === 'string').slice(0, 6)
       .map(p => { const q = { id: String(p.id || ''), eq: p.eq, color: p.color || TD_COLORS[0], vis: p.vis !== false, par: (p.par && typeof p.par === 'object') ? Object.assign({}, p.par) : {}, pstep: p.pstep > 0 ? p.pstep : 0.1 }; tdSyncPar(q); return q; });
@@ -149,7 +176,8 @@ function tdGeom(w, h) {
 }
 
 function td3dDraw(w, h) {
-  const dk = typeof vgDock === 'function' ? vgDock(w, h) : [0, 0];   // Rechenweg-Karte (Vektorgeometrie)
+  const dk = typeof vgDock === 'function' ? vgDock(w, h) : [0, 0];   // Rechenweg-Karte (Vektorgeometrie, Ebene entdecken)
+  { const lg = $td('td-legend'); if (lg) lg.style.right = dk[0] ? (dk[0] + 12) + 'px' : ''; }   // Legende nicht unter die Karte
   const g = tdGeom(w - dk[0], h - dk[1]), R = g.R, P = g.P;
   const dark = typeof darkMode !== 'undefined' && darkMode;
   const lw = x => (typeof bw === 'function' ? bw(x) : x);
@@ -260,6 +288,9 @@ function td3dDraw(w, h) {
     const dense = sp < 5;                                    // sehr dichtes Gitter: nur Striche, keine Punkte
     const wd = dense ? Math.max(0.7, sp * 0.55) : Math.max(1.6, Math.min(6, sp * 0.32));
     const list = bars.pts.map(q => ({ q, d: P([q.x, q.y, 0]).d })).sort((a, b) => b.d - a.d);
+    // Ziele der verlinkten Überschrift: Gitterpunkt (gp), Balken (bal), Punkt auf der Ebene (h) — bei sehr vielen Punkten nur eine Auswahl
+    { const ev = Math.max(1, Math.ceil(list.length / 120));
+      list.forEach(({ q }, i) => { if (i % ev) return; hlC('gp', [q.x, q.y, 0]); hlC('h', [q.x, q.y, q.z]); if (!TD.bar.dots && Math.abs(q.z) >= 1e-9) hlP('bal', [[q.x, q.y, 0], [q.x, q.y, q.z]]); }); }
     ctx.strokeStyle = col; ctx.lineWidth = lw(wd); ctx.lineCap = 'butt';
     list.forEach(({ q }) => {
       const a = P([q.x, q.y, 0]), t = P([q.x, q.y, q.z]);
@@ -636,8 +667,6 @@ function tdZoomBy(f, fx, fy) {                 // f > 1 = heranzoomen; Zentrum (
 // ═══════════════════════════════════════════════════════════════════
 // Schalter 2D ↔ 3D
 // ═══════════════════════════════════════════════════════════════════
-// Zwischen 3D und dem Funktionen-Thema wechseln (über die Umgebungen, siehe 32_env.js)
-function td3dToggle() { if (typeof envSwitch === 'function') envSwitch(TD.on ? 'func' : '3d'); else td3dSet(!TD.on); }
 function td3dSet(on) {
   on = !!on;
   if (on === TD.on) return;
@@ -833,6 +862,7 @@ function tdRenderPanel() {
     const bh = $td('td-b-hide'); if (bh) bh.checked = TD.bar.hide;
     const bd = $td('td-b-dots'); if (bd) bd.checked = TD.bar.dots;
     const ss = $td('td-b-sstep'); if (ss) ss.value = String(TD.bar.sstep);
+    const bc = $td('td-b-card'); if (bc && typeof VG !== 'undefined') bc.checked = !!VG.show.card;
     if (st) { st.step = TD.bar.sstep; st.value = TD.bar.step; }
     tdBarLabel();
     tdRenderBarSelect();
@@ -851,7 +881,7 @@ function tdBarNote() {
   const n = $td('td-b-note2'); if (!n) return;
   const b = tdBarData();
   const fr = document.createDocumentFragment();
-  if (TD.bar.on && TD.bar.coords && TD._tight) { const d = document.createElement('div'); d.textContent = 'Beschriftung zu eng: Gitterabstand vergrössern oder hineinzoomen.'; fr.appendChild(d); }
+  if (b && TD.bar.coords && TD._tight) { const d = document.createElement('div'); d.textContent = 'Die Gitterpunkte liegen im Bild so dicht, dass ihre Koordinaten nicht angeschrieben werden.'; fr.appendChild(d); }
   if (b && b.coarse) { fr.appendChild(document.createTextNode('Zu viele Balken: gezeichnet wird mit Abstand ')); tdNoTr(fr, String(b.step).replace('.', ',')); }
   n.replaceChildren(fr);
 }
@@ -880,7 +910,7 @@ function tdAddFromInput() {
     sel.addEventListener('change', () => {
       const p = TD_PRESETS[parseInt(sel.value, 10)]; sel.value = '';
       if (!p) return;
-      TD.planes = []; TD.seq = 0;
+      TD.planes = []; TD.seq = 0; tdDiscOff();
       p.eq.forEach(q => tdAddPlane(q, true));
       tdChanged();
     });
@@ -896,9 +926,11 @@ function tdAddFromInput() {
   const bhd = $td('td-b-hide'); if (bhd) bhd.addEventListener('change', () => { TD.bar.hide = bhd.checked; tdChanged(); });
   const bv = $td('td-b-vals'); if (bv) bv.addEventListener('change', () => { TD.bar.vals = bv.checked; tdChanged(); });
   const bp = $td('td-b-plane'); if (bp) bp.addEventListener('change', () => { TD.bar.id = bp.value; tdChanged(); });
+  const bcd = $td('td-b-card'); if (bcd) bcd.addEventListener('change', () => { if (typeof VG !== 'undefined') VG.show.card = bcd.checked; tdChanged(); });
+  const blx = $td('td-b-latex'); if (blx) blx.addEventListener('click', () => { const ta = $td('td-latex-out'); if (ta && typeof vgCardLatex === 'function') { ta.value = vgCardLatex(); const det = ta.closest('details'); if (det) det.open = true; } });
   const bs = $td('td-b-step');
   if (bs) {
-    const set = () => { const v = parseFloat(bs.value); if (isFinite(v) && v >= 0) TD.bar.step = Math.round(v * 1000) / 1000; tdBarLabel(); tdBarNote(); };
+    const set = () => { const v = parseFloat(bs.value); if (isFinite(v) && v >= 0) TD.bar.step = Math.round(v * 1000) / 1000; tdBarLabel(); tdBarNote(); if (typeof vgHead === 'function') vgHead(); };
     bs.addEventListener('input', () => { set(); scheduleDraw(); });     // live beim Ziehen
     bs.addEventListener('change', () => { set(); tdChanged(); });         // Undo-Eintrag beim Loslassen
   }

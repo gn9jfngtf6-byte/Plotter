@@ -151,7 +151,6 @@ let linPanelDef   = null;
 let quadPanelDef  = null;
 let expPanelDef   = null;
 let logPanelDef   = null;
-let powerPanelDef = null;
 
 // ── Eingabefelder aufbauen ────────────────────────────────────────
 function buildPanelInputs(containerId, labels, prefix) {
@@ -904,14 +903,6 @@ function linAddBisector(ptA, ptB) {
 }
 
 // ── Lineare Funktionen (Live-Gerade via 2 Punkte) ─────────────────
-function linearTogglePick() {
-  if (fitPickMode) genericStopPick(); // evtl. anderen Pick-Modus stoppen
-  toggleLine2PtMode();
-  const btn = document.getElementById('linear-pick-btn');
-  if (btn) btn.classList.toggle('active-btn', line2ptPicking);
-  const status = document.getElementById('linear-pick-status');
-  if (status) status.textContent = line2ptPicking ? '1. Punkt klicken…' : '';
-}
 
 // ── Quadratische Funktionen ───────────────────────────────────────
 function quadUpdateInputs() {

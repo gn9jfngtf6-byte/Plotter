@@ -652,7 +652,7 @@ const AlgLearn = (function () {
   function parseSet(str) {
     let s = String(str || '').replace(/\\left|\\right|\\[,;:! ]/g, ' ').replace(/\\mathbb\{L\}|L\s*=/g, ' ').replace(/[{}]/g, ' ');
     if (/^\s*$/.test(s)) return null;
-    if (/keine|∅|\\emptyset|\\varnothing|leer/i.test(s)) return [];
+    if (/keine|∅|\\emptyset|\\varnothing|leer|none|no solution|aucune|ninguna|nessuna|brak|žádn|καμ[ίι]α|nincs/i.test(s)) return [];   // «keine» auch in den übersetzten Sprachen
     s = M.normalize(s).replace(/x_?\{?\d?\}?\s*=/g, ' ').replace(/x\s*=/g, ' ').replace(/,(?=\s|$)/g, ' ');
     const parts = s.split(/[;]|\boder\b|\bund\b|\s{1,}/).map(x => x.trim()).filter(Boolean);
     const vals = [];

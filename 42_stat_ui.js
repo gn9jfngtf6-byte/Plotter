@@ -629,15 +629,18 @@ function stSceneTex(S, W, H, label, fs0) {
   Object.keys(cols).forEach(c => { const n = parseInt(c.slice(1), 16); L.push('\\definecolor{' + cols[c] + '}{RGB}{' + [n >> 16, (n >> 8) & 255, n & 255].join(',') + '}'); });
   L.push('\\begin{tikzpicture}[line cap=round, line join=round]');
   if (usesPgf) L.push(ST_PGF_STYLE);
-  return L.concat(body, ['\\end{tikzpicture}']).join('\n');
+  const tex = L.concat(body, ['\\end{tikzpicture}']).join('\n');
+  return typeof Dif !== 'undefined' && Dif.texGuil ? Dif.texGuil(tex) : tex;
 }
 function statMakeLatex() { const ta = STAT.ui && STAT.ui.ta; if (!ta) return ''; try { ta.value = statLatex(); } catch (e) { ta.value = '% Fehler beim Erzeugen: ' + e.message; } return ta.value; }
-function statCopyLatex() {
-  const ui = STAT.ui; if (!ui) return; if (!ui.ta.value) statMakeLatex();
+// LaTeX-Feld eines Themas in die Zwischenablage kopieren (make füllt das Feld, falls es noch leer ist)
+function texCopy(ui, make) {
+  if (!ui) return; if (!ui.ta.value) make();
   const done = () => { ui.msg.textContent = (typeof t === 'function' ? t('msg_copied') : 'Kopiert'); setTimeout(() => { ui.msg.textContent = ''; }, 2500); };
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ui.ta.value).then(done).catch(() => { ui.ta.select(); document.execCommand('copy'); done(); });
   else { ui.ta.select(); document.execCommand('copy'); done(); }
 }
+function statCopyLatex() { texCopy(STAT.ui, () => statMakeLatex()); }
 
 // ── Canvas in dieser Umgebung: keine Verschiebe-/Zoom-/Punkt-Aktionen ──
 (function () {

@@ -89,7 +89,6 @@
     }
     return { n, changed: false };
   }
-  const isOneNum = n => n.type === 'num' && parseFloat(n.v) === 1;
   // konstanter Faktor c·g bzw. g/c bzw. −g: {c, g, div}
   function factorSplit(n) {
     if (n.type === 'neg' && hasX(n.x)) return { c: num(-1), g: n.x, kind: 'neg' };
@@ -402,7 +401,15 @@
   }
 
   // ───────────────────── Doc → LaTeX (Rechenweg im Export) ─────────────────────
-  const escTxt = t => String(t).replace(/\\/g, '\\textbackslash{}').replace(/([&%#_{}])/g, '\\$1').replace(/~/g, '\\~{}').replace(/\^/g, '\\^{}').replace(/</g, '\\textless{}').replace(/>/g, '\\textgreater{}').replace(/−/g, '$-$').replace(/√/g, '$\\sqrt{\\phantom{x}}$').replace(/≈/g, '$\\approx$').replace(/·/g, '$\\cdot$').replace(/≤/g, '$\\le$').replace(/≥/g, '$\\ge$').replace(/→/g, '$\\to$').replace(/[σμπφαβγλΦΔ±]/g, c => '$' + ({ 'σ': '\\sigma', 'μ': '\\mu', 'π': '\\pi', 'φ': '\\varphi', 'α': '\\alpha', 'β': '\\beta', 'γ': '\\gamma', 'λ': '\\lambda', 'Φ': '\\Phi', 'Δ': '\\Delta', '±': '\\pm' })[c] + '$');   // griechische Buchstaben im Fliesstext (pdflatex kennt sie sonst nicht)
+  // «…» im Export als \flqq/\frqq: läuft so auch in Dokumenten ohne T1-Schrift und ohne babel
+  const TEX_GUIL = '\\providecommand{\\flqq}{{\\fontencoding{T1}\\selectfont\\guillemotleft}}\\providecommand{\\frqq}{{\\fontencoding{T1}\\selectfont\\guillemotright}}';
+  function texGuil(s) {
+    let hit = false;
+    const out = String(s).split('\n').map(l => (/^\s*%/.test(l) ? l : l.replace(/[«»]/g, c => { hit = true; return c === '«' ? '\\flqq{}' : '\\frqq{}'; }))).join('\n');
+    return hit ? out.replace(/^((?:%.*\n)*)/, m => m + TEX_GUIL + '\n') : out;
+  }
+  const GREEK_RE = /[\u0370-\u03FF\u1F00-\u1FFF]/;   // einzelne griechische Buchstaben sind Formelzeichen, in griechischen Wörtern bleiben sie Text
+  const escTxt = t => String(t).replace(/[\\&%#_{}]/g, c => (c === '\\' ? '\\textbackslash{}' : '\\' + c)).replace(/~/g, '\\~{}').replace(/\^/g, '\\^{}').replace(/</g, '\\textless{}').replace(/>/g, '\\textgreater{}').replace(/−/g, '$-$').replace(/√/g, '$\\sqrt{\\phantom{x}}$').replace(/≈/g, '$\\approx$').replace(/·/g, '$\\cdot$').replace(/≤/g, '$\\le$').replace(/≥/g, '$\\ge$').replace(/→/g, '$\\to$').replace(/[σμπφαβγλΦΔ±∪∩∖∅∈]/g, (c, i, str) => (GREEK_RE.test(str.charAt(i - 1)) || GREEK_RE.test(str.charAt(i + 1))) ? c : '$' + ({ '∪': '\\cup', '∩': '\\cap', '∖': '\\setminus', '∅': '\\emptyset', '∈': '\\in', 'σ': '\\sigma', 'μ': '\\mu', 'π': '\\pi', 'φ': '\\varphi', 'α': '\\alpha', 'β': '\\beta', 'γ': '\\gamma', 'λ': '\\lambda', 'Φ': '\\Phi', 'Δ': '\\Delta', '±': '\\pm' })[c] + '$');   // griechische Buchstaben im Fliesstext (pdflatex kennt sie sonst nicht)
   const texInline = t => String(t).split(/(\$[^$]+\$)/).map(part => (part.length > 1 && part.charAt(0) === '$' && part.slice(-1) === '$')
     ? part
     : escTxt(part).replace(/\*\*([^*]+)\*\*/g, '\\textbf{$1}')).join('');
@@ -413,21 +420,46 @@
       switch (b.k) {
         case 'h': out.push('\\medskip\\noindent\\textbf{' + texInline(b.t) + '}\\par'); break;
         case 'p': out.push('\\noindent ' + texInline(b.t) + '\\par'); break;
-        case 'e': out.push('\\[ ' + b.t + (b.op ? '\\qquad ' + opTex(b.op) : '') + ' \\]'); break;
+        case 'e':
+          if (b.op && b.op.length > 48 && /^[A-Za-z]/.test(b.op) && !/\\/.test(b.op)) out.push('\\[ ' + b.t + ' \\]', '{\\centering\\small ' + escTxt(b.op) + '\\par}');   // langer Text neben der Formel: darunter, sonst ragt die Zeile über den Rand
+          else out.push('\\[ ' + b.t + (b.op ? '\\qquad ' + opTex(b.op) : '') + ' \\]');
+          break;
         case 'res': out.push('\\noindent\\fbox{\\parbox{0.92\\linewidth}{' + texInline(b.t) + '}}\\par\\medskip'); break;
         case 'note': out.push('\\noindent\\emph{' + texInline(b.t) + '}\\par'); break;
         case 'sit': out.push('\\noindent\\fbox{\\parbox{0.92\\linewidth}{\\textbf{Situation:} ' + texInline(b.t) + (b.q ? '\\\\[2pt]\\textbf{Gefragt:} ' + texInline(b.q) : '') + '}}\\par\\medskip'); break;
         case 'sub': out.push('\\begin{quote}', docTex({ b: b.b }, (depth || 0) + 1), '\\end{quote}'); break;
         case 'tab': {
-          const n = b.head.length;
-          out.push('\\begin{center}\\renewcommand{\\arraystretch}{1.3}\\begin{tabular}{|' + 'c|'.repeat(n) + '}\\hline',
-            b.head.map(texInline).join(' & ') + '\\\\\\hline',
-            b.rows.map(r => r.map(texInline).join(' & ') + '\\\\\\hline').join('\n'), '\\end{tabular}\\end{center}');
+          // liegende Tabellen mit vielen Spalten (Vorzeichentabellen) auf mehrere Teile verteilen, damit sie auf die Seite passen
+          const n = b.head.length, all = [b.head].concat(b.rows);
+          const cw = c => 12 + 5 * Math.max.apply(null, all.map(r => String(r[c] === undefined ? '' : r[c]).replace(/\\[A-Za-z]+/g, 'x').replace(/[${}\\]/g, '').length));
+          const parts = [[]]; let w = 0;
+          for (let c = 1; c < n; c++) { const x = cw(c), cur = parts[parts.length - 1]; if (b.rows.length <= 3 && cur.length && w + x > 330 - cw(0)) { parts.push([c]); w = x; } else { cur.push(c); w += x; } }
+          parts.forEach(cs => {
+            const ix = [0].concat(cs), line = r => ix.map(c => texInline(r[c] === undefined ? '' : r[c])).join(' & ') + '\\\\\\hline';
+            out.push('\\begin{center}\\renewcommand{\\arraystretch}{1.3}\\begin{tabular}{|' + 'c|'.repeat(ix.length) + '}\\hline', line(b.head), b.rows.map(line).join('\n'), '\\end{tabular}\\end{center}');
+          });
           break;
         }
       }
     });
-    return out.join('\n').replace(/=\s*\\approx/g, '\\approx');   // «=≈» aus zwei Teilen → «≈»
+    const tex = out.join('\n').replace(/=\s*\\approx/g, '\\approx');   // «=≈» aus zwei Teilen → «≈»
+    return depth ? tex : texGuil(tex);
+  }
+
+  // Schrittlisten {title, st} der Themen (Quad.st.…, Pow.st.… usw.): als Dokument für Karte und Export bzw. als Zeilen im Bild
+  function stDoc(r) {
+    const d = DOC(); d.h(r.title);
+    r.st.forEach(s => { if (s.k === 'h') d.h(s.s); else if (s.k === 'p') d.p(s.s); else if (s.k === 'e') d.e(s.s); else if (s.k === 'res') d.res(s.s); else if (s.k === 'note') d.note(s.s); });
+    return d;
+  }
+  function stLines(r) {
+    const out = [];
+    r.st.forEach(s => {
+      if (!s.sc || (s.k !== 'e' && s.k !== 'res')) return;
+      const body = s.k === 'res' ? s.s.replace(/\$/g, '') : s.s;
+      out.push({ s: typeof s.sc === 'string' && s.sc !== 'true' ? '\\col{' + s.sc + '}{' + body + '}' : body, bold: s.k === 'res' });
+    });
+    return out;
   }
 
   // Sachverhalt einer Anwendung als Kasten «Situation» (+ «Gefragt») direkt unter die Überschrift des Rechenwegs setzen
@@ -579,7 +611,7 @@
   function extDoc(k, p) {
     const r = extSolve(k, p), d = DOC(); if (!r) return d;
     const E0 = r.E, z = E0.zn, f = r.F.f(0), n = v => fmt(v, 4), u = E0.unit ? '\\,\\text{' + E0.unit + '}' : '';
-    d.b.push({ k: 'sit', t: E0.sit(p), q: (E0.goal === 'max' ? 'grösstes ' : 'kleinstes ') + ({ A: 'Fläche', V: 'Volumen', O: 'Oberfläche' }[z]) });
+    d.b.push({ k: 'sit', t: E0.sit(p), q: (E0.goal === 'max' ? { A: 'grösste Fläche', V: 'grösstes Volumen', O: 'grösste Oberfläche' } : { A: 'kleinste Fläche', V: 'kleinstes Volumen', O: 'kleinste Oberfläche' })[z] });
     d.h('1. Variable und Nebenbedingung');
     d.p('Wähle $' + E0.vx.replace(/ = /, '$ = ').replace(/^x\$/, 'x$') + '.');
     d.e(E0.nb(p));
@@ -656,5 +688,5 @@
     return d;
   }
 
-  Object.assign(Dif, { RULES, rulesDoc, tangentDoc, hMethodDoc, secDoc, limDoc, limNum, LIM_H, EXT, extSolve, extDoc, STB_T, stbSolve, stbDoc, hLimit, trace, basic, linTex, docTex, withSit });
+  Object.assign(Dif, { RULES, rulesDoc, tangentDoc, hMethodDoc, secDoc, limDoc, limNum, LIM_H, EXT, extSolve, extDoc, STB_T, stbSolve, stbDoc, hLimit, trace, basic, linTex, docTex, texInline, texGuil, withSit, stDoc, stLines });
 })();

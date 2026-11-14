@@ -21,7 +21,6 @@
   const polTex = P => E.pTex(P, 'x');
   const feT = fe => E.feTex(fe);
   const feAbsV = fe => (E.feSgn(fe) < 0 ? E.feNeg(fe) : fe);
-  const eP = n => bt(n);
   const antiTex = F => { const A = Int.anti(F); if (!A) return null; return F.P ? polTex(F._PI) : tx(A); };
   const xAt = (A, v) => txRaw(calcSubstitute(A, 'x', typeof v === 'number' ? (qOf(v) ? E.astQ(qOf(v)) : num(String(v))) : v));
   // Zahl (Näherung) für Anzeige

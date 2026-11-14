@@ -131,8 +131,23 @@ const Fin = (() => {
     return n;
   }
 
+  // ── Marchzins mit verschiedenen Konti: Saldo K0 am Jahresanfang und Bewegungen pay = [{d, m, a}] (a < 0: Bezug) ──
+  // Jede Bewegung liegt auf einem eigenen Konto und trägt Zins bis zum Stichtag (dT, mT). Tagesnummer im 30/360-Jahr:
+  // 0 = Jahresanfang (Saldovortrag vom 31.12.), 30 = Ende Januar, …, 360 = 31.12. Bewegungen nach dem Stichtag zählen nicht (late).
+  const dayNo = (d, m) => (m - 1) * 30 + dayAdj(d, m, 2023);
+  const dayMax = m => (m === 2 ? 28 : (m === 4 || m === 6 || m === 9 || m === 11) ? 30 : 31);
+  function marchKonti(K0, pay, p, dT, mT) {
+    const T = dayNo(dT, mT), rows = [];
+    if (K0) rows.push({ a: K0, no: 0, start: true, i: -1 });
+    (pay || []).forEach((z, i) => rows.push({ a: z.a, d: z.d, m: z.m, no: dayNo(z.d, z.m), i }));
+    rows.forEach(r => { r.days = T - r.no; r.late = r.days < 0; r.z = r.late ? 0 : Math.round(marchZins(r.a, p, r.days) * 100 + (r.a < 0 ? -1e-7 : 1e-7)) / 100; });
+    rows.sort((x, y) => x.no - y.no || x.i - y.i);
+    const act = rows.filter(r => !r.late);
+    return { T, rows, cap: act.reduce((q, r) => q + r.a, 0), zins: Math.round(act.reduce((q, r) => q + r.z, 0) * 100) / 100 };
+  }
+
   return { THIN, fixed, money, num, pct, factor, rText, fv, pv, terms, valueAt, solveUnknown, rendite, laufzeit, verdopplung,
     sumLimits, geoSumDirect, geoSumFormula, rateSeries, rateFor, savingsFV, savingsSeries, savingsRate, annuityPV, annuityRate, loanSchedule,
-    conformI, effectiveP, yearPath, dayAdj, daysBetween, marchZins, marchDays };
+    conformI, effectiveP, yearPath, dayAdj, daysBetween, marchZins, marchDays, dayNo, dayMax, marchKonti };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = { Fin };

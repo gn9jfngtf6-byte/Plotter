@@ -711,98 +711,8 @@ function trigAddFunction(kind) {
 // die im math-field #diffquot-fn-input eingegebene Funktion (Fallback x²,
 // falls das Feld leer ist) und legt den State für Punkt A und Punkt B an —
 // analog zu trigAddFunction()/linAddSlopeForm(). BEIDE Punkte sind ziehbar
-// (Nutzerwunsch) — anders als in einer früheren Version, in der A fix war.
-// Erneutes Klicken (z.B. nach dem Ziehen von A/B, oder mit geänderter
-// Funktion im Eingabefeld) setzt A/B auf sinnvolle, für die jeweilige
-// Funktion gültige Startpunkte zurück (_dqPickStartPoints()) und passt den
-// View entsprechend an (_dqFitView()). Ist der eingegebene Ausdruck ungültig
-// oder an keiner sinnvollen Stelle definiert, wird das Eingabefeld rot
-// gerahmt (gleiche Konvention wie loSetObjective(), 17_linopt.js) und NICHT
-// aufgeschaltet — der bisherige Zustand bleibt unverändert erhalten.
-function diffQuotSetup() {
-  const inp = document.getElementById('diffquot-fn-input');
-  const raw = inp ? (inp.getAttribute('data-raw') || '').trim() : '';
-  const expr = raw || 'x^2';
 
-  const pts = _dqPickStartPoints(expr);
-  if (!pts) {
-    if (inp) inp.style.borderColor = '#e24b4a';
-    return;
-  }
-  if (inp) inp.style.borderColor = '';
 
-  const norm = e => e.replace(/\s+/g, '');
-  let fi = functions.findIndex(fn => norm(fn.expr) === norm(expr));
-  if (fi === -1) {
-    fi = _fillEmptyOrNewFnSlot(expr);
-    clearEvalCache(); renderFuncList(); syncParams(); scheduleComputeSpecials();
-  } else if (functions[fi].visible === false) {
-    functions[fi].visible = true; // versteckte Funktion wieder einblenden
-    renderFuncList(); scheduleComputeSpecials();
-  } else if (norm(functions[fi].expr) !== norm(expr)) {
-    // Gleiche Stelle im Array, aber leicht abweichende (wenn auch äquivalente)
-    // Schreibweise — Ausdruck aktualisieren, damit er exakt dem entspricht,
-    // was im Eingabefeld steht.
-    functions[fi].expr = expr;
-    clearEvalCache(); renderFuncList(); scheduleComputeSpecials();
-  }
-
-  diffQuot = { fi, xA: pts.xA, xB: pts.xB };
-
-  // View so anpassen, dass A und B (samt etwas Rand) bequem sichtbar sind —
-  // generisch statt des früheren, auf x² zugeschnittenen festen Views. Nur
-  // einmalig beim Aufschalten (nicht bei jedem Draw), damit spätere
-  // Verschiebungen/Zoom durch den Nutzer erhalten bleiben.
-  _dqFitView(pts.xA, pts.xB, expr);
-  syncInputs();
-
-  pushHistory();
-  scheduleComputeSpecials();
-  scheduleDraw();
-}
-
-// Setzt die x-Koordinate von Punkt A auf den im Feld #diffquot-xa-input eingegebenen Wert
-// (Zahl oder Ausdruck wie "1/2", "-3", "pi/2"). B behält seinen Abstand h = xB − xA (der
-// Differenzenquotient bleibt also "gleich fein"); ist f dort nicht definiert, wird eine
-// definierte Ersatzstelle für B gesucht. Ist noch nichts aufgeschaltet, wird zuerst die
-// Funktion aus dem Eingabefeld aufgeschaltet. Ungültige Eingabe → rote Umrandung, nichts ändert sich.
-function diffQuotSetXA() {
-  const inp = document.getElementById('diffquot-xa-input');
-  if (!inp) return;
-  const txt = inp.value.trim();
-  if (!txt) { inp.style.borderColor = ''; return; }
-  const x = parseParamExpr(txt.replace(/,/g, '.'));
-  if (x === null || !isFinite(x)) { inp.style.borderColor = '#e24b4a'; return; }
-  if (!diffQuot) { diffQuotSetup(); if (!diffQuot) { inp.style.borderColor = '#e24b4a'; return; } }
-  const fn = functions[diffQuot.fi];
-  if (!fn || !isFinite(safeEval(fn.expr, x))) { inp.style.borderColor = '#e24b4a'; return; }   // f(x) dort nicht definiert
-  inp.style.borderColor = '';
-  const hOld = diffQuot.xB - diffQuot.xA;
-  let xB = x + hOld;
-  if (!isFinite(safeEval(fn.expr, xB))) {
-    xB = [x + 1, x + 0.5, x - 1, x + 2, x - 0.5, x + 0.1].find(c => isFinite(safeEval(fn.expr, c)));
-    if (xB === undefined) xB = x;
-  }
-  diffQuot.xA = x; diffQuot.xB = xB;
-  // Liegt A oder B (bzw. die Kurve dort) ausserhalb des sichtbaren Ausschnitts → Ansicht passend wählen
-  const v = isoView || view;
-  const yA = safeEval(fn.expr, x), yB = safeEval(fn.expr, xB);
-  const inside = (px, py) => px >= v.xmin && px <= v.xmax && py >= v.ymin && py <= v.ymax;
-  if (!inside(x, yA) || !inside(xB, yB)) _dqFitView(x, xB, fn.expr);
-  syncInputs();
-  pushHistory();
-  scheduleDraw();
-  inp.blur();
-}
-
-// Verlässt man das Feld ohne gültige Eingabe, zeigt es wieder die aktuelle x-Koordinate von A (und die rote Umrandung verschwindet).
-function diffQuotRestoreXA() {
-  const inp = document.getElementById('diffquot-xa-input');
-  if (!inp) return;
-  inp.style.borderColor = '';
-  if (diffQuot) inp.value = String(parseFloat(diffQuot.xA.toFixed(6)));
-  else if (!inp.value.trim()) inp.value = '';
-}
 
 // Gitterlinien-Einrasten für Punkt A beim Ziehen: liegt die x-Koordinate innerhalb von 20 Pixeln neben
 // einer senkrechten Gitterlinie (gleicher Abstand wie das gezeichnete Gitter), springt sie auf diese Linie.
@@ -812,58 +722,7 @@ function diffQuotRestoreXA() {
 function dqSnapX(x) { return snapGridLineX(x); }
 
 // Sucht ein Paar Startpunkte (xA, xB) für eine beliebige Funktion, an denen
-// beide Werte definiert (endlich) sind — nötig, da die früheren festen
-// Defaults (xA=1, xB=3, eigentlich für x² gedacht) bei einer anderen Funktion
-// z.B. an einer Definitionslücke (1/(x-1)) oder einem eingeschränkten
-// Definitionsbereich (sqrt(x-5)) fehlschlagen können. Probiert zunächst eine
-// Reihe plausibler Kandidatenpaare durch, dann als letzten Versuch ein
-// grobes Raster über einen weiten Bereich. Gibt {xA, xB} zurück, oder null
-// wenn KEIN Paar funktioniert (Ausdruck vermutlich leer/ungültig oder nirgends
-// definiert).
-function _dqPickStartPoints(expr) {
-  if (!expr || !expr.trim()) return null;
-  const candidates = [
-    [1, 3], [0.5, 2], [-1, 1], [0.5, 1.5], [1, 2],
-    [2, 4], [-2, -1], [0.1, 1], [-3, -1], [0.2, 0.5]
-  ];
-  for (const [a, b] of candidates) {
-    const ya = safeEval(expr, a), yb = safeEval(expr, b);
-    if (isFinite(ya) && isFinite(yb)) return { xA: a, xB: b };
-  }
-  // Letzter Versuch: grobes Raster über einen weiten Bereich absuchen —
-  // deckt auch exotischere Definitionsbereiche ab.
-  const found = [];
-  for (let x = -20; x <= 20 && found.length < 2; x += 0.5) {
-    if (isFinite(safeEval(expr, x))) found.push(x);
-  }
-  if (found.length >= 2) return { xA: found[0], xB: found[1] };
-  return null;
-}
 
-// Passt den View so an, dass A und B (samt Rand) sichtbar sind — generische
-// Ersetzung für den früheren festen View (der auf A(1|1)/B(3|9) bei f(x)=x²
-// zugeschnitten war). Tastet zusätzlich ein paar Zwischenstellen um A/B ab,
-// damit der sichtbare Kurvenverlauf zwischen den Punkten nicht durch den
-// y-Bereich abgeschnitten wird.
-function _dqFitView(xA, xB, expr) {
-  const xLo = Math.min(xA, xB), xHi = Math.max(xA, xB);
-  const xSpan = Math.max(xHi - xLo, 0.5);
-  const sampleLo = xLo - xSpan, sampleHi = xHi + xSpan;
-  const ys = [];
-  for (let i = 0; i <= 10; i++) {
-    const x = sampleLo + (sampleHi - sampleLo) * (i / 10);
-    const y = safeEval(expr, x);
-    if (isFinite(y)) ys.push(y);
-  }
-  const yA = safeEval(expr, xA), yB = safeEval(expr, xB);
-  if (isFinite(yA)) ys.push(yA);
-  if (isFinite(yB)) ys.push(yB);
-  if (!ys.length) ys.push(0, 1);
-  const ymin = Math.min(...ys), ymax = Math.max(...ys);
-  const xPad = Math.max(xSpan * 0.8, 1);
-  const yPad = Math.max((ymax - ymin) * 0.35, 1);
-  view = { xmin: xLo - xPad, xmax: xHi + xPad, ymin: ymin - yPad, ymax: ymax + yPad };
-}
 
 // Richtet das Funktions-Eingabefeld (#diffquot-fn-input, math-field) einmalig
 // ein — analog zu loSetupObjectiveField() (17_linopt.js) bzw. dem Aufbau
@@ -1579,17 +1438,7 @@ function clearAll() {
   renderFuncList(); renderPointList(); syncParams(); renderSpecialList(); scheduleDraw();
 }
 
-// View auf Standardbereich zurücksetzen
-function resetView() { view = { xmin:-10, xmax:10, ymin:-6, ymax:6 }; syncInputs(); scheduleComputeSpecials(); scheduleDraw(); }
 
-// Bereich aus den Eingabefeldern übernehmen
-function applyRange() {
-  view.xmin = parseFloat(document.getElementById('xmin').value) || view.xmin;
-  view.xmax = parseFloat(document.getElementById('xmax').value) || view.xmax;
-  view.ymin = parseFloat(document.getElementById('ymin').value) || view.ymin;
-  view.ymax = parseFloat(document.getElementById('ymax').value) || view.ymax;
-  scheduleComputeSpecials();  scheduleDraw();
-}
 
 // Schreibt den aktuellen View in die Eingabefelder
 function syncInputs() {
@@ -1599,18 +1448,7 @@ function syncInputs() {
   document.getElementById('ymax').value = parseFloat(view.ymax.toFixed(4));
 }
 
-// Zoom um Faktor: factor<1 = reinzoomen, factor>1 = rauszoomen
-// Zoom-Zentrum: Mitte des aktuellen Views
-// Anpassen: factor=1/2 für aggressiveres Zoomen
-function zoomBy(factor) {
-  const cx = (view.xmin + view.xmax) / 2, cy = (view.ymin + view.ymax) / 2;
-  const hw = (view.xmax - view.xmin) / 2 * factor, hh = (view.ymax - view.ymin) / 2 * factor;
-  view.xmin = cx - hw; view.xmax = cx + hw; view.ymin = cy - hh; view.ymax = cy + hh;
-  syncInputs(); scheduleComputeSpecials();  scheduleDraw();
-}
 
-// Wird aufgerufen wenn isometrische Checkbox geändert wird
-function onIsometricChange() { syncInputs(); scheduleDraw(); }
 
 // Punkt-setzen-Modus (Klick ohne Alt setzt Punkt)
 function togglePointMode() {

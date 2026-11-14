@@ -128,20 +128,6 @@ function simplifyRadicalCASFrac(D) {
   return { coef, radicand: inner.radicand, den };
 }
 
-// Formatiert das Ergebnis von simplifyRadicalCASFrac() als Text ("2√3/4", "√5",
-// "3", …) oder — mit asHTML=true — als gestapelter Bruch (.mfrac, siehe
-// 03_math.js) für den Nenner, passend zur rr()/fracHTML()-Darstellung.
-function fmtRadicalFrac(sr, asHTML) {
-  if (!sr) return null;
-  const { coef, radicand, den } = sr;
-  let numStr;
-  if (radicand === 1) numStr = String(coef);
-  else if (coef === 1) numStr = `√${radicand}`;
-  else numStr = `${coef}√${radicand}`;
-  if (den === 1) return numStr;
-  if (asHTML) return `<span class="mfrac"><span class="mfrac-num">${numStr}</span><span class="mfrac-den">${den}</span></span>`;
-  return `${numStr}/${den}`;
-}
 
 // LaTeX-Variante von fmtRadicalFrac() — liefert reines LaTeX ("2\sqrt{3}",
 // "\frac{\sqrt{17}}{2}", …), gedacht zum Rendern über latexToMathLiveHtml()

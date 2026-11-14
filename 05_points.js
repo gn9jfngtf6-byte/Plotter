@@ -331,22 +331,4 @@ function line2ptPickClick(mx, my) {
   }
 }
 
-// Gerade aus den Sidebar-Eingabefeldern erstellen (statisch, nicht live)
-function addLineThrough2Pts() {
-  const x1 = parseFloat(document.getElementById('lp1x').value);
-  const y1 = parseFloat(document.getElementById('lp1y').value);
-  const x2 = parseFloat(document.getElementById('lp2x').value);
-  const y2 = parseFloat(document.getElementById('lp2y').value);
-  const msg = document.getElementById('line-msg');
-  if ([x1,y1,x2,y2].some(isNaN)) { msg.textContent = t('msg_invalid'); return; }
-  if (Math.abs(x2 - x1) < 1e-10) { msg.textContent = 'Senkrechte (nicht darstellbar)'; return; }
-  const m = (y2 - y1) / (x2 - x1), b = y1 - m * x1;
-  const p = Math.max(precision, 4);
-  const built = buildLineExpr(m, b, p); // exakt, kein Pre-Rounding
-  functions.push({ expr: built.expr, color: COLORS[functions.length % COLORS.length], visible: true });
-  clearEvalCache(); renderFuncList(); syncParams(); scheduleComputeSpecials();
-  pushHistory(); scheduleDraw();
-  msg.style.color = '#1D9E75';
-  msg.textContent = `f${functions.length}(x) = ${built.label}`;
-}
 

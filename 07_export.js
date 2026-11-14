@@ -263,11 +263,6 @@ function generateLatex() {
   const yTickMax = Math.floor(ymaxF / yGS) * yGS;
 
   // Tick-String: {-3,...,3} oder {-3,-1,...,3} je nach Schrittweite
-  function niceTickStr(lo, hi, step) {
-    const isInt = Math.abs(step - Math.round(step)) < 1e-9;
-    if (isInt) return `{${Math.round(lo)},${Math.round(lo+step)},...,${Math.round(hi)}}`;
-    return `{${parseFloat(lo.toFixed(4))},${parseFloat((lo+step).toFixed(4))},...,${parseFloat(hi.toFixed(4))}}`;
-  }
 
   // Wie niceTickStr(), aber mit vollständig ausgeschriebener xtick/ytick-
   // Werteliste UND einer parallelen, ausgedünnten xticklabels/yticklabels-
@@ -432,13 +427,6 @@ function generateLatex() {
   }
 
   // Kollisionsfreier anchor: wechselt je Index, y-Vorzeichen und Rand-Nähe
-  const anchors = ['south west','north west','south east','north east'];
-  function ptAnchor(x, y, idx) {
-    // Naive Zuweisung: abwechselnd links/rechts, oben/unten
-    const side = idx % 2 === 0 ? 'west' : 'east';
-    const vert = y >= 0 ? 'south' : 'north';
-    return `${vert} ${side}`;
-  }
 
   // ── π-Achsenbeschriftung erkennen ────────────────────────────────
   // Wenn Trigo-Funktionen vorhanden: x-Achse mit π-Vielfachen beschriften
@@ -1335,7 +1323,6 @@ function generateLatex() {
   axisLines.push('  scaled y ticks=false,');
   if (hasTrig()) axisLines.push('  trig format plots=rad,');
 
-  const preamble = '';
 
   const out = [
     '% Preamble: \\usepgfplotslibrary{fillbetween}  (für Fläche zwischen Funktionen)',

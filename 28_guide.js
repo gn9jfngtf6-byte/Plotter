@@ -25,12 +25,6 @@ function guideNum(v) {
 }
 function guidePt(p) { return '(' + guideNum(p.x) + ' | ' + guideNum(p.y) + ')'; }
 
-const GUIDE_FIT_TITLE = {
-  linear: 'Gerade durch 2 Punkte',
-  quadratic: 'Parabel durch 3 Punkte',
-  vertex: 'Parabel aus Scheitelpunkt und Punkt',
-  roots: 'Parabel aus Nullstellen und Punkt'
-};
 
 // Liefert null oder {msg, warn, step, total, btns:[[Beschriftung, Funktion], …]}
 function guideInfo() {

@@ -1771,6 +1771,7 @@ function draw() {
   if (typeof td3dActive === 'function' && td3dActive()) { td3dDraw(w, h); return; } // 3D-Raum (30_3d_ui.js)
   if (typeof algActive === 'function' && algActive()) { algDraw(w, h); return; } // Algebra (34_alg_ui.js)
   if (typeof statActive === 'function' && statActive()) { statDraw(w, h); return; } // Wahrscheinlichkeit und Statistik (42_stat_ui.js)
+  if (typeof kitActive === 'function' && kitActive()) { kitDraw(w, h); return; }                 // Themen aus dem Baukasten (120_kit.js)
   if (typeof finActive === 'function' && finActive()) { finDraw(w, h); return; }   // Finanzmathematik (52_fin_ui.js)
   if (typeof difActive === 'function' && difActive()) { difDraw(w, h); return; }   // Differentialrechnung (62_dif_ui.js)
   if (typeof itgActive === 'function' && itgActive()) { itgDraw(w, h); return; }   // Integralrechnung (72_int_ui.js)

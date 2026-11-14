@@ -41,79 +41,8 @@ const C = { get grid(){ return darkMode?'#2d3140':'#e5e7eb'; },
              get anno(){ return beamMode?(darkMode?'#ffffff':'#000000'):(darkMode?'#c4c9d6':'#4b5563'); },
              get bg(){ return darkMode?'#16181d':'#ffffff'; } };
 
-// ═══════════════════════════════════════════════════════════════════
-// MOBILE MATHLIVE-TASTATUR (Bildschirmtastatur der math-field-Felder)
-// ═══════════════════════════════════════════════════════════════════
-// MathLive zeigt standardmässig 4 Tastaturen an (123/Symbole/abc/griechisch)
-// mit einer riesigen Menge an Zeichen (Mengenlehre, griechisches Alphabet,
-// beliebige Buchstaben, …) — für diese App komplett überdimensioniert.
-// Ersetzt das durch GENAU EINE eigene Tastatur, die inhaltlich der bereits
-// bestehenden Sidebar-Tastatur (#kbd-body, siehe index.html + kbdInsert() in
-// 03_math.js) entspricht: gleiche Symbole/Funktionen, dazu Ziffern (die die
-// Sidebar-Tastatur nicht hat, da dort meist die physische Tastatur tippt)
-// und Pfeiltasten zur Navigation innerhalb der Formel (links/rechts sowie
-// hoch/runter, z.B. um zwischen Zähler/Nenner eines Bruchs zu wechseln).
-// Auf der Hauptseite stehen als Buchstaben nur x, n und y sowie «=» (für Gleichungen); alle übrigen Buchstaben
-// (Parameter a, b, k … der Funktionen, Variablen der Algebra) liegen auf der zweiten Seite «abc» — ohne sie liess
-// sich auf einem Tablet ohne Tastatur z.B. «a·x²» oder «(a+b)²» gar nicht eingeben. Keine griechischen Buchstaben
-// ausser π (das hat die Sidebar-Tastatur auch schon), keine Mengenlehre-Symbole.
-// "[left]", "[right]", "[up]", "[down]", "[backspace]", "[undo]", "[redo]",
-// "[hide-keyboard]", "[hr]", "[separator]" sind von MathLive selbst
-// vordefinierte Tasten (siehe KEYCAP_SHORTCUTS in mathlive.js).
-// Die Ziffern stehen bewusst als klassisches 3×3-Ziffernblock rechts (wie ein
-// Taschenrechner: 7 8 9 / 4 5 6 / 1 2 3, darunter 0 und ",") statt als eine
-// lange Zehnerreihe — dafür werden die übrigen Tasten links in 6er-Zeilen
-// aufgeteilt, sodass rechts durchgehend Platz für die 3 Ziffern-Spalten bleibt.
-const _kbdFracLabel =
-  '<span style="display:inline-block;text-align:center;line-height:1.05;font-size:0.8em;">' +
-  '<span style="display:block;">□</span>' +
-  '<span style="display:block;border-top:1.5px solid currentColor;">□</span>' +
-  '</span>';
-try {
-  if (window.mathVirtualKeyboard) {
-    window.mathVirtualKeyboard.layouts = [{
-      label: '123',
-      rows: [
-        [
-          'x', 'n', '\\pi', 'e', '(', ')',
-          '7', '8', '9'
-        ],
-        [
-          '+', '-', '\\cdot', { latex: '\\frac{#@}{#?}', label: _kbdFracLabel },
-          { latex: '#@^{2}', label: 'x²' }, { latex: '#@^{#?}', label: 'xⁿ' },
-          '4', '5', '6'
-        ],
-        [
-          { latex: 'e^{#?}', label: 'eˣ' }, { latex: '\\sqrt{#?}', label: '√x' },
-          { latex: '\\sqrt[3]{#?}', label: 'ⁿ√x' }, { latex: '\\left|#?\\right|', label: '|x|' },
-          { latex: '\\sin(#?)', label: 'sin' }, { latex: '\\cos(#?)', label: 'cos' },
-          '1', '2', '3'
-        ],
-        [
-          { latex: '\\tan(#?)', label: 'tan' }, { latex: '\\ln(#?)', label: 'ln' },
-          { latex: '\\log_{10}(#?)', label: 'log₁₀' }, { latex: '\\log_{2}(#?)', label: 'logₙ' },
-          'y', '=',
-          { latex: '0', label: '0', width: 2 }, '[.]'
-        ],
-        ['[hr]'],
-        [
-          '[undo]', '[redo]', '[separator]',
-          '[left]', '[right]', '[up]', '[down]',
-          { label: '[backspace]', class: 'action hide-shift' },
-          '[hide-keyboard]'
-        ]
-      ]
-    }, 'alphabetic'];   // zweite Seite «abc»: Buchstaben für Parameter (a, b, k …) und Variablen der Algebra
-  }
-} catch (e) { /* MathLive evtl. noch nicht geladen — Standard-Tastatur bleibt aktiv */ }
+// Bildschirmtastatur der Eingabefelder: eigene Tastatur in 115_kbd.js (ersetzt die von MathLive).
 
-let _kbdOpen = false;
-function toggleKbd() {
-  // Die Tastatur ist ein normales Sidebar-Panel (#kbd-panel); das Einklappen übernimmt
-  // der generische Panel-Code (11_fitting.js). Funktion bleibt als Kompatibilitäts-Aufruf.
-  const p = document.getElementById('kbd-panel');
-  if (p) p.classList.toggle('collapsed');
-}
 
 // Einstellungen-Popover (obere Leiste, ⚙-Knopf) — gleiches Fixed-Position-Muster
 // wie das Sprachmenü (toggleLangMenu() in 01_i18n.js): Popover unter dem Knopf
@@ -593,10 +522,14 @@ function envHintShow() {
   const el = document.getElementById('env-hint'); if (!el) return;
   const h = ENVH.by[envHintCur()], text = h ? h.text : '';
   ENVH.get = h ? h.get : null;
-  if (!text) { el.style.display = 'none'; el.dataset.t = ''; envHintOff(); return; }
-  el.style.display = '';
-  if (el.dataset.t === text) return;
-  el.dataset.t = text; envHintOff(); el.replaceChildren();
+  if (typeof quizBtnSync === 'function') quizBtnSync();   // Knopf «Quiz» in der Leiste oben (116_quiz.js)
+  // Thema ohne Überschrift (Algebra): Die Leiste zeigt dann nur den Knopf «Zurücksetzen»
+  let bare = false; if (!text) try { bare = !!ENV_RESET[envHintCur()]; } catch (e) { bare = false; }   // beim Laden gibt es ENV_RESET noch nicht
+  if (!text && !bare) { el.style.display = 'none'; el.dataset.t = ''; envHintOff(); return; }
+  el.style.display = ''; el.classList.toggle('eh-bare', bare);
+  const key = text || '\u200b' + envHintCur();
+  if (el.dataset.t === key) return;
+  el.dataset.t = key; envHintOff(); el.replaceChildren();
   const re = /\{\{(.+?)\|([^|{}]*)\}\}/g; let i = 0, m;   // das Wort darf selbst | enthalten, z.B. (x | f(x))
   while ((m = re.exec(text))) {
     if (m.index > i) el.append(text.slice(i, m.index));

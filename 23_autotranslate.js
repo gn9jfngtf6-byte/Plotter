@@ -257,6 +257,7 @@
     return undefined;
   }
   // Ergebnis für ein Segment: {out} oder {wait:srcKey}
+  const RG_ONE = '(?:nur in|in|kein) [^;{}<>.]+', RG_PRE = new RegExp('^(Schraffierte Felder:|Schraffiert:) (' + RG_ONE + '(?:; ' + RG_ONE + ')*)(\\.?)$'), RG_LIST = new RegExp('^' + RG_ONE + '(?:; ' + RG_ONE + ')+$');
   function resolveSeg(lang, key, depth) {
     let v = lookup(lang, key);
     if (v !== undefined) return { out: v };
@@ -266,11 +267,26 @@
     // «Pfade: rr, rb, br»: nur das Wort davor wird übersetzt, die Pfadliste (Buchstaben r/b) bleibt, wie sie ist
     const pm = /^(Pfade:) ((?:[rb]+(?:, [rb]+)*(?:, …)?)|–)$/.exec(key);
     if (pm && mem(lang).seedLoaded) { const a = lookup(lang, pm[1]); if (a === undefined) return { wait: pm[1] }; return { out: a + ' ' + pm[2] }; }
-    const fm = /^(Rechenweg:) ([^{}<>]+)$/.exec(key);
+    // Feldlisten im Venn-Diagramm («Schraffierte Felder: in A und B; nur in A.»): jedes Feld einzeln übersetzen, sonst bräuchte jede Kombination einen eigenen Eintrag
+    const rm = RG_PRE.exec(key), rl = !rm && RG_LIST.test(key);
+    if ((rm || rl) && mem(lang).seedLoaded) {
+      let pre = '', okAll = true; const out = [];
+      if (rm) { const a = lookup(lang, rm[1]); if (a === undefined) return { wait: rm[1] }; pre = a + ' '; }
+      for (const part of (rm ? rm[2] : key).split('; ')) { const r = resolveSeg(lang, part, (depth || 0) + 1); if (r.out !== undefined) out.push(r.out); else if (r.wait) return { wait: r.wait }; else { okAll = false; break; } }
+      if (okAll) return { out: pre + out.join('; ') + (rm ? rm[3] : '') };
+    }
+    // Meldungen des Term-Lesers mit einem beliebigen Zeichen («Unerwartetes Zeichen «)»»): ein Eintrag für alle Zeichen
+    const qm = /^(Unerwartetes Zeichen|Unbekanntes Zeichen) «([^«»{}<>]{1,12})»$/.exec(key);
+    if (qm && mem(lang).seedLoaded) { const a = lookup(lang, qm[1] + ' «{0}»'); if (a !== undefined) return { out: a.replace('{0}', () => qm[2]) }; }
+    // Rahmen + Inhalt getrennt übersetzen: «Rechenweg: <Thema>», «So ist es: <Gesetz>.», «Das kann ich nicht lesen: <Meldung>»
+    const fm = /^(Rechenweg:) ([^{}<>]+)$/.exec(key) || /^(So ist es:|Das kann ich nicht lesen:) ([^<>]+)$/.exec(key);
     if (fm && mem(lang).seedLoaded) {
       const a = lookup(lang, fm[1]);
       if (a === undefined) return { wait: fm[1] };
-      const r = resolveSeg(lang, fm[2], (depth || 0) + 1); if (r.out !== undefined) return { out: a + ' ' + r.out }; if (r.wait) return { wait: r.wait };
+      if (!/\p{L}{3,}/u.test(fm[2].replace(TOK_RE, ''))) return { out: a + ' ' + fm[2] };   // kein Wort, nur Zeichen (z. B. der eingetippte Rest)
+      let r = resolveSeg(lang, fm[2], (depth || 0) + 1); if (r.out !== undefined) return { out: a + ' ' + r.out };
+      if (fm[2].slice(-1) === '.') { const r2 = resolveSeg(lang, fm[2].slice(0, -1), (depth || 0) + 1); if (r2.out !== undefined) return { out: a + ' ' + r2.out + '.' }; }
+      if (r.wait) return { wait: r.wait };
     }
     const M = mem(lang);
     if (M.native.has(key)) return { out: key };         // schon in Zielsprache
@@ -635,11 +651,20 @@
   const mlRecs = new Map();           // span.ML__text (Formel-Text, z. B. \\text{ausklammern}) → {core, lead, trail, rec}
   let applying = 0, obs = null;
 
+  // translate="no" schützt Formeln und Zahlen in den Themen-Leisten. Steht in einem Listeneintrag oder einer Beschriftung
+  // trotzdem ein ganzes Wort («|x| (Knick)», «Stelle x», «Leiter 5 m, Neigungswinkel 70°»), wird der Text übersetzt.
+  const WORDY_RE = /[A-Za-zÄÖÜäöüß]{4,}/, FN_NAME_RE = /arcsin|arccos|arctan|sqrt|sinh|cosh|tanh|log|exp|sin|cos|tan|abs|max|min/gi;
+  function wordyLabel(el) {
+    if (el.tagName !== 'OPTION' && el.tagName !== 'LABEL') return false;
+    if (el.children.length || !el.closest || !el.closest('#sidebar')) return false;
+    const t = el.textContent || '';
+    return t.length < 160 && WORDY_RE.test(t.replace(FN_NAME_RE, '').replace(/\b[IVXLCDM]+\b/g, ''));   // römische Nummern wie «(VIII)» sind kein Wort
+  }
   function isOpaque(el) {
     if (OPAQUE_TAG.has(el.tagName)) return true;
     const cn = el.className;
     if (typeof cn === 'string' && cn && OPAQUE_CLS.test(cn)) return true;
-    if (el.getAttribute('translate') === 'no') return true;
+    if (el.getAttribute('translate') === 'no') return !wordyLabel(el);
     if (el.isContentEditable && el.tagName !== 'BODY') return true;
     return false;
   }

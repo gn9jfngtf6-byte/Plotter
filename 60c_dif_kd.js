@@ -30,8 +30,10 @@
   function scanRoots(g, a, b, N) {
     N = N || 4000; const out = []; let px = a, pv = g(a);
     // Rundungsrauschen (z. B. f'' von |x| ist ±1e-16 statt 0) ist kein Vorzeichenwechsel
-    let sc = 0; for (let i = 0; i <= 200; i++) { const v = g(a + (b - a) * i / 200); if (isFinite(v)) sc = Math.max(sc, Math.abs(v)); }
-    const noise = 1e-9 * (1 + sc);
+    // Massstab ist der mittlere Betrag (Median), nicht der grösste: neben einer Polstelle (2000/x bei x → 0) wäre sonst jeder echte Vorzeichenwechsel «Rauschen»
+    const sm = []; for (let i = 0; i <= 200; i++) { const v = g(a + (b - a) * i / 200); if (isFinite(v)) sm.push(Math.abs(v)); }
+    sm.sort((u, v) => u - v);
+    const noise = 1e-9 * (1 + (sm.length ? sm[sm.length >> 1] : 0));
     for (let i = 1; i <= N; i++) {
       const x = a + (b - a) * i / N, v = g(x);
       if (isFinite(pv) && isFinite(v) && pv !== 0 && (pv < 0) !== (v < 0) && Math.max(Math.abs(pv), Math.abs(v)) > noise) {
@@ -157,7 +159,6 @@
   }
 
   // ───────────────────── Darstellung ─────────────────────
-  const ptTex = (name, c) => name + '\\left(' + c.xTex + '\\,\\middle|\\,' + c.yTex + '\\right)';
   const approx = c => (c.exact ? '' : '\\approx ');
   const ptTexA = (name, c) => name + '\\left(' + (c.exact ? '' : '\\approx ') + c.xTex + '\\,\\middle|\\,' + (c.exact ? '' : '\\approx ') + c.yTex + '\\right)';
   const TYPE = { max: ['H', 'Hochpunkt'], min: ['T', 'Tiefpunkt'], saddle: ['S', 'Sattelpunkt'] };

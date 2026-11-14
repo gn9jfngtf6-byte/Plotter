@@ -12,7 +12,7 @@ const FIN_COL = { b: '#2f6fd0', r: '#d9486b', v: '#8a5cd0', g: '#2fa36b', o: '#f
 const FIN_TEXCOL = { b: 'blue!70!black', r: 'red!75!black', v: 'violet', g: 'green!50!black', o: 'orange!90!black' };
 
 // ── Rich-Text: Parser ────────────────────────────────────────────────
-const FIN_SYM = { cdot: '·', approx: '≈', le: '≤', ge: '≥', pm: '±', to: '→', dots: '...', ldots: '...', neq: '≠', infty: '∞', times: '×', Rightarrow: '⇒', Leftrightarrow: '⇔', pi: 'π', sigma: 'σ', mu: 'μ', log: 'log', ln: 'ln', div: '÷', cdots: '⋅⋅⋅', Delta: 'Δ', colon: ':', alpha: 'α', beta: 'β', gamma: 'γ', varphi: 'φ', phi: 'φ', theta: 'θ', lambda: 'λ', perp: '⊥', cap: '∩', circ: '∘', varepsilon: 'ε', delta: 'δ', setminus: '∖', infin: '∞', ne: '≠', mapsto: '↦', leftarrow: '←', in: '∈', notin: '∉', subset: '⊂', cup: '∪', emptyset: '∅', leftrightarrow: '↔', Leftarrow: '⇐', mid: '∣', sim: '∼', triangle: '△', parallel: '∥', angle: '∠' };
+const FIN_SYM = { cdot: '·', approx: '≈', le: '≤', ge: '≥', pm: '±', to: '→', dots: '...', ldots: '...', neq: '≠', infty: '∞', times: '×', Rightarrow: '⇒', Leftrightarrow: '⇔', pi: 'π', sigma: 'σ', mu: 'μ', log: 'log', ln: 'ln', div: '÷', cdots: '⋅⋅⋅', Delta: 'Δ', colon: ':', alpha: 'α', beta: 'β', gamma: 'γ', varphi: 'φ', phi: 'φ', theta: 'θ', lambda: 'λ', perp: '⊥', cap: '∩', circ: '∘', varepsilon: 'ε', delta: 'δ', setminus: '∖', infin: '∞', ne: '≠', mapsto: '↦', leftarrow: '←', in: '∈', notin: '∉', subset: '⊂', cup: '∪', emptyset: '∅', leftrightarrow: '↔', Leftarrow: '⇐', mid: '∣', sim: '∼', triangle: '△', parallel: '∥', angle: '∠', neg: '¬', land: '∧', lor: '∨', oplus: '⊕', top: '⊤', bot: '⊥' };
 function finParse(s) {
   s = String(s).replace(/\^(?:\{\\circ\}|\\circ)/g, '°');                     // Gradzeichen: ^\circ bzw. ^{\circ}
   let i = 0;
@@ -44,6 +44,8 @@ function finParse(s) {
         else if (n === 'col') { const cc = group(), body = group(); out.push({ k: 'col', c: cc[0] ? cc[0].s : 'b', b: body }); }
         else if (n === 'text') { const g = group(); out.push({ k: 't', s: g.map(x => x.s || '').join(''), up: true }); }
         else if (n === 'overline' || n === 'bar') out.push({ k: 'ovl', b: group() });
+        else if (n === 'hat') out.push({ k: 'ovl', b: group(), hat: true });
+        else if (n === 'vec') out.push({ k: 'ovl', b: group(), vec: true });
         else if (n === 'sqrt') { let idx = null; if (s[i] === '[') { i++; let t = ''; while (i < s.length && s[i] !== ']') t += s[i++]; i++; idx = finParse(t); } out.push({ k: 'sqrt', b: group(), idx }); }
         else if (n === 'mathbb') { const g = group(); const map = { R: 'ℝ', N: 'ℕ', Z: 'ℤ', Q: 'ℚ', C: 'ℂ' }; out.push({ k: 't', s: g.map(x => (x.s || '').split('').map(ch => map[ch] || ch).join('')).join(''), up: true }); }
         else if (n === 'left') { const l = delim(), rr = { d: null }, inner = seq(false, rr); out.push({ k: 'lr', l, r: rr.d, b: inner }); }
@@ -173,6 +175,12 @@ function finBoxOne(n, size, bold, M, sc, po) {
   }
   if (n.k === 'ovl') {                                 // \overline{…}: Strich über dem Inhalt
     const b = finBox(n.b, size, bold, M, sc), t = Math.max(1, m * 0.05);
+    if (n.hat) return { w: b.w + m * 0.04, a: b.a + m * 0.22, d: b.d, draw(x, y, c) {       // \hat{…}: Dach über dem Inhalt
+      b.draw(x + m * 0.02, y, c); const cx = x + m * 0.02 + b.w / 2, top = y - b.a - m * 0.2, hw = Math.min(b.w / 2, m * 0.2);
+      ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = t; ctx.beginPath(); ctx.moveTo(cx - hw, top + m * 0.13); ctx.lineTo(cx, top); ctx.lineTo(cx + hw, top + m * 0.13); ctx.stroke(); ctx.restore(); } };
+    if (n.vec) return { w: b.w + m * 0.08, a: b.a + m * 0.24, d: b.d, draw(x, y, c) {       // \vec{…}: Pfeil über dem Inhalt
+      b.draw(x + m * 0.04, y, c); const x0 = x + m * 0.02, x1 = x + m * 0.06 + b.w, yy = y - b.a - m * 0.12, hh = m * 0.09;
+      ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = t; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x1, yy); ctx.moveTo(x1 - hh * 1.3, yy - hh); ctx.lineTo(x1, yy); ctx.lineTo(x1 - hh * 1.3, yy + hh); ctx.stroke(); ctx.restore(); } };
     return { w: b.w + m * 0.04, a: b.a + m * 0.14, d: b.d, draw(x, y, c) { b.draw(x + m * 0.02, y, c); ctx.fillStyle = c; ctx.fillRect(x + m * 0.02, y - b.a - m * 0.08, b.w, t); } };
   }
   if (n.k === 'sqrt') {
@@ -270,17 +278,6 @@ const finRMr = v => Fin.money(v, 0).replace(/\u2009/g, '\\,').replace(/−/g, '-
 const finAmtR = v => (Math.abs(v - Math.round(v)) < 1e-9 ? finRMr(v) : finRM(v));
 const finAmt = v => (Math.abs(v - Math.round(v)) < 1e-9 ? Fin.money(v, 0) : Fin.money(v));
 
-// Umbruch von Rich-Summanden: Zeilen mit höchstens maxW Breite; Trennzeichen am Zeilenanfang
-function finWrap(termsR, sep, maxW, size) {
-  const lines = []; let cur = '', curW = 0;
-  termsR.forEach((t, i) => {
-    const piece = (i > 0 ? sep : '') + t, w = finRichSize(piece, size).w;
-    if (cur && curW + w > maxW) { lines.push(cur); cur = (sep + t); curW = finRichSize(cur, size).w; }
-    else { cur += piece; curW += w; }
-  });
-  if (cur) lines.push(cur);
-  return lines;
-}
 
 // ── Zeitstrahl ───────────────────────────────────────────────────────
 // o: {N, T, pay:[{t,a,label,i,col,k}], lab(t), axisY, hover, showAmt, tickHits, pad, unitLabel}
@@ -673,6 +670,8 @@ function finSceneMarch(S, W, H, C) {
   const lg = (j, rect, txt) => { const yy = ly + j * fs * 1.35; S.rect(lx, yy - fs * 0.4, fs * 0.8, fs * 0.8, rect); S.text(lx + fs * 1.1, yy, txt, { size: fs * 0.8, col: 'M', al: 'l', bs: 'm' }); };
   lg(0, { stroke: ST_R, lw: 2, r: 2 }, 'Bringtag (zählt nicht)'); lg(1, { fill: ST_B, a: 0.85, r: 2 }, 'Zinstage'); lg(2, { fill: ST_G, a: 0.85, r: 2 }, 'Holtag (zählt)');
   S.text(lx, ly + fs * 4.6, C.calNext === 'd2' ? 'Nächster Klick: Holtag festlegen' : 'Nächster Klick: Bringtag festlegen', { size: fs * 0.82, col: C.calNext === 'd2' ? ST_G : ST_R, al: 'l', bs: 'm', bold: true });
+  // Markierter Tag gross daneben: Unter dem Finger (Handy) ist die kleine Zahl im Kalenderfeld nicht zu sehen
+  if (C.hoverCal) S.text(lx, ly + fs * 6.5, '→ ' + C.hoverCal.d + '.' + C.hoverCal.m + '.', { size: fs * 1.35, col: C.calNext === 'd2' ? ST_G : ST_R, al: 'l', bs: 'm', bold: true });
   // Rechnung
   const rr = wide ? { x: rc.x + rc.w + pad, y: pad, w: W - rc.w - 3 * pad, h: H - 2 * pad } : { x: pad, y: rc.y + rc.h + pad, w: W - 2 * pad, h: H - rc.h - 3 * pad };
   let y = rr.y + fs * 0.2; const x = rr.x + fs * 0.3;
@@ -689,6 +688,107 @@ function finSceneMarch(S, W, H, C) {
   stLines(S, x, y, rest, C, { fs: stFitLines(rest, { w: rr.w * 0.8, h: rr.y + rr.h - y }, C) });
 }
 FIN_SCENES.march = finSceneMarch;
+
+// ═══════════════════════════════════════════════════════════════════
+// Ansicht 6b: Marchzins mit Zeitstrahl und verschiedenen Konti (ein Jahr, 30/360)
+// Saldo am Jahresanfang und jede Ein- oder Auszahlung liegen auf einem eigenen Konto und tragen Zins bis zum Stichtag.
+// ═══════════════════════════════════════════════════════════════════
+function finSceneMline(S, W, H, C) {
+  const P = C.P, fs = C.fs, pad = FIN_LAYOUT_PAD(fs), cm = '\\text{ CHF}';
+  const R = Fin.marchKonti(P.K0, P.pay, P.p, P.d2, P.m2), rows = R.rows, T = R.T, L = fs * 2.3, n = rows.length;
+  const hid = r => (r.start ? 99 : r.i), isHov = r => C.hover === hid(r);     // Treffer-Nummer: 99 = Saldo am Jahresanfang
+  const dm = (d, m) => d + '.' + m + '.', sT = dm(P.d2, P.m2);
+  // ── oben: Zeitstrahl eines Jahres (12 Monate zu 30 Tagen) ──
+  const tTop = pad, ay = tTop + L + fs * 2.9, negTop = ay + fs * 1.9;
+  const x0 = pad + fs * 5.8, x1 = W - pad - fs * 2.6, X = no => x0 + (x1 - x0) * no / 360, mw = (x1 - x0) / 12, xT = X(T);
+  // dicht beieinanderliegende Pfeile: Beschriftung abwechselnd höher setzen
+  let lu = -1e9, ld = -1e9, vu = 0, vd = 0, maxD = -1;
+  rows.forEach(r => { const x = X(r.no); if (r.a >= 0) { vu = x - lu < fs * 4.4 ? (vu + 1) % 2 : 0; lu = x; r.lv = vu; } else { vd = x - ld < fs * 4.4 ? (vd + 1) % 2 : 0; ld = x; r.lv = vd; maxD = Math.max(maxD, vd); } });
+  const negEnd = maxD < 0 ? ay + fs * 1.6 : negTop + L * 0.75 + maxD * fs * 1.15 + fs * 1.2;
+  const lane0 = negEnd + fs * 1.5;
+  const laneStep = Math.max(fs * 1.45, Math.min(fs * 2.2, (H * 0.56 - lane0) / Math.max(1, n)));
+  const laneEnd = lane0 + n * laneStep - laneStep * 0.45, topH = lane0 + n * laneStep + pad * 0.5;
+  S.text(pad + fs * 0.2, tTop + fs * 0.3, 'Zeitstrahl eines Jahres: Einzahlungen oben, Auszahlungen unten (Klick auf einen Monat: Zahlung hinzufügen)', { size: fs * 0.82, col: 'M', al: 'l', bs: 'm' });
+  const ax = W - pad - fs * 0.8;
+  S.line(pad + fs * 0.6, ay, ax, ay, { col: 'L', lw: 2 });
+  S.poly([[ax - fs * 0.6, ay - fs * 0.3], [ax, ay], [ax - fs * 0.6, ay + fs * 0.3]], { col: 'L', lw: 1.6, fill: 'L', close: true });
+  for (let k = 0; k <= 12; k++) S.line(X(30 * k), ay - 4, X(30 * k), ay + 4, { col: 'L', lw: 1.4 });
+  const mskip = mw < fs * 2.1 ? 2 : 1;
+  for (let m = 0; m < 12; m++) {
+    if (m % mskip === 0) S.text(X(30 * m + 15), ay + fs * 1.0, FIN_MONTHS[m], { size: fs * 0.82, col: 'M', al: 'c', bs: 'm' });
+    S.hit(X(30 * m), tTop + fs * 0.9, mw, negEnd - tTop - fs * 0.9, { kind: 'tick', t: m + 1 });
+  }
+  rows.forEach(r => {
+    const x = X(r.no), up = r.a >= 0, hv = isHov(r), c = r.late ? 'M' : (up ? ST_B : ST_O), hd = fs * 0.55;
+    const y0 = up ? ay - fs * 0.55 : negTop, y1 = up ? ay - L - r.lv * fs * 1.15 : negTop + L * 0.75 + r.lv * fs * 1.15;
+    if (hv) S.rect(x - fs * 1.6, Math.min(y0, y1) - fs * 1.4, fs * 3.2, Math.abs(y1 - y0) + fs * 2.4, { fill: ST_V, a: 0.12, r: 6 });
+    S.line(x, y0, x, y1, { col: c, lw: hv ? 3.4 : 2.2 });
+    const tipY = up ? y0 : y1;                                  // beide Pfeile zeigen nach unten: Einzahlung auf die Achse, Auszahlung von ihr weg
+    S.poly([[x - hd * 0.6, tipY - hd], [x, tipY + 1], [x + hd * 0.6, tipY - hd]], { col: c, lw: 1, fill: c, close: true });
+    S.text(x, up ? y1 - fs * 0.5 : y1 + fs * 0.6, finAmt(Math.abs(r.a)), { size: fs * 0.88, col: c, al: x < x0 + fs * 1.5 ? 'l' : 'c', bs: 'm' });
+    S.hit(x - fs * 1.3, Math.min(y0, y1) - fs * 1.2, fs * 2.6, Math.abs(y1 - y0) + fs * 2.2, { kind: 'pay', i: hid(r) });
+  });
+  // Stichtag
+  S.line(xT, ay + fs * 0.7, xT, laneEnd, { col: ST_R, lw: 1.2, dash: true });
+  S.circ(xT, ay, fs * 0.62, { fill: '#ffe066', stroke: ST_R, lw: 1.6 });
+  S.text(xT, ay, '?', { size: fs * 0.9, col: '#6b2a00', al: 'c', bs: 'm', bold: true });
+  S.text(xT + fs * 0.9, ay - fs * 0.95, sT, { size: fs * 0.85, col: ST_R, al: xT > x1 - fs * 1.5 ? 'r' : 'l', bs: 'm', bold: true });
+  // ── Konten: jede Zahlung trägt Zins von ihrem Datum bis zum Stichtag ──
+  const an = C.lineAnim || null; let act = -1;
+  rows.forEach((r, j) => {
+    const y = lane0 + j * laneStep, xa = X(r.no), hv = isHov(r), c = r.late ? 'M' : (r.a >= 0 ? ST_B : ST_O), short = !r.late && xT - xa < fs * 6.5;
+    if (!r.late) act++;
+    if (hv) S.rect(pad + fs * 0.4, y - laneStep * 0.5, W - 2 * pad - fs * 0.8, laneStep, { fill: ST_V, a: 0.12, r: 4 });
+    S.circ(xa, y, fs * 0.32, { fill: c });
+    const run = !r.late && an && an.j === act, done = !r.late && an && an.j > act;
+    const dTxt = done ? r.days + ' Tage: Zins ' + Fin.money(r.z) : r.days + ' Tage';
+    S.text(xa - fs * 0.6, y, finAmt(r.a), { size: fs * 0.88, col: c, al: 'r', bs: 'm', bold: hv });
+    if (short && !run) S.text(xa - fs * 1.3 - finMeasure(finAmt(r.a), fs * 0.88, hv), y, dTxt, { size: fs * 0.82, col: done ? ST_V : 'M', al: 'r', bs: 'm', bold: done });   // kurzes Konto: Zinstage links neben dem Betrag
+    if (r.late) S.text(xa + fs * 0.7, y, 'nach dem Stichtag: zählt nicht', { size: fs * 0.82, col: 'M', al: 'l', bs: 'm' });
+    else if (r.days > 0) {
+      S.line(xa, y, xT, y, { col: c, lw: hv ? 2.6 : 1.6, a: 0.9 });
+      S.poly([[xT - fs * 0.6, y - fs * 0.3], [xT, y], [xT - fs * 0.6, y + fs * 0.3]], { col: c, lw: 1, fill: c, close: true });
+      if (run) {                                                // Animation: der Zins wächst Tag für Tag gleichmässig
+        const ds = Math.max(0, Math.min(r.days, Math.floor(an.tau - r.no + 1e-9))), zc = Math.round(Fin.marchZins(r.a, P.p, ds) * 100) / 100, xm = X(Math.max(r.no, Math.min(T, an.tau)));
+        S.circ(xm, y, fs * 0.5, { fill: ST_V, stroke: 'W', lw: 1.5 });
+        S.text(xm, y - laneStep * 0.34, ds + ' Tage: Zins ' + Fin.money(zc), { size: fs * 0.9, col: ST_V, al: xm > x1 - fs * 7 ? 'r' : xm < x0 + fs * 5 ? 'l' : 'c', bs: 'm', bold: true });
+      } else if (!short) S.text((xa + xT) / 2, y - laneStep * 0.32, dTxt, { size: fs * 0.85, col: done ? ST_V : 'T', al: 'c', bs: 'm', bold: hv || done });
+    }
+    S.hit(pad, y - laneStep * 0.5, W - 2 * pad, laneStep, { kind: 'pay', i: hid(r) });
+  });
+  // Hervorhebungen für die Überschrift
+  S.hl = [{ id: 'pay', box: [pad, tTop + fs * 0.9, W - pad, negEnd] }, { id: 'T', c: [xT, ay, fs * 1.2] }, { id: 'lanes', box: [pad, lane0 - laneStep * 0.6, W - pad, lane0 + (n - 0.4) * laneStep] }];
+  // ── unten: Tabelle und Rechnung ──
+  const by = topH + pad, bh = H - by - pad;
+  if (bh < fs * 6) return;
+  const cols = [{ h: 'Zahlung', w: 6.2, al: 'l' }, { h: 'Datum', w: 6.8 }, { h: 'Zinstage', w: 5 }, { h: 'Zins', w: 6 }], cw = cols.reduce((a, c) => a + c.w, 0);
+  const trows = rows.map(r => { const rw = [Fin.money(r.a), r.start ? 'Jahresanfang' : dm(r.d, r.m), r.late ? '–' : String(r.days), r.late ? '–' : Fin.money(r.z)]; rw.col = [r.late ? 'M' : (r.a >= 0 ? ST_B : ST_O), null, ST_V, null]; return rw; });
+  trows.push([Fin.money(R.cap), 'Summe', '', Fin.money(R.zins)]);
+  const tw = Math.min(W * 0.55, cw * fs), tfs = Math.min(fs, (bh - fs * 1.5) / ((trows.length + 1) * 1.75), tw / cw);
+  const hl = rows.findIndex(r => isHov(r));
+  const tb = stTable(S, pad + fs * 0.2, by, cols, trows, { fs: tfs, hl: hl >= 0 ? hl : undefined, sum: true }, C);
+  S.hl.push({ id: 'tab', box: [pad, by - 4, pad + fs * 0.2 + tb.w + 4, by + tb.h + 4] });
+  const rx = pad + tw + pad * 2, rw2 = W - rx - pad;
+  if (rw2 > fs * 12) {
+    let y = by; const actRows = rows.filter(r => !r.late);
+    S.text(rx, y + fs * 0.5, 'Jede Zahlung liegt auf einem eigenen Konto:', { size: fs * 0.9, col: 'T', al: 'l', bs: 'm', bold: true }); y += fs * 1.5;
+    S.text(rx, y + fs * 0.4, 'Zins einzeln bis zum Stichtag, am Schluss addieren.', { size: fs * 0.88, col: 'M', al: 'l', bs: 'm' }); y += fs * 2.0;
+    S.rich(rx, y + fs * 0.7, 'z=\\frac{d}{360}\\cdot\\frac{p\\cdot K}{100}', { size: fs * 0.95, col: 'T', al: 'l' }); y += fs * 2.5;
+    // Summe der Zinsen, bei Bedarf umbrochen
+    const parts = []; let acc = 'z=', accW = finRichSize('z=', fs).w;
+    actRows.forEach((r, j) => { const piece = (j === 0 ? (r.z < 0 ? '-' : '') : (r.z < 0 ? '-' : '+')) + finRM(Math.abs(r.z)), w = finRichSize(piece, fs).w; if (j > 0 && accW + w > rw2) { parts.push(acc); acc = ''; accW = 0; } acc += piece; accW += w; });
+    if (!actRows.length) acc += '0';
+    parts.push(acc);
+    parts.slice(0, 3).forEach(pt => { S.rich(rx, y + fs * 0.6, pt, { size: fs, col: 'T', al: 'l' }); y += fs * 1.8; });
+    S.rich(rx, y + fs * 0.6, '=\\col{v}{' + finRM(R.zins) + cm + '}', { size: fs * 1.1, col: 'T', al: 'l', bold: true }); y += fs * 2.2;
+    S.text(rx, y + fs * 0.4, 'Saldo am ' + sT + ' mit Zins:', { size: fs * 0.9, col: 'T', al: 'l', bs: 'm', bold: true }); y += fs * 1.6;
+    S.rich(rx, y + fs * 0.7, finAmtR(R.cap) + (R.zins < 0 ? '-' : '+') + finRM(Math.abs(R.zins)) + '=\\col{v}{' + finRM(R.cap + R.zins) + cm + '}', { size: fs * 1.2, col: 'T', al: 'l', bold: true }); y += fs * 2.3;
+    S.text(rx, y + fs * 0.4, 'Zinssatz ' + Fin.pct(P.p, 3) + '; Monat = 30 Tage, Jahr = 360 Tage', { size: fs * 0.85, col: 'M', al: 'l', bs: 'm' });
+    if (C.hoverInfo) { y += fs * 1.8; S.rich(rx, y + fs * 0.6, C.hoverInfo, { size: fs * 0.9, col: ST_V, al: 'l' }); }
+    S.hl.push({ id: 'z', box: [rx - 6, by - 4, W - pad, Math.min(H - 2, y + fs * 1.6)] });
+  }
+}
+FIN_SCENES.mline = finSceneMline;
 
 // ═══════════════════════════════════════════════════════════════════
 // Ansicht 7: Konformer Zins und effektiver Jahreszins

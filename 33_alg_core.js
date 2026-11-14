@@ -116,11 +116,6 @@ const AlgCore = (function () {
     const simple = isSimpleTerm(t) || (Object.keys(t.m).length === 0 && qint(t.c));
     return simple ? mag : '(' + mag + ')';
   }
-  function termParTxt(t) {
-    const mag = termMag(Object.assign({}, t, { c: qabs(t.c) }), false);
-    const simple = isSimpleTerm(t) || (Object.keys(t.m).length === 0 && qint(t.c));
-    return simple ? mag : '(' + mag + ')';
-  }
 
   // ── Eingabe lesen ──────────────────────────────────────────────────
   function tokenize(src) {
@@ -247,9 +242,6 @@ const AlgCore = (function () {
     if (st.pwBase && st.sums.length === st.pwN && isOneMono) res.pw = { p: st.pwBase, n: st.pwN };
     return res;
   }
-  function splitBinomial(p) { // Summe aus zwei Gliedern?
-    return p.length === 2 ? { a: p[0], b: p[1] } : null;
-  }
   // (U+V)(U−V)? Gibt {u, v} (Glieder) zurück
   function diffOfSquaresPair(F, G) {
     if (F.length !== 2 || G.length !== 2) return null;
@@ -266,7 +258,6 @@ const AlgCore = (function () {
 
   // ── Teilschritte für Ausmultiplizieren ────────────────────────────
   const tmul = (s, t) => { const m = Object.assign({}, s.m); Object.keys(t.m).forEach(k => { m[k] = (m[k] || 0) + t.m[k]; }); return { c: qmul(s.c, t.c), m }; };
-  const termAsPoly = t => pNorm([t]);
   const tpos = t => ({ c: qabs(t.c), m: t.m });
   function binom(n, k) { let r = 1; for (let i = 1; i <= k; i++) r = r * (n - k + i) / i; return Math.round(r); }
   function pascalRow(n) { const r = []; for (let k = 0; k <= n; k++) r.push(binom(n, k)); return r; }
@@ -389,7 +380,6 @@ const AlgCore = (function () {
   function fromUni(co, v) { return pNorm(co.map((c, i) => ({ c, m: i ? { [v]: i } : {} }))); }
   // Rationale Nullstellen eines ganzzahligen Polynoms (Liste aufsteigend), Satz über rationale Nullstellen
   function intDivisors(n) { n = Math.abs(n); const out = []; for (let i = 1; i * i <= n; i++) if (n % i === 0) { out.push(i); if (i * i !== n) out.push(n / i); } return out; }
-  function evalUni(co, r) { let s = ZERO; for (let i = co.length - 1; i >= 0; i--) s = qadd(qmul(s, r), co[i]); return s; }
   function findRationalRoot(co) {
     // auf ganze Koeffizienten bringen
     let L = 1; co.forEach(c => { L = lcm(L, c[1]); });
@@ -594,7 +584,6 @@ const AlgCore = (function () {
     return s || '1';
   }
 
-  function qTxtAbs(a) { return qTxt(qabs(a)); }
   function factorTxt(info) {
     const k = info.k;
     const facs = info.fac.map(f => (f.p.length > 1 ? '(' + polyTxt(f.p) + ')' : polyTxt(f.p)) + (f.e > 1 ? sup(f.e) : ''));
@@ -909,7 +898,6 @@ const AlgCore = (function () {
     out.lineTxt = polyTxt(poly) + (fs.nonTrivial ? ' = ' + factorTxt(fs.info) : '');
     if (!fs.nonTrivial) { out.hints.push('Der Term ist über den rationalen Zahlen nicht weiter zerlegbar.'); return; }
     // Figur: Produkt der ersten beiden «Hauptfaktoren»
-    const mains = [];
     let kPoly = pConst(fs.info.k);
     const facs = [];
     fs.info.fac.forEach(f => { for (let i = 0; i < f.e; i++) facs.push(f.p); });

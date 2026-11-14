@@ -97,7 +97,6 @@
   // ══════════════════════════════════════════════════════════════════
   // 2×2
   // ══════════════════════════════════════════════════════════════════
-  function sol2Tex(names, v) { return names[0] + ' = ' + qTex(v[0]) + ',\\quad ' + names[1] + ' = ' + qTex(v[1]); }
   const pointTex = v => '(' + qTex(v[0]) + '\\,|\\,' + qTex(v[1]) + ')';
 
   // Elimination (Additionsverfahren) – gibt Lösung oder Sonderfall zurück

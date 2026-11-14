@@ -24,7 +24,6 @@ const ALG = { text: '', mode: 'expand', vals: {}, opt: { tiles: false, style: 'a
 function algActive() { return typeof ENV !== 'undefined' && ENV.cur === 'alg'; }
 const $alg = id => document.getElementById(id);
 const algEl = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
-const algFmt = v => String(Math.round(v * 100) / 100);
 
 // ── Zustand ──────────────────────────────────────────────────────────
 function algCapture() {
@@ -562,11 +561,6 @@ function algDrawSteps(res, w, h, P, fs) {
     y += r.h + gap;
   });
   hints.forEach((t, i) => { algDrawText(t, w / 2, y + size * 0.5 * 0.8 + i * size * 0.8, size * 0.5, P.muted, 'center', 'middle'); });
-}
-function algFitText(s, x, y, maxW, size, col, bold) {
-  let sz = size; while (sz > 9 && algMeasure(s, sz, bold) > maxW) sz -= 1;
-  algDrawText(s, x, y, sz, col, 'center', 'middle', bold);
-  return sz;
 }
 // ── Szenen (Potenzen, Logarithmen, Bruchterme): Bausteine, Strecken, Klammern ─────
 function algHueCol(P, h) { return h === undefined || h < 0 ? P.muted : ALG_HUES[h % 6]; }

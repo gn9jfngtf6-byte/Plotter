@@ -252,7 +252,6 @@
     const rt = hasRoot(ast);
     let radHere = terms.some(t => t.R.length);
     // Gesetze
-    const exps = ast0 => { let n = 0; mapAst(ast0, x => { if (x.t === 'pow' && !x.sqrt) n++; return null; }); return n; };
     if (rt) out.steps.push({ label: 'Wurzel als Potenz', tex: '\\sqrt[n]{a^{m}}=a^{\\frac{m}{n}}' });
     let needLaws = false;
     try { const lst = []; items.forEach(it => occs(strip(it), ONE, lst)); const seen = new Set(); lst.forEach(o => { if (seen.has(o.key) || qsgn(o.e) < 0) needLaws = true; seen.add(o.key); }); if (items.some(it => { let d = false; mapAst(it, x => { if (x.t === 'pow' && x.a && strip(x.a).t === 'pow') d = true; return null; }); return d; })) needLaws = true; } catch (e) { needLaws = true; }

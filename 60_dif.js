@@ -60,12 +60,17 @@ const Dif = (function () {
             const needDot = (prev.num && (r.num || /^[0-9]/.test(r.s))) || prevNode.type === 'div' || node.type === 'div' || (prev.par && r.par);
             const thin = !prev.num && !r.par && (/^(e\^|\\[A-Za-z])/.test(r.s)) && !/^\\frac|^\\left/.test(r.s);
             out += needDot ? '\\cdot ' : thin ? '\\,' : '';
+            if (!needDot && !thin && /\\[A-Za-z]+$/.test(out) && /^[A-Za-z]/.test(r.s)) out += ' ';   // «\pi x», nicht «\pix»
           }
           out += r.s;
         });
         return { s: (sign < 0 ? '-' : '') + out, p: sign < 0 ? 1 : 2, neg: sign < 0 };
       }
-      case 'div': { const a = pr(n.a), b = pr(n.b); return { s: '\\frac{' + a.s + '}{' + b.s + '}', p: 2 }; }
+      case 'div': {
+        const a = pr(n.a), b = pr(n.b);
+        if (a.neg && a.s.charAt(0) === '-' && !a.sum && !/^-\\left\(/.test(a.s)) return { s: '-\\frac{' + a.s.slice(1) + '}{' + b.s + '}', p: 1, neg: true };   // Minus vor den Bruch: «−2000/x²» statt «+ (−2000)/x²»
+        return { s: '\\frac{' + a.s + '}{' + b.s + '}', p: 2 };
+      }
       case 'pow': {
         const e = n.b, b0 = n.a;
         if (e.type === 'div' && e.a.type === 'num' && e.a.v === '1' && e.b.type === 'num') {
@@ -165,7 +170,6 @@ const Dif = (function () {
   const fmtM = (v, d) => fmt(v, d).replace('-', MINUS);          // mit echtem Minuszeichen (Anzeige)
   const fmtT = (v, d) => fmt(v, d);                              // LaTeX: ASCII-Minus
   // x0 (Kommazahl) → exakter Bruch, wenn es eine «schöne» Zahl ist
-  function toQ(x) { return E.qFromFloat ? E.qFromFloat(x) : E.qFromDec ? E.qFromDec(String(x)) : null; }
   function qOf(x) {
     let q = null; try { q = E.qFromFloat(x); } catch (e) { q = null; }
     if (!q) { const r = Math.round(x * 1e6) / 1e6; try { q = E.qFromDec(String(r)); } catch (e) { q = null; } }

@@ -40,7 +40,7 @@ const TOPIC_KW = {
   geo: { _: 'Konstruktion Dreieck Kreis Gerade Strecke Winkel Mittelsenkrechte Winkelhalbierende Thaleskreis Umkreis Inkreis Höhe Schwerpunkt Pythagoras Tangente Ellipse' },
   '3d': { pl: 'Ebene Koordinatenform Normalenvektor Achsenabschnitte Spurgeraden Schnittgerade Schnittwinkel Raum Gleichungssystem', vec: 'Vektor Punkt Ortsvektor Verbindungsvektor Betrag Länge Mittelpunkt Komponenten', line: 'Gerade Parameterform Richtungsvektor windschief parallel identisch Schnittpunkt Lage', dot: 'Skalarprodukt Winkel senkrecht orthogonal Vektorprodukt Kreuzprodukt Parallelogramm', dist: 'Abstand Punkt Ebene Gerade Hessesche Normalform Lotfusspunkt Lot', sph: 'Kugel Kugelgleichung Radius Mittelpunkt Schnittkreis Tangentialebene' },
   stat: { dice: 'Würfel Münze Wahrscheinlichkeit relative Häufigkeit Gesetz der grossen Zahlen', dice2: 'Augensumme zwei Würfel Verteilung', galton: 'Galtonbrett Binomialverteilung Glockenkurve', pi: 'Monte Carlo Kreiszahl Zufallspunkte', buffon: 'Buffon Nadel Nadelexperiment', monty: 'Ziegenproblem Monty Hall bedingte Wahrscheinlichkeit Türen', birthday: 'Geburtstagsparadoxon Gegenereignis', walk: 'Zufallsspaziergang Random Walk Irrfahrt', clt: 'Zentraler Grenzwertsatz Mittelwert Stichprobe Normalverteilung', ci: 'Konfidenzintervall Vertrauensintervall Schätzen Stichprobe', bayes: 'Bayes Test Paradox bedingte Wahrscheinlichkeit falsch positiv Vierfeldertafel', urn: 'Urne Kugeln ziehen mit ohne Zurücklegen Baumdiagramm hypergeometrisch Pfadregel' },
-  fin: { line: 'Zeitstrahl Konto Aufzinsen Abzinsen Zahlung Zeitwert', sum: 'Summenzeichen Rente Reihe', save: 'Sparplan Rente vorschüssig nachschüssig Endwert Raten', loan: 'Kredit Tilgungsplan Annuität Zins Hypothek Restschuld', value: 'Zeitwert Zinseszins Barwert Endwert Zinsfaktor', march: 'Marchzins Kalender Tage Zinstage 30/360', conform: 'konformer Zins unterjährig effektiver Zins Zinsperiode' },
+  fin: { line: 'Zeitstrahl Konto Aufzinsen Abzinsen Zahlung Zeitwert', sum: 'Summenzeichen Rente Reihe', save: 'Sparplan Rente vorschüssig nachschüssig Endwert Raten', loan: 'Kredit Tilgungsplan Annuität Zins Hypothek Restschuld', value: 'Zeitwert Zinseszins Barwert Endwert Zinsfaktor', march: 'Marchzins Kalender Tage Zinstage 30/360', mline: 'Marchzins Zeitstrahl Konten Kontokorrent Einzahlung Bezug Saldo Stichtag Zinstage', conform: 'konformer Zins unterjährig effektiver Zins Zinsperiode' },
   set: { iv: 'Intervall Zahlengerade offen geschlossen halboffen Ungleichung Mengenschreibweise eckige Klammer unendlich', op: 'Schnittmenge Vereinigung Differenz Komplement Mengenoperation Intervalle und oder ohne', venn: 'Venn-Diagramm Mengenoperation drei Mengen Grundmenge Schnitt Vereinigung Differenz Komplement De Morgan Anzahlen Elemente schraffieren', ex: 'Übungen Aufgaben Intervall Venn-Diagramm schraffieren Elemente Anzahlen üben' },
   prob: { data: 'Datenanalyse Mittelwert Median Modus Quartile Boxplot Histogramm Kreisdiagramm Säulendiagramm Standardabweichung Spannweite Statistik', tree: 'Baumdiagramm Pfadregel Produktregel Summenregel Urne ohne Zurücklegen mit Zurücklegen mehrstufig', bin: 'Binomialverteilung Bernoulli-Kette Treffer Binomialkoeffizient mindestens höchstens', lim: 'Grenzwert Grenzübergang Herleitung Poisson Normalverteilung de Moivre Laplace n gegen unendlich Näherung Binomialverteilung stetig diskret Glockenkurve', poi: 'Poissonverteilung Poisson seltene Ereignisse Lambda λ mittlere Anzahl Anrufe Druckfehler Zerfall Näherung Binomialverteilung', ev: 'Zufallsgrösse Erwartungswert faires Spiel Einsatz Gewinn Glücksrad', norm: 'Normalverteilung Glockenkurve Standardisieren z-Wert Phi Sigma-Regeln σ-Bereiche 68 95 99.7 Prozent 1.96 Quantil linksseitig rechtsseitig beidseitig einseitig zweiseitig Standardabweichung Vertrauensbereich', test: 'Hypothesentest Nullhypothese Signifikanzniveau Ablehnungsbereich Fehler 1. Art einseitig zweiseitig' },
   lo: { ung1: 'lineare Ungleichung eine Variable Intervall Zeichen umkehren negative Zahl Handyabo Lösungsmenge', half: 'Ungleichung zwei Variablen Halbebene Grenzgerade Testpunkt gestrichelt durchgezogen Kino Popcorn', poly: 'Ungleichungssystem Planungspolygon Eckpunkte Nichtnegativität ganzzahlig Computerhersteller', opt: 'Zielfunktion Optimum Maximum Minimum Niveaulinie Eckpunktprinzip Gewinn Kosten Schreinerei Textaufgabe lineare Optimierung' }
@@ -176,6 +176,12 @@ const TOPIC_HELP = {
     'Der Zeitstrahl zeigt jede Zahlung als Pfeil; das «?» markiert, was gesucht ist.',
     'Unter «Verwandte Umgebungen» springst du zu Folgen und Summen oder zu Potenzen und Logarithmen.']
 };
+// Themen aus dem Baukasten (120_kit.js): Gruppe, Suchwörter, Beschreibung, Hinweis und Hilfe stehen in ihrer Beschreibung
+if (typeof KIT !== 'undefined') KIT.order.forEach(id => {
+  const s = KIT.envs[id].spec, g = TOPIC_GROUPS.find(q => q.id === s.group) || TOPIC_GROUPS[TOPIC_GROUPS.length - 1], at = s.before ? g.envs.indexOf(s.before) : -1;
+  if (at >= 0) g.envs.splice(at, 0, id); else g.envs.push(id);
+  TOPIC_KW[id] = s.kw || {}; TOPIC_ABOUT[id] = s.about; TOPIC_TIPS[id] = s.tip; TOPIC_HELP[id] = s.help || [];
+});
 const TOPIC_LS = 'jsqrt10_welcome_seen';
 
 (function () {
@@ -209,7 +215,7 @@ const TOPIC_LS = 'jsqrt10_welcome_seen';
       case 'stat': return sel('stat-mode', typeof STAT_MODES !== 'undefined' ? STAT_MODES : []);
       case 'fin': return sel('fin-mode', typeof FIN_MODES !== 'undefined' ? FIN_MODES : []);
       case 'alg': return (typeof ALG_MODES !== 'undefined' ? ALG_MODES : []).map(([v, t]) => ({ id: v, title: t, go: () => { const b = document.querySelector('#alg-modes .alg-mode[data-mode="' + v + '"]'); if (b) b.click(); } }));
-      default: return [];
+      default: return typeof KIT !== 'undefined' && KIT.envs[env] ? sel(env + '-view', KIT.envs[env].spec.views) : [];
     }
   }
   // In eine Umgebung (und Ansicht) springen
@@ -224,8 +230,11 @@ const TOPIC_LS = 'jsqrt10_welcome_seen';
 
   // ── Bild zum Ziehen auf der Startseite: Punkt auf einer Kurve, Tangente und Steigungsdreieck rechnen mit ──
   // Läuft ohne das Zeichenwerkzeug der Themen (reines SVG); wandert anfangs langsam von selbst, bis jemand zugreift.
+  // Zwei Bilder, von denen heroDemo() eines zufällig zeigt: Tangente (heroDemoTan) und Ober-/Untersumme (heroDemoSum).
+  // Jedes liefert {box, start()}.
   let heroDemoStart = () => {};
-  function heroDemo() {
+  function heroDemoTan() {
+    const me = { box: null, start: null };
     const NS = 'http://www.w3.org/2000/svg', W = 420, H = 250, U = 52, XA = -2.4, XB = 2.3;
     const sv = (t, a, kids) => { const e = document.createElementNS(NS, t); for (const k in (a || {})) e.setAttribute(k, a[k]); (kids || []).forEach(c => e.appendChild(c)); return e; };
     const X = x => W / 2 + x * U, Y = y => H / 2 - y * U, f = x => 0.2 * x * x * x - 1.2 * x, df = x => 0.6 * x * x - 1.2;
@@ -240,7 +249,7 @@ const TOPIC_LS = 'jsqrt10_welcome_seen';
       [sv('path', { class: 'tp-d-grid', d: grid.join('') }), sv('path', { class: 'tp-d-ax', d: 'M0 ' + Y(0) + 'H' + W + 'M' + X(0) + ' 0V' + H }), sv('path', { class: 'tp-d-curve', d: d }), tri, l1, lm, tan, halo, pt, fl]);
     const read = el('div', 'tp-d-read'); read.setAttribute('translate', 'no');
     const rx = el('span'), ry = el('span', 'tp-d-ry'), rm = el('span', 'tp-d-rm'); read.append(rx, ry, rm);
-    let x = 1.1, drag = false, raf = 0, t0 = 0;
+    let x = 1.1, drag = false, raf = 0, last = 0, tacc = 0;      // tacc: gezeigte Laufzeit (zählt nur, solange das Bild sichtbar ist)
     let auto = true; try { if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) auto = false; } catch (e) {}
     const draw = () => {
       const y = f(x), m = df(x), k = 105 / U / Math.sqrt(1 + m * m);
@@ -261,15 +270,76 @@ const TOPIC_LS = 'jsqrt10_welcome_seen';
     ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(n => svg.addEventListener(n, () => { drag = false; }));
     svg.addEventListener('keydown', ev => { const s = ev.key === 'ArrowLeft' ? -0.1 : ev.key === 'ArrowRight' ? 0.1 : 0; if (s) { stop(); set(x + s); ev.preventDefault(); } });
     const tick = ts => {
-      raf = 0; if (!auto || !box.isConnected || box.offsetParent === null) return;   // unsichtbar: anhalten, topicsOpen stösst wieder an
-      if (!t0) t0 = ts; if (ts - t0 > 49000) { stop(); return; }
-      set(2.25 * Math.sin((ts - t0) / 2600 + 0.5)); raf = requestAnimationFrame(tick);
+      raf = 0; if (!auto || !box.isConnected || box.offsetParent === null) { last = 0; return; }   // unsichtbar: anhalten, start() stösst wieder an
+      if (last) tacc += Math.min(100, ts - last); last = ts; if (tacc > 49000) { stop(); return; }
+      set(2.25 * Math.sin(tacc / 2600 + 0.5)); raf = requestAnimationFrame(tick);
     };
-    heroDemoStart = () => { if (auto && !raf) raf = requestAnimationFrame(tick); };
+    me.start = () => { if (auto && !raf) raf = requestAnimationFrame(tick); };
     const cap = el('div', 'tp-d-cap'), more = el('button', 'tp-d-more', 'Mehr dazu ›'); more.type = 'button'; more.title = 'Differentialrechnung öffnen'; more.addEventListener('click', () => topicGo('diff', 'tan'));
     cap.append(el('div', 'tp-d-hint', 'Probier es aus: Verschiebe den Punkt.'), more);
     box.append(svg, read, cap); draw();
-    return box;
+    me.box = box; return me;
+  }
+
+  // ── Zweites Bild: Fläche unter einer Kurve mit Rechtecken annähern (Unter- und Obersumme) ──
+  // Der Regler unter der Achse legt die Anzahl Rechtecke fest; läuft anfangs von selbst, bis jemand zugreift.
+  function heroDemoSum() {
+    const me = { box: null, start: null };
+    const NS = 'http://www.w3.org/2000/svg', W = 420, H = 250, X0 = 50, UX = 105, Y0 = 208, UY = 54, B = 3, NMAX = 100, TY = 238;
+    const sv = (t, a, kids) => { const e = document.createElementNS(NS, t); for (const k in (a || {})) e.setAttribute(k, a[k]); (kids || []).forEach(c => e.appendChild(c)); return e; };
+    const X = x => X0 + x * UX, Y = y => Y0 - y * UY, f = x => 0.3 * x * x + 0.4, AREA = 3.9;   // ∫₀³ (0.3x² + 0.4) dx = 2.7 + 1.2
+    const r1 = v => Math.round(v * 10) / 10, fmt = v => v.toFixed(2);
+    const grid = []; for (let i = 1; i <= 3; i++) { grid.push('M' + X(i) + ' ' + Y(3.55) + 'V' + Y0); grid.push('M' + X(0) + ' ' + Y(i) + 'H' + X(3.45)); }
+    let d = ''; for (let i = 0; i <= 80; i++) { const x = -0.3 + 3.4 * i / 80;  d += (i ? 'L' : 'M') + r1(X(x)) + ' ' + r1(Y(f(x))); }
+    const up = sv('path', { class: 'tp-d-up' }), lo = sv('path', { class: 'tp-d-lo' }), halo = sv('circle', { class: 'tp-d-halo', r: 13, cy: TY }), pt = sv('circle', { class: 'tp-d-pt', r: 7, cy: TY });
+    const txt = (cls, x, y, t, anchor) => { const e = sv('text', { class: cls, x, y }); if (anchor) e.setAttribute('text-anchor', anchor); e.textContent = t; return e; };
+    const svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'tp-d-svg', tabindex: '0', role: 'slider', 'aria-label': 'Anzahl der Rechtecke verändern', 'aria-valuemin': 1, 'aria-valuemax': NMAX },
+      [sv('path', { class: 'tp-d-grid', d: grid.join('') }), up, lo, sv('path', { class: 'tp-d-ax', d: 'M' + (X0 - 34) + ' ' + Y0 + 'H' + X(3.45) + 'M' + X0 + ' ' + Y(3.55) + 'V' + (Y0 + 6) }), sv('path', { class: 'tp-d-curve', d: d }),
+        txt('tp-d-tk', X(0), Y0 + 15, '0', 'middle'), txt('tp-d-tk', X(B), Y0 + 15, '3', 'middle'), txt('tp-d-f', X0 + 14, 22, 'f(x) = 0.3x² + 0.4'), txt('tp-d-a', X0 + 14, 40, 'A = ' + fmt(AREA)),
+        sv('path', { class: 'tp-d-track', d: 'M' + X(0) + ' ' + TY + 'H' + X(B) }), halo, pt]);
+    const read = el('div', 'tp-d-read'); read.setAttribute('translate', 'no');
+    const rn = el('span'), ru = el('span', 'tp-d-ru'), ro = el('span', 'tp-d-ro'); read.append(rn, ru, ro);
+    let n = 1, drag = false, raf = 0, last = 0, tacc = 0;
+    let auto = true; try { if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) auto = false; } catch (e) {}
+    if (!auto) n = 12;                                     // ohne Bewegung: ein Standbild mit zwölf Rechtecken
+    const draw = () => {
+      const dx = B / n; let dl = '', du = '', U = 0, O = 0;
+      for (let i = 0; i < n; i++) {                        // f wächst auf [0, 3]: kleinster Wert am linken, grösster am rechten Rand des Streifens
+        const a = i * dx, b = a + dx, m = f(a), M = f(b); U += m * dx; O += M * dx;
+        dl += 'M' + r1(X(a)) + ' ' + Y0 + 'V' + r1(Y(m)) + 'H' + r1(X(b)) + 'V' + Y0 + 'Z';
+        du += 'M' + r1(X(a)) + ' ' + r1(Y(m)) + 'V' + r1(Y(M)) + 'H' + r1(X(b)) + 'V' + r1(Y(m)) + 'Z';
+      }
+      lo.setAttribute('d', dl); up.setAttribute('d', du);
+      const sw = n > 60 ? 0.35 : n > 30 ? 0.6 : 1; lo.style.strokeWidth = sw; up.style.strokeWidth = sw;   // viele schmale Rechtecke: feinere Ränder
+      const kx = r1(X(0) + (n - 1) / (NMAX - 1) * B * UX); halo.setAttribute('cx', kx); pt.setAttribute('cx', kx);
+      rn.textContent = 'n = ' + n; ru.textContent = 'Uₙ = ' + fmt(U); ro.textContent = 'Oₙ = ' + fmt(O);
+      svg.setAttribute('aria-valuenow', n);
+    };
+    const set = v => { const k = Math.max(1, Math.min(NMAX, Math.round(v))); if (k !== n) { n = k; draw(); } };
+    const box = el('div', 'tp-demo tp-d-idle');
+    const stop = () => { auto = false; box.classList.remove('tp-d-idle'); };
+    const at = ev => { const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) / (r.width || 1) * W; return 1 + (px - X(0)) / (B * UX) * (NMAX - 1); };
+    svg.addEventListener('pointerdown', ev => { stop(); drag = true; try { svg.setPointerCapture(ev.pointerId); } catch (e) {} set(at(ev)); ev.preventDefault(); });
+    svg.addEventListener('pointermove', ev => { if (drag) set(at(ev)); });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(k => svg.addEventListener(k, () => { drag = false; }));
+    svg.addEventListener('keydown', ev => { const s = ev.key === 'ArrowLeft' ? -1 : ev.key === 'ArrowRight' ? 1 : 0; if (s) { stop(); set(n + s); ev.preventDefault(); } });
+    const tick = ts => {
+      raf = 0; if (!auto || !box.isConnected || box.offsetParent === null) { last = 0; return; }
+      if (last) tacc += Math.min(100, ts - last); last = ts; if (tacc > 49000) { stop(); return; }
+      const s = 0.5 - 0.5 * Math.cos(tacc / 2550); set(1 + (NMAX - 1) * Math.pow(s, 2.2)); raf = requestAnimationFrame(tick);   // beginnt bei einem Rechteck, ein Durchlauf 1 → 100 → 1 dauert 16 s; wenige Rechtecke bleiben länger stehen
+    };
+    me.start = () => { if (auto && !raf) raf = requestAnimationFrame(tick); };
+    const cap = el('div', 'tp-d-cap'), more = el('button', 'tp-d-more', 'Mehr dazu ›'); more.type = 'button'; more.title = 'Integralrechnung öffnen'; more.addEventListener('click', () => topicGo('int', 'sum'));
+    cap.append(el('div', 'tp-d-hint', 'Probier es aus: Ändere die Anzahl der Rechtecke.'), more);
+    box.append(svg, read, cap); draw();
+    me.box = box; return me;
+  }
+
+  // Auf der Startseite erscheint eines der beiden Bilder, bei jedem Laden zufällig gewählt.
+  function heroDemo() {
+    const d = Math.random() < 0.5 ? heroDemoTan() : heroDemoSum();
+    heroDemoStart = d.start;
+    return d.box;
   }
 
   // Der Name im Fliesstext: J und Wurzelzeichen, dessen Strich über die ganze 10 reicht (das Zeichen √ allein deckt nur nichts ab: «J√10» liest sich wie J√1·0)
@@ -424,8 +494,7 @@ const TOPIC_LS = 'jsqrt10_welcome_seen';
 
   // ── Hilfe: Reiter «Dieses Thema» (Besonderheiten der Umgebung und der aktuellen Ansicht) und «Allgemein» ──
   const HELP_SEL = { lin: 'lin-view', quad: 'quad-view', pow: 'pow-view', exp: 'exp-view', trig: 'trig-view', inv: 'inv-view', intro: 'intro-view', sim: 'sim-view', seq: 'seq-view', lo: 'lo-view', set: 'set-view', prob: 'prob-view', '3d': 'td-view', diff: 'dif-view', int: 'itg-view', stat: 'stat-mode', fin: 'fin-mode' };
-  const helpDesc = env => { try { return ({ intro: typeof FUN_DESC !== 'undefined' && FUN_DESC, lin: typeof LIN_DESC !== 'undefined' && LIN_DESC, quad: typeof QUAD_DESC !== 'undefined' && QUAD_DESC, pow: typeof POW_DESC !== 'undefined' && POW_DESC, exp: typeof EXP_DESC !== 'undefined' && EXP_DESC, trig: typeof TRIG_DESC !== 'undefined' && TRIG_DESC, inv: typeof INV_DESC !== 'undefined' && INV_DESC, diff: typeof DIF_DESC !== 'undefined' && DIF_DESC, int: typeof ITG_DESC !== 'undefined' && ITG_DESC, lo: typeof LOP_DESC !== 'undefined' && LOP_DESC, sim: typeof SIM_DESC !== 'undefined' && SIM_DESC, seq: typeof SEQ_DESC !== 'undefined' && SEQ_DESC, set: typeof SET_DESC !== 'undefined' && SET_DESC, prob: typeof PB_DESC !== 'undefined' && PB_DESC, '3d': typeof VG_DESC !== 'undefined' && VG_DESC, stat: typeof STAT_DESC !== 'undefined' && STAT_DESC, fin: typeof FIN_DESC !== 'undefined' && FIN_DESC })[env] || null; } catch (e) { return null; } };
-  const helpPlain = t => String(t || '').replace(/\{\{(.+?)\|[^|{}]*\}\}/g, '$1');
+  const helpDesc = env => { try { if (typeof KIT !== 'undefined' && KIT.envs[env]) return KIT.envs[env].spec.descs; return ({ intro: typeof FUN_DESC !== 'undefined' && FUN_DESC, lin: typeof LIN_DESC !== 'undefined' && LIN_DESC, quad: typeof QUAD_DESC !== 'undefined' && QUAD_DESC, pow: typeof POW_DESC !== 'undefined' && POW_DESC, exp: typeof EXP_DESC !== 'undefined' && EXP_DESC, trig: typeof TRIG_DESC !== 'undefined' && TRIG_DESC, inv: typeof INV_DESC !== 'undefined' && INV_DESC, diff: typeof DIF_DESC !== 'undefined' && DIF_DESC, int: typeof ITG_DESC !== 'undefined' && ITG_DESC, lo: typeof LOP_DESC !== 'undefined' && LOP_DESC, sim: typeof SIM_DESC !== 'undefined' && SIM_DESC, seq: typeof SEQ_DESC !== 'undefined' && SEQ_DESC, set: typeof SET_DESC !== 'undefined' && SET_DESC, prob: typeof PB_DESC !== 'undefined' && PB_DESC, '3d': typeof VG_DESC !== 'undefined' && VG_DESC, stat: typeof STAT_DESC !== 'undefined' && STAT_DESC, fin: typeof FIN_DESC !== 'undefined' && FIN_DESC })[env] || null; } catch (e) { return null; } };
   // Hilfetexte so aufbauen, dass sie dieselben Übersetzungen nutzen wie die Oberfläche: ein Satz mit {{Wort|ids}} wie in der
   // Zeile über dem Bild (Wörter als eigene Elemente), Titel als eigenes Element in einem festen Rahmentext.
   function helpTxt(raw, cls) {
@@ -437,7 +506,7 @@ const TOPIC_LS = 'jsqrt10_welcome_seen';
   const helpName = t => el('span', 'tp-help-n', t);
   function helpCurView(env) {
     if (env === 'alg') { const b = document.querySelector('#alg-modes .alg-mode.active-btn'); return b ? b.getAttribute('data-mode') : null; }
-    const s = HELP_SEL[env] && $(HELP_SEL[env]); return s ? s.value : null;
+    const s = (HELP_SEL[env] && $(HELP_SEL[env])) || (typeof KIT !== 'undefined' && KIT.envs[env] && $(env + '-view')); return s ? s.value : null;
   }
   // Was das Panel der aktuellen Ansicht anbietet (aus den sichtbaren Bedienelementen gelesen – stimmt darum immer)
   function helpScan(env) {

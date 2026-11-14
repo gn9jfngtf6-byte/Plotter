@@ -37,7 +37,6 @@
   function pgcd(a, b) { a = trim(a); b = trim(b); while (b.length) { const r = pdivmod(a, b)[1]; a = b; b = r; } return a.length ? pscale(a, qinv(a[a.length - 1])) : a; }
   const toC = (a, v) => a.reduce((p, c, i) => (qzero(c) ? p : C.pAdd(p, [{ c, m: i ? { [v]: i } : {} }])), []);
   const ptex = (a, v) => (a.length ? C.polyTex(toC(a, v || 'x')) : '0');
-  const pdash = (a, v) => { const t = ptex(a, v); return a.filter(c => !qzero(c)).length > 1 ? '(' + t + ')' : t; };
 
   // ── Rationale Funktionen N/D ──
   const rNorm = r => {

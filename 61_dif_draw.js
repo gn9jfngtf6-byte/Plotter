@@ -22,7 +22,6 @@ function shlBox(S, id, x0, y0, x1, y1) { if (id) (S.hl || (S.hl = [])).push({ id
 function shlP(S, id, pts) { shl(S, id, pts, true); return pts; }
 function shlC(S, id, x, y, r) { if (id && isFinite(x) && isFinite(y)) (S.hl || (S.hl = [])).push({ id, c: [x, y, r || 10] }); }
 const difNum = (v, d) => (typeof Dif !== 'undefined' ? Dif.fmt(v, d === undefined ? 4 : d) : String(v));
-const difPad = v => difNum(v, 4);
 
 // ── Bildausschnitt: y-Bereich automatisch (Ausreisser wie Polstellen werden ignoriert) ──
 function difAutoY(g, x0, x1, N) {

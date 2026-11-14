@@ -11,6 +11,10 @@
 const VG_VIEWS = [['pl', 'Ebenen entdecken'], ['vec', 'Punkte und Vektoren'], ['line', 'Geraden: Lage und Schnittpunkt'], ['dot', 'Skalarprodukt und Winkel'], ['dist', 'Abstände: Punkt–Ebene, Punkt–Gerade'], ['sph', 'Kugel']];
 const VG_DESC = {
   pl: ['Gib links eine {{Ebene|E}} in Koordinatenform ein (z. B. 2x + 3y − z = 6) und drehe den Raum mit der Maus: {{Achsenabschnitte|ac}} und {{Spurgeraden|sp}} zeigen, wo sie die Achsen und Koordinatenebenen trifft. Mit zwei oder drei Ebenen erscheinen {{Schnittgerade|sg}} und {{Schnittpunkt|S}}.', 'Eine Ebene im Raum hat die Koordinatenform a·x + b·y + c·z = d. Der Normalenvektor (a | b | c) steht senkrecht auf ihr. Achsenabschnitte: zwei Koordinaten null setzen. Buchstaben in der Gleichung werden zu Schiebern.'],
+  // «Ebene entdecken» in drei Stufen (tdDiscStage in 30_3d_ui.js): a Balken, b nur Punkte, c die Ebene ist sichtbar geworden
+  plA: ['Drehe den Raum mit der Maus: Über jedem {{Gitterpunkt (x | y)|gp}} steht ein {{Balken|bal}}, dessen {{Höhe z|h}} aus der Gleichung folgt (Beispiele rechts). Schalte danach links «Nur Punkte (ohne Balken)» ein.'],
+  plB: ['Verkleinere links den Gitterabstand Schritt für Schritt: Von jedem Balken ist nur die Spitze geblieben, der {{Punkt (x | y | z)|h}}. Was entsteht, wenn diese Punkte immer dichter liegen?'],
+  plC: ['Aus den Punkten ist die {{ganze Ebene|E}} entstanden: Sie besteht aus allen Punkten (x | y | z), die die Gleichung erfüllen. Schalte links unter «Anzeigen» Achsenabschnitte und Spurgeraden ein oder gib eine weitere Ebene ein.'],
   vec: ['Gib links die Punkte A und B ein und drehe den Raum: Der {{Vektor AB|ab}} führt von A nach B; seine {{Komponenten|comp}} sind die Schritte in x-, y- und z-Richtung. Dazu die {{Ortsvektoren|pos}} und der {{Mittelpunkt M|M}}.', 'Ein Punkt A(a₁ | a₂ | a₃) hat den Ortsvektor OA. Der Verbindungsvektor ist AB = B − A (Spitze minus Fuss). Seine Länge |AB| = √(v₁² + v₂² + v₃²) ist der Abstand der Punkte, der Mittelpunkt ist M = ½(A + B).'],
   line: ['Gib links die Geraden g und h in Parameterform ein und drehe den Raum: Schneiden sie sich im {{Schnittpunkt S|S}}, sind sie parallel oder {{windschief|ws}}? Die {{Richtungsvektoren|dir}} entscheiden zuerst. Mit den Reglern t und s (oder «▶ t und s laufen lassen») wandern die Punkte {{X|X}} und {{Y|Y}} auf den Geraden: Jeder Parameterwert gibt genau einen Punkt.', 'Gerade in Parameterform: X = P + t·u mit Stützpunkt P und Richtungsvektor u. Zwei Geraden sind identisch, echt parallel, schneidend oder windschief. Prüfen: Sind u und v Vielfache? Sonst gleichsetzen: zwei Gleichungen lösen, die dritte prüfen.'],
   dot: ['Gib links die Vektoren a und b ein und drehe den Raum: Der {{Winkel φ|phi}} zwischen ihnen folgt aus dem Skalarprodukt. Ist a · b = 0, stehen sie senkrecht. Das {{Vektorprodukt a × b|cr}} steht senkrecht auf beiden.', 'Skalarprodukt: a · b = a₁b₁ + a₂b₂ + a₃b₃ = |a|·|b|·cos φ. Daraus der Winkel: cos φ = a · b / (|a|·|b|). Senkrecht genau dann, wenn a · b = 0. Vektorprodukt a × b: senkrecht zu a und b, Länge = Fläche des Parallelogramms.'],
@@ -31,6 +35,11 @@ function vgDefaults() {
 const VG = Object.assign(vgDefaults(), { S: null, ui: null, anim: null, cardKey: '', cardT: 0 });
 const VG_KEYS = Object.keys(vgDefaults());
 const vgOn = () => typeof TD !== 'undefined' && TD.on && TD.view && TD.view !== 'pl';
+// Karte mit Rechenweg: in den Ansichten der Vektorgeometrie und beim Entdecken der Ebene (Balken über dem Gitter)
+const vgCardOn = () => vgOn() || (typeof TD !== 'undefined' && TD.on && typeof tdDisc === 'function' && !!tdDisc());
+// Überschrift: beim Entdecken der Ebene je nach Stufe, sonst die der Ansicht
+function vgHeadText() { const v = TD.view || 'pl', st = v === 'pl' && typeof tdDiscStage === 'function' ? tdDiscStage() : ''; return (st ? VG_DESC['pl' + st.toUpperCase()] : VG_DESC[v])[0]; }
+function vgHead() { if (typeof envHint === 'function') envHint('3d', vgHeadText(), () => VG.S); }
 
 // ── Zahlen und Vektoren als Text ──
 const vgS = x => tdFrac(x);                                                  // Anzeige im Bild (Unicode-Minus)
@@ -86,10 +95,43 @@ function vgLines(P, u, Q, v) {
 function vgPtPlane(X, E) { const n = [E.a, E.b, E.c], v = V3.dot(n, X) - E.d, nn = V3.dot(n, n); return { n, v, d: Math.abs(v) / Math.sqrt(nn), F: V3.sub(X, V3.mul(n, v / nn)).map(tdClean), nn }; }
 function vgPtLine(X, P, u) { const t = V3.dot(V3.sub(X, P), u) / V3.dot(u, u), F = V3.add(P, V3.mul(u, t)).map(tdClean); return { t: tdClean(t), F, d: V3.dist(X, F) }; }
 
+// Ebene entdecken: z = p·x + q·y + r und Beispiele an Gitterpunkten (Abstand step, sichtbar bis ±R)
+function vgDiscCalc(E, step, R) {
+  const p = tdClean(-E.a / E.c), q = tdClean(-E.b / E.c), r = tdClean(E.d / E.c), Z = (x, y) => tdClean(p * x + q * y + r);
+  // Summe aus Gliedern [Koeffizient, Faktor als Text]: «2x+3y-6» bzw. eingesetzt «2\cdot 2+3\cdot 2-6»
+  const sum = ts => { let o = ''; ts.forEach(([c, f]) => { if (Math.abs(c) < 1e-12) return; const a = Math.abs(c), one = Math.abs(a - 1) < 1e-9; o += (c < 0 ? '-' : o ? '+' : '') + (f === '' ? vgT(a) : one ? f : vgT(a) + (/^[a-z]$/.test(f) ? '' : '\\cdot ') + f); }); return o || '0'; };
+  const lin = sum([[p, 'x'], [q, 'y'], [r, '']]), lhs = tdPlaneTex(E).split('=')[0].trim();
+  // Beispiele auf dem gezeichneten Gitter; bei feinem Gitter das kleinste Vielfache des Abstands ab 1, damit die Zahlen einfach bleiben
+  const s = step >= 1 ? step : step > 0 ? tdClean(Math.ceil(1 / step - 1e-9) * step) : 1, c = [[0, 0], [1, 0], [1, 1], [0, 1], [-1, 0], [0, -1], [-1, 1], [1, -1], [-1, -1], [2, 0], [0, 2], [2, 1], [1, 2]].map(([i, j]) => [tdClean(i * s), tdClean(j * s)]).filter(([x, y]) => Math.abs(x) <= R && Math.abs(y) <= R);
+  const vis = c.filter(([x, y]) => Math.abs(Z(x, y)) <= R + 1e-9), nz = vis.filter(([x, y]) => Math.abs(Z(x, y)) > 1e-9);
+  const pick = []; [nz, vis, c].forEach(l => l.forEach(g => { if (pick.length < 3 && !pick.includes(g)) pick.push(g); }));
+  const eq = (l, v) => (l === v ? 'z=' : l + '=') + v;      // «3=3» (Ebene z = 3) wäre keine Rechnung
+  const ex = pick.map(([x, y]) => { const z = Z(x, y);
+    return { x, y, z, tex: '({' + vgT(x) + '}\\,|\\,{' + vgT(y) + '})\\colon\\quad ' + (l => (l === vgT(z) ? '' : 'z=' + l + '=') + (l === vgT(z) ? 'z=' : '') + vgT(z))(sum([[p, vgPar(x)], [q, vgPar(y)], [r, '']])),
+      check: eq(sum([[E.a, vgPar(x)], [E.b, vgPar(y)], [E.c, vgPar(z)]]), vgT(tdClean(E.a * x + E.b * y + E.c * z))) };
+  });
+  return { p, q, r, lin, solve: (lhs === 'z' ? '' : tdPlaneTex(E) + '\\quad\\Rightarrow\\quad ') + 'z=' + lin, ex };
+}
+
 // ═════════════ Rechenwege ═════════════
 function vgDoc() {
   const d = Dif.DOC(), V = VG, v = TD.view;
-  if (v === 'vec') {
+  if ((v || 'pl') === 'pl') {
+    // Ebene entdecken: Gleichung nach z auflösen, Höhen über einigen Gitterpunkten ausrechnen, Probe mit einem Punkt
+    const it = tdDisc(); if (!it) return null;
+    const q = vgDiscCalc(it.pl, TD.bar.step, TD.range);
+    d.h('Höhe über einem Gitterpunkt');
+    d.p('Die Gleichung der Ebene nach $z$ auflösen:');
+    d.e(q.solve);
+    d.p('Die Koordinaten eines Gitterpunkts $(x\\,|\\,y)$ einsetzen. Das Ergebnis $z$ ist die **Höhe** des Balkens über diesem Punkt:');
+    q.ex.forEach(e => d.e(e.tex));
+    if (q.ex.some(e => e.z < 0)) d.p('Ist $z$ negativ, zeigt der Balken nach unten.');
+    const e0 = q.ex[q.ex.length - 1];
+    d.p('Die Spitze des Balkens ist der Punkt $(x\\,|\\,y\\,|\\,z)$. Probe mit dem Punkt $(' + [e0.x, e0.y, e0.z].map(c => '{' + vgT(c) + '}').join('\\,|\\,') + ')$:');
+    d.e(e0.check);
+    d.res('Die Koordinaten jeder Balkenspitze erfüllen die Gleichung.');
+    if (!(TD.bar.step > 0.5)) d.p('Je kleiner der Gitterabstand, desto dichter liegen die Punkte. Alle Punkte, deren Koordinaten die Gleichung erfüllen, bilden zusammen die **Ebene**.');
+  } else if (v === 'vec') {
     const A = V.vA, B = V.vB, ab = V3.sub(B, A), M = V3.mul(V3.add(A, B), 0.5);
     d.h('Punkte und Vektoren');
     d.p('**Verbindungsvektor:** Spitze minus Fuss, also $\\overrightarrow{AB}=\\vec b-\\vec a$ (Ortsvektoren von $B$ und $A$).');
@@ -297,7 +339,8 @@ function vgTex(L, h) {
 // Platz für die Karte; gibt [Breite, Höhe] zurück, die der Raum abgibt
 function vgDock(w, h) {
   const card = document.getElementById('dif-card'); if (!card) return [0, 0];
-  if (!vgOn()) { if (TD.on) card.style.display = 'none'; VG.S = null; return [0, 0]; }
+  if (!vgOn()) VG.S = null;
+  if (!vgCardOn()) { if (TD.on) card.style.display = 'none'; return [0, 0]; }
   const show = VG.show.card; card.style.display = show ? 'flex' : 'none';
   if (!show) return [0, 0];
   const dock = w >= 760 ? stCardW(w, 0.36) : 0, dh = w < 760 ? Math.round(h * 0.5) : 0;
@@ -306,15 +349,16 @@ function vgDock(w, h) {
   return [dock, dh];
 }
 function vgCardRender() {
-  const body = document.getElementById('dif-card-body'); if (!body || !vgOn() || !VG.show.card) return;
-  const key = JSON.stringify([TD.view, VG_KEYS.filter(k => k !== 'gt' && k !== 'gs').map(k => VG[k])]); if (key === VG.cardKey) return;   // t und s (wandernde Punkte) ändern den Rechenweg nicht
+  const body = document.getElementById('dif-card-body'); if (!body || !vgCardOn() || !VG.show.card) return;
+  const disc = vgOn() ? null : tdDisc();
+  const key = JSON.stringify(disc ? ['pl', disc.p.eq, disc.p.par, TD.bar.step, TD.range] : [TD.view, VG_KEYS.filter(k => k !== 'gt' && k !== 'gs').map(k => VG[k])]); if (key === VG.cardKey) return;   // t und s (wandernde Punkte) ändern den Rechenweg nicht
   VG.cardKey = key;
   let d = null; try { d = vgDoc(); } catch (e) { d = null; }
-  document.getElementById('dif-card-title').textContent = 'Rechenweg: ' + (VG_VIEWS.find(q => q[0] === TD.view) || ['', ''])[1];
+  document.getElementById('dif-card-title').textContent = 'Rechenweg: ' + (VG_VIEWS.find(q => q[0] === (TD.view || 'pl')) || ['', ''])[1];
   body.innerHTML = d && typeof ST !== 'undefined' ? ST.renderDoc(d) : '<div class="sv"><div class="sv-p">Für diese Ansicht gibt es keinen Rechenweg.</div></div>';
   body.scrollTop = 0;
 }
-function vgCardLatex() { if (!vgOn()) return ''; try { return '% Rechenweg aus J\\sqrt{10} — benötigt \\usepackage{amsmath,amssymb}\n' + Dif.docTex(vgDoc()); } catch (e) { return '% Fehler beim Erzeugen: ' + e.message; } }
+function vgCardLatex() { if (!vgCardOn()) return ''; try { return '% Rechenweg aus J\\sqrt{10} — benötigt \\usepackage{amsmath,amssymb}\n' + Dif.docTex(vgDoc()); } catch (e) { return '% Fehler beim Erzeugen: ' + e.message; } }
 function vgCapture() { const o = {}; VG_KEYS.forEach(k => { o[k] = VG[k]; }); return JSON.parse(JSON.stringify(o)); }
 function vgFix(o) {
   const d = vgDefaults();
@@ -378,7 +422,7 @@ function vgBuildUI() {
   VG_VIEWS.forEach(([id, nm]) => { const o = document.createElement('option'); o.value = id; o.textContent = nm; ui.sel.appendChild(o); });
   ui.sel.addEventListener('change', () => { TD.view = ui.sel.value; if (TD.view !== 'pl') vgFitRange(); vgChanged(); });
   ui.ex.addEventListener('change', () => { const i = ui.ex.value; ui.ex.value = ''; const e = (VG_EX[TD.view] || [])[+i]; if (!e) return; Object.keys(e[1]).forEach(k => { VG[k] = JSON.parse(JSON.stringify(e[1][k])); }); if (TD.view === 'dot' && !('sCross' in e[1])) VG.sCross = false; vgFix(VG); vgFitRange(); vgChanged(); });
-  const cl = document.getElementById('dif-card-close'); if (cl) cl.addEventListener('click', () => { if (!vgOn()) return; VG.show.card = false; vgChanged(); });
+  const cl = document.getElementById('dif-card-close'); if (cl) cl.addEventListener('click', () => { if (!vgCardOn()) return; VG.show.card = false; vgChanged(); });
   vgRefreshUI();
 }
 function vgRefreshUI() {
@@ -386,7 +430,7 @@ function vgRefreshUI() {
   const v = TD.view || 'pl', pl = v === 'pl';
   ui.sel.value = v;
   const dd = VG_DESC[v]; ui.desc.textContent = dd[1];
-  if (typeof envHint === 'function') envHint('3d', dd[0], () => VG.S);
+  vgHead();
   ['td-pl-ui', 'td-pl-bars'].forEach(id => { const e = document.getElementById(id); if (e) e.style.display = pl ? '' : 'none'; });
   document.querySelectorAll('#td-panel .td-pl-only').forEach(e => { e.style.display = pl ? '' : 'none'; });
   ui.ex.style.display = pl ? 'none' : ''; ui.body.style.display = pl ? 'none' : '';

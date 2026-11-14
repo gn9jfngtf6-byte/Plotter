@@ -568,6 +568,12 @@ canvas.addEventListener('wheel', e => {
 //  • touchcancel / Fensterwechsel / Drehen setzen den Zustand zurück (sonst «klebt» ein Zug).
 // ═══════════════════════════════════════════════════════════════════
 
+// Finger oder Maus? Die Themen-Umgebungen fangen touchstart/mousedown auf der Zeichenfläche selbst ab (capture +
+// stopImmediatePropagation) – die Handler hier unten laufen dann nicht, und inputIsTouch blieb dort immer «false»:
+// Ziehpunkte hatten per Finger nur die enge Maus-Trefferfläche. Darum wird der Schalter schon am Fenster gesetzt.
+window.addEventListener('pointerdown', e => { inputIsTouch = e.pointerType === 'touch' || e.pointerType === 'pen'; }, true);
+window.addEventListener('touchstart', () => { inputIsTouch = true; }, { capture: true, passive: true });
+
 let touchState = null; // null | {type:'pending'} | {type:'drag'} | {type:'tap'} | {type:'pinch', …}
 let _pendingPress = null; // { m, timer }
 const TOUCH_PRESS_DELAY = 70;
@@ -808,6 +814,8 @@ function captureState() {
     stat: typeof statCapture === 'function' ? statCapture() : undefined,
     // Finanzmathematik (siehe 50_fin.js / 52_fin_ui.js)
     fin: typeof finCapture === 'function' ? finCapture() : undefined,
+    // Themen aus dem Baukasten (siehe 120_kit.js)
+    kit: typeof kitCaptureAll === 'function' ? kitCaptureAll() : undefined,
     // Differentialrechnung (siehe 62_dif_ui.js)
     dif: typeof difCapture === 'function' ? difCapture() : undefined,
     itg: typeof itgCapture === 'function' ? itgCapture() : undefined,
@@ -850,6 +858,7 @@ function applyState(s) {
   if (typeof algApply === 'function') algApply(sc.alg);
   if (typeof statApply === 'function') statApply(sc.stat);
   if (typeof finApply === 'function') finApply(sc.fin);
+  if (typeof kitApplyAll === 'function') kitApplyAll(sc.kit);
   if (typeof difApply === 'function') difApply(sc.dif);
   if (typeof itgApply === 'function') itgApply(sc.itg);
   if (typeof linApply === 'function') linApply(sc.lin);

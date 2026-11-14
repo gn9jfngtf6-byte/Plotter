@@ -477,7 +477,7 @@ const ST = (function () {
     d.h('3. Hinreichende Bedingung: ' + '$' + fName(fi, 2) + '(x_0)$ prüfen');
     d.p('Ist $' + fName(fi, 2) + '(x_0)<0$, liegt ein **Hochpunkt** vor, ist $' + fName(fi, 2) + '(x_0)>0$, ein **Tiefpunkt**.');
     const list = (r.roots.length <= 6 && !r.periodic) ? r.roots : [m];
-    let clickedKind = null, clickedY = null;
+    let clickedKind = null;
     list.forEach(rt => {
       const v2 = valueAt(d2, rt);
       let kind = v2.sgn < 0 ? 'max' : v2.sgn > 0 ? 'min' : '0';

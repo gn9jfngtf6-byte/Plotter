@@ -362,17 +362,6 @@ function detectPeriod(xs) {
   return null;
 }
 
-// Gruppiert periodische Punkte zu einem zusammenfassenden Label.
-// z.B. statt "(π/2 | 1), (5π/2 | 1), (9π/2 | 1)..." → "(π/2 + 2π·k | 1)"
-function groupPeriodic(pts) {
-  if (pts.length < 2) return pts.map(p => ({...p, label: niceCoord(p.x, p.y)}));
-  const per = detectPeriod(pts.map(p => p.x));
-  if (!per) return pts.map(p => ({...p, label: niceCoord(p.x, p.y)}));
-  const pf = usePiMode() ? asPiFraction(per.period) : null;
-  const periodStr = pf ? formatPi(pf.p, pf.q) : per.period.toFixed(precision);
-  const baseX = per.base, baseY = pts.find(p => Math.abs(p.x - baseX) < 1e-3)?.y ?? 0;
-  return pts.map((p, i) => ({...p, label: i === 0 ? `(${niceNum(baseX)} + ${periodStr}·k | ${niceNum(baseY)})` : null}));
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // MATHEMATIK-TASTATUR

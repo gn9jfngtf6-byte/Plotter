@@ -44,7 +44,6 @@ const SV = (function () {
     }
   }
   function T(n) { try { return miToLatex(n); } catch (e) { return '?'; } }
-  const isNumNode = n => n.type === 'num';
 
   // Parameter (Schieberegler) durch ihren aktuellen Wert ersetzen
   function substParams(n) {

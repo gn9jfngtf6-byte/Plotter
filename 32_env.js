@@ -58,6 +58,8 @@ const ENV_LIST = [
   { id: 'prob', icon: '📊', title: 'Statistik und Stochastik rechnen', desc: 'Datenanalyse (Mittelwert, Median, Quartile, Standardabweichung, Boxplot, Histogramm), Baumdiagramm und Pfadregeln, Binomialverteilung, Poissonverteilung, Erwartungswert und faire Spiele, Normalverteilung, Grenzwerte (Binomial → Poisson, Normal) mit Herleitung, Hypothesentest', open: ['prob-panel'] },
   { id: 'fin', icon: '💰', title: 'Finanzmathematik', desc: 'Zeitstrahl und Konten, Summenzeichen, Sparplan, Kredit mit Tilgungsplan, Zeitwert, Marchzins, konformer Zins', open: ['fin-panel'] }
 ];
+// Themen aus dem Baukasten (120_kit.js) melden sich selbst an
+if (typeof KIT !== 'undefined') KIT.order.forEach(id => { const s = KIT.envs[id].spec; ENV_LIST.push({ id, icon: s.icon, title: s.title, desc: s.desc, open: [id + '-panel'] }); });
 const ENV_DEFAULT_VIEW = { xmin: -10, xmax: 10, ymin: -6, ymax: 6 };
 
 // ── Reine Hilfen (ohne DOM, node-testbar) ────────────────────────────
@@ -255,6 +257,7 @@ window.envCurrent = () => ENV.cur;
 const ENV_RESET = { intro: ['fun', 'view'], lin: ['lin', 'view'], quad: ['quad', 'view'], pow: ['pow', 'view'], exp: ['exp', 'view'], trig: ['trig', 'view'], inv: ['inv', 'view'],
   diff: ['dif', 'view'], int: ['itg', 'view'], seq: ['seq', 'view'], lo: ['lop', 'view'], sim: ['sim', 'view'], set: ['set', 'view'], prob: ['prob', 'view'],
   stat: ['stat', 'mode'], fin: ['fin', 'mode'], alg: ['alg', 'mode'], '3d': ['td', 'view'] };
+if (typeof KIT !== 'undefined') KIT.order.forEach(id => { ENV_RESET[id] = [id, 'view']; });
 function envReset() {
   const e = typeof ENV !== 'undefined' ? ENV.cur : null, r = ENV_RESET[e]; if (!r) return;
   const cap = window[r[0] + 'Capture'], app = window[r[0] + 'Apply']; if (typeof app !== 'function') return;
